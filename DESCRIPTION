@@ -1,0 +1,16 @@
+Package: PregnancyIdentifier
+Type: Package
+Title: Identifies Pregnancy Episodes in the OMOP CDM
+Version: 0.1.0
+Authors@R: c(
+    person("Aniek", "Markus", role = "aut"),
+    person("Julieta", "Politi", role = "aut"),
+    person("Maarten", "van Kessel", email = "m.l.vankessel@erasmusmc.com", role = c("aut", "cre"))
+  )
+Description: Identify pregnancy episodes in the OMOP CDM, based on
+  the HIPPS algorithm.
+License: Apache License (>= 2)
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    CDMConnector
