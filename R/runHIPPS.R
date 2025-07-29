@@ -54,35 +54,22 @@ runHipps <- function(cdm, outputDir, fileName) {
   # this function takes the HIP concepts matching the category of interest
   # calculates days between each visit and selects the first episode
   # and any episodes that are separated by at least that many days
-  final_abortion_visits_df <- final_visits(
-    cdm$initial_pregnant_cohort_df,
-    matcho_outcome_limits, c("AB", "SA")
-  ) %>%
-    dplyr::compute()
 
-  final_delivery_visits_df <- final_visits(
-    cdm$initial_pregnant_cohort_df,
-    matcho_outcome_limits, "DELIV"
-  ) %>%
-    dplyr::compute()
+  categories <- list(
+    c("AB", "SA"),
+    "DELIV",
+    "ECT",
+    "SB",
+    "LB"
+  )
 
-  final_ectopic_visits_df <- final_visits(
-    cdm$initial_pregnant_cohort_df,
-    matcho_outcome_limits, "ECT"
-  ) %>%
-    dplyr::compute()
-
-  final_stillbirth_visits_df <- final_visits(
-    cdm$initial_pregnant_cohort_df,
-    matcho_outcome_limits, "SB"
-  ) %>%
-    dplyr::compute()
-
-  final_livebirth_visits_df <- final_visits(
-    cdm$initial_pregnant_cohort_df,
-    matcho_outcome_limits, "LB"
-  ) %>%
-    dplyr::compute()
+  for (category in categories) {
+    cdm <- final_visits(
+      cdm,
+      matcho_outcome_limits = matcho_outcome_limits,
+      categories = category
+    )
+  }
 
   # add stillbirth episodes to livebirth episodes
   # after making sure they are sufficiently spaced
