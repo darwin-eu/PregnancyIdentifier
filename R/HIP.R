@@ -1,80 +1,91 @@
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/HIP_algorithm_functions.R
 
-initial_pregnant_cohort <- function(procedure_occurrence_tbl, measurement_tbl,
-                                    observation_tbl, condition_occurrence_tbl,
-                                    person_tbl, HIP_concepts) {
+initial_pregnant_cohort <- function(cdm) {
   # Get concepts specific for pregnancy from domain tables.
 
-  observation_df <- observation_tbl %>%
-    select(
-      person_id,
-      concept_id = observation_concept_id,
-      visit_date = observation_date,
-      value_as_number
+  cdm$observation_df <- cdm$observation %>%
+    dplyr::select(
+      "person_id",
+      concept_id = "observation_concept_id",
+      visit_date = "observation_date",
+      "value_as_number"
     ) %>%
-    inner_join(HIP_concepts, by = "concept_id")
+    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
+    dplyr::compute()
 
-  measurement_df <- measurement_tbl %>%
-    select(
-      person_id,
-      concept_id = measurement_concept_id,
-      visit_date = measurement_date,
-      value_as_number
+  cdm$measurement_df <- cdm$measurement %>%
+    dplyr::select(
+      "person_id",
+      concept_id = "measurement_concept_id",
+      visit_date = "measurement_date",
+      "value_as_number"
     ) %>%
-    inner_join(HIP_concepts, by = "concept_id")
+    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
+    dplyr::compute()
 
-  procedure_df <- procedure_occurrence_tbl %>%
-    select(
-      person_id,
-      concept_id = procedure_concept_id,
-      visit_date = procedure_date
+  cdm$procedure_df <- cdm$procedure_occurrence %>%
+    dplyr::select(
+      "person_id",
+      concept_id = "procedure_concept_id",
+      visit_date = "procedure_date"
     ) %>%
-    inner_join(HIP_concepts, by = "concept_id")
+    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
+    dplyr::compute()
 
   # filter condition table
-  condition_df <- condition_occurrence_tbl %>%
-    select(
-      person_id,
-      concept_id = condition_concept_id,
-      visit_date = condition_start_date
+  cdm$condition_df <- cdm$condition_occurrence %>%
+    dplyr::select(
+      "person_id",
+      concept_id = "condition_concept_id",
+      visit_date = "condition_start_date"
     ) %>%
-    inner_join(HIP_concepts, by = "concept_id")
+    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
+    dplyr::compute()
 
   # combine tables
-  all_dfs <- list(measurement_df, procedure_df, observation_df, condition_df)
-  union_df <- reduce(all_dfs, union_all)
+  all_dfs <- list(cdm$measurement_df, cdm$procedure_df, cdm$observation_df, cdm$condition_df)
+  cdm$union_df <- purrr::reduce(all_dfs, dplyr::union_all) %>%
+    dplyr::compute()
 
   # get unique person ids for women of reproductive age
-  person_df <- person_tbl %>%
-    filter(
+  cdm$person_df <- cdm$person %>%
+    dplyr::filter(
       # 45878463: Female
       # 46273637: Intersex
       # 45880669: Male
       # 1177221: I prefer not to answer
       # 903096: Skip
       # 4124462: None
-      sex_at_birth_concept_id != 45880669
+      # TODO: Add option to specify specific column and/or concept ID(s)
+      .data$gender_concept_id == 8532
+      # .data$sex_at_birth_concept_id != 45880669
       # the majority of the people in the other non-Female or Male categories
       # also report female gender
     ) %>%
-    mutate(
-      day_of_birth = if_else(is.na(day_of_birth), 1, day_of_birth),
-      month_of_birth = if_else(is.na(month_of_birth), 1, month_of_birth),
-      date_of_birth = as.Date(paste0(year_of_birth, "-", month_of_birth, "-", day_of_birth))
+    dplyr::mutate(
+      day_of_birth = as.integer(dplyr::if_else(is.na(.data$day_of_birth), 1L, .data$day_of_birth)),
+      month_of_birth = as.integer(dplyr::if_else(is.na(.data$month_of_birth), 1L, .data$month_of_birth)),
+      date_of_birth = as.Date(paste0(as.integer(.data$year_of_birth), "-", .data$month_of_birth, "-", .data$day_of_birth))
     ) %>%
-    select(person_id, date_of_birth)
+    dplyr::select("person_id", "date_of_birth") %>%
+    dplyr::compute()
 
   # keep only person_ids of women of reproductive age at some visit
-  union_df <- union_df %>%
-    inner_join(person_df, by = "person_id") %>%
-    mutate(
-      date_diff = date_diff(visit_date, date_of_birth, sql("day")),
-      age = date_diff / 365
+  cdm$initial_pregnant_cohort_df <- cdm$union_df %>%
+    dplyr::inner_join(cdm$person_df, by = "person_id") %>%
+    dplyr::mutate(
+      date_diff = !!CDMConnector::datediff("visit_date", "date_of_birth", interval = "day")
     ) %>%
-    filter(age >= 15, age < 56)
+    dplyr::mutate(
+      age = .data$date_diff / 365
+    ) %>%
+    # TODO: Add param for upper and lower bounds
+    dplyr::filter(.data$age >= 15) %>%
+    dplyr::filter(.data$age < 56) %>%
+    dplyr::distinct() %>%
+    dplyr::compute(name = "initial_pregnant_cohort_df", temporary = FALSE, overwrite = TRUE)
 
-  # return the resulting dataframe
-  distinct(union_df)
+  return(cdm)
 }
 
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
