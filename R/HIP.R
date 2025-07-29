@@ -91,7 +91,7 @@ initial_pregnant_cohort <- function(cdm) {
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
 final_visits <- function(cdm, matcho_outcome_limits, categories) {
-  temp_df <- cdm$initial_pregnant_cohort_df %>%
+  cdm$temp_df <- cdm$initial_pregnant_cohort_df %>%
     dplyr::filter(category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
@@ -116,27 +116,27 @@ final_visits <- function(cdm, matcho_outcome_limits, categories) {
     dplyr::pull(.data$min_days)
 
   # identify first visit for each pregnancy episode
-  first_df <- temp_df %>%
+  cdm$first_df <- cdm$temp_df %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::slice_min(.data$visit_date) %>%
     dplyr::ungroup() %>%
     dplyr::compute()
 
-  other_df <- temp_df %>%
+  cdm$other_df <- cdm$temp_df %>%
     dplyr::filter(.data$days >= min_day) %>%
     dplyr::compute()
 
-  all_df <- dplyr::union_all(first_df, other_df) %>%
+  cdm$all_df <- dplyr::union_all(cdm$first_df, cdm$other_df) %>%
     dplyr::distinct() %>%
     dplyr::compute()
 
   message(sprintf(
     "  * Preliminary total number of %s episodes:\n%s",
     paste(categories, collapse = " and "),
-    getTblRowCount(all_df)
+    getTblRowCount(cdm$all_df)
   ))
 
-  cdm$final_abortion_visits_df <- all_df %>%
+  cdm$final_abortion_visits_df <- cdm$all_df %>%
     dplyr::compute(name = "final_abortion_visits_df", temporary = FALSE, overwrite = TRUE)
   return(cdm)
 }
