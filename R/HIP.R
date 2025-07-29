@@ -90,49 +90,55 @@ initial_pregnant_cohort <- function(cdm) {
 
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
-final_visits <- function(initial_pregnant_cohort_df, Matcho_outcome_limits, categories) {
-  df <- initial_pregnant_cohort_df %>%
-    filter(category %in% categories) %>%
+final_visits <- function(cdm, matcho_outcome_limits, categories) {
+  temp_df <- cdm$initial_pregnant_cohort_df %>%
+    dplyr::filter(category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
-    group_by(person_id, visit_date) %>%
+    dplyr::group_by(person_id, visit_date) %>%
     # slicing by minimum concept id just a choice to make the code work
     # could have also done something like filter(row_number() == 1) but doesn't
     # work on databases
-    slice_min(order_by = concept_id, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
+    dplyr::slice_min(order_by = concept_id, n = 1, with_ties = FALSE) %>%
+    dplyr::ungroup() %>%
     # distinct(person_id, visit_date, .keep_all = TRUE) %>% stopped working?!
-    group_by(person_id) %>%
+    dplyr::group_by(person_id) %>%
     dbplyr::window_order(visit_date) %>%
     # Create a new column called "days" that calculates the number of days between each visit for each person.
-    mutate(days = date_diff(visit_date, lag(visit_date), sql("day"))) %>%
-    ungroup()
-
-  temp_df <- df
+    dplyr::mutate(prev_visit_date = lag(.data$visit_date)) %>%
+    dplyr::mutate(days = !!CDMconnector::datediff(start = "visit_date", end = "prev_visit_date", interval = "day")) %>%
+    dplyr::ungroup() %>%
+    dplyr::compute()
 
   # get minimum days between outcomes
-  min_day <- Matcho_outcome_limits %>%
-    filter(first_preg_category == categories[1] & outcome_preg_category == categories[1]) %>%
-    pull(min_days)
+  min_day <- matcho_outcome_limits %>%
+    dplyr::filter(.data$first_preg_category == categories[1] & .data$outcome_preg_category == categories[1]) %>%
+    dplyr::pull(.data$min_days)
 
   # identify first visit for each pregnancy episode
-  first_df <- df %>%
-    group_by(person_id) %>%
-    slice_min(visit_date) %>%
-    ungroup()
+  first_df <- temp_df %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::slice_min(.data$visit_date) %>%
+    dplyr::ungroup() %>%
+    dplyr::compute()
 
-  other_df <- df %>%
-    filter(days >= min_day)
+  other_df <- temp_df %>%
+    dplyr::filter(.data$days >= min_day) %>%
+    dplyr::compute()
 
-  all_df <- union_all(first_df, other_df) %>%
-    distinct()
+  all_df <- dplyr::union_all(first_df, other_df) %>%
+    dplyr::distinct() %>%
+    dplyr::compute()
 
-  cat(paste0("Preliminary total number of ", paste(categories, collapse = " and "), " episodes:"),
-    tally(all_df) %>% pull(n) %>% as.integer(),
-    sep = "\n"
-  )
+  message(sprintf(
+    "  * Preliminary total number of %s episodes:\n%s",
+    paste(categories, collapse = " and "),
+    getTblRowCount(all_df)
+  ))
 
-  return(all_df)
+  cdm$final_abortion_visits_df <- all_df %>%
+    dplyr::compute(name = "final_abortion_visits_df", temporary = FALSE, overwrite = TRUE)
+  return(cdm)
 }
 
 add_stillbirth <- function(final_stillbirth_visits_df, final_livebirth_visits_df, Matcho_outcome_limits) {
