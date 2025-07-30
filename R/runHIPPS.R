@@ -1,3 +1,13 @@
+runEsd <- function() {}
+
+mergeHipPps <- function() {}
+
+runPps <- function() {}
+
+runHip <- function() {}
+
+initPregnancyCohort <- function() {}
+
 #' runHipps
 #'
 #' Runs the HIPPS algorithm (HIP, PPS, and ESD) from: https://github.com/louisahsmith/allofus-pregnancy/
@@ -6,21 +16,14 @@
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param fileName (`character(1)`) Filename to write to
+#' @param
 #'
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, fileName) {
+runHipps <- function(cdm, outputDir, fileName, ...) {
   message("> Classifying Pregnancy using HIP, PPS, and ESD")
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-
-  person_tbl <- cdm$person
-  concept_tbl <- cdm$concept
-  observation_tbl <- cdm$observation
-  measurement_tbl <- cdm$measurement
-  condition_occurrence_tbl <- cdm$condition_occurrence
-  procedure_occurrence_tbl <- cdm$procedure_occurrence
-  visit_occurrence_tbl <- cdm$visit_occurrence
 
   HIP_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "hip_concepts", table = HIP_concepts)
@@ -43,7 +46,7 @@ runHipps <- function(cdm, outputDir, fileName) {
   # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
   # for all the the HIP concepts that for women who were 15-55
   cdm <- cdm %>%
-    initial_pregnant_cohort()
+    initial_pregnant_cohort(...)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
     warning("  ! No records after initializing pregnant cohort")
@@ -55,6 +58,7 @@ runHipps <- function(cdm, outputDir, fileName) {
   # calculates days between each visit and selects the first episode
   # and any episodes that are separated by at least that many days
 
+  # TODO: Make param for categories
   categories <- list(
     c("AB", "SA"),
     "DELIV",
@@ -63,74 +67,78 @@ runHipps <- function(cdm, outputDir, fileName) {
     "LB"
   )
 
-  for (category in categories) {
+  for (i in seq_len(length(categories))) {
+    message(sprintf("  * Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cdm <- final_visits(
       cdm,
       matcho_outcome_limits = matcho_outcome_limits,
-      categories = category
+      categories = categories[[i]],
+      tableName = sprintf("final_%s_visits_df", tolower(paste(categories[[i]], collapse = "_")))
     )
   }
 
   # add stillbirth episodes to livebirth episodes
   # after making sure they are sufficiently spaced
-  add_stillbirth_df <- add_stillbirth(final_stillbirth_visits_df, final_livebirth_visits_df, matcho_outcome_limits)
+  message("  * Adding Still Birth")
+  cdm <- add_stillbirth(cdm, matcho_outcome_limits)
 
   # add ectopic episodes to previous
-  add_ectopic_df <- add_ectopic(add_stillbirth_df, matcho_outcome_limits, final_ectopic_visits_df)
+  message("  * Adding Ectopic")
+  cdm <- add_ectopic(cdm, matcho_outcome_limits)
 
   # add abortion episodes to previous
-  add_abortion_df <- add_abortion(add_ectopic_df, matcho_outcome_limits, final_abortion_visits_df)
+  message("  * Adding Abortion")
+  cdm <- add_abortion(cdm, matcho_outcome_limits)
 
   # add delivery-only episodes to previous
-  add_delivery_df <- add_delivery(add_abortion_df, matcho_outcome_limits, final_delivery_visits_df)
+  message("  * Adding Delivery")
+  cdm <- add_delivery(cdm, matcho_outcome_limits)
 
   # calculate start of pregnancies based on outcomes
   # min start date = latest possible start date if shortest term
   # max start date = earliest possible start date if max term
-  calculate_start_df <- calculate_start(add_delivery_df, cdm$matcho_term_durations) %>%
-    dplyr::compute()
+  cdm <- calculate_start(cdm)
 
   ## Gestation-based episodes
 
   # now go back to the initial set of concepts and find ones with gestation weeks
-  gestation_visits_df <- gestation_visits(cdm$initial_pregnant_cohort_df)
+  cdm <- gestation_visits(cdm)
 
   # identify the start of episodes based on the difference in time between gestational age-related concepts
   # and the actual difference in days
-  gestation_episodes_df <- gestation_episodes(gestation_visits_df)
+  cdm <- gestation_episodes(cdm)
 
   # get various mins and maxes of gestational age and dates
-  get_min_max_gestation_df <- get_min_max_gestation(gestation_episodes_df)
+  cdm <- get_min_max_gestation(cdm)
 
   ## Combine gestation-based and outcome-based episodes
 
   # add gestation episodes to outcome episodes
-  add_gestation_df <- add_gestation(calculate_start_df, get_min_max_gestation_df)
+  cdm <- add_gestation(cdm)
 
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
-  clean_episodes_df <- clean_episodes(add_gestation_df)
+  cdm <- clean_episodes(cdm)
 
   # remove any episodes that overlap and keep only the latter episode if the previous episode is PREG
-  remove_overlaps_df <- remove_overlaps(clean_episodes_df)
+  cdm <- remove_overlaps(cdm)
 
   # keep subset of columns with episode start and end as well as category
-  final_episodes_df <- final_episodes(remove_overlaps_df)
+  cdm <- final_episodes(cdm)
 
   # find the first gestation record within an episode and calculate the episode length
   # based on the date of the first gestation record and the visit date
-  HIP_episodes_df <- final_episodes_with_length(final_episodes_df, gestation_visits_df) %>%
-    dplyr::compute()
+  cdm <- final_episodes_with_length(cdm)
 
   # PPS -----------------------------------------------------------------------
   message("  * Running PPS")
   # pull PPS concepts from each table
   input_GT_concepts_df <- input_GT_concepts(
-    condition_occurrence_tbl, procedure_occurrence_tbl, observation_tbl,
-    measurement_tbl, visit_occurrence_tbl, cdm$PPS_concepts
+    cdm$condition_occurrence, cdm$procedure_occurrence, cdm$observation,
+    cdm$measurement, cdm$visit_occurrence, cdm$PPS_concepts
   )
 
   # get the gestational timing information for each concept
-  get_PPS_episodes_df <- get_PPS_episodes(input_GT_concepts_df, cdm$PPS_concepts, person_tbl)
+  get_PPS_episodes_df <- get_PPS_episodes(input_GT_concepts_df, cdm$PPS_concepts, cdm$person)
 
   # get the min and max dates for each episode
   PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
@@ -161,9 +169,9 @@ runHipps <- function(cdm, outputDir, fileName) {
 
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
-    concept_tbl, condition_occurrence_tbl,
-    observation_tbl, measurement_tbl,
-    procedure_occurrence_tbl,
+    cdm$cdm$concept, condition_occurrence,
+    cdm$cdm$observation, measurement,
+    cdm$procedure_occurrence,
     final_merged_episode_detailed_df, cdm$PPS_concepts
   )
 
