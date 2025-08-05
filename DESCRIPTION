@@ -20,6 +20,7 @@ Config/testthat/parallel: true
 Imports: 
     CDMConnector,
     dplyr,
-    readxl
+    readxl,
+    lubridate
 Suggests: 
     testthat (>= 3.0.0)
