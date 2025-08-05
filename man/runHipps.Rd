@@ -4,7 +4,7 @@
 \alias{runHipps}
 \title{runHipps}
 \usage{
-runHipps(cdm, outputDir, fileName)
+runHipps(cdm, outputDir, fileName, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) A CDM-Reference object from CDMConnector.}
@@ -12,6 +12,8 @@ runHipps(cdm, outputDir, fileName)
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
 
 \item{fileName}{(`character(1)`) Filename to write to}
+
+\item{...}{Dev params}
 }
 \value{
 `NULL`
