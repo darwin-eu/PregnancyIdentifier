@@ -20,15 +20,61 @@
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/ESD_algorithm_functions.R
 
-get_timing_concepts <- function(concept_tbl, condition_occurrence_tbl, observation_tbl,
-                                measurement_tbl, procedure_occurrence_tbl, final_merged_episode_detailed_df, PPS_concepts) {
+#' runEsd
+#'
+#' Runs ESD
+#'
+#' @param HIPPS (`data.frame`)
+#' @param cdm (`cdm_reference`)
+#' @param outputDir (`character(1)`)
+#' @param ... Extra (development) parameters
+#'
+#' @return `NULL`
+#' @export
+runEsd <- function(HIPPS, cdm, outputDir, ...) {
+  message("  * Running ESD")
+
+  cdm <- uploadConceptSets(cdm)
+
+  # get timing concepts
+  get_timing_concepts_df <- get_timing_concepts(
+    cdm = cdm,
+    HIPPS
+  )
+
+  # get gestational timing info
+  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
+  saveRDS(episodes_with_gestational_timing_info_df, file.path(outputDir, "ESD.rds"))
+}
+
+get_preg_related_concepts <- function(df, person_id_list, df_date_col) {
+  df %>%
+    dplyr::select("person_id", all_of(df_date_col), "concept_id", "concept_name", "value_col") %>%
+    dplyr::rename(all_of(c(domain_concept_start_date = df_date_col))) %>%
+    dplyr::inner_join(person_id_list, by = dplyr::join_by(
+      person_id, domain_concept_start_date >= start_date,
+      domain_concept_start_date <= recorded_episode_end
+    ), copy = TRUE) %>%
+    dplyr::select(
+      "person_id",
+      "domain_concept_start_date",
+      domain_concept_id = "concept_id",
+      domain_concept_name = "concept_name",
+      "start_date",
+      "recorded_episode_end",
+      "value_col",
+      "episode_number"
+    )
+}
+
+get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
   # obtain the gestational timing <= 3 month concept information to use as additional information for precision category designation
 
   pregnant_dates <- final_merged_episode_detailed_df
 
-  algo2_timing_concepts_id_list <- PPS_concepts %>%
-    select(domain_concept_id) %>%
-    pull(domain_concept_id) %>%
+  algo2_timing_concepts_id_list <- cdm$pps_concepts %>%
+    dplyr::select("domain_concept_id") %>%
+    dplyr::pull(.data$domain_concept_id) %>%
     as.integer()
 
   observation_concept_list <- c(3011536, 3026070, 3024261, 4260747, 40758410, 3002549, 43054890, 46234792, 4266763, 40485048, 3048230, 3002209, 3012266)
@@ -39,79 +85,89 @@ get_timing_concepts <- function(concept_tbl, condition_occurrence_tbl, observati
   len_of_gestation_at_birth_concepts <- c(4260747, 43054890, 46234792, 4266763, 40485048)
 
   # need to find concept names that contain 'gestation period' as well as the specific concepts
-  concepts_to_search <- concept_tbl %>%
-    filter(
-      str_detect(tolower(concept_name), "gestation period") |
-        concept_id %in% c(
-          observation_concept_list, measurement_concept_list, algo2_timing_concepts_id_list,
-          est_date_of_delivery_concepts, est_date_of_conception_concepts,
-          len_of_gestation_at_birth_concepts
-        )
-    ) %>%
-    select(concept_id, concept_name)
-
-
-  get_preg_related_concepts <- function(df, person_id_list, df_date_col) {
-    df %>%
-      select(person_id, all_of(df_date_col), concept_id, concept_name, value_col) %>%
-      rename(all_of(c(domain_concept_start_date = df_date_col))) %>%
-      inner_join(person_id_list, by = join_by(
-        person_id, domain_concept_start_date >= start_date,
-        domain_concept_start_date <= recorded_episode_end
-      )) %>%
-      select(person_id, domain_concept_start_date,
-        domain_concept_id = concept_id, domain_concept_name = concept_name,
-        start_date, recorded_episode_end, value_col, episode_number
+  concepts_to_search <- cdm$concept %>%
+    dplyr::filter(
+      stringr::str_detect(tolower(.data$concept_name), "gestation period")
+      | concept_id %in% c(
+        observation_concept_list, measurement_concept_list, algo2_timing_concepts_id_list,
+        est_date_of_delivery_concepts, est_date_of_conception_concepts,
+        len_of_gestation_at_birth_concepts
       )
-  }
+    ) %>%
+    dplyr::select("concept_id", "concept_name")
 
   # add: change to pregnancy start rather than recorded episode start
   person_id_list <- pregnant_dates %>%
-    mutate(start_date = pmin(pregnancy_start, recorded_episode_start, na.rm = TRUE)) %>%
-    select(person_id, start_date, recorded_episode_end, episode_number) %>%
-    aou_create_temp_table(nchar_batch = 50000)
+    dplyr::mutate(
+      start_date = pmin(.data$pregnancy_start, .data$recorded_episode_start, na.rm = TRUE)
+    ) %>%
+    dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
   c_o <- concepts_to_search %>%
-    inner_join(condition_occurrence_tbl, by = c("concept_id" = "condition_concept_id")) %>%
-    mutate(value_col = concept_name) %>%
+    dplyr::inner_join(cdm$condition_occurrence, by = c("concept_id" = "condition_concept_id")) %>%
+    dplyr::mutate(
+      value_col = .data$concept_name
+    ) %>%
     get_preg_related_concepts(person_id_list, "condition_start_date")
+
   o_df <- concepts_to_search %>%
-    inner_join(observation_tbl, by = c("concept_id" = "observation_concept_id")) %>%
-    mutate(value_col = value_as_string) %>%
+    dplyr::inner_join(cdm$observation, by = c("concept_id" = "observation_concept_id")) %>%
+    dplyr::mutate(
+      value_col = .data$value_as_string
+    ) %>%
     get_preg_related_concepts(person_id_list, "observation_date")
+
   m_df <- concepts_to_search %>%
-    inner_join(measurement_tbl, by = c("concept_id" = "measurement_concept_id")) %>%
-    mutate(value_col = value_as_number) %>%
+    dplyr::inner_join(cdm$measurement, by = c("concept_id" = "measurement_concept_id")) %>%
+    dplyr::mutate(
+      value_col = .data$value_as_number
+    ) %>%
     get_preg_related_concepts(person_id_list, "measurement_date")
+
   p_df <- concepts_to_search %>%
-    inner_join(procedure_occurrence_tbl, by = c("concept_id" = "procedure_concept_id")) %>%
-    mutate(value_col = concept_name) %>%
+    dplyr::inner_join(cdm$procedure_occurrence, by = c("concept_id" = "procedure_concept_id")) %>%
+    dplyr::mutate(
+      value_col = .data$concept_name
+    ) %>%
     get_preg_related_concepts(person_id_list, "procedure_date")
 
-  preg_related_concepts <- list(c_o, o_df, mutate(m_df, value_col = as.character(value_col)), p_df) %>%
-    reduce(union_all)
+  preg_related_concepts <- list(
+    c_o,
+    o_df,
+    m_df %>%
+      mutate(value_col = as.character(.data$value_col)),
+    p_df
+  ) %>%
+    purrr::reduce(dplyr::union_all)
 
-  algo2_timing_concepts_df <- PPS_concepts %>%
-    select(domain_concept_id, min_month, max_month)
+  algo2_timing_concepts_df <- cdm$pps_concepts %>%
+    dplyr::select("domain_concept_id", "min_month", "max_month")
 
   preg_related_concepts_local <- preg_related_concepts %>%
-    left_join(algo2_timing_concepts_df, by = "domain_concept_id") %>%
-    collect(page_size = 20000) %>%
-    mutate(domain_value = str_replace(value_col, "\\|text_result_val:", "")) %>%
-    mutate(domain_value = str_replace(domain_value, "\\|mapped_text_result_val:", "")) %>%
-    mutate(domain_value = str_replace(domain_value, "Gestation period, ", "")) %>%
-    mutate(domain_value = str_replace(domain_value, "gestation period, ", "")) %>%
-    mutate(domain_value = str_replace(domain_value, " weeks", "")) %>%
-    mutate(domain_value = as.integer(as.numeric(domain_value))) %>%
-    mutate(
-      keep_value = if_else((str_detect(tolower(domain_concept_name), "gestation period,")) |
-        (str_detect(tolower(domain_concept_name), "gestational age")) |
-        (domain_concept_id %in% c(3048230, 3002209, 3012266) & domain_value < 44 & domain_value > 0), 1, 0),
-      extrapolated_preg_start = if_else(keep_value == 1, domain_concept_start_date - (domain_value * 7), NA_Date_)
+    dplyr::left_join(algo2_timing_concepts_df, by = "domain_concept_id") %>%
+    dplyr::collect(page_size = 20000) %>%
+    dplyr::mutate(domain_value = stringr::str_replace(.data$value_col, "\\|text_result_val:", "")) %>%
+    dplyr::mutate(domain_value = stringr::str_replace(.data$domain_value, "\\|mapped_text_result_val:", "")) %>%
+    dplyr::mutate(domain_value = stringr::str_replace(.data$domain_value, "Gestation period, ", "")) %>%
+    dplyr::mutate(domain_value = stringr::str_replace(.data$domain_value, "gestation period, ", "")) %>%
+    dplyr::mutate(domain_value = stringr::str_replace(.data$domain_value, " weeks", "")) %>%
+    dplyr::mutate(domain_value = as.integer(as.numeric(.data$domain_value))) %>%
+    dplyr::mutate(
+      keep_value = dplyr::if_else(
+        (stringr::str_detect(tolower(domain_concept_name), "gestation period,"))
+        | (stringr::str_detect(tolower(domain_concept_name), "gestational age"))
+        | (domain_concept_id %in% c(3048230, 3002209, 3012266) & domain_value < 44 & domain_value > 0),
+        1,
+        0
+      ),
+      extrapolated_preg_start = dplyr::if_else(
+        keep_value == 1,
+        domain_concept_start_date - (domain_value * 7),
+        lubridate::NA_Date_
+      )
     )
 
-
-  preg_related_concepts_local
+  return(preg_related_concepts_local)
 }
 
 
@@ -132,7 +188,7 @@ findIntersection <- function(intervals) {
     intervals <- matrix(intervals[[1]], ncol = 2)
   } else {
     # Sort intervals
-    intervals <- reduce(intervals, rbind)
+    intervals <- purrr::reduce(intervals, rbind)
   }
   intervals <- as.data.frame(intervals) %>%
     mutate(across(everything(), as.Date)) %>%
@@ -267,7 +323,7 @@ assign_precision_category <- function(precision_days) {
 # applying udf to the date array column to obtain the new column 'final_timing_info' (a list of [inferred_episode_start, precision_days, precision_category]) for each row
 get_gt_timing <- function(dateslist) {
   # Iterate over the dateslist
-  timing_arr <- map(dateslist[map_lgl(dateslist, validate)], sort)
+  timing_arr <- purrr::map(dateslist[purrr::map_lgl(dateslist, validate)], sort)
   GW_list <- dateslist[sapply(dateslist, function(x) length(x) == 1)]
   GR3m_list <- dateslist[sapply(dateslist, function(x) length(x) == 2)]
 
@@ -303,11 +359,11 @@ get_gt_timing <- function(dateslist) {
 
     plausibleDays <- as.numeric(difftime(interval_e, interval_s, units = "days"))
     maxRangeDays <- as.numeric(difftime(range_e, range_s, units = "days"))
-    daterangeMidpoint <- interval_s + days(as.integer(plausibleDays / 2)) # get midpoint of intersection
+    daterangeMidpoint <- interval_s + lubridate::days(as.integer(plausibleDays / 2)) # get midpoint of intersection
     # utilize the overlap more when it gets narrowed down to less than a week by taking the midpoint and adding 3 days either side (otherwise unlikely to overlap much with GW concepts and thus will be ignored)
     if (plausibleDays < 7) {
-      interval_s <- daterangeMidpoint - days(3)
-      interval_e <- daterangeMidpoint + days(3)
+      interval_s <- daterangeMidpoint - lubridate::days(3)
+      interval_e <- daterangeMidpoint + lubridate::days(3)
       plausibleDays <- 6
     }
   }
@@ -376,14 +432,12 @@ get_gt_timing <- function(dateslist) {
 episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   # add on either GW or GR3m designation depending on whether the concept is present
   timing_designation_df <- get_timing_concepts_df %>%
-    mutate(
-      domain_concept_id = as.integer(domain_concept_id),
-      GT_type = case_when(
-        str_detect(str_to_lower(domain_concept_name), "gestation period") | domain_concept_id %in% c(
-          3048230, 3002209, 3012266,
-          # added additional concept
-          3050433
-        ) ~ "GW",
+    dplyr::mutate(
+      domain_concept_id = as.integer(.data$domain_concept_id),
+      GT_type = dplyr::case_when(
+        stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period")
+        | domain_concept_id %in% c(3048230, 3002209, 3012266, 3050433)
+        ~ "GW",
         !is.na(min_month) ~ "GR3m",
         TRUE ~ NA
       )
@@ -391,92 +445,104 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
 
   # add on the max and min pregnancy start dates predicted by each concept
   timing_designation_df <- timing_designation_df %>%
-    mutate(
-      min_days_to_pregnancy_start = if_else(GT_type == "GR3m", round(min_month * 30.4), NA),
-      max_days_to_pregnancy_start = if_else(GT_type == "GR3m", round(max_month * 30.4), NA)
+    dplyr::mutate(
+      min_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$min_month * 30.4), NA),
+      max_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$max_month * 30.4), NA)
     )
 
 
   # add the max and min possible pregnancy start dates according to the GR3m concepts
   timing_designation_df <- timing_designation_df %>%
-    mutate(
-      min_pregnancy_start = if_else(GT_type == "GR3m", domain_concept_start_date - as.integer(min_days_to_pregnancy_start), NA_Date_),
-      max_pregnancy_start = if_else(GT_type == "GR3m", domain_concept_start_date - as.integer(max_days_to_pregnancy_start), NA_Date_)
+    dplyr::mutate(
+      min_pregnancy_start = dplyr::if_else(
+        .data$GT_type == "GR3m",
+        .data$domain_concept_start_date - as.integer(.data$min_days_to_pregnancy_start),
+        lubridate::NA_Date_
+      ),
+      max_pregnancy_start = dplyr::if_else(
+        .data$GT_type == "GR3m",
+        .data$domain_concept_start_date - as.integer(.data$max_days_to_pregnancy_start),
+        lubridate::NA_Date_
+      )
     ) %>%
-    select(-min_days_to_pregnancy_start, -max_days_to_pregnancy_start)
+    dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
   # remove type if null values
   timing_designation_df <- timing_designation_df %>%
-    mutate(GT_type = case_when(
-      GT_type == "GW" & is.na(domain_value) ~ NA,
-      GT_type == "GW" & is.na(extrapolated_preg_start) ~ NA,
-      TRUE ~ GT_type
+    dplyr::mutate(GT_type = dplyr::case_when(
+      .data$GT_type == "GW" & is.na(.data$domain_value) ~ NA,
+      .data$GT_type == "GW" & is.na(.data$extrapolated_preg_start) ~ NA,
+      TRUE ~ .data$GT_type
     ))
 
   # filter to rows with GW or GR3m type
   timing_designation_df <- timing_designation_df %>%
-    filter(GT_type == "GW" | GT_type == "GR3m")
+    dplyr::filter(.data$GT_type == "GW" | .data$GT_type == "GR3m")
 
   # get start date range for GR3m
   timing_designation_df <- timing_designation_df %>%
-    mutate(across(c(extrapolated_preg_start, min_pregnancy_start, max_pregnancy_start), as.character)) %>%
-    rowwise() %>%
-    mutate(
-      preg_start_range = ifelse(is.na(extrapolated_preg_start), paste(
-        max_pregnancy_start,
-        min_pregnancy_start
-      ), extrapolated_preg_start),
+    dplyr::mutate(dplyr::across(c(.data$extrapolated_preg_start, .data$min_pregnancy_start, .data$max_pregnancy_start), as.character)) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      preg_start_range = ifelse(is.na(.data$extrapolated_preg_start), paste(
+        .data$max_pregnancy_start,
+        .data$min_pregnancy_start
+      ), .data$extrapolated_preg_start),
       # get start dates for GW
-      extr = extrapolated_preg_start
+      extr = .data$extrapolated_preg_start
     ) %>%
-    ungroup()
+    dplyr::ungroup()
 
   # create list of all dates
   timing_designation_df <- timing_designation_df %>%
-    mutate(all_GT_info = ifelse(is.na(extr), preg_start_range, extr))
+    dplyr::mutate(all_GT_info = ifelse(is.na(.data$extr), .data$preg_start_range, .data$extr))
 
   # add on a categorization column to ensure gestation week concepts are distinguished as a single entity and others are unique per concept (important for the next steps of removing duplicates)
   timing_designation_df <- timing_designation_df %>%
     # add gt-type here so othe rmeasurements not rolled up
-    mutate(domain_concept_name_rollup = ifelse(!is.na(domain_value) & GT_type == "GW",
-      "Gestation Week", domain_concept_name
-    ))
+    dplyr::mutate(
+      domain_concept_name_rollup = ifelse(
+        !is.na(.data$domain_value) & .data$GT_type == "GW",
+      "Gestation Week",
+      .data$domain_concept_name
+    )
+  )
 
   # IMPORTANT: sort by domain value (gest week concepts) from highest (latest in pregancy) to lowest (earliest in pregnancy)
   # so that later on the first element of the GW list can be taken for 'latest in pregnancy' concept
   timing_designation_df <- timing_designation_df %>%
-    arrange(person_id, episode_number, desc(domain_value)) %>%
+    dplyr::arrange(.data$person_id, .data$episode_number, dplyr::desc(.data$domain_value)) %>%
     # remove all rows but the first for each concept date ~ GT_type combination (as these are likely to be historical references)
     # so on each date, the highest domain value will be chosen
-    group_by(person_id, episode_number, domain_concept_name_rollup, domain_concept_start_date, GT_type) %>%
-    slice(1) %>%
-    ungroup()
+    dplyr::group_by(.data$person_id, .data$episode_number, .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$GT_type) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup()
 
   # group the dataset by patient and episode number and pass relevant columns to a function that adds inferred_start_date and precision
   new_timing_designation_df <- timing_designation_df %>%
-    group_by(person_id, episode_number) %>%
+    dplyr::group_by(.data$person_id, .data$episode_number) %>%
     # first is the date with the highest domain value
-    summarise(
-      GT_info_list = map(list(all_GT_info), ~ str_split(.x, " ")),
-      GW_flag = as.numeric(any(GT_type == "GW")),
-      GR3m_flag = as.numeric(any(GT_type == "GR3m")),
+    dplyr::summarise(
+      GT_info_list = purrr::map(list(.data$all_GT_info), ~ stringr::str_split(.x, " ")),
+      GW_flag = as.numeric(any(.data$GT_type == "GW")),
+      GR3m_flag = as.numeric(any(.data$GT_type == "GR3m")),
       .groups = "drop"
     )
 
   new_timing_designation_df <- new_timing_designation_df %>%
-    rowwise() %>%
-    mutate(
-      final_timing_info = list(get_gt_timing(GT_info_list)),
-      inferred_episode_start = final_timing_info[[1]],
-      precision_days = final_timing_info[[2]],
-      precision_category = final_timing_info[[3]],
-      intervalsCount = final_timing_info[[4]],
-      majorityOverlapCount = final_timing_info[[5]]
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      final_timing_info = list(get_gt_timing(.data$GT_info_list)),
+      inferred_episode_start = .data$final_timing_info[[1]],
+      precision_days = .data$final_timing_info[[2]],
+      precision_category = .data$final_timing_info[[3]],
+      intervalsCount = .data$final_timing_info[[4]],
+      majorityOverlapCount = .data$final_timing_info[[5]]
     ) %>%
-    ungroup() %>%
-    select(
-      person_id, episode_number, GT_info_list, GW_flag, GR3m_flag, inferred_episode_start, precision_days,
-      precision_category, intervalsCount, majorityOverlapCount
+    dplyr::ungroup() %>%
+    dplyr::select(
+      "person_id", "episode_number", "GT_info_list", "GW_flag", "GR3m_flag", "inferred_episode_start", "precision_days",
+      "precision_category", "intervalsCount", "majorityOverlapCount"
     )
 
   # print the GW and GR3m concept overlap information to log
@@ -494,117 +560,198 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   return(new_timing_designation_df)
 }
 
-merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_df, final_merged_episode_detailed_df, Matcho_term_durations) {
+merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_df, final_merged_episode_detailed_df, cdm) {
   # Add other pregnancy and demographic related info for each episode.
 
   # Assign input data frames to variables
   demographics_df <- final_merged_episode_detailed_df
-  timing_df <- episodes_with_gestational_timing_info_df %>% select(-GT_info_list)
-  term_max_min <- collect(Matcho_term_durations)
+  timing_df <- episodes_with_gestational_timing_info_df %>%
+    dplyr::select(-"GT_info_list")
+  term_max_min <- cdm$matcho_term_durations %>%
+    dplyr::collect()
 
   final_df <- demographics_df %>%
-    left_join(timing_df, by = c("person_id", "episode_number")) %>%
-    distinct()
+    dplyr::left_join(timing_df, by = c("person_id", "episode_number")) %>%
+    dplyr::distinct()
 
   # Add missing GW_flag and GR3m_flag
   final_df <- final_df %>%
-    mutate(
-      GW_flag = if_else(is.na(GW_flag), 0, GW_flag),
-      GR3m_flag = if_else(is.na(GR3m_flag), 0, GR3m_flag)
+    dplyr::mutate(
+      GW_flag = dplyr::if_else(is.na(.data$GW_flag), 0, .data$GW_flag),
+      GR3m_flag = dplyr::if_else(is.na(.data$GR3m_flag), 0, .data$GR3m_flag)
     )
 
   # Check if categories match between algorithms and dates are within 14 days of each other for outcomes only
   final_df <- final_df %>%
-    mutate(outcome_match = case_when(
-      HIP_outcome_category == PPS_outcome_category & HIP_outcome_category != "PREG" &
-        abs(as.numeric(difftime(HIP_end_date, PPS_end_date, units = "days"))) <= 14 ~ 1,
-      HIP_outcome_category == "PREG" & PPS_outcome_category == "PREG" ~ 1,
-      TRUE ~ 0
+    dplyr::mutate(
+      outcome_match = dplyr::case_when(
+        .data$HIP_outcome_category == .data$PPS_outcome_category
+        & .data$HIP_outcome_category != "PREG"
+        & abs(as.numeric(difftime(.data$HIP_end_date, .data$PPS_end_date, units = "days"))) <= 14
+        ~ 1,
+
+        .data$HIP_outcome_category == "PREG"
+        & .data$PPS_outcome_category == "PREG"
+        ~ 1,
+        TRUE ~ 0
     ))
 
   # If categories don't match, take the category that occurs second (outcome category from HIP algorithm is prioritized)
   final_df <- final_df %>%
-    group_by(person_id) %>%
-    arrange(episode_number) %>%
-    mutate(
-      next_HIP_outcome = lead(HIP_outcome_category),
-      final_outcome_category = case_when(
-        outcome_match == 1 ~ HIP_outcome_category,
-        outcome_match == 0 & is.na(PPS_outcome_category) ~ HIP_outcome_category,
-        outcome_match == 0 & is.na(HIP_outcome_category) ~ PPS_outcome_category,
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::arrange(.data$episode_number) %>%
+    dplyr::mutate(
+      next_HIP_outcome = dplyr::lead(.data$HIP_outcome_category),
+      final_outcome_category = dplyr::case_when(
+        .data$outcome_match == 1 ~ .data$HIP_outcome_category,
+
+        .data$outcome_match == 0
+        & is.na(.data$PPS_outcome_category)
+        ~ .data$HIP_outcome_category,
+
+        .data$outcome_match == 0
+        & is.na(.data$HIP_outcome_category)
+        ~ .data$PPS_outcome_category,
+
         # if they don't match, but the hip end date is not within 7 days before the PPS outcome
         # add: go with HIP if the PPS is the next one and there's sufficient separation
-        outcome_match == 0 & HIP_outcome_category != "PREG" & PPS_outcome_category != "PREG" &
-          !is.na(next_HIP_outcome) & PPS_outcome_category == next_HIP_outcome & HIP_end_date <= PPS_end_date - days(14) ~ HIP_outcome_category,
+        .data$outcome_match == 0
+        & .data$HIP_outcome_category != "PREG"
+        & .data$PPS_outcome_category != "PREG"
+        & !is.na(.data$next_HIP_outcome)
+        & .data$PPS_outcome_category == .data$next_HIP_outcome
+        & .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(14)
+        ~ .data$HIP_outcome_category,
+
         # but otherwise go with PPS
-        outcome_match == 0 & HIP_outcome_category != "PREG" & PPS_outcome_category != "PREG" &
-          HIP_end_date <= PPS_end_date - days(7) ~ PPS_outcome_category,
+        .data$outcome_match == 0
+        & .data$HIP_outcome_category != "PREG"
+        & .data$PPS_outcome_category != "PREG"
+        & .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(7)
+        ~ .data$PPS_outcome_category,
+
         # or if they're similar timing go with HIP
-        TRUE ~ HIP_outcome_category
+        TRUE ~ .data$HIP_outcome_category
       )
     ) %>%
-    ungroup()
+    dplyr::ungroup()
 
   # If categories don't match, take the end date that occurs second (outcome date from HIP is prioritized)
   final_df <- final_df %>%
-    mutate(inferred_episode_end = case_when(
-      outcome_match == 1 ~ HIP_end_date,
-      outcome_match == 0 & is.na(PPS_outcome_category) ~ HIP_end_date,
-      outcome_match == 0 & is.na(HIP_outcome_category) ~ PPS_end_date,
-      outcome_match == 0 & HIP_outcome_category != "PREG" & PPS_outcome_category != "PREG" &
-        !is.na(next_HIP_outcome) & PPS_outcome_category == next_HIP_outcome &
-        HIP_end_date <= PPS_end_date - days(14) ~ HIP_end_date,
-      outcome_match == 0 & HIP_outcome_category != "PREG" & PPS_outcome_category != "PREG" &
-        HIP_end_date <= PPS_end_date - days(7) ~ PPS_end_date,
-      !is.na(HIP_end_date) ~ HIP_end_date,
-      !is.na(PPS_end_date) ~ PPS_end_date
+    dplyr::mutate(
+      inferred_episode_end = dplyr::case_when(
+        .data$outcome_match == 1 ~ .data$HIP_end_date,
+        .data$outcome_match == 0 & is.na(.data$PPS_outcome_category) ~ .data$HIP_end_date,
+        .data$outcome_match == 0 & is.na(.data$HIP_outcome_category) ~ .data$PPS_end_date,
+
+        .data$outcome_match == 0
+        & .data$HIP_outcome_category != "PREG"
+        & .data$PPS_outcome_category != "PREG"
+        & !is.na(.data$next_HIP_outcome)
+        & .data$PPS_outcome_category == .data$next_HIP_outcome
+        & .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(14)
+        ~ .data$HIP_end_date,
+
+        .data$outcome_match == 0
+        & .data$HIP_outcome_category != "PREG"
+        & .data$PPS_outcome_category != "PREG"
+        & .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(7)
+        ~ .data$PPS_end_date,
+
+        !is.na(.data$HIP_end_date) ~ .data$HIP_end_date,
+        !is.na(.data$PPS_end_date) ~ .data$PPS_end_date
     ))
 
   # Join with term_max_min data frame and drop 'retry' column
   final_df <- final_df %>%
-    left_join(term_max_min, by = c("final_outcome_category" = "category")) %>%
-    select(-retry)
+    dplyr::left_join(
+      term_max_min,
+      by = c("final_outcome_category" = "category")
+    ) %>%
+    dplyr::select(-"retry")
 
   # If no start date, subtract the max term in days from inferred episode end
   final_df <- final_df %>%
-    mutate(inferred_episode_start = if_else(is.na(inferred_episode_start), inferred_episode_end - days(max_term), inferred_episode_start))
+    dplyr::mutate(
+      inferred_episode_start = dplyr::if_else(
+        is.na(.data$inferred_episode_start),
+        .data$inferred_episode_end - lubridate::days(.data$max_term),
+        .data$inferred_episode_start)
+    )
 
   # Convert precision_days to integer type
   final_df <- final_df %>%
-    mutate(precision_days = as.integer(precision_days))
+    dplyr::mutate(precision_days = as.integer(.data$precision_days))
 
   # Add missing accuracy info for remaining episodes
   final_df <- final_df %>%
-    mutate(precision_days = if_else(is.na(precision_days), max_term - min_term, precision_days))
+    dplyr::mutate(
+      precision_days = dplyr::if_else(
+        is.na(.data$precision_days),
+        .data$max_term - .data$min_term,
+        .data$precision_days)
+    )
 
   # Add missing accuracy category for remaining episodes
   final_df <- final_df %>%
-    mutate(precision_category = if_else(is.na(precision_category), assign_precision_category(precision_days), precision_category))
+    dplyr::mutate(
+      precision_category = dplyr::if_else(
+        is.na(.data$precision_category),
+        assign_precision_category(.data$precision_days),
+        .data$precision_category)
+    )
 
   # Calculate gestational age at inferred episode end
   final_df <- final_df %>%
-    mutate(gestational_age_days_calculated = as.integer(difftime(inferred_episode_end, inferred_episode_start, units = "days")))
+    dplyr::mutate(
+      gestational_age_days_calculated = as.integer(difftime(
+        time1 = .data$inferred_episode_end,
+        time2 = .data$inferred_episode_start,
+        units = "days"
+      )))
 
   # Check if outcome aligns with term duration expected of that outcome
   final_df <- final_df %>%
-    mutate(term_duration_flag = case_when(
-      gestational_age_days_calculated >= min_term & gestational_age_days_calculated <= max_term ~ 1,
-      final_outcome_category == "PREG" & gestational_age_days_calculated <= 301 ~ 1,
-      TRUE ~ 0
+    dplyr::mutate(
+      term_duration_flag = dplyr::case_when(
+        .data$gestational_age_days_calculated >= .data$min_term
+        & .data$gestational_age_days_calculated <= .data$max_term
+        ~ 1,
+
+        .data$final_outcome_category == "PREG"
+        & .data$gestational_age_days_calculated <= 301
+        ~ 1,
+
+        TRUE ~ 0
     )) %>%
-    select(-min_term, -max_term)
+    dplyr::select(-"min_term", -"max_term")
 
   # Add outcome concordance score - 2 highly concordant, 1 somewhat concordant, 0 not accurate/not enough info
   final_df <- final_df %>%
-    mutate(outcome_concordance_score = case_when(
-      outcome_match == 1 & term_duration_flag == 1 & GW_flag == 1 ~ 2,
-      outcome_match == 0 & term_duration_flag == 1 & GW_flag == 1 ~ 1,
-      TRUE ~ 0
+    dplyr::mutate(
+      outcome_concordance_score = dplyr::case_when(
+        .data$outcome_match == 1
+        & .data$term_duration_flag == 1
+        & .data$GW_flag == 1
+        ~ 2,
+
+        .data$outcome_match == 0
+        & .data$term_duration_flag == 1
+        & .data$GW_flag == 1
+        ~ 1,
+
+        TRUE ~ 0
     ))
 
   # Calculate preterm status from calculation
   final_df <- final_df %>%
-    mutate(preterm_status_from_calculation = if_else(gestational_age_days_calculated < 259, 1, 0))
+    dplyr::mutate(
+      preterm_status_from_calculation = dplyr::if_else(
+        .data$gestational_age_days_calculated < 259,
+        1,
+        0
+      )
+    )
 
   # Print the min episode/pregnancy start and max episode/pregnancy end to check on time period of dataset
   min_episode_date <- min(final_df$recorded_episode_start, na.rm = TRUE)

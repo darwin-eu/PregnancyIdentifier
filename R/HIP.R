@@ -2,6 +2,113 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
   DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = "initial_pregnant_cohort_df")
 }
 
+#' runHip
+#'
+#' Runs the HIP
+#'
+#' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
+#' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param ... Dev params
+#'
+#' @returns `NULL`
+#'
+#' @export
+runHip <- function(cdm, outputDir, ...) {
+  message("  * Running HIP")
+  ## Outcome-based episodes
+
+  # get initial cohort based on hip_concepts
+  # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
+  # for all the the HIP concepts that for women who were 15-55
+  cdm <- cdm %>%
+    initial_pregnant_cohort(...)
+
+  if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
+    warning("  ! No records after initializing pregnant cohort")
+    return(NULL)
+  }
+
+  # get outcome visits from Matcho et al.
+  # this function takes the HIP concepts matching the category of interest
+  # calculates days between each visit and selects the first episode
+  # and any episodes that are separated by at least that many days
+
+  # TODO: Make param for categories
+  categories <- list(
+    c("AB", "SA"),
+    "DELIV",
+    "ECT",
+    "SB",
+    "LB"
+  )
+
+  for (i in seq_len(length(categories))) {
+    message(sprintf("  * Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
+    cdm <- final_visits(
+      cdm,
+      categories = categories[[i]],
+      tableName = sprintf("final_%s_visits_df", tolower(paste(categories[[i]], collapse = "_")))
+    )
+  }
+
+  # add stillbirth episodes to livebirth episodes
+  # after making sure they are sufficiently spaced
+  message("  * Adding Still Birth")
+  cdm <- add_stillbirth(cdm)
+
+  # add ectopic episodes to previous
+  message("  * Adding Ectopic")
+  cdm <- add_ectopic(cdm)
+
+  # add abortion episodes to previous
+  message("  * Adding Abortion")
+  cdm <- add_abortion(cdm)
+
+  # add delivery-only episodes to previous
+  message("  * Adding Delivery")
+  cdm <- add_delivery(cdm)
+
+  # calculate start of pregnancies based on outcomes
+  # min start date = latest possible start date if shortest term
+  # max start date = earliest possible start date if max term
+  cdm <- calculate_start(cdm)
+
+  ## Gestation-based episodes
+
+  # now go back to the initial set of concepts and find ones with gestation weeks
+  cdm <- gestation_visits(cdm)
+
+  # identify the start of episodes based on the difference in time between gestational age-related concepts
+  # and the actual difference in days
+  cdm <- gestation_episodes(cdm)
+
+  # get various mins and maxes of gestational age and dates
+  cdm <- get_min_max_gestation(cdm)
+
+  ## Combine gestation-based and outcome-based episodes
+
+  # add gestation episodes to outcome episodes
+  cdm <- add_gestation(cdm)
+
+  # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
+  cdm <- clean_episodes(cdm)
+
+  # remove any episodes that overlap and keep only the latter episode if the previous episode is PREG
+  cdm <- remove_overlaps(cdm)
+
+  # keep subset of columns with episode start and end as well as category
+  cdm <- final_episodes(cdm)
+
+  # find the first gestation record within an episode and calculate the episode length
+  # based on the date of the first gestation record and the visit date
+  cdm <- final_episodes_with_length(cdm)
+
+  cdm$hip_episodes %>%
+    dplyr::collect() %>%
+    saveRDS(file.path(outputDir, "HIP_episodes.rds"))
+  return(invisible(NULL))
+}
+
 # Copyright (c) 2024 Louisa Smith
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -117,7 +224,7 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
 
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
-final_visits <- function(cdm, matcho_outcome_limits, categories, tableName) {
+final_visits <- function(cdm, categories, tableName) {
   cdm$temp_df <- cdm$initial_pregnant_cohort_df %>%
     dplyr::filter(category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
@@ -138,7 +245,7 @@ final_visits <- function(cdm, matcho_outcome_limits, categories, tableName) {
     dplyr::compute()
 
   # get minimum days between outcomes
-  min_day <- matcho_outcome_limits %>%
+  min_day <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == categories[1] & .data$outcome_preg_category == categories[1]) %>%
     dplyr::pull(.data$min_days)
 
@@ -167,15 +274,15 @@ final_visits <- function(cdm, matcho_outcome_limits, categories, tableName) {
   return(cdm)
 }
 
-add_stillbirth <- function(cdm, Matcho_outcome_limits) {
+add_stillbirth <- function(cdm) {
   # Add stillbirth visits to livebirth visits table.
 
   # get minimum days between outcomes
-  before_min <- Matcho_outcome_limits %>%
+  before_min <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "SB") %>%
     dplyr::pull(.data$min_days)
 
-  after_min <- Matcho_outcome_limits %>%
+  after_min <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "SB" & .data$outcome_preg_category == "LB") %>%
     dplyr::pull(.data$min_days)
 
@@ -229,18 +336,18 @@ add_stillbirth <- function(cdm, Matcho_outcome_limits) {
   return(cdm)
 }
 
-add_ectopic <- function(cdm, Matcho_outcome_limits) {
+add_ectopic <- function(cdm) {
   # get minimum days between outcomes
   # minimum number of days that ECT can follow LB and SB; LB and SB have the same days
-  before_min <- Matcho_outcome_limits %>%
+  before_min <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "ECT") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that LB can follow ECT
-  after_min_lb <- Matcho_outcome_limits %>%
+  after_min_lb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "LB") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that SB can follow ECT
-  after_min_sb <- Matcho_outcome_limits %>%
+  after_min_sb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "SB") %>%
     dplyr::pull(.data$min_days)
 
@@ -303,28 +410,28 @@ add_ectopic <- function(cdm, Matcho_outcome_limits) {
   return(cdm)
 }
 
-add_abortion <- function(cdm, Matcho_outcome_limits) {
+add_abortion <- function(cdm) {
   # Add abortion visits - SA and AB are treated the same.
 
   # get minimum days between outcomes
   # minimum number of days that ECT can follow LB and SB; LB and SB have the same days
-  before_min_lb <- Matcho_outcome_limits %>%
+  before_min_lb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "AB") %>%
     dplyr::pull(.data$min_days)
 
-  before_min_ect <- Matcho_outcome_limits %>%
+  before_min_ect <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "AB") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that LB can follow ECT
-  after_min_lb <- Matcho_outcome_limits %>%
+  after_min_lb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "LB") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that SB can follow ECT
-  after_min_sb <- Matcho_outcome_limits %>%
+  after_min_sb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "SB") %>%
     dplyr::pull(.data$min_days)
 
-  after_min_ect <- Matcho_outcome_limits %>%
+  after_min_ect <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "ECT") %>%
     dplyr::pull(.data$min_days)
 
@@ -384,29 +491,29 @@ add_abortion <- function(cdm, Matcho_outcome_limits) {
   return(cdm)
 }
 
-add_delivery <- function(cdm, Matcho_outcome_limits) {
+add_delivery <- function(cdm) {
   #  Add delivery record only visits
 
   # get minimum days between outcomes
   # minimum number of days that DELIV can follow LB and SB; LB and SB have the same days
-  before_min_lb <- Matcho_outcome_limits %>%
+  before_min_lb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "DELIV") %>%
     dplyr::pull(.data$min_days)
 
-  before_min_ect <- Matcho_outcome_limits %>%
+  before_min_ect <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "DELIV") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that LB can follow
   # to add: if there's LB or SB outcome before then, they should be given this delivery date
-  after_min_lb <- Matcho_outcome_limits %>%
+  after_min_lb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "LB") %>%
     dplyr::pull(.data$min_days)
   # minimum number of days that SB can follow
-  after_min_sb <- Matcho_outcome_limits %>%
+  after_min_sb <- cdm$matcho_outcome_limits %>%
     dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "SB") %>%
     dplyr::pull(.data$min_days)
 
-  after_min_ect <- Matcho_outcome_limits %>%
+  after_min_ect <- cdm$matcho_outcome_limits %>%
     dplyr::filter(first_preg_category == "DELIV" & outcome_preg_category == "ECT") %>%
     dplyr::pull(min_days)
 
