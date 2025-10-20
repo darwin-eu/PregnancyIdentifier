@@ -24,9 +24,11 @@ runPps <- function(cdm, outputDir, ...) {
   saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
-  message("  * Get min and max dates for episodes")
-  PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
-  saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
+  if (nrow(get_PPS_episodes_df) > 0) {
+    message("  * Get min and max dates for episodes")
+    PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
+    saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
+  }
   return(invisible(NULL))
 }
 
@@ -288,8 +290,11 @@ get_PPS_episodes <- function(cdm) {
     dplyr::group_by(.data$person_id) %>%
     dplyr::arrange(.data$domain_concept_start_date)
 
-  res <- person_dates_df %>%
-    dplyr::group_modify(assign_episodes)
+  res <- person_dates_df
+  if (nrow(res) > 0) {
+    res <- res %>%
+      dplyr::group_modify(assign_episodes)
+  }
 
   return(res)
 }

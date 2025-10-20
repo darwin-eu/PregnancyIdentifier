@@ -15,6 +15,9 @@ cdm <- CDMConnector::cdmFromCon(
   writeSchema = "..."
 )
 
+# add concept tables: hip_concepts, pps_concepts, matcho_outcome_limits, matcho_term_durations
+cdm <- PregnancyIdentifier:::uploadConceptSets(cdm)
+
 outputDir <- "./dev/output/"
 
 runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
