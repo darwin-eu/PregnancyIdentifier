@@ -138,7 +138,7 @@ get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
     c_o,
     o_df,
     m_df %>%
-      mutate(value_col = as.character(.data$value_col)),
+      dplyr::mutate(value_col = as.character(.data$value_col)),
     p_df
   ) %>%
     purrr::reduce(dplyr::union_all)
@@ -194,8 +194,8 @@ findIntersection <- function(intervals) {
     intervals <- purrr::reduce(intervals, rbind)
   }
   intervals <- as.data.frame(intervals) %>%
-    mutate(across(everything(), as.Date)) %>%
-    arrange(V1)
+    dplyr::mutate(across(everything(), as.Date)) %>%
+    dplyr::arrange(V1)
 
   # First remove outlier ranges via the IQR*1.5 approach. Outlier ranges are determined by the number of overlaps each range has with other ranges.
   overlapCountDict <- rep(0, nrow(intervals))
@@ -237,9 +237,9 @@ findIntersection <- function(intervals) {
   outlierMetric <- (countsQ3 - countsQ1) * 1.5
   outlierThreshold <- abs(countsQ1 - outlierMetric)
   if (outlierThreshold == 0) {
-    filteredIntervals <- filter(intervals, overlapCountDict > outlierThreshold)
+    filteredIntervals <- dplyr::filter(intervals, overlapCountDict > outlierThreshold)
   } else {
-    filteredIntervals <- filter(intervals, overlapCountDict >= outlierThreshold)
+    filteredIntervals <- dplyr::filter(intervals, overlapCountDict >= outlierThreshold)
   }
   filteredIntervals <- arrange(filteredIntervals, desc(overlapCountDict))
 
@@ -311,7 +311,7 @@ remove_GW_outliers <- function(lol_of_GW_concepts) {
 
 # definition to get accuracy category
 assign_precision_category <- function(precision_days) {
-  case_when(
+  dplyr::case_when(
     precision_days == -1 ~ "week_poor-support",
     precision_days >= 0 & precision_days <= 7 ~ "week",
     precision_days > 7 & precision_days <= 14 ~ "two-week",

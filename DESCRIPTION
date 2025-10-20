@@ -25,6 +25,7 @@ Imports:
     DBI,
     dbplyr,
     purrr,
-    stringr
+    stringr,
+    TestGenerator
 Suggests: 
     testthat (>= 3.0.0)

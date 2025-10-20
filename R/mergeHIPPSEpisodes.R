@@ -118,7 +118,7 @@ outcomes_per_episode <- function(PPS_episodes_df, get_PPS_episodes_df, cdm) {
   ) %>%
     dplyr::mutate(
       # if there's no next episode impute a distant time
-      next_closest_episode_date = if_else(
+      next_closest_episode_date = dplyr::if_else(
         is.na(next_closest_episode_date),
         lubridate::ymd("2999-01-01"),
         .data$next_closest_episode_date
@@ -271,7 +271,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
   all_episodes <- all_episodes %>%
     dplyr::group_by(algo2_id) %>%
     dplyr::mutate(
-      algo2_dup = dplyr::if_else(is.na(algo2_id)[1], NA, as.integer(n() > 1))
+      algo2_dup = dplyr::if_else(is.na(algo2_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup()
 
@@ -372,12 +372,12 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
     dplyr::distinct() %>%
     dplyr::group_by(.data$algo1_id) %>%
     dplyr::mutate(
-      algo1_dup = if_else(is.na(.data$algo1_id)[1], NA, as.integer(n() > 1))
+      algo1_dup = dplyr::if_else(is.na(.data$algo1_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup() %>%
     dplyr::group_by(.data$algo2_id) %>%
     dplyr::mutate(
-      algo2_dup = if_else(is.na(.data$algo2_id)[1], NA, as.integer(n() > 1))
+      algo2_dup = dplyr::if_else(is.na(.data$algo2_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup()
 
@@ -419,17 +419,17 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
     dplyr::distinct() %>%
     dplyr::group_by(.data$algo1_id) %>%
     dplyr::mutate(
-      algo1_dup = if_else(is.na(.data$algo1_id)[1], NA, as.integer(n() > 1))
+      algo1_dup = dplyr::if_else(is.na(.data$algo1_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup() %>%
     dplyr::group_by(.data$algo2_id) %>%
     dplyr::mutate(
-      algo2_dup = if_else(is.na(.data$algo2_id)[1], NA, as.integer(n() > 1))
+      algo2_dup = dplyr::if_else(is.na(.data$algo2_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
-    ungroup()
+    dplyr::ungroup()
 
   keepB <- best_bothB %>%
-    filter(
+    dplyr::filter(
       !(.data$algo1_dup == 1 & !is.na(.data$algo2_id))
       & !(.data$algo2_dup == 1 & !is.na(.data$algo1_id))
     )
@@ -469,12 +469,12 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
     dplyr::distinct() %>%
     dplyr::group_by(.data$algo1_id) %>%
     dplyr::mutate(
-      algo1_dup = if_else(is.na(.data$algo1_id)[1], NA, as.integer(n() > 1))
+      algo1_dup = dplyr::if_else(is.na(.data$algo1_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup() %>%
     dplyr::group_by(.data$algo2_id) %>%
     dplyr::mutate(
-      algo2_dup = if_else(is.na(.data$algo2_id)[1], NA, as.integer(n() > 1))
+      algo2_dup = dplyr::if_else(is.na(.data$algo2_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup()
 
@@ -524,7 +524,7 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
     dplyr::ungroup() %>%
     dplyr::group_by(.data$algo2_id) %>%
     dplyr::mutate(
-      algo2_dup = if_else(is.na(.data$algo2_id)[1], NA, as.integer(dplyr::n() > 1))
+      algo2_dup = dplyr::if_else(is.na(.data$algo2_id)[1], NA, as.integer(dplyr::n() > 1))
     ) %>%
     dplyr::ungroup()
 

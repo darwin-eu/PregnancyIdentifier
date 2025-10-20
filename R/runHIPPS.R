@@ -73,29 +73,29 @@ runHipps <- function(cdm, outputDir, fileName, ...) {
   # final_merged_episode_detailed_df <- final_merged_episode_detailed(final_merged_episodes_no_duplicates_df)
 
   # ESD -----------------------------------------------------------------------
-  message("  * Running ESD")
-
-  # get timing concepts
-  get_timing_concepts_df <- get_timing_concepts(
-    cdm$cdm$concept, condition_occurrence,
-    cdm$cdm$observation, measurement,
-    cdm$procedure_occurrence,
-    final_merged_episode_detailed_df, cdm$PPS_concepts
-  )
-
-  # get gestational timing info
-  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
-
-  # merge with metadata
-  merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
-    episodes_with_gestational_timing_info_df,
-    final_merged_episode_detailed_df,
-    cdm$matcho_term_durations
-  )
-
-  outputPath <- file.path(outputDir, sprintf("%s.rds", fileName))
-
-  saveRDS(merged_episodes_with_metadata_df, outputPath)
-  message(sprintf("  * Wrote output to %s", outputPath))
+  # message("  * Running ESD")
+  #
+  # # get timing concepts
+  # get_timing_concepts_df <- get_timing_concepts(
+  #   cdm$cdm$concept, condition_occurrence,
+  #   cdm$cdm$observation, measurement,
+  #   cdm$procedure_occurrence,
+  #   final_merged_episode_detailed_df, cdm$PPS_concepts
+  # )
+  #
+  # # get gestational timing info
+  # episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
+  #
+  # # merge with metadata
+  # merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
+  #   episodes_with_gestational_timing_info_df,
+  #   final_merged_episode_detailed_df,
+  #   cdm$matcho_term_durations
+  # )
+  #
+  # outputPath <- file.path(outputDir, sprintf("%s.rds", fileName))
+  #
+  # saveRDS(merged_episodes_with_metadata_df, outputPath)
+  # message(sprintf("  * Wrote output to %s", outputPath))
   return(NULL)
 }

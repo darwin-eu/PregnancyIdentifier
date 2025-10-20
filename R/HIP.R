@@ -355,7 +355,7 @@ add_ectopic <- function(cdm) {
 
   # get difference in days with subsequent visit
   cdm$final_temp_df <- cdm$add_stillbirth_df %>%
-    union_all(
+    dplyr::union_all(
       cdm$final_ect_visits_df %>%
         dplyr::select(-any_of(c("gest_value", "value_as_number")))
     ) %>%
@@ -538,7 +538,7 @@ add_delivery <- function(cdm) {
       # and next episode start date
     ) %>%
     dplyr::mutate(
-      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", sql("day")),
+      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", dbplyr::sql("day")),
       before_days = !!CDMConnector::datediff("next_visit", "visit_date", "day")
     ) %>%
     dplyr::compute()
@@ -546,7 +546,7 @@ add_delivery <- function(cdm) {
   # have the deliveries and all othe others
   # add this: want to move the LB or SB date earlier if there's an earlier delivery date
   cdm$add_abortion_df_rev <- cdm$final_temp_df %>%
-    mutate(
+    dplyr::mutate(
       visit_date = dplyr::if_else(
         !is.na(.data$previous_category)
         & .data$previous_category == "DELIV"
@@ -720,7 +720,7 @@ gestation_episodes <- function(cdm, min_days = 70, buffer_days = 28) {
       episode = as.integer(cumsum(ifelse(.data$new_diff2 <= 0 | .data$index == 1, 1, 0))),
       episode_chr = as.character(.data$episode) # for grouping
     ) %>%
-    ungroup() %>%
+    dplyr::ungroup() %>%
     dplyr::compute()
 
   return(cdm)
@@ -847,12 +847,12 @@ add_gestation <- function(cdm, buffer_days = 28) {
       # min_gest_date is the first occurence of the min gestational week
       min_gest_start_date = .data$min_gest_date - as.integer(.data$min_gest_day),
       # which one is earlier
-      max_gest_start_date_further = if_else(
+      max_gest_start_date_further = dplyr::if_else(
         .data$max_gest_start_date > .data$min_gest_start_date,
         .data$min_gest_start_date, .data$max_gest_start_date
       ),
       # and which one is later
-      min_gest_start_date = if_else(
+      min_gest_start_date = dplyr::if_else(
         max_gest_start_date > min_gest_start_date,
         max_gest_start_date, min_gest_start_date
       ),
@@ -871,7 +871,7 @@ add_gestation <- function(cdm, buffer_days = 28) {
   cdm$both_df <- cdm$calculate_start_df %>%
     dplyr::inner_join(
       cdm$get_min_max_gestation_df,
-      by = join_by(person_id, overlaps(
+      by = dplyr::join_by(person_id, overlaps(
         max_start_date, visit_date,
         max_gest_start_date, max_gest_date
       ))
@@ -879,7 +879,7 @@ add_gestation <- function(cdm, buffer_days = 28) {
     # Check for any gestation-based episodes that overlap with more than one outcome-based
     # episode and keep only those episodes where the gestation-based end date is closest to the
     # outcome date.
-    # mutate(days_diff = as.numeric(difftime(visit_date, max_gest_date))) %>%
+    # dplyr::mutate(days_diff = as.numeric(difftime(visit_date, max_gest_date))) %>%
     dplyr::mutate(
       # add -- these are changed anyway so if there are multiple similar overlaps, choose
       # the one with the better term duration
@@ -890,7 +890,7 @@ add_gestation <- function(cdm, buffer_days = 28) {
       # and over the min, ie both = 1
       is_over_min = ifelse(.data$gest_at_outcome >= .data$min_term, 1, 0),
       days_diff = !!CDMConnector::datediff("visit_date", "max_gest_date", "day"),
-      days_diff = if_else(.data$is_over_min == 1 | .data$is_under_max == 1 | .data$days_diff < -buffer_days, 10000, .data$days_diff)
+      days_diff = dplyr::if_else(.data$is_over_min == 1 | .data$is_under_max == 1 | .data$days_diff < -buffer_days, 10000, .data$days_diff)
     ) %>%
     dplyr::group_by(visit_id) %>%
     dplyr::slice_min(order_by = abs(.data$days_diff), n = 1, with_ties = FALSE) %>%
@@ -948,15 +948,15 @@ add_gestation <- function(cdm, buffer_days = 28) {
     dplyr::collect()
 
   cat("Total number of outcome-based episodes:",
-    tally(cdm$calculate_start_df) %>% pull(n) %>% as.integer(),
+    dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(n) %>% as.integer(),
     "Total number of gestation-based episodes:",
-    tally(cdm$get_min_max_gestation_df) %>% pull(n) %>% as.integer(),
+    dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(n) %>% as.integer(),
     "Total number of only outcome-based episodes after merging:",
-    counts %>% filter(!gestation_based, outcome_based) %>% pull(n) %>% as.integer(),
+    counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(n) %>% as.integer(),
     "Total number of only gestation-based episodes after merging:",
-    counts %>% filter(gestation_based, !outcome_based) %>% pull(n) %>% as.integer(),
+    counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(n) %>% as.integer(),
     "Total number of episodes with both after merging:",
-    counts %>% filter(gestation_based, outcome_based) %>% pull(n) %>% as.integer(),
+    counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(n) %>% as.integer(),
     sep = "\n"
   )
   return(cdm)
