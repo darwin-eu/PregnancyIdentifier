@@ -25,7 +25,7 @@ cdm <- runPps(cdm = cdm, outputDir = outputDir)
 
 ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
 ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
-hipRes <- readRDS(file.path(outputDir, "hip_episodes.rds"))
+hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
 mergeHipPps(
   cdm = cdm,
