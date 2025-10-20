@@ -32,7 +32,7 @@ mergeHipPps(
   HIP = hipRes,
   PPSEpisode = ppsEpisode,
   PPSMinMax = ppsMinMax,
-  outputDir = "./dev/output/",
+  outputDir = outputDir,
   fileName = "merge.csv"
 )
 
