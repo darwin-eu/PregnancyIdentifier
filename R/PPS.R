@@ -3,6 +3,8 @@
 #' Runs PPS algorithm
 #'
 #' @param cdm (`cdm_reference`)
+#' @param outputDir output directory
+#' @param ... optional parameters
 #'
 #' @return (`data.frame`)
 #' @export

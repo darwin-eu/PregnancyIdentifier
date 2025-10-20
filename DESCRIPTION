@@ -21,6 +21,10 @@ Imports:
     CDMConnector,
     dplyr,
     readxl,
-    lubridate
+    lubridate,
+    DBI,
+    dbplyr,
+    purrr,
+    stringr
 Suggests: 
     testthat (>= 3.0.0)

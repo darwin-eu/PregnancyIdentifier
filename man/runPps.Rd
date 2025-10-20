@@ -8,6 +8,10 @@ runPps(cdm, outputDir, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`)}
+
+\item{outputDir}{output directory}
+
+\item{...}{optional parameters}
 }
 \value{
 (`data.frame`)
