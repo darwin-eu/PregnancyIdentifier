@@ -27,14 +27,17 @@
 #' @param HIPPS (`data.frame`)
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
+#' @param uploadConceptSets if concept sets should be uploaded
 #' @param ... Extra (development) parameters
 #'
 #' @return `NULL`
 #' @export
-runEsd <- function(HIPPS, cdm, outputDir, ...) {
+runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...) {
   message("  * Running ESD")
 
-  cdm <- uploadConceptSets(cdm)
+  if (uploadConceptSets) {
+    cdm <- uploadConceptSets(cdm)
+  }
 
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(

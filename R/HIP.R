@@ -245,8 +245,9 @@ final_visits <- function(cdm, categories, tableName) {
     dplyr::compute()
 
   # get minimum days between outcomes
+  category <- categories[1]
   min_day <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == categories[1] & .data$outcome_preg_category == categories[1]) %>%
+    dplyr::filter(.data$first_preg_category == category & .data$outcome_preg_category == category) %>%
     dplyr::pull(.data$min_days)
 
   # identify first visit for each pregnancy episode

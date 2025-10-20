@@ -4,16 +4,19 @@
 #'
 #' @param cdm (`cdm_reference`)
 #' @param outputDir output directory
+#' @param uploadConceptSets if concept sets should be uploaded
 #' @param ... optional parameters
 #'
 #' @return (`data.frame`)
 #' @export
-runPps <- function(cdm, outputDir, ...) {
+runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
   dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
 
   message("  * Running PPS")
-  message("  * Uploading Concepts")
-  cdm <- uploadConceptSets(cdm)
+  if (uploadConceptSets) {
+    message("  * Uploading Concepts")
+    cdm <- uploadConceptSets(cdm)
+  }
   message("  * Pull PPS Concepts from Tables")
   # pull PPS concepts from each table
   cdm <- input_GT_concepts(cdm)
