@@ -10,7 +10,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param ... Dev params
 #'
-#' @returns `NULL`
+#' @returns cdm object
 #'
 #' @export
 runHip <- function(cdm, outputDir, ...) {
@@ -106,7 +106,8 @@ runHip <- function(cdm, outputDir, ...) {
   cdm$hip_episodes %>%
     dplyr::collect() %>%
     saveRDS(file.path(outputDir, "HIP_episodes.rds"))
-  return(invisible(NULL))
+
+  return(cdm)
 }
 
 # Copyright (c) 2024 Louisa Smith

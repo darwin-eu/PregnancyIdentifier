@@ -14,7 +14,7 @@ runHip(cdm, outputDir, ...)
 \item{...}{Dev params}
 }
 \value{
-`NULL`
+cdm object
 }
 \description{
 Runs the HIP

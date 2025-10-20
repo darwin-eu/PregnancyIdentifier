@@ -16,7 +16,7 @@ runPps(cdm, outputDir, uploadConceptSets = FALSE, ...)
 \item{...}{optional parameters}
 }
 \value{
-(`data.frame`)
+cdm object
 }
 \description{
 Runs PPS algorithm

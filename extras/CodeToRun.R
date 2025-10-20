@@ -20,8 +20,8 @@ cdm <- PregnancyIdentifier:::uploadConceptSets(cdm)
 
 outputDir <- "./dev/output/"
 
-runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
-runPps(cdm = cdm, outputDir = outputDir)
+cdm <- runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
+cdm <- runPps(cdm = cdm, outputDir = outputDir)
 
 ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
 ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))

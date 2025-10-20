@@ -7,7 +7,7 @@
 #' @param uploadConceptSets if concept sets should be uploaded
 #' @param ... optional parameters
 #'
-#' @return (`data.frame`)
+#' @return cdm object
 #' @export
 runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
   dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
@@ -32,7 +32,7 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
     PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
     saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
   }
-  return(invisible(NULL))
+  return(cdm)
 }
 
 # Copyright (c) 2024 Louisa Smith
