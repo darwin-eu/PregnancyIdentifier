@@ -33,6 +33,7 @@
 #' @return `NULL`
 #' @export
 runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...) {
+  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   message("  * Running ESD")
 
   if (uploadConceptSets) {

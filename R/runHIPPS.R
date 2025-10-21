@@ -40,8 +40,6 @@ uploadConceptSets <- function(cdm) {
 #' @param ... Dev params
 #'
 #' @returns `NULL`
-#'
-#' @export
 runHipps <- function(cdm, outputDir, fileName, ...) {
   message("> Classifying Pregnancy using HIP, PPS, and ESD")
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)

@@ -14,6 +14,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #'
 #' @export
 runHip <- function(cdm, outputDir, ...) {
+  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   message("  * Running HIP")
   ## Outcome-based episodes
 
