@@ -1,6 +1,9 @@
 library(dplyr)
 library(ggplot2)
 
+# IncidencePrevalence is required for some parts of this script
+# install.packages("IncidencePrevalence")
+
 summariseCategory <- function(df, colName) {
   df %>%
     dplyr::group_by(.data[[colName]]) %>%
@@ -53,35 +56,21 @@ summariseColumn <- function(df, colName) {
   )
 }
 
-# Output PregnancyIdentifier
-root <- "M:/Documents/Very Complex Pregnancy Results/"
-# root <- "/home/amarkus/Documents/Projects/DARWIN-Pregnancy"
-res <- read.csv(file.path(root, "final-HIPPS-ESD.csv"))
-
-resPath <- "M:/Documents/Very Complex Pregnancy Results/sharable/"
+# Same as outputDir
+resPath <- "..."
 
 cdmConnection <- DBI::dbConnect(
   drv = RPostgres::Postgres(),
-  dbname = "CDM-R-20241021",
-  host = Sys.getenv("ipci_server"),
-  user = Sys.getenv("ipci_user"),
-  password = Sys.getenv("ipci_password")
+  ...
 )
 
 cdm <- CDMConnector::cdmFromCon(
   con = cdmConnection,
-  cdmSchema = Sys.getenv("ipci_cdm_schema"),
-  writeSchema = Sys.getenv("ipci_user")
+  cdmSchema = "...",
+  writeSchema = "..."
 )
 
-# hip_episodes <- DBI::dbGetQuery(cdmConnection, "select * from public.hip_episodes")
-cdm <- CDMConnector::readSourceTable(cdm, "hip_episodes")
-
-hipps_episodes <- "..."
-hipps_esd_episodes <- "..."
-
-# res_db <- hip_episodes
-
+hipps <- readRDS(file.path(resPath, "..."))
 
 # TODO: check which start & end dates to use
 names(res) <- tolower(names(res))
