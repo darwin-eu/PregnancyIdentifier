@@ -829,14 +829,14 @@ add_gestation <- function(cdm, buffer_days = 28) {
   # add unique id for each outcome visit
   cdm$calculate_start_df <- cdm$calculate_start_df %>%
     # visit date is the first outcome date for the hierarchically chosen outcome
-    dplyr::mutate(visit_id = paste0(.data$person_id, .data$visit_date)) %>%
+    dplyr::mutate(visit_id = paste0(as.character(.data$person_id), as.character(.data$visit_date))) %>%
     dplyr::compute()
 
   # add unique id for each gestation visit
   cdm$get_min_max_gestation_df <- cdm$get_min_max_gestation_df %>%
     # max gest date is the first occurrence of the maximum gestational week
     dplyr::mutate(
-      gest_id = paste0(.data$person_id, .data$max_gest_date),
+      gest_id = paste0(as.character(.data$person_id), as.character(.data$max_gest_date)),
       # add column for gestation period in days for largest gestation week on record
       max_gest_day = (.data$max_gest_week * 7),
       # add column for gestation period in days for smallest gestation week on record

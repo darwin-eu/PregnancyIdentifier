@@ -489,8 +489,8 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
     dplyr::rowwise() %>%
     dplyr::mutate(
       preg_start_range = ifelse(is.na(.data$extrapolated_preg_start), paste(
-        .data$max_pregnancy_start,
-        .data$min_pregnancy_start
+        as.character(.data$max_pregnancy_start),
+        as.character(.data$min_pregnancy_start)
       ), .data$extrapolated_preg_start),
       # get start dates for GW
       extr = .data$extrapolated_preg_start
