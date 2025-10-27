@@ -201,7 +201,7 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
     dplyr::mutate(
       day_of_birth = as.integer(dplyr::if_else(is.na(.data$day_of_birth), 1L, .data$day_of_birth)),
       month_of_birth = as.integer(dplyr::if_else(is.na(.data$month_of_birth), 1L, .data$month_of_birth)),
-      date_of_birth = as.Date(paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth)))
+      date_of_birth = as.Date(paste0(as.character(as.integer(.data$year_of_birth)), "-", as.character(as.integer(.data$month_of_birth)), "-", as.character(as.integer(.data$day_of_birth))))
     ) %>%
     dplyr::select("person_id", "date_of_birth") %>%
     dplyr::compute()
@@ -610,9 +610,9 @@ calculate_start <- function(cdm) {
     # based only on the outcome, when did pregnancy start
     # calculate latest start start date
     dplyr::mutate(
-      min_start_date = .data$visit_date - as.integer(.data$min_term),
+      min_start_date = !!CDMConnector::dateadd(date = "visit_date", number = "-min_term", interval = "day"),
       # calculate earliest start date
-      max_start_date = .data$visit_date - as.integer(.data$max_term)
+      max_start_date = !!CDMConnector::dateadd(date = "visit_date", number = "-max_term", interval = "day")
     ) %>%
     dplyr::compute()
 
