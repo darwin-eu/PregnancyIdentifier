@@ -257,7 +257,7 @@ get_PPS_episodes <- function(cdm) {
     dplyr::mutate(
       day_of_birth = dplyr::if_else(is.na(.data$day_of_birth), 1, .data$day_of_birth),
       month_of_birth = dplyr::if_else(is.na(.data$month_of_birth), 1, .data$month_of_birth),
-      date_of_birth = as.Date(paste0(as.integer(.data$year_of_birth), "-", as.integer(.data$month_of_birth), "-", as.integer(.data$day_of_birth)))
+      date_of_birth = as.Date(paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth)))
     ) %>%
     dplyr::mutate(
       date_diff = !!CDMConnector::datediff("date_of_birth", "domain_concept_start_date", "day"),
