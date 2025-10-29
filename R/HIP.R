@@ -892,11 +892,15 @@ add_gestation <- function(cdm, buffer_days = 28) {
       # add -- these are changed anyway so if there are multiple similar overlaps, choose
       # the one with the better term duration
       # visit date should be the first visit date at which there's an outcome
-      gest_at_outcome = !!CDMConnector::datediff("visit_date", "max_gest_start_date", "day"),
+      gest_at_outcome = !!CDMConnector::datediff("visit_date", "max_gest_start_date", "day")
+    ) %>%
+    dplyr::mutate(
       # we want it to be under the max
       is_under_max = ifelse(.data$gest_at_outcome <= .data$max_term, 1, 0),
       # and over the min, ie both = 1
-      is_over_min = ifelse(.data$gest_at_outcome >= .data$min_term, 1, 0),
+      is_over_min = ifelse(.data$gest_at_outcome >= .data$min_term, 1, 0)
+    ) %>%
+    dplyr::mutate(
       days_diff = !!CDMConnector::datediff("visit_date", "max_gest_date", "day"),
       days_diff = dplyr::if_else(.data$is_over_min == 1 | .data$is_under_max == 1 | .data$days_diff < -buffer_days, 10000, .data$days_diff)
     ) %>%
@@ -1179,7 +1183,9 @@ remove_overlaps <- function(cdm) {
     ) %>%
     dplyr::mutate(
       # get estimated gestational age in days at outcome_visit_date using estimated_start_date
-      gest_at_outcome = !!CDMConnector::datediff("visit_date", "estimated_start_date", "day"),
+      gest_at_outcome = !!CDMConnector::datediff("visit_date", "estimated_start_date", "day")
+    ) %>%
+    dplyr::mutate(
       # add column to check if gest_at_outcome is less than or equal to max_term, 1 indicates yes
       is_under_max = ifelse(.data$gest_at_outcome <= .data$max_term, 1, 0),
       # add column to check if gest_at_outcome is greater than or equal to min_term, 1 indicates yes
