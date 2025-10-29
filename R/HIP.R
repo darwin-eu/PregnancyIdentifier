@@ -840,7 +840,7 @@ add_gestation <- function(cdm, buffer_days = 28) {
       gest_id = paste0(as.character(.data$person_id), as.character(.data$max_gest_date))
     ) %>%
     dplyr::compute() %>%
-    dplyr::muatte(
+    dplyr::mutate(
       # add column for gestation period in days for largest gestation week on record
       max_gest_day = (.data$max_gest_week * 7),
       # add column for gestation period in days for smallest gestation week on record
