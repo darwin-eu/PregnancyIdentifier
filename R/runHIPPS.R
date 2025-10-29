@@ -40,60 +40,67 @@ uploadConceptSets <- function(cdm) {
 #' @param ... Dev params
 #'
 #' @returns `NULL`
+#'
+#' @export
 runHipps <- function(cdm, outputDir, fileName, ...) {
+  dots <- list(...)
   message("> Classifying Pregnancy using HIP, PPS, and ESD")
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
 
   cdm <- uploadConceptSets(cdm)
 
-  hipRes <- runHip(cdm, outputDir, fileName, ...)
-  ppsRes <- runPps(cdm)
+  cdm <- runHip(cdm, outputDir, fileName, ...)
+  cdm <- runPps(cdm, outputDir, ...)
+
+  PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
+  get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+  HIP_episodes_df <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
+
+  cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
 
   # Merge HIPPS ---------------------------------------------------------------
-  # message("  * Merging HIP and PPS into HIPPS")
-  # # collect outcomes for PPS algorithm from lookahead window
-  # outcomes_per_episode_df <- outcomes_per_episode(PPS_episodes_df, get_PPS_episodes_df, cdm$initial_pregnant_cohort_df)
-  #
-  # # add outcomes to PPS episodes
-  # PPS_episodes_with_outcomes_df <- add_outcomes(outcomes_per_episode_df, PPS_episodes_df)
-  #
-  # # bring HIP episodes into environment
-  # HIP_episodes_local_df <- HIP_episodes_df %>%
-  #   dplyr::collect()
-  #
-  # # merge HIPS and PPS episodes
-  # final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df)
-  #
-  # # remove any duplicated episodes
-  # final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df)
-  #
-  # # add (some) demographic details
-  # final_merged_episode_detailed_df <- final_merged_episode_detailed(final_merged_episodes_no_duplicates_df)
+  message("  * Merging HIP and PPS into HIPPS")
+  # collect outcomes for PPS algorithm from lookahead window
+  outcomes_per_episode_df <- outcomes_per_episode(PPS_episodes_df, get_PPS_episodes_df, cdm)
+
+  # add outcomes to PPS episodes
+  PPS_episodes_with_outcomes_df <- add_outcomes(outcomes_per_episode_df, PPS_episodes_df)
+
+  # bring HIP episodes into environment
+  HIP_episodes_local_df <- HIP_episodes_df %>%
+    dplyr::collect()
+
+  # merge HIPS and PPS episodes
+  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df)
+
+  # remove any duplicated episodes
+  final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df)
+
+  # add (some) demographic details
+  final_merged_episode_detailed_df <- final_merged_episode_detailed(final_merged_episodes_no_duplicates_df)
 
   # ESD -----------------------------------------------------------------------
-  # message("  * Running ESD")
-  #
-  # # get timing concepts
-  # get_timing_concepts_df <- get_timing_concepts(
-  #   cdm$cdm$concept, condition_occurrence,
-  #   cdm$cdm$observation, measurement,
-  #   cdm$procedure_occurrence,
-  #   final_merged_episode_detailed_df, cdm$PPS_concepts
-  # )
-  #
-  # # get gestational timing info
-  # episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
-  #
-  # # merge with metadata
-  # merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
-  #   episodes_with_gestational_timing_info_df,
-  #   final_merged_episode_detailed_df,
-  #   cdm$matcho_term_durations
-  # )
-  #
-  # outputPath <- file.path(outputDir, sprintf("%s.rds", fileName))
-  #
-  # saveRDS(merged_episodes_with_metadata_df, outputPath)
-  # message(sprintf("  * Wrote output to %s", outputPath))
+  message("  * Running ESD")
+
+  # get timing concepts
+  get_timing_concepts_df <- get_timing_concepts(
+    cdm,
+    final_merged_episode_detailed_df
+  )
+
+  # get gestational timing info
+  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
+
+  # merge with metadata
+  merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
+    episodes_with_gestational_timing_info_df,
+    final_merged_episode_detailed_df,
+    cdm
+  )
+
+  outputPath <- file.path(outputDir, sprintf("%s.rds", fileName))
+
+  saveRDS(merged_episodes_with_metadata_df, outputPath)
+  message(sprintf("  * Wrote output to %s", outputPath))
   return(NULL)
 }
