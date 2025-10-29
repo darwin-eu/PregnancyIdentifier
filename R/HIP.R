@@ -14,6 +14,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #'
 #' @export
 runHip <- function(cdm, outputDir, ...) {
+  dots <- list(...)
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   message("  * Running HIP")
   ## Outcome-based episodes
@@ -22,7 +23,7 @@ runHip <- function(cdm, outputDir, ...) {
   # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
   # for all the the HIP concepts that for women who were 15-55
   cdm <- cdm %>%
-    initial_pregnant_cohort(...)
+    initial_pregnant_cohort(continue = dots$continue)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
     warning("  ! No records after initializing pregnant cohort")
@@ -843,10 +844,10 @@ add_gestation <- function(cdm, buffer_days = 28) {
       min_gest_day = (.data$min_gest_week * 7),
       # get date of estimated start date based on max gestation week on record
       # max_gest_date is the first occurrence of the maximum gestational week
-      max_gest_start_date = .data$max_gest_date - as.integer(.data$max_gest_day),
+      max_gest_start_date = !!CDMConnector::dateadd(date = "max_gest_date", number = "-max_gest_day", interval = "day"),
       # get date of estimated start date based on min gestation week on record
       # min_gest_date is the first occurence of the min gestational week
-      min_gest_start_date = .data$min_gest_date - as.integer(.data$min_gest_day),
+      min_gest_start_date = !!CDMConnector::dateadd(date = "min_gest_date", number = "-min_gest_day", interval = "day"),
       # which one is earlier
       max_gest_start_date_further = dplyr::if_else(
         .data$max_gest_start_date > .data$min_gest_start_date,
