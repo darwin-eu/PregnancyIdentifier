@@ -27,7 +27,7 @@ runHip <- function(cdm, outputDir, ...) {
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
     warning("  ! No records after initializing pregnant cohort")
-    return(NULL)
+    return(cdm)
   }
 
   # get outcome visits from Matcho et al.
@@ -611,9 +611,9 @@ calculate_start <- function(cdm) {
     # based only on the outcome, when did pregnancy start
     # calculate latest start start date
     dplyr::mutate(
-      min_start_date = !!CDMConnector::dateadd(date = "visit_date", number = "-min_term", interval = "day"),
+      min_start_date = as.Date(!!CDMConnector::dateadd(date = "visit_date", number = "-min_term", interval = "day")),
       # calculate earliest start date
-      max_start_date = !!CDMConnector::dateadd(date = "visit_date", number = "-max_term", interval = "day")
+      max_start_date = as.Date(!!CDMConnector::dateadd(date = "visit_date", number = "-max_term", interval = "day"))
     ) %>%
     dplyr::compute()
 
@@ -837,11 +837,17 @@ add_gestation <- function(cdm, buffer_days = 28) {
   cdm$get_min_max_gestation_df <- cdm$get_min_max_gestation_df %>%
     # max gest date is the first occurrence of the maximum gestational week
     dplyr::mutate(
-      gest_id = paste0(as.character(.data$person_id), as.character(.data$max_gest_date)),
+      gest_id = paste0(as.character(.data$person_id), as.character(.data$max_gest_date))
+    ) %>%
+    dplyr::compute() %>%
+    dplyr::muatte(
       # add column for gestation period in days for largest gestation week on record
       max_gest_day = (.data$max_gest_week * 7),
       # add column for gestation period in days for smallest gestation week on record
       min_gest_day = (.data$min_gest_week * 7),
+    ) %>%
+    dplyr::compute() %>%
+    dplyr::mutate(
       # get date of estimated start date based on max gestation week on record
       # max_gest_date is the first occurrence of the maximum gestational week
       max_gest_start_date = !!CDMConnector::dateadd(date = "max_gest_date", number = "-max_gest_day", interval = "day"),
@@ -861,12 +867,12 @@ add_gestation <- function(cdm, buffer_days = 28) {
       # so max_gest_start_date will always be earlier
       max_gest_start_date = .data$max_gest_start_date_further
     ) %>%
+    dplyr::compute() %>%
     dplyr::mutate(
       # get difference in days between estimated start dates
       gest_start_date_diff = !!CDMConnector::datediff("max_gest_start_date", "min_gest_start_date", "day")
     ) %>%
     dplyr::compute()
-
 
   # join both tables to find overlaps
   # 18679
