@@ -1,7 +1,11 @@
 library(shiny)
+library(DarwinShinyModules)
 library(IncidencePrevalence)
 library(ggplot2)
-library(DarwinShinyModules)
+library(visOmopResults)
+library(shinydashboard)
+library(shinycssloaders)
+library(plotly)
 # cleanup environment variables
 
 rm(list = ls())
@@ -51,7 +55,7 @@ appStructure <- list(
     background = "./background.md",
     EUPAS = "EUPAS"
   )),
-  "Incidence" = list(handleEmptyResult(object = DarwinShinyModules::Incidence$new(incidence), result = incidence))
+  "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence))
 )
 
 DarwinShinyModules::launchDarwinDashboardApp(appStructure, title = "PregnancyIdentifier")
