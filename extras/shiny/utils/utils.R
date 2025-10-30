@@ -20,37 +20,59 @@ snakeCaseToCamelCase <- function(string) {
 }
 
 loadFile <- function(file, dbName, folder, overwrite) {
-  tableName <- gsub(".csv$", "", file)
-  camelCaseName <- snakeCaseToCamelCase(tableName)
+  if (endsWith(file, ".csv")) {
+    print(file)
+    tableName <- gsub(".csv$", "", file)
+    camelCaseName <- snakeCaseToCamelCase(tableName)
 
-  if (grepl("incidence", tolower(file))) {
-    data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-    data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
-  } else {
-    data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"))
-  }
-  if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
-    existingData <- get(camelCaseName, envir = .GlobalEnv)
-    if (nrow(existingData) > 0) {
-      if (nrow(data) > 0 &&
-          all(colnames(existingData) %in% colnames(data)) &&
-          all(colnames(data) %in% colnames(existingData))) {
-        data <- data[, colnames(existingData)]
-      }
-
-      if (!isTRUE(all.equal(colnames(data), colnames(existingData), check.attributes = FALSE))) {
-        stop(
-          "Table columns do no match previously seen columns. Columns in ",
-          file,
-          ":\n",
-          paste(colnames(data), collapse = ", "),
-          "\nPrevious columns:\n",
-          paste(colnames(existingData), collapse = ", ")
-        )
-      }
+    if (grepl("incidence", tolower(file))) {
+      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
+      data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
+    } else {
+      data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8")) %>%
+        dplyr::select(-"...1")
     }
-    data <- rbind(existingData, data)
+    if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
+      existingData <- get(camelCaseName, envir = .GlobalEnv)
+      if (nrow(existingData) > 0) {
+        if (nrow(data) > 0 &&
+            all(colnames(existingData) %in% colnames(data)) &&
+            all(colnames(data) %in% colnames(existingData))) {
+          data <- data[, colnames(existingData)]
+        }
+
+        if (!isTRUE(all.equal(colnames(data), colnames(existingData), check.attributes = FALSE))) {
+          stop(
+            "Table columns do no match previously seen columns. Columns in ",
+            file,
+            ":\n",
+            paste(colnames(data), collapse = ", "),
+            "\nPrevious columns:\n",
+            paste(colnames(existingData), collapse = ", ")
+          )
+        }
+      }
+      data <- rbind(existingData, data)
+    }
+    assign(camelCaseName, data, envir = .GlobalEnv)
+    invisible(NULL)
   }
-  assign(camelCaseName, data, envir = .GlobalEnv)
-  invisible(NULL)
+}
+
+yearTrendsPlot <- function(data, xIntercept) {
+  p <- ggplot(data = data, mapping = aes(x = year, y = count, color = column, group = column)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Year", y = "Count (N)") +
+    geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed")
+  plotly::ggplotly(p)
+}
+
+monthTrendsPlot <- function(data) {
+  p <- ggplot(data = data, mapping = aes(x = month, y = count, color = column, group = column)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Month", y = "Count (N)") +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+  plotly::ggplotly(p)
 }
