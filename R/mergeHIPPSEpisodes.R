@@ -84,13 +84,23 @@ outcomes_per_episode <- function(PPS_episodes_df, get_PPS_episodes_df, cdm) {
 
   pregnant_dates <- PPS_episodes_df %>%
     dplyr::group_by(person_id) %>%
-    dplyr::arrange(person_episode_number, episode_min_date) %>%
+    dplyr::arrange(.data$person_episode_number, .data$episode_min_date) %>%
     # not gestational week 1, just when the first concept appears
     dplyr::mutate(
-      next_closest_episode_date = dplyr::lead(episode_min_date) - lubridate::days(1),
-      previous_episode_date = dplyr::lag(episode_max_date) + lubridate::days(1)
+      next_closest_episode_date = dplyr::lead(.data$episode_min_date) - lubridate::days(1),
+      previous_episode_date = dplyr::lag(.data$episode_max_date) + lubridate::days(1)
     ) %>%
     dplyr::ungroup()
+
+  if (nrow(get_PPS_episodes_df) == 0) {
+    get_PPS_episodes_df <- get_PPS_episodes_df %>%
+      dplyr::mutate(person_episode_number = integer(0))
+  } else {
+    if (!"person_episode_number" %in% names(get_PPS_episodes_df)) {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(person_episode_number = 1)
+    }
+  }
 
   # get the max number of months to look ahead from the episode itself, in a new column called 'max_pregnancy_date'
   # do this by saving the concept date relating to the last episode concept

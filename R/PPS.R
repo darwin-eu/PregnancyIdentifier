@@ -303,6 +303,7 @@ get_PPS_episodes <- function(cdm) {
 }
 
 get_episode_max_min_dates <- function(get_PPS_episodes_df) {
+  browser()
   df <- get_PPS_episodes_df %>%
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
