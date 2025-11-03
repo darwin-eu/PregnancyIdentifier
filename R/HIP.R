@@ -959,18 +959,31 @@ add_gestation <- function(cdm, buffer_days = 28) {
   ) %>%
     dplyr::collect()
 
-  cat("Total number of outcome-based episodes:",
-    dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(n) %>% as.integer(),
-    "Total number of gestation-based episodes:",
-    dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(n) %>% as.integer(),
-    "Total number of only outcome-based episodes after merging:",
-    counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(n) %>% as.integer(),
-    "Total number of only gestation-based episodes after merging:",
-    counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(n) %>% as.integer(),
-    "Total number of episodes with both after merging:",
-    counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(n) %>% as.integer(),
-    sep = "\n"
-  )
+  message(sprintf(
+    "  - Total number of outcome-based episodes: %s",
+    dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(n)
+  ))
+
+  message(sprintf(
+    "  - Total number of gestation-based episodes: %s",
+    dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(n)
+  ))
+
+  message(sprintf(
+    "  - Total number of only outcome-based episodes after merging: %s",
+    counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(n)
+  ))
+
+  message(sprintf(
+    "  - Total number of only gestation-based episodes after merging: %s",
+    counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(n)
+  ))
+
+  message(sprintf(
+    "Total number of episodes with both after merging: %s",
+    counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(n)
+  ))
+
   return(cdm)
 }
 
@@ -1001,14 +1014,13 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     ) %>%
     dplyr::compute()
 
-  cat(
-    "Total number of episodes over maximum term duration:",
+  message(sprintf(
+    "Total number of episodes over maximum term duration: %s",
     cdm$over_max_df %>%
       dplyr::tally() %>%
       dplyr::pull(n) %>%
-      as.integer(),
-    sep = "\n"
-  )
+      as.integer()
+  ))
 
   # join episodes with new values back to main table
   cdm$final_df <- cdm$final_df %>%
@@ -1034,14 +1046,13 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_over_min == 0 & .data$days_diff < -buffer_days)) %>%
     dplyr::compute()
 
-  cat(
+  message(sprintf(
     "Total number of episodes under minimum term duration:",
     cdm$under_min_df %>%
       dplyr::tally() %>%
       dplyr::pull(n) %>%
-      as.integer(),
-    sep = "\n"
-  )
+      as.integer()
+  ))
 
   # join episodes with new values to main table
   cdm$final_df <- cdm$final_df %>%
@@ -1060,13 +1071,13 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     ) %>%
     dplyr::compute()
 
-  cat("Total number of episodes with negative number of days between outcome and max_gest_date:",
+  message(sprintf(
+    "Total number of episodes with negative number of days between outcome and max_gest_date: %s",
     cdm$neg_days_df %>%
       dplyr::tally() %>%
       dplyr::pull(n) %>%
-      as.integer(),
-    sep = "\n"
-  )
+      as.integer()
+  ))
 
   # filter out these episodes from main table
   cdm$clean_episodes_df <- cdm$final_df %>%
@@ -1245,14 +1256,13 @@ remove_overlaps <- function(cdm) {
     dplyr::union_all(cdm$temp_df) %>%
     dplyr::compute()
 
-  cat("Total number of episodes with removed outcome:",
-    cdm$remove_overlaps_df %>%
-      dplyr::filter(removed_outcome == 1) %>%
-      dplyr::tally() %>%
-      dplyr::pull(.data$n) %>%
-      as.integer(),
-    sep = "\n"
-  )
+  nRemovedOutcomes <- cdm$remove_overlaps_df %>%
+    dplyr::filter(removed_outcome == 1) %>%
+    dplyr::tally() %>%
+    dplyr::pull(.data$n)
+
+  message(sprintf("Total number of episodes with removed outcome: %s", nRemovedOutcomes))
+
   return(cdm)
 }
 

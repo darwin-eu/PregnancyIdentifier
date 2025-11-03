@@ -693,8 +693,8 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
     dplyr::mutate(
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),
-        .data$inferred_episode_end - lubridate::days(.data$max_term),
-        .data$inferred_episode_start)
+        as.Date(as.Date(.data$inferred_episode_end) - as.numeric(lubridate::days(.data$max_term))),
+        as.Date(.data$inferred_episode_start))
     )
 
   # Convert precision_days to integer type
@@ -776,16 +776,11 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
   max_episode_date <- max(final_df$recorded_episode_end, na.rm = TRUE)
   min_pregnancy_date <- min(final_df$inferred_episode_start, na.rm = TRUE)
   max_pregnancy_date <- max(final_df$inferred_episode_end, na.rm = TRUE)
-  cat("Min episode start date:",
-    as.character(min_episode_date),
-    "Max episode end date:",
-    as.character(max_episode_date),
-    "Min pregnancy start date:",
-    as.character(min_pregnancy_date),
-    "Max pregnancy end date:",
-    as.character(max_pregnancy_date),
-    sep = "\n"
-  )
+
+  message(sprintf("  - Min episode start date: %s", min_episode_date))
+  message(sprintf("  - Max episode end date: %s", max_episode_date))
+  message(sprintf("  - Min pregnancy start date: %s", min_pregnancy_date))
+  message(sprintf("  - Max pregnancy end date: %s", max_pregnancy_date))
 
   return(final_df)
 }
