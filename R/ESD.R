@@ -436,7 +436,7 @@ get_gt_timing <- function(dateslist) {
 episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   # add on either GW or GR3m designation depending on whether the concept is present
   if (nrow(get_timing_concepts_df) > 0) {
-    timing_concepts_df <- get_timing_concepts_df %>%
+    get_timing_concepts_df <- get_timing_concepts_df %>%
       dplyr::mutate(
         domain_concept_id = as.integer(.data$domain_concept_id),
         GT_type = dplyr::case_when(
@@ -449,7 +449,7 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
       )
 
     # add on the max and min pregnancy start dates predicted by each concept
-    timing_designation_df <- timing_designation_df %>%
+    timing_designation_df <- get_timing_concepts_df %>%
       dplyr::mutate(
         min_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$min_month * 30.4), NA),
         max_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$max_month * 30.4), NA)
