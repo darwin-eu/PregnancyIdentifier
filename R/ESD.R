@@ -436,7 +436,7 @@ get_gt_timing <- function(dateslist) {
 episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   # add on either GW or GR3m designation depending on whether the concept is present
   if (nrow(get_timing_concepts_df) > 0) {
-    get_timing_concepts_df <- get_timing_concepts_df %>%
+    timing_concepts_df <- get_timing_concepts_df %>%
       dplyr::mutate(
         domain_concept_id = as.integer(.data$domain_concept_id),
         GT_type = dplyr::case_when(
