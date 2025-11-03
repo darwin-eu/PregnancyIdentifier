@@ -3,4 +3,5 @@
 export(mergeHipPps)
 export(runEsd)
 export(runHip)
+export(runHipps)
 export(runPps)
