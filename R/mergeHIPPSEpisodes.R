@@ -325,7 +325,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
     all_episodes %>%
       dplyr::distinct(.data$algo1_id) %>%
       dplyr::tally() %>%
-      dplyr::pull(.data$n) - 1, # don't count NA
+      dplyr::pull(.data$n) - 1 # don't count NA
   ))
 
   message(sprintf(
