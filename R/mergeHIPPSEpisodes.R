@@ -84,13 +84,23 @@ outcomes_per_episode <- function(PPS_episodes_df, get_PPS_episodes_df, cdm) {
 
   pregnant_dates <- PPS_episodes_df %>%
     dplyr::group_by(person_id) %>%
-    dplyr::arrange(person_episode_number, episode_min_date) %>%
+    dplyr::arrange(.data$person_episode_number, .data$episode_min_date) %>%
     # not gestational week 1, just when the first concept appears
     dplyr::mutate(
-      next_closest_episode_date = dplyr::lead(episode_min_date) - lubridate::days(1),
-      previous_episode_date = dplyr::lag(episode_max_date) + lubridate::days(1)
+      next_closest_episode_date = dplyr::lead(.data$episode_min_date) - lubridate::days(1),
+      previous_episode_date = dplyr::lag(.data$episode_max_date) + lubridate::days(1)
     ) %>%
     dplyr::ungroup()
+
+  if (nrow(get_PPS_episodes_df) == 0) {
+    get_PPS_episodes_df <- get_PPS_episodes_df %>%
+      dplyr::mutate(person_episode_number = integer(0))
+  } else {
+    if (!"person_episode_number" %in% names(get_PPS_episodes_df)) {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(person_episode_number = 1)
+    }
+  }
 
   # get the max number of months to look ahead from the episode itself, in a new column called 'max_pregnancy_date'
   # do this by saving the concept date relating to the last episode concept
@@ -276,40 +286,55 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
     dplyr::ungroup()
 
   # check overlap
-  cat("Total initial number of episodes for HIP:",
-      algo1_pregnancy %>%
-        dplyr::distinct(.data$person_id, .data$episode) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      "Total initial number of episodes for PPS:",
-      algo2 %>%
-        dplyr::distinct(.data$person_id, .data$person_episode_number) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      "Count of HIP episodes that overlap multiple PPS episodes:",
+  message(sprintf(
+    "Total initial number of episodes for HIP: %s",
+    algo1_pregnancy %>%
+      dplyr::distinct(.data$person_id, .data$episode) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "Total initial number of episodes for PPS: %s",
+    algo2 %>%
+      dplyr::distinct(.data$person_id, .data$person_episode_number) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "Count of HIP episodes that overlap multiple PPS episodes: %s",
+    all_episodes %>%
+      dplyr::filter(.data$algo1_dup != 0) %>%
+      dplyr::distinct(.data$algo1_id) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "Count of PPS episodes that overlap multiple HIP episodes: %s",
+    all_episodes %>%
+      dplyr::filter(.data$algo2_dup != 0) %>%
+      dplyr::distinct(.data$algo2_id) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "Total number of HIP episodes after merging: %s",
+    all_episodes %>%
+      dplyr::distinct(.data$algo1_id) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n) - 1 # don't count NA
+  ))
+
+  message(sprintf(
+      "Total number of PPS episodes after merging: %s",
       all_episodes %>%
-        dplyr::filter(.data$algo1_dup != 0) %>%
-        dplyr::distinct(.data$algo1_id) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      "Count of PPS episodes that overlap multiple HIP episodes:",
-      all_episodes %>%
-        dplyr::filter(.data$algo2_dup != 0) %>%
         dplyr::distinct(.data$algo2_id) %>%
         dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      "Total number of HIP episodes after merging:",
-      all_episodes %>%
-        dplyr::distinct(.data$algo1_id) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n) - 1, # don't count NA
-      "Total number of PPS episodes after merging:",
-      all_episodes %>%
-        dplyr::distinct(.data$algo2_id) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n) - 1, # don't count NA
-      sep = "\n"
-  )
+        dplyr::pull(.data$n) - 1 # don't count NA
+  ))
 
   return(all_episodes)
 }
@@ -614,34 +639,50 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
       | (.data$algo2_dup == 1 & !is.na(.data$algo1_id))
     )
 
-  cat("Count of duplicated algorithm 1 episodes",
-      dup_df %>%
-        dplyr::filter(.data$algo1_dup != 0) %>%
-        dplyr::distinct(.data$algo1_id) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      "Count of duplicated algorithm 2 episodes",
-      dup_df %>%
-        dplyr::filter(.data$algo2_dup != 0) %>%
-        dplyr::distinct(.data$algo2_id) %>%
-        dplyr::tally() %>%
-        dplyr::pull(.data$n),
-      sep = "\n",
-      "count of unduplicated episodes with both",
-      unduped_counts %>%
-        dplyr::filter(!.data$no_algo1, !.data$no_algo2, .data$algo1_dup == 0, .data$algo2_dup == 0) %>%
-        dplyr::pull(.data$n),
-      "count of unduplicated algorithm 1 episodes",
-      unduped_counts %>%
-        dplyr::filter(!.data$no_algo1, .data$no_algo2, .data$algo1_dup == 0) %>%
-        dplyr::pull(.data$n),
-      "count of unduplicated algorithm 2 episodes",
-      unduped_counts %>%
-        dplyr::filter(.data$no_algo1, !.data$no_algo2, .data$algo2_dup == 0) %>%
-        dplyr::pull(.data$n),
-      "total unduplicated episodes",
-      nrow(all_rows)
-  )
+
+  message(sprintf(
+    "Count of duplicated algorithm 1 episodes: %s",
+    dup_df %>%
+      dplyr::filter(.data$algo1_dup != 0) %>%
+      dplyr::distinct(.data$algo1_id) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "Count of duplicated algorithm 2 episodes: %s",
+    dup_df %>%
+      dplyr::filter(.data$algo2_dup != 0) %>%
+      dplyr::distinct(.data$algo2_id) %>%
+      dplyr::tally() %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "count of unduplicated episodes with both: %s",
+    unduped_counts %>%
+      dplyr::filter(!.data$no_algo1, !.data$no_algo2, .data$algo1_dup == 0, .data$algo2_dup == 0) %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "count of unduplicated algorithm 1 episodes: %s",
+    unduped_counts %>%
+      dplyr::filter(!.data$no_algo1, .data$no_algo2, .data$algo1_dup == 0) %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "count of unduplicated algorithm 2 episodes: %s",
+    unduped_counts %>%
+      dplyr::filter(.data$no_algo1, !.data$no_algo2, .data$algo2_dup == 0) %>%
+      dplyr::pull(.data$n)
+  ))
+
+  message(sprintf(
+    "total unduplicated episodes: %s",
+    nrow(all_rows)
+  ))
 
   # recalculate merged dates, episode number, and episode length
   final_df <- all_rows %>%

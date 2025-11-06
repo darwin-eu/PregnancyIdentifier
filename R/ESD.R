@@ -91,7 +91,7 @@ get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
   # need to find concept names that contain 'gestation period' as well as the specific concepts
   concepts_to_search <- cdm$concept %>%
     dplyr::filter(
-      stringr::str_detect(tolower(.data$concept_name), "gestation period")
+      .data$concept_name %like% "gestation period"
       | concept_id %in% c(
         observation_concept_list, measurement_concept_list, algo2_timing_concepts_id_list,
         est_date_of_delivery_concepts, est_date_of_conception_concepts,
@@ -435,105 +435,105 @@ get_gt_timing <- function(dateslist) {
 
 episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   # add on either GW or GR3m designation depending on whether the concept is present
-  timing_designation_df <- get_timing_concepts_df %>%
-    dplyr::mutate(
-      domain_concept_id = as.integer(.data$domain_concept_id),
-      GT_type = dplyr::case_when(
-        stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period")
-        | domain_concept_id %in% c(3048230, 3002209, 3012266, 3050433)
-        ~ "GW",
-        !is.na(min_month) ~ "GR3m",
-        TRUE ~ NA
+  if (nrow(get_timing_concepts_df) > 0) {
+    get_timing_concepts_df <- get_timing_concepts_df %>%
+      dplyr::mutate(
+        domain_concept_id = as.integer(.data$domain_concept_id),
+        GT_type = dplyr::case_when(
+          stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period")
+          | domain_concept_id %in% c(3048230, 3002209, 3012266, 3050433)
+          ~ "GW",
+          !is.na(min_month) ~ "GR3m",
+          TRUE ~ NA
+        )
       )
-    )
 
-  # add on the max and min pregnancy start dates predicted by each concept
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::mutate(
-      min_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$min_month * 30.4), NA),
-      max_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$max_month * 30.4), NA)
-    )
-
-
-  # add the max and min possible pregnancy start dates according to the GR3m concepts
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::mutate(
-      min_pregnancy_start = dplyr::if_else(
-        .data$GT_type == "GR3m",
-        .data$domain_concept_start_date - as.integer(.data$min_days_to_pregnancy_start),
-        lubridate::NA_Date_
-      ),
-      max_pregnancy_start = dplyr::if_else(
-        .data$GT_type == "GR3m",
-        .data$domain_concept_start_date - as.integer(.data$max_days_to_pregnancy_start),
-        lubridate::NA_Date_
+    # add on the max and min pregnancy start dates predicted by each concept
+    timing_designation_df <- get_timing_concepts_df %>%
+      dplyr::mutate(
+        min_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$min_month * 30.4), NA),
+        max_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$max_month * 30.4), NA)
       )
-    ) %>%
-    dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
-  # remove type if null values
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::mutate(GT_type = dplyr::case_when(
-      .data$GT_type == "GW" & is.na(.data$domain_value) ~ NA,
-      .data$GT_type == "GW" & is.na(.data$extrapolated_preg_start) ~ NA,
-      TRUE ~ .data$GT_type
-    ))
+    # add the max and min possible pregnancy start dates according to the GR3m concepts
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::mutate(
+        min_pregnancy_start = dplyr::if_else(
+          .data$GT_type == "GR3m",
+          .data$domain_concept_start_date - as.integer(.data$min_days_to_pregnancy_start),
+          lubridate::NA_Date_
+        ),
+        max_pregnancy_start = dplyr::if_else(
+          .data$GT_type == "GR3m",
+          .data$domain_concept_start_date - as.integer(.data$max_days_to_pregnancy_start),
+          lubridate::NA_Date_
+        )
+      ) %>%
+      dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
-  # filter to rows with GW or GR3m type
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::filter(.data$GT_type == "GW" | .data$GT_type == "GR3m")
+    # remove type if null values
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::mutate(GT_type = dplyr::case_when(
+        .data$GT_type == "GW" & is.na(.data$domain_value) ~ NA,
+        .data$GT_type == "GW" & is.na(.data$extrapolated_preg_start) ~ NA,
+        TRUE ~ .data$GT_type
+      ))
 
-  # get start date range for GR3m
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::mutate(dplyr::across(c(.data$extrapolated_preg_start, .data$min_pregnancy_start, .data$max_pregnancy_start), as.character)) %>%
-    dplyr::rowwise() %>%
-    dplyr::mutate(
-      preg_start_range = ifelse(is.na(.data$extrapolated_preg_start), paste(
-        as.character(.data$max_pregnancy_start),
-        as.character(.data$min_pregnancy_start)
-      ), .data$extrapolated_preg_start),
-      # get start dates for GW
-      extr = .data$extrapolated_preg_start
-    ) %>%
-    dplyr::ungroup()
+    # filter to rows with GW or GR3m type
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::filter(.data$GT_type == "GW" | .data$GT_type == "GR3m")
 
-  # create list of all dates
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::mutate(all_GT_info = ifelse(is.na(.data$extr), .data$preg_start_range, .data$extr))
+    # get start date range for GR3m
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::mutate(dplyr::across(c(.data$extrapolated_preg_start, .data$min_pregnancy_start, .data$max_pregnancy_start), as.character)) %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        preg_start_range = ifelse(is.na(.data$extrapolated_preg_start), paste(
+          as.character(.data$max_pregnancy_start),
+          as.character(.data$min_pregnancy_start)
+        ), .data$extrapolated_preg_start),
+        # get start dates for GW
+        extr = .data$extrapolated_preg_start
+      ) %>%
+      dplyr::ungroup()
 
-  # add on a categorization column to ensure gestation week concepts are distinguished as a single entity and others are unique per concept (important for the next steps of removing duplicates)
-  timing_designation_df <- timing_designation_df %>%
-    # add gt-type here so othe rmeasurements not rolled up
-    dplyr::mutate(
-      domain_concept_name_rollup = ifelse(
-        !is.na(.data$domain_value) & .data$GT_type == "GW",
-      "Gestation Week",
-      .data$domain_concept_name
-    )
-  )
+    # create list of all dates
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::mutate(all_GT_info = ifelse(is.na(.data$extr), .data$preg_start_range, .data$extr))
 
-  # IMPORTANT: sort by domain value (gest week concepts) from highest (latest in pregancy) to lowest (earliest in pregnancy)
-  # so that later on the first element of the GW list can be taken for 'latest in pregnancy' concept
-  timing_designation_df <- timing_designation_df %>%
-    dplyr::arrange(.data$person_id, .data$episode_number, dplyr::desc(.data$domain_value)) %>%
-    # remove all rows but the first for each concept date ~ GT_type combination (as these are likely to be historical references)
-    # so on each date, the highest domain value will be chosen
-    dplyr::group_by(.data$person_id, .data$episode_number, .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$GT_type) %>%
-    dplyr::slice(1) %>%
-    dplyr::ungroup()
+    # add on a categorization column to ensure gestation week concepts are distinguished as a single entity and others are unique per concept (important for the next steps of removing duplicates)
+    timing_designation_df <- timing_designation_df %>%
+      # add gt-type here so othe rmeasurements not rolled up
+      dplyr::mutate(
+        domain_concept_name_rollup = ifelse(
+          !is.na(.data$domain_value) & .data$GT_type == "GW",
+          "Gestation Week",
+          .data$domain_concept_name
+        )
+      )
 
-  # group the dataset by patient and episode number and pass relevant columns to a function that adds inferred_start_date and precision
-  new_timing_designation_df <- timing_designation_df %>%
-    dplyr::group_by(.data$person_id, .data$episode_number) %>%
-    # first is the date with the highest domain value
-    dplyr::summarise(
-      GT_info_list = purrr::map(list(.data$all_GT_info), ~ stringr::str_split(.x, " ")),
-      GW_flag = as.numeric(any(.data$GT_type == "GW")),
-      GR3m_flag = as.numeric(any(.data$GT_type == "GR3m")),
-      .groups = "drop"
-    )
+    # IMPORTANT: sort by domain value (gest week concepts) from highest (latest in pregancy) to lowest (earliest in pregnancy)
+    # so that later on the first element of the GW list can be taken for 'latest in pregnancy' concept
+    timing_designation_df <- timing_designation_df %>%
+      dplyr::arrange(.data$person_id, .data$episode_number, dplyr::desc(.data$domain_value)) %>%
+      # remove all rows but the first for each concept date ~ GT_type combination (as these are likely to be historical references)
+      # so on each date, the highest domain value will be chosen
+      dplyr::group_by(.data$person_id, .data$episode_number, .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$GT_type) %>%
+      dplyr::slice(1) %>%
+      dplyr::ungroup()
 
-  new_timing_designation_df <- new_timing_designation_df %>%
+    # group the dataset by patient and episode number and pass relevant columns to a function that adds inferred_start_date and precision
+    new_timing_designation_df <- timing_designation_df %>%
+      dplyr::group_by(.data$person_id, .data$episode_number) %>%
+      # first is the date with the highest domain value
+      dplyr::summarise(
+        GT_info_list = purrr::map(list(.data$all_GT_info), ~ stringr::str_split(.x, " ")),
+        GW_flag = as.numeric(any(.data$GT_type == "GW")),
+        GR3m_flag = as.numeric(any(.data$GT_type == "GR3m")),
+        .groups = "drop"
+      )
+
+    new_timing_designation_df <- new_timing_designation_df %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
       final_timing_info = list(get_gt_timing(.data$GT_info_list)),
@@ -549,17 +549,31 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
       "precision_category", "intervalsCount", "majorityOverlapCount"
     )
 
-  # print the GW and GR3m concept overlap information to log
-  majorityOverlapCountTotal <- sum(new_timing_designation_df$majorityOverlapCount, na.rm = TRUE)
-  intervalsCountTotal <- sum(new_timing_designation_df$intervalsCount, na.rm = TRUE)
-  percMajority <- (majorityOverlapCountTotal / intervalsCountTotal) * 100
+    # print the GW and GR3m concept overlap information to log
+    majorityOverlapCountTotal <- sum(new_timing_designation_df$majorityOverlapCount, na.rm = TRUE)
+    intervalsCountTotal <- sum(new_timing_designation_df$intervalsCount, na.rm = TRUE)
+    percMajority <- (majorityOverlapCountTotal / intervalsCountTotal) * 100
 
-  cat("Number of episodes with GR3m intervals:",
-    intervalsCountTotal,
-    "Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:",
-    percMajority,
-    sep = "\n"
-  )
+
+    message(sprintf("-- Number of episodes with GR3m intervals: %s", intervalsCountTotal))
+    message(sprintf("-- Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", percMajority))
+  } else {
+    message(sprintf("-- Number of episodes with GR3m intervals: %s", 0))
+    message(sprintf("-- Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", 0))
+
+    new_timing_designation_df <- dplyr::tibble(
+      person_id = integer(0),
+      episode_number = integer(0),
+      GT_info_list = character(0),
+      GW_flag = numeric(0),
+      GR3m_flag = numeric(0),
+      inferred_episode_start = numeric(0),
+      precision_days = numeric(0),
+      precision_category = character(0),
+      intervalsCount = numeric(0),
+      majorityOverlapCount = numeric(0)
+    )
+  }
 
   return(new_timing_designation_df)
 }
@@ -679,8 +693,8 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
     dplyr::mutate(
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),
-        .data$inferred_episode_end - lubridate::days(.data$max_term),
-        .data$inferred_episode_start)
+        as.Date(as.Date(.data$inferred_episode_end) - as.numeric(lubridate::days(.data$max_term))),
+        as.Date(.data$inferred_episode_start))
     )
 
   # Convert precision_days to integer type
@@ -762,16 +776,11 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
   max_episode_date <- max(final_df$recorded_episode_end, na.rm = TRUE)
   min_pregnancy_date <- min(final_df$inferred_episode_start, na.rm = TRUE)
   max_pregnancy_date <- max(final_df$inferred_episode_end, na.rm = TRUE)
-  cat("Min episode start date:",
-    as.character(min_episode_date),
-    "Max episode end date:",
-    as.character(max_episode_date),
-    "Min pregnancy start date:",
-    as.character(min_pregnancy_date),
-    "Max pregnancy end date:",
-    as.character(max_pregnancy_date),
-    sep = "\n"
-  )
+
+  message(sprintf("  - Min episode start date: %s", min_episode_date))
+  message(sprintf("  - Max episode end date: %s", max_episode_date))
+  message(sprintf("  - Min pregnancy start date: %s", min_pregnancy_date))
+  message(sprintf("  - Max pregnancy end date: %s", max_pregnancy_date))
 
   return(final_df)
 }
