@@ -43,8 +43,15 @@ if (!file.exists(cachedResultsFile)) {
   }
   # formatting
   dbinfo <- dbinfo %>%
-    dplyr::select_if(~ !all(is.na(.))) %>%
-    dplyr::rename(database = cdm_name)
+    dplyr::select_if(~ !all(is.na(.)))
+
+  gestationalAgeDaysCounts <- gestationalAgeDaysCounts %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = gestationalAgeDaysCounts$cdm_name) %>%
+    dplyr::select(-"cdm_name")
+
+  swappedDates <- swappedDates %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = swappedDates$cdm_name) %>%
+    dplyr::select(-"cdm_name")
 
   ageSummary <- ageSummary %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = ageSummary$colName, values_to = ageSummary$cdm_name) %>%
@@ -52,6 +59,10 @@ if (!file.exists(cachedResultsFile)) {
 
   dateConsistancy <- dateConsistancy %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = dateConsistancy$cdm_name) %>%
+    dplyr::select(-"cdm_name")
+
+  observationPeriodRange <- observationPeriodRange %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = observationPeriodRange$cdm_name) %>%
     dplyr::select(-"cdm_name")
 
   pregnancyFrequency <- do.call(rbind, lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
@@ -66,6 +77,23 @@ if (!file.exists(cachedResultsFile)) {
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = episodeFrequency$cdm_name) %>%
     dplyr::select(-c("cdm_name", "colName"))
 
+  gestationalAgeDaysSummary <- gestationalAgeDaysSummary %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = gestationalAgeDaysSummary$cdm_name) %>%
+    dplyr::select(-c("cdm_name", "colName"))
+
+  gestationalAgeDaysPerCategorySummary <- do.call(rbind, lapply(unique(gestationalAgeDaysPerCategorySummary$cdm_name), FUN = function(name) {
+    gestationalAgeDaysPerCategorySummary %>%
+      dplyr::filter(cdm_name == name) %>%
+      dplyr::select(-c("cdm_name", "colName")) %>%
+      tidyr::pivot_longer(cols = setdiff(colnames(.), c("final_outcome_category")), names_to = "name", values_to = unique(gestationalAgeDaysPerCategorySummary$cdm_name))
+  }))
+
+  minObservationPeriod <- observationPeriodRange %>%
+    dplyr::filter(name == "min_obs") %>%
+    dplyr::select(-c("name")) %>%
+    as.numeric() %>%
+    min()
+
   # incidence
   saveRDS(list("dbinfo" = dbinfo,
                "incidence" = incidence,
@@ -79,6 +107,7 @@ if (!file.exists(cachedResultsFile)) {
                "monthlyTrends" = monthlyTrends,
                "monthlyTrendMissing" = monthlyTrendMissing,
                "observationPeriodRange" = observationPeriodRange,
+               "minObservationPeriod" = minObservationPeriod,
                "outcomeCategoriesCount" = outcomeCategoriesCount,
                "pregnancyFrequency" = pregnancyFrequency,
                "pregnancyOverlapCounts" = pregnancyOverlapCounts,
@@ -101,6 +130,7 @@ if (!file.exists(cachedResultsFile)) {
   monthlyTrends <- cachedData$monthlyTrends
   monthlyTrendMissing <- cachedData$monthlyTrendMissing
   observationPeriodRange <- cachedData$observationPeriodRange
+  minObservationPeriod <- cachedData$minObservationPeriod
   outcomeCategoriesCount <- cachedData$outcomeCategoriesCount
   pregnancyFrequency <- cachedData$pregnancyFrequency
   pregnancyOverlapCounts <- cachedData$pregnancyOverlapCounts
@@ -110,34 +140,36 @@ if (!file.exists(cachedResultsFile)) {
 }
 
 ######### Shiny app ########
+allDP <- unique(dbinfo$cdm_name)
+
 appStructure <- list(
   "Study background" = list(StudyBackground$new(
     background = "./background.md",
     EUPAS = "EUPAS"
   )),
-  "Database information" = list(handleEmptyResult(object = DatabaseInfoModule$new(dbinfo), result = dbinfo)),
+  "Database information" = list(handleEmptyResult(object = FilterTableModule$new(dbinfo), result = dbinfo)),
   "Checks" = list(
-    "gestationalAgeDaysCounts" = handleEmptyResult(object = Table$new(data = gestationalAgeDaysCounts), result = gestationalAgeDaysCounts),
-    "gestationalWeeks" = handleEmptyResult(object = Table$new(data = gestationalWeeks), result = gestationalWeeks),
-    "pregnancyOverlapCounts" = handleEmptyResult(object = Table$new(data = pregnancyOverlapCounts), result = pregnancyOverlapCounts),
-    "swappedDates" = handleEmptyResult(object = Table$new(data = swappedDates), result = swappedDates),
-    "dateConsistency" = handleEmptyResult(object = Table$new(data = dateConsistancy), result = dateConsistancy)
+    "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysCounts, dp = allDP), result = gestationalAgeDaysCounts),
+    "Gestational weeks" = handleEmptyResult(object = FilterTableModule$new(data = gestationalWeeks, dp = allDP), result = gestationalWeeks),
+    "Pregnancy overlap" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyOverlapCounts, dp = allDP), result = pregnancyOverlapCounts),
+    "Swapped dates" = handleEmptyResult(object = FilterTableModule$new(data = swappedDates, dp = allDP), result = swappedDates),
+    "Date consistency" = handleEmptyResult(object = FilterTableModule$new(data = dateConsistancy, dp = allDP), result = dateConsistancy)
   ),
   "Results" = list(
-    "Pregnancy frequency" = handleEmptyResult(object = Table$new(data = pregnancyFrequency), result = pregnancyFrequency),
-    "Episode frequency" = handleEmptyResult(object = Table$new(data = episodeFrequency), result = episodeFrequency),
-    "ageSummary" = handleEmptyResult(object = Table$new(data = ageSummary), result = ageSummary),
-    "observationPeriodRange" = handleEmptyResult(object = Table$new(data = observationPeriodRange), result = observationPeriodRange),
-    "incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),
-    "gestationalAgeDaysPerCategorySummary" = handleEmptyResult(object = Table$new(data = gestationalAgeDaysPerCategorySummary), result = gestationalAgeDaysPerCategorySummary),
-    "gestationalAgeDaysSummary" = handleEmptyResult(object = Table$new(data = gestationalAgeDaysSummary), result = gestationalAgeDaysSummary),
-    "outcomeCategoriesCount" = handleEmptyResult(object = Table$new(data = outcomeCategoriesCount), result = outcomeCategoriesCount),
-    "monthlyTrends" = list(handleEmptyResult(object = Table$new(data = monthlyTrends), result = monthlyTrends),
+    "Pregnancy frequency" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
+    "Episode frequency" = handleEmptyResult(object = FilterTableModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
+    "Age summary" = handleEmptyResult(object = FilterTableModule$new(data = ageSummary, dp = allDP), result = ageSummary),
+    "Observation period range" = handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
+    "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),
+    "Gestational age days per category" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
+    "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
+    "Outcome categories" = handleEmptyResult(object = FilterTableModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount),
+    "Monthly trends" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrends, dp = allDP), result = monthlyTrends),
                            handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot, args = list(data = monthlyTrends)), result = monthlyTrends)),
-    "monthlyTrendMissing" = handleEmptyResult(object = Table$new(data = monthlyTrendMissing), result = monthlyTrendMissing),
-    "yearlyTrend" = list(handleEmptyResult(object = Table$new(data = yearlyTrend), result = yearlyTrend),
-                         handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot, args = list(data = yearlyTrend, xIntercept = observationPeriodRange$min_obs)), result = yearlyTrend)),
-    "yearlyTrendMissing" = handleEmptyResult(object = Table$new(data = yearlyTrendMissing), result = yearlyTrendMissing)
+    "Monthly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
+    "Yearly trend" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrend, dp = allDP), result = yearlyTrend),
+                         handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot, args = list(data = yearlyTrend, xIntercept = minObservationPeriod)), result = yearlyTrend)),
+    "Yearly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = yearlyTrendMissing, dp = allDP), result = yearlyTrendMissing)
   )
 )
 
