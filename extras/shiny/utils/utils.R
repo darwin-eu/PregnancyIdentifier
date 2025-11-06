@@ -29,8 +29,13 @@ loadFile <- function(file, dbName, folder, overwrite) {
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
       data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
     } else {
-      data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8")) %>%
-        dplyr::select(-"...1")
+      data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"))
+      if ("...1" %in% colnames(data)) {
+        data <- data %>%
+          dplyr::select(-"...1")
+      }
+      # make sure there is a column cdm_name
+      data <- data %>% dplyr::mutate(cdm_name= dbName, .before = 1)
     }
     if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
       existingData <- get(camelCaseName, envir = .GlobalEnv)
