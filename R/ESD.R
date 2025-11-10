@@ -693,7 +693,7 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
     dplyr::mutate(
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),
-        as.Date(as.Date(.data$inferred_episode_end) - as.numeric(lubridate::days(.data$max_term))),
+        as.Date(as.Date(.data$inferred_episode_end) - as.numeric(.data$max_term)),
         as.Date(.data$inferred_episode_start))
     )
 
