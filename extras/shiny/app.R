@@ -94,6 +94,41 @@ if (!file.exists(cachedResultsFile)) {
     as.numeric() %>%
     min()
 
+  pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
+    dplyr::select(-"colName")
+
+  summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
+    data %>%
+      dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks <= upperBoundary) %>%
+      dplyr::select(-"gestational_weeks") %>%
+      dplyr::group_by(cdm_name) %>%
+      dplyr::summarise(n = sum(n),
+                       pct = sum(pct)) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(gestational_weeks = glue::glue("{lowerBoundary}-{upperBoundary}"), .after = "cdm_name")
+  }
+
+  gestationalWeeks <- gestationalWeeks %>%
+    dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
+                  n = as.numeric(n),
+                  pct = as.numeric(pct))
+  maxWeeks <- round(max(gestationalWeeks$gestational_weeks), -2)
+  gestationalWeeksSummary <- rbind(gestationalWeeks %>% dplyr::filter(gestational_weeks <=50),
+                                   summariseGestationalWeeks(gestationalWeeks, 51, 100))
+  intervals <- seq(100, maxWeeks, 100)
+  gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
+                                   do.call("rbind", lapply(intervals, FUN = function(weeks) {
+                                     summariseGestationalWeeks(gestationalWeeks, weeks+1, weeks+100)
+                                   }))) %>%
+    dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = gestational_weeks))
+
+  # trend data
+  yearlyTrend <- yearlyTrend %>%
+    dplyr::mutate(count = as.numeric(count),
+                  year = as.numeric(year))
+  monthlyTrends <- monthlyTrends %>%
+    dplyr::mutate(count = as.numeric(count))
+
   # incidence
   saveRDS(list("dbinfo" = dbinfo,
                "incidence" = incidence,
@@ -103,7 +138,7 @@ if (!file.exists(cachedResultsFile)) {
                "gestationalAgeDaysCounts" = gestationalAgeDaysCounts,
                "gestationalAgeDaysPerCategorySummary" = gestationalAgeDaysPerCategorySummary,
                "gestationalAgeDaysSummary" = gestationalAgeDaysSummary,
-               "gestationalWeeks" = gestationalWeeks,
+               "gestationalWeeksSummary" = gestationalWeeksSummary,
                "monthlyTrends" = monthlyTrends,
                "monthlyTrendMissing" = monthlyTrendMissing,
                "observationPeriodRange" = observationPeriodRange,
@@ -126,7 +161,7 @@ if (!file.exists(cachedResultsFile)) {
   gestationalAgeDaysCounts <- cachedData$gestationalAgeDaysCounts
   gestationalAgeDaysPerCategorySummary <- cachedData$gestationalAgeDaysPerCategorySummary
   gestationalAgeDaysSummary <- cachedData$gestationalAgeDaysSummary
-  gestationalWeeks <- cachedData$gestationalWeeks
+  gestationalWeeksSummary <- cachedData$gestationalWeeksSummary
   monthlyTrends <- cachedData$monthlyTrends
   monthlyTrendMissing <- cachedData$monthlyTrendMissing
   observationPeriodRange <- cachedData$observationPeriodRange
@@ -150,7 +185,8 @@ appStructure <- list(
   "Database information" = list(handleEmptyResult(object = FilterTableModule$new(dbinfo), result = dbinfo)),
   "Checks" = list(
     "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysCounts, dp = allDP), result = gestationalAgeDaysCounts),
-    "Gestational weeks" = handleEmptyResult(object = FilterTableModule$new(data = gestationalWeeks, dp = allDP), result = gestationalWeeks),
+    "Gestational weeks" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalWeeksSummary, dp = allDP), result = gestationalWeeksSummary),
+                               handleEmptyResult(object = PlotPlotly$new(fun = gestationalDurationPlot, args = list(data = gestationalWeeksSummary)), result = gestationalWeeksSummary)),
     "Pregnancy overlap" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyOverlapCounts, dp = allDP), result = pregnancyOverlapCounts),
     "Swapped dates" = handleEmptyResult(object = FilterTableModule$new(data = swappedDates, dp = allDP), result = swappedDates),
     "Date consistency" = handleEmptyResult(object = FilterTableModule$new(data = dateConsistancy, dp = allDP), result = dateConsistancy)
@@ -165,7 +201,7 @@ appStructure <- list(
     "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
     "Outcome categories" = handleEmptyResult(object = FilterTableModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount),
     "Monthly trends" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrends, dp = allDP), result = monthlyTrends),
-                           handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot, args = list(data = monthlyTrends)), result = monthlyTrends)),
+                            handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot, args = list(data = monthlyTrends)), result = monthlyTrends)),
     "Monthly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
     "Yearly trend" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrend, dp = allDP), result = yearlyTrend),
                          handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot, args = list(data = yearlyTrend, xIntercept = minObservationPeriod)), result = yearlyTrend)),

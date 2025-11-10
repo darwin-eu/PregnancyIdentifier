@@ -69,7 +69,8 @@ yearTrendsPlot <- function(data, xIntercept) {
     geom_line() +
     geom_point() +
     labs(x = "Year", y = "Count (N)") +
-    geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed")
+    geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed") +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
   plotly::ggplotly(p)
 }
 
@@ -79,5 +80,18 @@ monthTrendsPlot <- function(data) {
     geom_point() +
     labs(x = "Month", y = "Count (N)") +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+  plotly::ggplotly(p)
+}
+
+gestationalDurationPlot <- function(data) {
+  p <- ggplot(data = data, mapping = aes(x = gestational_weeks, y = log(n))) +
+    geom_bar(stat = "identity") +
+    labs(
+      x = "Weeks",
+      y = "log(n)"
+    ) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+          plot.title = element_text(hjust = 0.5)) +
+    ggtitle("Gestational duration")
   plotly::ggplotly(p)
 }
