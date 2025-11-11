@@ -129,6 +129,11 @@ if (!file.exists(cachedResultsFile)) {
   monthlyTrends <- monthlyTrends %>%
     dplyr::mutate(count = as.numeric(count))
 
+  # outcome categories
+  outcomeCategoriesCount <- outcomeCategoriesCount %>%
+    dplyr::mutate(n = as.numeric(n),
+                  pct = round(as.numeric(pct), 4))
+
   # incidence
   saveRDS(list("dbinfo" = dbinfo,
                "incidence" = incidence,
@@ -176,6 +181,7 @@ if (!file.exists(cachedResultsFile)) {
 
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)
+plotHeight <- "600px"
 
 appStructure <- list(
   "Study background" = list(StudyBackground$new(
@@ -186,7 +192,10 @@ appStructure <- list(
   "Checks" = list(
     "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysCounts, dp = allDP), result = gestationalAgeDaysCounts),
     "Gestational weeks" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalWeeksSummary, dp = allDP), result = gestationalWeeksSummary),
-                               handleEmptyResult(object = PlotPlotly$new(fun = gestationalDurationPlot, args = list(data = gestationalWeeksSummary)), result = gestationalWeeksSummary)),
+                               handleEmptyResult(object = PlotPlotly$new(fun = gestationalDurationPlot,
+                                                                         args = list(data = gestationalWeeksSummary),
+                                                                         height = plotHeight,
+                                                                         title = ""), result = gestationalWeeksSummary)),
     "Pregnancy overlap" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyOverlapCounts, dp = allDP), result = pregnancyOverlapCounts),
     "Swapped dates" = handleEmptyResult(object = FilterTableModule$new(data = swappedDates, dp = allDP), result = swappedDates),
     "Date consistency" = handleEmptyResult(object = FilterTableModule$new(data = dateConsistancy, dp = allDP), result = dateConsistancy)
@@ -194,17 +203,31 @@ appStructure <- list(
   "Results" = list(
     "Pregnancy frequency" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
     "Episode frequency" = handleEmptyResult(object = FilterTableModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
-    "Age summary" = handleEmptyResult(object = FilterTableModule$new(data = ageSummary, dp = allDP), result = ageSummary),
+    "Age summary" = list(handleEmptyResult(object = FilterTableModule$new(data = ageSummary, dp = allDP), result = ageSummary),
+                         handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
+                                                                   args = list(data = ageSummary),
+                                                                   height = plotHeight), result = ageSummary)),
     "Observation period range" = handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
     "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),
     "Gestational age days per category" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
-    "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
-    "Outcome categories" = handleEmptyResult(object = FilterTableModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount),
+    "Gestational age days summary" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
+                                          handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
+                                                                                    args = list(data = gestationalAgeDaysSummary),
+                                                                                    height = plotHeight), result = gestationalAgeDaysSummary)),
+    "Outcome categories" = list(handleEmptyResult(object = FilterTableModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount),
+                                handleEmptyResult(object = PlotPlotly$new(fun = outcomeCategoriesPlot,
+                                                                          args = list(data = outcomeCategoriesCount),
+                                                                          height = plotHeight), result = outcomeCategoriesCount)),
     "Monthly trends" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrends, dp = allDP), result = monthlyTrends),
-                            handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot, args = list(data = monthlyTrends)), result = monthlyTrends)),
+                            handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot,
+                                                                      args = list(data = monthlyTrends),
+                                                                      height = plotHeight), result = monthlyTrends)),
     "Monthly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
     "Yearly trend" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrend, dp = allDP), result = yearlyTrend),
-                         handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot, args = list(data = yearlyTrend, xIntercept = minObservationPeriod)), result = yearlyTrend)),
+                         handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot,
+                                                                   args = list(data = yearlyTrend,
+                                                                               xIntercept = minObservationPeriod),
+                                                                   height = plotHeight), result = yearlyTrend)),
     "Yearly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = yearlyTrendMissing, dp = allDP), result = yearlyTrendMissing)
   )
 )

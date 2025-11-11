@@ -68,13 +68,13 @@
     },
     "DarwinShinyModules": {
       "Package": "DarwinShinyModules",
-      "Version": "0.3.0",
+      "Version": "0.3.2",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "DarwinShinyModules",
       "RemoteUsername": "darwin-eu",
-      "RemoteSha": "fa56cfd50bfd1df3c7e22ae19b0593fe0990787f",
+      "RemoteSha": "e2cc4425fa2fc6bc44ebd6b798b4edbd6aca1d7c",
       "Requirements": [
         "DT",
         "R",
@@ -91,7 +91,7 @@
         "shinyWidgets",
         "stringr"
       ],
-      "Hash": "89cf7244a0217f14d7c1d17fe10821b8"
+      "Hash": "31e8fa4e994ca0fa88989531a6f16113"
     },
     "IncidencePrevalence": {
       "Package": "IncidencePrevalence",
@@ -389,10 +389,10 @@
     },
     "commonmark": {
       "Package": "commonmark",
-      "Version": "1.9.5",
+      "Version": "2.0.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "4ac08754c8ed35996b7c343fbb22885a"
+      "Repository": "RSPM",
+      "Hash": "8cba62334c1088d21689d353a7e87663"
     },
     "cpp11": {
       "Package": "cpp11",
@@ -1600,16 +1600,16 @@
     },
     "xfun": {
       "Package": "xfun",
-      "Version": "0.52",
+      "Version": "0.54",
       "Source": "Repository",
-      "Repository": "CRAN",
+      "Repository": "RSPM",
       "Requirements": [
         "R",
         "grDevices",
         "stats",
         "tools"
       ],
-      "Hash": "652ce36fe7d57688e6786819b09d9190"
+      "Hash": "d23c8a31e000d9865a8a6572f61da9ee"
     },
     "xml2": {
       "Package": "xml2",

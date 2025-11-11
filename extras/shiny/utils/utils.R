@@ -95,3 +95,29 @@ gestationalDurationPlot <- function(data) {
     ggtitle("Gestational duration")
   plotly::ggplotly(p)
 }
+
+outcomeCategoriesPlot <- function(data) {
+  p <- ggplot(data = data, mapping = aes(y = pct, x = outcome_category)) +
+    geom_bar(stat = "identity", position = "dodge", mapping = aes(fill = algorithm))
+  plotly::ggplotly(p)
+}
+
+boxPlot <- function(data) {
+  # assume we have a column per DP, next to the first column
+  nameColumn <- colnames(data)[1]
+  dpCols <- colnames(data)[-1]
+  plotData <- data %>%
+    tidyr::pivot_wider(names_from = nameColumn, values_from = dpCols) %>%
+    dplyr::mutate(cdm_name = dpCols)
+
+  plot_ly(data = plotData,
+          x = ~ cdm_name) %>%
+    add_boxplot(
+      lowerfence = ~ min,
+      q1 = ~ Q25,
+      median = ~ median,
+      mean = ~ mean,
+      sd = ~ sd,
+      q3 = ~ Q75,
+      upperfence = ~ max)
+}
