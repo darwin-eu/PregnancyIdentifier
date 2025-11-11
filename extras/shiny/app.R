@@ -343,4 +343,5 @@ appStructure <- list(
   )
 )
 
-DarwinShinyModules::launchDarwinDashboardApp(appStructure, title = "PregnancyIdentifier")
+app <- DarwinDashboardApp$new(appStructure, title = "PregnancyIdentifier")
+app$launch()

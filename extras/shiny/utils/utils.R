@@ -136,3 +136,17 @@ boxPlot <- function(data, colorVar = NULL, transform = FALSE) {
       q3 = ~ Q75,
       upperfence = ~ max)
 }
+
+customDarwinFooter <- function() {
+  shiny::tags$footer(
+    style = "padding: 3px 0px 0px 0px; text-align: center; bottom: 0; width: 100%;",
+    shiny::h6(
+      sprintf(
+        "Generated with DarwinShinyModules %s | Deployed on: %s | (c) %s - 2023 European Medicines Agency. All rights reserved. Certain parts are licensed under conditions to the European Medicines Agency.",
+        utils::packageVersion("DarwinShinyModules"),
+        Sys.Date(),
+        substr(Sys.Date(), start = 1, stop = 4)
+      )
+    )
+  )
+}
