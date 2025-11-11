@@ -64,45 +64,49 @@ loadFile <- function(file, dbName, folder, overwrite) {
   }
 }
 
-yearTrendsPlot <- function(data, xIntercept) {
-  p <- ggplot(data = data, mapping = aes(x = year, y = count, color = column, group = column)) +
+trendsPlot <- function(data, xVar, xLabel, xIntercept = NULL) {
+  p <- ggplot(data = data, mapping = aes_string(x = xVar, y = "count", color = "column", group = "column")) +
     geom_line() +
     geom_point() +
-    labs(x = "Year", y = "Count (N)") +
-    geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed") +
+    labs(x = xLabel, y = "Count (N)") +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+  if (!is.null(xIntercept)) {
+    p <- p + geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed")
+  }
   plotly::ggplotly(p)
 }
 
-monthTrendsPlot <- function(data) {
-  p <- ggplot(data = data, mapping = aes(x = month, y = count, color = column, group = column)) +
-    geom_line() +
-    geom_point() +
-    labs(x = "Month", y = "Count (N)") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+barPlot <- function(data, xVar, yVar, fillVar = NULL, label = NULL, position = "stack", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+  p <- ggplot(data = data,
+              mapping = aes_string(x = xVar, y = yVar, label = label))
+
+  if (is.null(fillVar)) {
+    p <- p + geom_bar(stat = "identity",
+                      position = position)
+  } else {
+    p <- p + geom_bar(stat = "identity",
+                      position = position,
+                      mapping = aes_string(fill = fillVar))
+  }
+
+  if (!is.null(xLabel) && !is.null(yLabel)) {
+    p <- p + labs(x = xLabel, y = yLabel)
+  }
+  if (rotateAxisText) {
+    p <- p + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+          plot.title = element_text(hjust = 0.5))
+  }
+  if (!is.null(ggtitle)) {
+    p <- p + ggtitle(title)
+  }
+  if (flipCoordinates) {
+    p <- p + coord_flip()
+  }
   plotly::ggplotly(p)
 }
 
-gestationalDurationPlot <- function(data) {
-  p <- ggplot(data = data, mapping = aes(x = gestational_weeks, y = log(n))) +
-    geom_bar(stat = "identity") +
-    labs(
-      x = "Weeks",
-      y = "log(n)"
-    ) +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-          plot.title = element_text(hjust = 0.5)) +
-    ggtitle("Gestational duration")
-  plotly::ggplotly(p)
-}
-
-outcomeCategoriesPlot <- function(data) {
-  p <- ggplot(data = data, mapping = aes(y = pct, x = outcome_category)) +
-    geom_bar(stat = "identity", position = "dodge", mapping = aes(fill = algorithm))
-  plotly::ggplotly(p)
-}
-
-boxPlot <- function(data, transform = FALSE) {
+boxPlot <- function(data, colorVar = NULL, transform = FALSE) {
   plotData <- data
   if (transform) {
     # assume we have a column per DP, next to the first column
@@ -113,8 +117,16 @@ boxPlot <- function(data, transform = FALSE) {
       dplyr::mutate(cdm_name = dpCols)
   }
 
-  plot_ly(data = plotData,
-          x = ~ cdm_name) %>%
+  p <- NULL
+  if (is.null(colorVar)) {
+    p <- plot_ly(data = plotData,
+                 x = ~ cdm_name)
+  } else {
+    p <- plot_ly(data = plotData,
+                 x = ~ cdm_name,
+                 color = ~ get(colorVar))
+  }
+  p %>%
     add_boxplot(
       lowerfence = ~ min,
       q1 = ~ Q25,

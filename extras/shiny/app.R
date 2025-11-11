@@ -52,6 +52,9 @@ if (!file.exists(cachedResultsFile)) {
   swappedDates <- swappedDates %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = swappedDates$cdm_name) %>%
     dplyr::select(-"cdm_name")
+  swappedDatesPlot <- swappedDates %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
+    dplyr::mutate(value = as.numeric(value))
 
   ageSummary <- ageSummary %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = ageSummary$colName, values_to = ageSummary$cdm_name) %>%
@@ -60,6 +63,9 @@ if (!file.exists(cachedResultsFile)) {
   dateConsistancy <- dateConsistancy %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = dateConsistancy$cdm_name) %>%
     dplyr::select(-"cdm_name")
+  dateConsistancyPlot <- dateConsistancy %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
+    dplyr::mutate(value = as.numeric(value))
 
   observationPeriodRange <- observationPeriodRange %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = observationPeriodRange$cdm_name) %>%
@@ -71,6 +77,9 @@ if (!file.exists(cachedResultsFile)) {
       dplyr::select(-"cdm_name") %>%
       dplyr::rename(!!name := number_individuals)})
   )
+  pregnancyFrequencyPlot <- pregnancyFrequency %>%
+    tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
+    dplyr::mutate(value = as.numeric(value))
 
   episodeFrequency <- episodeFrequency %>%
     dplyr::left_join(episodeFrequencySummary) %>%
@@ -81,7 +90,7 @@ if (!file.exists(cachedResultsFile)) {
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = gestationalAgeDaysSummary$cdm_name) %>%
     dplyr::select(-c("cdm_name", "colName"))
 
-  gestationalAgeDaysPerCategorySummary <- do.call(rbind, lapply(unique(gestationalAgeDaysPerCategorySummary$cdm_name), FUN = function(name) {
+  gestationalAgeDaysPerCategorySummaryLong <- do.call(rbind, lapply(unique(gestationalAgeDaysPerCategorySummary$cdm_name), FUN = function(name) {
     gestationalAgeDaysPerCategorySummary %>%
       dplyr::filter(cdm_name == name) %>%
       dplyr::select(-c("cdm_name", "colName")) %>%
@@ -95,7 +104,10 @@ if (!file.exists(cachedResultsFile)) {
     min()
 
   pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
-    dplyr::select(-"colName")
+    dplyr::select(-"colName") %>%
+    dplyr::mutate(n = as.numeric(n),
+                  total = as.numeric(total),
+                  pct = as.numeric(pct))
 
   summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
     data %>%
@@ -126,7 +138,11 @@ if (!file.exists(cachedResultsFile)) {
   yearlyTrend <- yearlyTrend %>%
     dplyr::mutate(count = as.numeric(count),
                   year = as.numeric(year))
+  yearlyTrendMissing <- yearlyTrendMissing %>%
+    dplyr::mutate(count = as.numeric(count))
   monthlyTrends <- monthlyTrends %>%
+    dplyr::mutate(count = as.numeric(count))
+  monthlyTrendMissing <- monthlyTrendMissing %>%
     dplyr::mutate(count = as.numeric(count))
 
   # outcome categories
@@ -139,10 +155,12 @@ if (!file.exists(cachedResultsFile)) {
                "incidence" = incidence,
                "ageSummary" = ageSummary,
                "dateConsistancy" = dateConsistancy,
+               "dateConsistancyPlot" = dateConsistancyPlot,
                "episodeFrequency" = episodeFrequency,
                "episodeFrequencySummary" = episodeFrequencySummary,
                "gestationalAgeDaysCounts" = gestationalAgeDaysCounts,
                "gestationalAgeDaysPerCategorySummary" = gestationalAgeDaysPerCategorySummary,
+               "gestationalAgeDaysPerCategorySummaryLong" = gestationalAgeDaysPerCategorySummaryLong,
                "gestationalAgeDaysSummary" = gestationalAgeDaysSummary,
                "gestationalWeeksSummary" = gestationalWeeksSummary,
                "monthlyTrends" = monthlyTrends,
@@ -151,8 +169,10 @@ if (!file.exists(cachedResultsFile)) {
                "minObservationPeriod" = minObservationPeriod,
                "outcomeCategoriesCount" = outcomeCategoriesCount,
                "pregnancyFrequency" = pregnancyFrequency,
+               "pregnancyFrequencyPlot" = pregnancyFrequencyPlot,
                "pregnancyOverlapCounts" = pregnancyOverlapCounts,
                "swappedDates" = swappedDates,
+               "swappedDatesPlot" = swappedDatesPlot,
                "yearlyTrend" = yearlyTrend,
                "yearlyTrendMissing" = yearlyTrendMissing
                ),
@@ -163,10 +183,12 @@ if (!file.exists(cachedResultsFile)) {
   incidence <- cachedData$incidence
   ageSummary <- cachedData$ageSummary
   dateConsistancy <- cachedData$dateConsistancy
+  dateConsistancyPlot <- cachedData$dateConsistancyPlot
   episodeFrequency <- cachedData$episodeFrequency
   episodeFrequencySummary <- cachedData$episodeFrequencySummary
   gestationalAgeDaysCounts <- cachedData$gestationalAgeDaysCounts
   gestationalAgeDaysPerCategorySummary <- cachedData$gestationalAgeDaysPerCategorySummary
+  gestationalAgeDaysPerCategorySummaryLong <- cachedData$gestationalAgeDaysPerCategorySummaryLong
   gestationalAgeDaysSummary <- cachedData$gestationalAgeDaysSummary
   gestationalWeeksSummary <- cachedData$gestationalWeeksSummary
   monthlyTrends <- cachedData$monthlyTrends
@@ -175,14 +197,17 @@ if (!file.exists(cachedResultsFile)) {
   minObservationPeriod <- cachedData$minObservationPeriod
   outcomeCategoriesCount <- cachedData$outcomeCategoriesCount
   pregnancyFrequency <- cachedData$pregnancyFrequency
+  pregnancyFrequencyPlot <- cachedData$pregnancyFrequencyPlot
   pregnancyOverlapCounts <- cachedData$pregnancyOverlapCounts
   swappedDates <- cachedData$swappedDates
+  swappedDatesPlot <- cachedData$swappedDatesPlot
   yearlyTrend <- cachedData$yearlyTrend
   yearlyTrendMissing <- cachedData$yearlyTrendMissing
 }
 
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)
+defaultPlotHeight <- "400px"
 plotHeight <- "600px"
 
 appStructure <- list(
@@ -194,16 +219,73 @@ appStructure <- list(
   "Checks" = list(
     "Gestational age days" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysCounts, dp = allDP), result = gestationalAgeDaysCounts),
     "Gestational weeks" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalWeeksSummary, dp = allDP), result = gestationalWeeksSummary),
-                               handleEmptyResult(object = PlotPlotly$new(fun = gestationalDurationPlot,
-                                                                         args = list(data = gestationalWeeksSummary),
+                               handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                         args = list(data = gestationalWeeksSummary,
+                                                                                     xVar = "gestational_weeks",
+                                                                                     yVar = "log(n)",
+                                                                                     fillVar = "cdm_name",
+                                                                                     label = "n",
+                                                                                     xLabel = "Weeks",
+                                                                                     yLabel = "log(n)",
+                                                                                     title = "Gestational duration",
+                                                                                     rotateAxisText = TRUE),
                                                                          height = plotHeight,
                                                                          title = ""), result = gestationalWeeksSummary)),
-    "Pregnancy overlap" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyOverlapCounts, dp = allDP), result = pregnancyOverlapCounts),
-    "Swapped dates" = handleEmptyResult(object = FilterTableModule$new(data = swappedDates, dp = allDP), result = swappedDates),
-    "Date consistency" = handleEmptyResult(object = FilterTableModule$new(data = dateConsistancy, dp = allDP), result = dateConsistancy)
+    "Pregnancy overlap" = list(handleEmptyResult(object = FilterTableModule$new(data = pregnancyOverlapCounts, dp = allDP), result = pregnancyOverlapCounts),
+                               handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                         args = list(data = pregnancyOverlapCounts,
+                                                                                     xVar = "overlap",
+                                                                                     yVar = "pct",
+                                                                                     fillVar = "cdm_name",
+                                                                                     label = "n",
+                                                                                     xLabel = "Overlap",
+                                                                                     yLabel = "Pct",
+                                                                                     title = "Pregnancy overlap counts",
+                                                                                     rotateAxisText = TRUE,
+                                                                                     flipCoordinates = TRUE),
+                                                                         height = defaultPlotHeight,
+                                                                         title = ""), result = pregnancyOverlapCounts)),
+    "Swapped dates" = list(handleEmptyResult(object = FilterTableModule$new(data = swappedDates, dp = allDP), result = swappedDates),
+                           handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                     args = list(data = swappedDatesPlot,
+                                                                                 xVar = "name",
+                                                                                 yVar = "value",
+                                                                                 fillVar = "cdm_name",
+                                                                                 xLabel = "Name",
+                                                                                 yLabel = "Count",
+                                                                                 title = "Swapped dates",
+                                                                                 rotateAxisText = TRUE,
+                                                                                 flipCoordinates = TRUE),
+                                                                     height = defaultPlotHeight,
+                                                                     title = ""), result = swappedDatesPlot)),
+    "Date consistency" = list(handleEmptyResult(object = FilterTableModule$new(data = dateConsistancy, dp = allDP), result = dateConsistancy),
+                              handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                        args = list(data = dateConsistancyPlot,
+                                                                                    xVar = "name",
+                                                                                    yVar = "value",
+                                                                                    fillVar = "cdm_name",
+                                                                                    xLabel = "Name",
+                                                                                    yLabel = "Pct",
+                                                                                    title = "Date consistency",
+                                                                                    rotateAxisText = TRUE,
+                                                                                    flipCoordinates = TRUE),
+                                                                        height = defaultPlotHeight,
+                                                                        title = ""), result = dateConsistancyPlot))
   ),
   "Results" = list(
-    "Pregnancy frequency" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
+    "Pregnancy frequency" = list(handleEmptyResult(object = FilterTableModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
+                                 handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                           args = list(data = pregnancyFrequencyPlot,
+                                                                                       xVar = "freq",
+                                                                                       yVar = "value",
+                                                                                       fillVar = "cdm_name",
+                                                                                       xLabel = "Freq",
+                                                                                       yLabel = "Count",
+                                                                                       title = "Pregnancy frequency",
+                                                                                       rotateAxisText = TRUE,
+                                                                                       flipCoordinates = TRUE),
+                                                                           height = defaultPlotHeight,
+                                                                           title = ""), result = pregnancyFrequencyPlot)),
     "Episode frequency" = list(handleEmptyResult(object = FilterTableModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
                                handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
                                                                          args = list(data = episodeFrequencySummary),
@@ -214,26 +296,50 @@ appStructure <- list(
                                                                    height = plotHeight), result = ageSummary)),
     "Observation period range" = handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
     "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),
-    "Gestational age days per category" = handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
+    "Gestational age days per category" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysPerCategorySummaryLong, dp = allDP), result = gestationalAgeDaysPerCategorySummaryLong),
+                                               handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
+                                                                                         args = list(data = gestationalAgeDaysPerCategorySummary,
+                                                                                                     colorVar = "final_outcome_category"),
+                                                                                         height = plotHeight), result = gestationalAgeDaysPerCategorySummary)),
     "Gestational age days summary" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
                                           handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
-                                                                                    args = list(data = gestationalAgeDaysSummary),
+                                                                                    args = list(data = gestationalAgeDaysSummary, transform = TRUE),
                                                                                     height = plotHeight), result = gestationalAgeDaysSummary)),
     "Outcome categories" = list(handleEmptyResult(object = FilterTableModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount),
-                                handleEmptyResult(object = PlotPlotly$new(fun = outcomeCategoriesPlot,
-                                                                          args = list(data = outcomeCategoriesCount),
+                                handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                          args = list(data = outcomeCategoriesCount,
+                                                                                      xVar = "outcome_category",
+                                                                                      yVar = "pct",
+                                                                                      fillVar = "algorithm",
+                                                                                      position = "dodge"),
                                                                           height = plotHeight), result = outcomeCategoriesCount)),
     "Monthly trends" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrends, dp = allDP), result = monthlyTrends),
-                            handleEmptyResult(object = PlotPlotly$new(fun = monthTrendsPlot,
-                                                                      args = list(data = monthlyTrends),
+                            handleEmptyResult(object = PlotPlotly$new(fun = trendsPlot,
+                                                                      args = list(data = monthlyTrends, xVar = "month", xLabel = "Month"),
                                                                       height = plotHeight), result = monthlyTrends)),
-    "Monthly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
+    "Monthly trend missing" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
+                                   handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                             args = list(data = monthlyTrendMissing,
+                                                                                         xVar = "column",
+                                                                                         yVar = "count",
+                                                                                         fillVar = "cdm_name",
+                                                                                         rotateAxisText = TRUE,
+                                                                                         flipCoordinates = TRUE),
+                                                                             height = defaultPlotHeight), result = monthlyTrendMissing)),
     "Yearly trend" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrend, dp = allDP), result = yearlyTrend),
-                         handleEmptyResult(object = PlotPlotly$new(fun = yearTrendsPlot,
-                                                                   args = list(data = yearlyTrend,
+                         handleEmptyResult(object = PlotPlotly$new(fun = trendsPlot,
+                                                                   args = list(data = yearlyTrend, xVar = "year", xLabel = "Year",
                                                                                xIntercept = minObservationPeriod),
                                                                    height = plotHeight), result = yearlyTrend)),
-    "Yearly trend missing" = handleEmptyResult(object = FilterTableModule$new(data = yearlyTrendMissing, dp = allDP), result = yearlyTrendMissing)
+    "Yearly trend missing" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrendMissing, dp = allDP), result = yearlyTrendMissing),
+                                  handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
+                                                                            args = list(data = yearlyTrendMissing,
+                                                                                        xVar = "column",
+                                                                                        yVar = "count",
+                                                                                        fillVar = "cdm_name",
+                                                                                        rotateAxisText = TRUE,
+                                                                                        flipCoordinates = TRUE),
+                                                                            height = defaultPlotHeight), result = yearlyTrendMissing))
   )
 )
 
