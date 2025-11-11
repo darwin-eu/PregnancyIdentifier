@@ -140,6 +140,7 @@ if (!file.exists(cachedResultsFile)) {
                "ageSummary" = ageSummary,
                "dateConsistancy" = dateConsistancy,
                "episodeFrequency" = episodeFrequency,
+               "episodeFrequencySummary" = episodeFrequencySummary,
                "gestationalAgeDaysCounts" = gestationalAgeDaysCounts,
                "gestationalAgeDaysPerCategorySummary" = gestationalAgeDaysPerCategorySummary,
                "gestationalAgeDaysSummary" = gestationalAgeDaysSummary,
@@ -163,6 +164,7 @@ if (!file.exists(cachedResultsFile)) {
   ageSummary <- cachedData$ageSummary
   dateConsistancy <- cachedData$dateConsistancy
   episodeFrequency <- cachedData$episodeFrequency
+  episodeFrequencySummary <- cachedData$episodeFrequencySummary
   gestationalAgeDaysCounts <- cachedData$gestationalAgeDaysCounts
   gestationalAgeDaysPerCategorySummary <- cachedData$gestationalAgeDaysPerCategorySummary
   gestationalAgeDaysSummary <- cachedData$gestationalAgeDaysSummary
@@ -202,10 +204,13 @@ appStructure <- list(
   ),
   "Results" = list(
     "Pregnancy frequency" = handleEmptyResult(object = FilterTableModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
-    "Episode frequency" = handleEmptyResult(object = FilterTableModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
+    "Episode frequency" = list(handleEmptyResult(object = FilterTableModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
+                               handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
+                                                                         args = list(data = episodeFrequencySummary),
+                                                                         height = plotHeight), result = episodeFrequencySummary)),
     "Age summary" = list(handleEmptyResult(object = FilterTableModule$new(data = ageSummary, dp = allDP), result = ageSummary),
                          handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
-                                                                   args = list(data = ageSummary),
+                                                                   args = list(data = ageSummary, transform = TRUE),
                                                                    height = plotHeight), result = ageSummary)),
     "Observation period range" = handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
     "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),

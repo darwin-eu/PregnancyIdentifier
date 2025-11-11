@@ -102,13 +102,16 @@ outcomeCategoriesPlot <- function(data) {
   plotly::ggplotly(p)
 }
 
-boxPlot <- function(data) {
-  # assume we have a column per DP, next to the first column
-  nameColumn <- colnames(data)[1]
-  dpCols <- colnames(data)[-1]
-  plotData <- data %>%
-    tidyr::pivot_wider(names_from = nameColumn, values_from = dpCols) %>%
-    dplyr::mutate(cdm_name = dpCols)
+boxPlot <- function(data, transform = FALSE) {
+  plotData <- data
+  if (transform) {
+    # assume we have a column per DP, next to the first column
+    nameColumn <- colnames(data)[1]
+    dpCols <- colnames(data)[-1]
+    plotData <- data %>%
+      tidyr::pivot_wider(names_from = nameColumn, values_from = dpCols) %>%
+      dplyr::mutate(cdm_name = dpCols)
+  }
 
   plot_ly(data = plotData,
           x = ~ cdm_name) %>%
