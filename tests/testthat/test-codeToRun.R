@@ -33,9 +33,10 @@ test_that("run analysis", {
 
   expect_true(dir.exists(outputDir))
   result <- list.files(outputDir)
-  expect_length(result, 5)
+  expect_length(result, 6)
 
   expect_equal(sort(result), sort(c(
+    "PPS-concept_counts.csv",
     "ESD.rds",
     "HIPPS_episodes.rds",
     "HIP_episodes.rds",

@@ -23,7 +23,7 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
 
   # get the gestational timing information for each concept
   message("  * Get gestational timing information")
-  get_PPS_episodes_df <- get_PPS_episodes(cdm)
+  get_PPS_episodes_df <- get_PPS_episodes(cdm, outputDir)
   saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
@@ -245,10 +245,18 @@ assign_episodes <- function(personlist, ...) {
   return(personlist)
 }
 
-get_PPS_episodes <- function(cdm) {
+get_PPS_episodes <- function(cdm, outputDir) {
   cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
     dplyr::filter(!is.na(.data$domain_concept_start_date)) %>%
     dplyr::left_join(cdm$pps_concepts, by = "domain_concept_id") %>%
+    dplyr::compute(name = "patients_with_preg_concepts")
+
+  cdm$patients_with_preg_concepts %>%
+    dplyr::group_by(.data$domain_concept_id, .data$domain_concept_name) %>%
+    dplyr::summarise(n = dplyr::n()) %>%
+    write.csv(file.path(outputDir, "PPS-concept_counts.csv"), row.names = FALSE)
+
+  cdm$patients_with_preg_concepts <- cdm$patients_with_preg_concepts %>%
     dplyr::inner_join(
       cdm$person %>%
         dplyr::select("person_id", "gender_concept_id", "year_of_birth", "day_of_birth", "month_of_birth"),

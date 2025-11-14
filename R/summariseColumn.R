@@ -28,24 +28,26 @@ summariseNumeric <- function(df, colName) {
 }
 
 summariseColumn <- function(df, colName) {
-  sampleClass <- df %>%
-    head() %>%
-    dplyr::pull(.data[[colName]]) %>%
-    class()
+  suppressWarnings({
+    sampleClass <- df %>%
+      head() %>%
+      dplyr::pull(.data[[colName]]) %>%
+      class()
 
-  switch(
-    sampleClass,
-    "numeric" = {
-      summariseNumeric(df, colName)
-    },
-    "integer" = {
-      summariseNumeric(df, colName)
-    },
-    "character" = {
-      summariseCategory(df, colName)
-    },
-    "logical" = {
-      summariseCategory(df, colName)
-    }
-  )
+    switch(
+      sampleClass,
+      "numeric" = {
+        summariseNumeric(df, colName)
+      },
+      "integer" = {
+        summariseNumeric(df, colName)
+      },
+      "character" = {
+        summariseCategory(df, colName)
+      },
+      "logical" = {
+        summariseCategory(df, colName)
+      }
+    )
+  })
 }

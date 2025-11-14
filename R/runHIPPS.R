@@ -1,5 +1,3 @@
-initPregnancyCohort <- function() {}
-
 uploadConceptSets <- function(cdm) {
   HIP_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "hip_concepts", table = HIP_concepts)
@@ -36,20 +34,19 @@ uploadConceptSets <- function(cdm) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
-#' @param fileName (`character(1)`) Filename to write to
 #' @param ... Dev params
 #'
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, fileName, ...) {
+runHipps <- function(cdm, outputDir, ...) {
   dots <- list(...)
   message("> Classifying Pregnancy using HIP, PPS, and ESD")
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
 
   cdm <- uploadConceptSets(cdm)
 
-  cdm <- runHip(cdm, outputDir, fileName, ...)
+  cdm <- runHip(cdm, outputDir, ...)
   cdm <- runPps(cdm, outputDir, ...)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
@@ -98,7 +95,7 @@ runHipps <- function(cdm, outputDir, fileName, ...) {
     cdm
   )
 
-  outputPath <- file.path(outputDir, sprintf("%s.rds", fileName))
+  outputPath <- file.path(outputDir, "identified_pregancy_episodes.rds")
 
   saveRDS(merged_episodes_with_metadata_df, outputPath)
   message(sprintf("  * Wrote output to %s", outputPath))
