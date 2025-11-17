@@ -3,18 +3,18 @@
 
 ## usethis namespace: start
 #' @import CDMConnector
-#' @import dplyr
 #' @import readxl
 #' @import lubridate
 #' @import DBI
-#' @import dbplyr
-#' @import purrr
 #' @import stringr
 #' @import TestGenerator
-#' @import magrittr
-#' @import tidyr
 #' @import log4r
-#' @import stats
+#' @import tidyr
+#' @import dplyr
+#' @importFrom purrr reduce map map_lgl map_chr discard is_empty
+#' @importFrom dbplyr window_frame window_order
+#' @importFrom magrittr %>%
+#' @importFrom stats quantile median sd
 ## usethis namespace: end
 NULL
 
@@ -30,7 +30,7 @@ utils::globalVariables(
     "episode_max_date_plus_two_months", "episode_min_date",
     "estimated_start_date", "everything", "first_preg_category", "gest_date",
     "gestation_based", "head", "inferred_episode_end", "inferred_episode_start",
-    "keep_value", "lag", "lead", "lst", "max_gest_date", "max_gest_start_date",
+    "keep_value", "lead", "lst", "max_gest_date", "max_gest_start_date",
     "max_start_date", "min_days", "min_gest_start_date", "n",
     "next_closest_episode_date", "outcome_based", "outcome_preg_category",
     "outcomes_list", "overlaps", "person_id", "pregnancy_end", "pregnancy_start",
