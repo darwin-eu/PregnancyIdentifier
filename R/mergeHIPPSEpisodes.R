@@ -27,6 +27,7 @@
 #' @param PPSMinMax (`data.frame`)
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
+#' @param logger (`logger`) Logger object
 #' @param ... Extra (dev) parameters
 #'
 #' @return `NULL`

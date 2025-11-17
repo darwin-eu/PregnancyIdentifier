@@ -5,6 +5,7 @@
 #' @param cdm (`cdm_reference`)
 #' @param outputDir output directory
 #' @param uploadConceptSets if concept sets should be uploaded
+#' @param logger (`logger`) Logger object.
 #' @param ... optional parameters
 #'
 #' @return cdm object

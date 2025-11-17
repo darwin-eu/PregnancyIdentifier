@@ -8,6 +8,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param logger (`logger`) Logger object.
 #' @param ... Dev params
 #'
 #' @returns cdm object
