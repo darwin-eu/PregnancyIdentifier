@@ -4,7 +4,7 @@
 \alias{runPps}
 \title{runPps}
 \usage{
-runPps(cdm, outputDir, uploadConceptSets = FALSE, ...)
+runPps(cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`)}

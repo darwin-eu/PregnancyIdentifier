@@ -4,7 +4,7 @@
 \alias{runEsd}
 \title{runEsd}
 \usage{
-runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...)
+runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 }
 \arguments{
 \item{HIPPS}{(`data.frame`)}
