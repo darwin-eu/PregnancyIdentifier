@@ -15,6 +15,8 @@ runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 
 \item{uploadConceptSets}{if concept sets should be uploaded}
 
+\item{logger}{(`logger`) Logger object.}
+
 \item{...}{Extra (development) parameters}
 }
 \value{

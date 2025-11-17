@@ -11,6 +11,8 @@ runHip(cdm, outputDir, logger, ...)
 
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
 
+\item{logger}{(`logger`) Logger object.}
+
 \item{...}{Dev params}
 }
 \value{

@@ -13,6 +13,8 @@ runPps(cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 
 \item{uploadConceptSets}{if concept sets should be uploaded}
 
+\item{logger}{(`logger`) Logger object.}
+
 \item{...}{optional parameters}
 }
 \value{

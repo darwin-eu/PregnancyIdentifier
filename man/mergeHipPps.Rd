@@ -17,6 +17,8 @@ mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, logger, ...)
 
 \item{outputDir}{(`character(1)`)}
 
+\item{logger}{(`logger`) Logger object}
+
 \item{...}{Extra (dev) parameters}
 }
 \value{

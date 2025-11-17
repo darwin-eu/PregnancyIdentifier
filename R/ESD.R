@@ -28,6 +28,7 @@
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
 #' @param uploadConceptSets if concept sets should be uploaded
+#' @param logger (`logger`) Logger object.
 #' @param ... Extra (development) parameters
 #'
 #' @return `NULL`
