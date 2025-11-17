@@ -26,6 +26,9 @@ Imports:
     dbplyr,
     purrr,
     stringr,
-    TestGenerator
+    TestGenerator,
+    magrittr,
+    tidyr,
+    log4r
 Suggests: 
     testthat (>= 3.0.0)
