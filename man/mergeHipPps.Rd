@@ -4,7 +4,7 @@
 \alias{mergeHipPps}
 \title{mergeHipPps}
 \usage{
-mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, ...)
+mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, logger, ...)
 }
 \arguments{
 \item{HIP}{(`data.frame`) HIP result}
