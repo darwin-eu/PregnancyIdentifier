@@ -141,17 +141,24 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
   res_time <- res %>%
     tidyr::pivot_longer(cols = date_cols, names_to = "column", values_to = "date") %>%
     dplyr::mutate(
-      month = format(as.Date(date, format = "%Y-%m-%d"), "%m"),
-      year = format(as.Date(date, format = "%Y-%m-%d"), "%Y")
+      month = as.integer(format(as.Date(date, format = "%Y-%m-%d"), "%m")),
+      year = as.integer(format(as.Date(date, format = "%Y-%m-%d"), "%Y"))
     )
-
-  res_time$month <- as.integer(res_time$month)
-  res_time$year <- as.integer(res_time$year)
+    # dplyr::mutate(
+    #   year = dplyr::case_when(
+    #     is.na(.data$year) ~ 0,
+    #     .default = .data$year
+    #   ),
+    #   month = dplyr::case_when(
+    #     is.na(.data$month) ~ 0,
+    #     .default = .data$month
+    #   )
+    # )
 
   # Year
   yearly_trends <- res_time %>%
-    dplyr::group_by(column, year) %>%
-    dplyr::summarise(count = n(), .groups = "drop")
+    dplyr::group_by(.data$column, .data$year) %>%
+    dplyr::summarise(count = dplyr::n(), .groups = "drop")
 
   yearly_trends_missing <- yearly_trends %>%
     dplyr::filter(is.na(.data$year)) %>%
@@ -174,8 +181,8 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
   write.csv(yearly_trends, file.path(resPath, "yearly_trend.csv"), row.names = FALSE)
 
   monthly_trends <- res_time %>%
-    group_by(column, month) %>%
-    summarise(count = n(), .groups = "drop")
+    dplyr::group_by(.data$column, .data$month) %>%
+    dplyr::summarise(count = dplyr::n(), .groups = "drop")
 
   monthly_trends$month <- factor(base::month.name[monthly_trends$month], levels = month.name)
 
@@ -272,20 +279,20 @@ exportReversedDatesCounts <- function(res, resPath, snap, runStart) {
 exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart) {
   outcomeCat <- res %>%
     dplyr::group_by(.data$hip_outcome_category) %>%
-    dplyr::summarise(n = n()) %>%
+    dplyr::summarise(n = dplyr::n()) %>%
     dplyr::mutate(algorithm = "hip") %>%
     dplyr::rename(outcome_category = "hip_outcome_category") %>%
     dplyr::bind_rows(
       res %>%
         dplyr::group_by(.data$pps_outcome_category) %>%
-        dplyr::summarise(n = n()) %>%
+        dplyr::summarise(n = dplyr::n()) %>%
         dplyr::mutate(algorithm = "pps") %>%
         dplyr::rename(outcome_category = "pps_outcome_category")
     ) %>%
     dplyr::bind_rows(
       res %>%
         dplyr::group_by(.data$final_outcome_category) %>%
-        dplyr::summarise(n = n()) %>%
+        dplyr::summarise(n = dplyr::n()) %>%
         dplyr::mutate(algorithm = "hipps") %>%
         dplyr::rename(outcome_category = "final_outcome_category")
     ) %>%
@@ -349,6 +356,12 @@ export <- function(cdm, outputDir, exportDir) {
   exportDateConsistancy(res, exportDir, snap = snap, runStart = runStart)
   exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart)
   exportOutcomeCategoriesCounts(res, exportDir, snap = snap, runStart = runStart)
+
+  utils::zip(
+    zipfile = file.path(exportDir, sprintf("%s-%s-results.zip", snap$snapshot_date, snap$cdm_name)),
+    files = list.files(path = exportDir, full.names = TRUE),
+    flags = "-j"
+  )
 
   message(sprintf("Files have been written to: %s", exportDir))
 }

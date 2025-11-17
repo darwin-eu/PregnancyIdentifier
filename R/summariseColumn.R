@@ -2,7 +2,7 @@ summariseCategory <- function(df, colName) {
   df %>%
     dplyr::group_by(.data[[colName]]) %>%
     dplyr::summarise(
-      n = n()
+      n = dplyr::n()
     ) %>%
     dplyr::mutate(
       colName = colName,
