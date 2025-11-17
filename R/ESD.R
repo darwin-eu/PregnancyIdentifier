@@ -32,9 +32,9 @@
 #'
 #' @return `NULL`
 #' @export
-runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...) {
+runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-  message("  * Running ESD")
+  log4r::info(logger, "Running ESD")
 
   if (uploadConceptSets) {
     cdm <- uploadConceptSets(cdm)
@@ -47,7 +47,7 @@ runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...) {
   )
 
   # get gestational timing info
-  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
+  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df, logger = logger)
   saveRDS(episodes_with_gestational_timing_info_df, file.path(outputDir, "ESD.rds"))
 }
 
@@ -433,7 +433,7 @@ get_gt_timing <- function(dateslist) {
   return(single_episode_timingres)
 }
 
-episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
+episodes_with_gestational_timing_info <- function(get_timing_concepts_df, logger) {
   # add on either GW or GR3m designation depending on whether the concept is present
   if (nrow(get_timing_concepts_df) > 0) {
     get_timing_concepts_df <- get_timing_concepts_df %>%
@@ -555,11 +555,11 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
     percMajority <- (majorityOverlapCountTotal / intervalsCountTotal) * 100
 
 
-    message(sprintf("-- Number of episodes with GR3m intervals: %s", intervalsCountTotal))
-    message(sprintf("-- Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", percMajority))
+    log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", intervalsCountTotal))
+    log4r::info(logger, sprintf("Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", percMajority))
   } else {
-    message(sprintf("-- Number of episodes with GR3m intervals: %s", 0))
-    message(sprintf("-- Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", 0))
+    log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", 0))
+    log4r::info(logger, sprintf("Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", 0))
 
     new_timing_designation_df <- dplyr::tibble(
       person_id = integer(0),
@@ -578,7 +578,7 @@ episodes_with_gestational_timing_info <- function(get_timing_concepts_df) {
   return(new_timing_designation_df)
 }
 
-merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_df, final_merged_episode_detailed_df, cdm) {
+merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_df, final_merged_episode_detailed_df, cdm, logger) {
   # Add other pregnancy and demographic related info for each episode.
 
   # Assign input data frames to variables
@@ -777,10 +777,10 @@ merged_episodes_with_metadata <- function(episodes_with_gestational_timing_info_
   min_pregnancy_date <- min(final_df$inferred_episode_start, na.rm = TRUE)
   max_pregnancy_date <- max(final_df$inferred_episode_end, na.rm = TRUE)
 
-  message(sprintf("  - Min episode start date: %s", min_episode_date))
-  message(sprintf("  - Max episode end date: %s", max_episode_date))
-  message(sprintf("  - Min pregnancy start date: %s", min_pregnancy_date))
-  message(sprintf("  - Max pregnancy end date: %s", max_pregnancy_date))
+  log4r::info(logger, sprintf("Min episode start date: %s", min_episode_date))
+  log4r::info(logger, sprintf("Max episode end date: %s", max_episode_date))
+  log4r::info(logger, sprintf("Min pregnancy start date: %s", min_pregnancy_date))
+  log4r::info(logger, sprintf("Max pregnancy end date: %s", max_pregnancy_date))
 
   return(final_df)
 }
