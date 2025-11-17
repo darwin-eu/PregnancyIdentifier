@@ -9,26 +9,26 @@
 #'
 #' @return cdm object
 #' @export
-runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
+runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
   dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
 
-  message("  * Running PPS")
+  log4r::info(logger, "START Running PPS")
   if (uploadConceptSets) {
-    message("  * Uploading Concepts")
-    cdm <- uploadConceptSets(cdm)
+    log4r::info(logger, "Uploading Concepts")
+    cdm <- uploadConceptSets(cdm, logger)
   }
-  message("  * Pull PPS Concepts from Tables")
+  log4r::info(logger, "Pull PPS Concepts from Tables")
   # pull PPS concepts from each table
-  cdm <- input_GT_concepts(cdm)
+  cdm <- input_GT_concepts(cdm, logger)
 
   # get the gestational timing information for each concept
-  message("  * Get gestational timing information")
+  log4r::info(logger, "Get gestational timing information")
   get_PPS_episodes_df <- get_PPS_episodes(cdm, outputDir)
   saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
   if (nrow(get_PPS_episodes_df) > 0) {
-    message("  * Get min and max dates for episodes")
+    log4r::info(logger, "Get min and max dates for episodes")
     PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
     saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
   }
@@ -57,8 +57,8 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/PPS_algorithm_functions.R
 
-rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col) {
-  message(sprintf("    - Pulling data from %s", tblName))
+rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, logger) {
+  log4r::info(logger, sprintf("Pulling data from %s", tblName))
   cdm[[outcomeTblName]] <- cdm[[tblName]] %>%
     dplyr::rename(
       domain_concept_start_date = start_date_col,
@@ -71,41 +71,46 @@ rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col) {
   return(cdm)
 }
 
-input_GT_concepts <- function(cdm) {
+input_GT_concepts <- function(cdm, logger) {
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "condition_occurrence",
     outcomeTblName = "c_o",
     start_date_col = "condition_start_date",
-    id_col = "condition_concept_id"
+    id_col = "condition_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "procedure_occurrence",
     outcomeTblName = "p_o",
     start_date_col = "procedure_date",
-    id_col = "procedure_concept_id"
+    id_col = "procedure_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName = "observation",
     outcomeTblName = "o_df",
     start_date_col = "observation_date",
-    id_col = "observation_concept_id"
+    id_col = "observation_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName = "measurement",
     outcomeTblName = "m_df",
     start_date_col = "measurement_date",
-    id_col = "measurement_concept_id"
+    id_col = "measurement_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "visit_occurrence",
     outcomeTblName = "v_o",
     start_date_col = "visit_start_date",
-    id_col = "visit_concept_id"
+    id_col = "visit_concept_id",
+    logger = logger
   )
 
   cdm$input_gt_concepts_df <- list(cdm$c_o, cdm$p_o, cdm$o_df, cdm$m_df, cdm$v_o) %>%

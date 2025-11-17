@@ -1,11 +1,15 @@
-uploadConceptSets <- function(cdm) {
+uploadConceptSets <- function(cdm, logger) {
   HIP_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "hip_concepts", table = HIP_concepts)
+
+  log4r::info(logger, "Inserted HIP concepts")
 
   PPS_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "PPS_concepts.xlsx")) %>%
     dplyr::mutate(domain_concept_id = as.integer(.data$domain_concept_id))
   names(PPS_concepts) <- tolower(names(PPS_concepts))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "pps_concepts", table = PPS_concepts)
+
+  log4r::info(logger, "Inserted PPS concepts")
 
   matcho_outcome_limits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx"))
   cdm <- CDMConnector::insertTable(
@@ -16,6 +20,8 @@ uploadConceptSets <- function(cdm) {
     temporary = FALSE
   )
 
+  log4r::info(logger, "Inserted Matcho concepts")
+
   matcho_term_durations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
   cdm <- CDMConnector::insertTable(
     cdm = cdm,
@@ -24,7 +30,20 @@ uploadConceptSets <- function(cdm) {
     overwrite = TRUE,
     temporary = FALSE
   )
+
+  log4r::info(logger, "Inserted Matcho term durations")
   return(cdm)
+}
+
+makeLogger <- function(outputDir) {
+  logFile <- file.path(outputDir, "log.txt")
+  file.create(logFile)
+  logger <- log4r::create.logger(logfile = logFile)
+  logger <- log4r::logger(threshold = "INFO", appenders = list(
+    log4r::console_appender(),
+    log4r::file_appender(logFile)
+  ))
+  return(logger)
 }
 
 #' runHipps
@@ -40,14 +59,22 @@ uploadConceptSets <- function(cdm) {
 #'
 #' @export
 runHipps <- function(cdm, outputDir, ...) {
-  dots <- list(...)
-  message("> Classifying Pregnancy using HIP, PPS, and ESD")
+  runStart <- data.frame(
+    start = as.integer(Sys.time())
+  )
+
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+  logger <- makeLogger(outputDir)
 
-  cdm <- uploadConceptSets(cdm)
+  dots <- list(...)
+  log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
 
-  cdm <- runHip(cdm, outputDir, ...)
-  cdm <- runPps(cdm, outputDir, ...)
+  write.csv(runStart, file.path(outputDir, "runStart.csv"))
+
+  cdm <- uploadConceptSets(cdm, logger = logger)
+
+  cdm <- runHip(cdm, outputDir, logger = logger, ...)
+  cdm <- runPps(cdm, outputDir, logger = logger, ...)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
@@ -56,9 +83,9 @@ runHipps <- function(cdm, outputDir, ...) {
   cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
 
   # Merge HIPPS ---------------------------------------------------------------
-  message("  * Merging HIP and PPS into HIPPS")
+  log4r::info(logger, "START Merging HIP and PPS into HIPPS")
   # collect outcomes for PPS algorithm from lookahead window
-  outcomes_per_episode_df <- outcomes_per_episode(PPS_episodes_df, get_PPS_episodes_df, cdm)
+  outcomes_per_episode_df <- outcomes_per_episode(PPS_episodes_df, get_PPS_episodes_df, cdm, logger = logger)
 
   # add outcomes to PPS episodes
   PPS_episodes_with_outcomes_df <- add_outcomes(outcomes_per_episode_df, PPS_episodes_df)
@@ -68,16 +95,16 @@ runHipps <- function(cdm, outputDir, ...) {
     dplyr::collect()
 
   # merge HIPS and PPS episodes
-  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df)
+  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df, logger = logger)
 
   # remove any duplicated episodes
-  final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df)
+  final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df, logger = logger)
 
   # add (some) demographic details
   final_merged_episode_detailed_df <- final_merged_episode_detailed(final_merged_episodes_no_duplicates_df)
 
   # ESD -----------------------------------------------------------------------
-  message("  * Running ESD")
+  log4r::info(logger, "START Running ESD")
 
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
@@ -86,18 +113,19 @@ runHipps <- function(cdm, outputDir, ...) {
   )
 
   # get gestational timing info
-  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df)
+  episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df, logger = logger)
 
   # merge with metadata
   merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
     episodes_with_gestational_timing_info_df,
     final_merged_episode_detailed_df,
-    cdm
+    cdm,
+    logger = logger
   )
 
   outputPath <- file.path(outputDir, "identified_pregancy_episodes.rds")
 
   saveRDS(merged_episodes_with_metadata_df, outputPath)
-  message(sprintf("  * Wrote output to %s", outputPath))
+  log4r::info(logger, sprintf("Wrote output to %s", outputPath))
   return(NULL)
 }
