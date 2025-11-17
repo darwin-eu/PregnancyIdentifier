@@ -329,6 +329,11 @@ export <- function(cdm, outputDir, exportDir) {
     to = file.path(exportDir, "PPS-concept_counts.csv")
   )
 
+  file.copy(
+    from = file.path(outputDir, "log.txt"),
+    to = file.path(exportDir, "log.txt")
+  )
+
   exportAgeSummary(res = res, cdm = cdm, resPath = exportDir, snap = snap, runStart = runStart)
   exportPrecisionDays(res, exportDir, snap = snap, runStart = runStart)
   exportEpisodeFrequency(res, exportDir, snap = snap, runStart = runStart)
