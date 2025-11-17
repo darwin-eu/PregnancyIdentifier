@@ -27,11 +27,9 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
   saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
-  if (nrow(get_PPS_episodes_df) > 0) {
-    log4r::info(logger, "Get min and max dates for episodes")
-    PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
-    saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
-  }
+  log4r::info(logger, "Get min and max dates for episodes")
+  PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
+  saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
   return(cdm)
 }
 
@@ -316,6 +314,20 @@ get_PPS_episodes <- function(cdm, outputDir) {
 }
 
 get_episode_max_min_dates <- function(get_PPS_episodes_df) {
+  if (!"person_episode_number" %in% names(get_PPS_episodes_df)) {
+    if (nrow(get_PPS_episodes_df) > 0) {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(
+          person_episode_number = .data$person_id
+        )
+    } else {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(
+          person_episode_number = integer(0)
+        )
+    }
+  }
+
   df <- get_PPS_episodes_df %>%
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
