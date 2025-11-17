@@ -11,9 +11,12 @@ test_that("run analysis", {
   if (!dir.exists(outputDir)) {
     dir.create(outputDir, recursive = T)
   }
-  cdm <- PregnancyIdentifier:::uploadConceptSets(cdm)
-  cdm <- runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
-  cdm <- runPps(cdm = cdm, outputDir = outputDir)
+
+  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+
+  cdm <- PregnancyIdentifier:::uploadConceptSets(cdm, logger)
+  cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger, continue = TRUE)
+  cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
 
   ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
@@ -24,16 +27,17 @@ test_that("run analysis", {
     PPSEpisode = ppsEpisode,
     PPSMinMax = ppsMinMax,
     outputDir = outputDir,
-    fileName = "merge.csv"
+    fileName = "merge.csv",
+    logger = logger
   )
   cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
   hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
-  runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir)
+  runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir, logger = logger)
   # end analysis
 
   expect_true(dir.exists(outputDir))
   result <- list.files(outputDir)
-  expect_length(result, 6)
+  expect_length(result, 7)
 
   expect_equal(sort(result), sort(c(
     "PPS-concept_counts.csv",
@@ -41,7 +45,8 @@ test_that("run analysis", {
     "HIPPS_episodes.rds",
     "HIP_episodes.rds",
     "PPS_gest_timing_episodes.rds",
-    "PPS_min_max_episodes.rds"
+    "PPS_min_max_episodes.rds",
+    "log.txt"
   )))
 
   unlink(outputDir, recursive = TRUE)
