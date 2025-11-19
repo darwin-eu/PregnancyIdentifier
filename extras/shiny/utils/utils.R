@@ -79,12 +79,25 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
   }
 }
 
-trendsPlot <- function(data, xVar, xLabel, xIntercept = NULL) {
+dataToLong <- function(data, skipCols = c("cdm_name")) {
+  do.call(cbind, lapply(data$cdm_name, FUN = function(db) {
+    dbData <- data %>% dplyr::filter(cdm_name == db)
+    return(dbData %>%
+             tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = dbData$cdm_name) %>%
+             dplyr::select(-dplyr::all_of(skipCols)))
+  })) %>% dplyr::select(unique(colnames(.)))
+}
+
+trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
   p <- ggplot(data = data, mapping = aes_string(x = xVar, y = "count", color = "column", group = "column")) +
     geom_line() +
     geom_point() +
     labs(x = xLabel, y = "Count (N)") +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+  if (!is.null(facetVar)) {
+    p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+  }
 
   if (!is.null(xIntercept)) {
     p <- p + geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed")
@@ -92,7 +105,7 @@ trendsPlot <- function(data, xVar, xLabel, xIntercept = NULL) {
   plotly::ggplotly(p)
 }
 
-barPlot <- function(data, xVar, yVar, fillVar = NULL, label = NULL, position = "stack", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = NULL, position = "stack", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
   p <- ggplot(data = data,
               mapping = aes_string(x = xVar, y = yVar, label = label))
 
@@ -103,6 +116,9 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, label = NULL, position = "
     p <- p + geom_bar(stat = "identity",
                       position = position,
                       mapping = aes_string(fill = fillVar))
+  }
+  if (!is.null(facetVar)) {
+    p <- p + facet_wrap(as.formula(paste("~", facetVar)))
   }
 
   if (!is.null(xLabel) && !is.null(yLabel)) {
@@ -127,9 +143,12 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
     # assume we have a column per DP, next to the first column
     nameColumn <- colnames(data)[1]
     dpCols <- colnames(data)[-1]
-    plotData <- data %>%
-      tidyr::pivot_wider(names_from = nameColumn, values_from = dpCols) %>%
-      dplyr::mutate(cdm_name = dpCols)
+    plotData <- do.call(rbind, lapply(dpCols, FUN = function(dp) {
+      dbData <- data %>% dplyr::select(nameColumn, dp)
+      dbData %>%
+        tidyr::pivot_wider(names_from = nameColumn, values_from = dp) %>%
+        dplyr::mutate(cdm_name = dp)
+      }))
   }
 
   p <- NULL

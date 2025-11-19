@@ -48,51 +48,36 @@ if (!file.exists(cachedResultsFile)) {
   dbinfo <- cdmSource %>%
     dplyr::select_if(~ !all(is.na(.)))
 
-  gestationalAgeDaysCounts <- gestationalAgeDaysCounts %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = gestationalAgeDaysCounts$cdm_name) %>%
-    dplyr::select(-"cdm_name")
+  gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
 
-  swappedDates <- swappedDates %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = swappedDates$cdm_name) %>%
-    dplyr::select(-"cdm_name")
+  swappedDates <- dataToLong(swappedDates)
   swappedDatesPlot <- swappedDates %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
     dplyr::mutate(value = as.numeric(value))
 
-  ageSummary <- ageSummary %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = ageSummary$colName, values_to = ageSummary$cdm_name) %>%
-    dplyr::select(-c("cdm_name", "colName"))
+  ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
 
-  dateConsistancy <- dateConsistancy %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = dateConsistancy$cdm_name) %>%
-    dplyr::select(-"cdm_name")
+  dateConsistancy <- dataToLong(dateConsistancy)
   dateConsistancyPlot <- dateConsistancy %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
     dplyr::mutate(value = as.numeric(value))
 
-  observationPeriodRange <- observationPeriodRange %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("cdm_name")), names_to = "name", values_to = observationPeriodRange$cdm_name) %>%
-    dplyr::select(-"cdm_name")
+  observationPeriodRange <- dataToLong(observationPeriodRange)
 
-  pregnancyFrequency <- do.call(rbind, lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
+  pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
     pregnancyFrequency %>%
       dplyr::filter(cdm_name == name) %>%
       dplyr::select(-"cdm_name") %>%
       dplyr::rename(!!name := number_individuals)})
-  )
+  pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
+  pregnancyFrequency <- do.call(dplyr::left_join, pregnancyFrequencyList)
   pregnancyFrequencyPlot <- pregnancyFrequency %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
     dplyr::mutate(value = as.numeric(value))
 
-  episodeFrequency <- episodeFrequency %>%
-    dplyr::left_join(episodeFrequencySummary) %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = episodeFrequency$cdm_name) %>%
-    dplyr::select(-c("cdm_name", "colName"))
+  episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
 
-  gestationalAgeDaysSummary <- gestationalAgeDaysSummary %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = gestationalAgeDaysSummary$cdm_name) %>%
-    dplyr::select(-c("cdm_name", "colName"))
-
+  gestationalAgeDaysSummary <- dataToLong(gestationalAgeDaysSummary, skipCols = c("colName", "cdm_name"))
   gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
     dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric)
 
@@ -130,8 +115,9 @@ if (!file.exists(cachedResultsFile)) {
   gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
                                    do.call("rbind", lapply(intervals, FUN = function(weeks) {
                                      summariseGestationalWeeks(gestationalWeeks, weeks+1, weeks+100)
-                                   }))) %>%
-    dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = gestational_weeks))
+                                   })))
+  gestationalWeeksSummary <- gestationalWeeksSummary %>%
+    dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = unique(gestationalWeeksSummary$gestational_weeks)))
 
   # trend data
   yearlyTrend <- yearlyTrend %>%
@@ -310,11 +296,15 @@ appStructure <- list(
                                                                                       xVar = "outcome_category",
                                                                                       yVar = "pct",
                                                                                       fillVar = "algorithm",
+                                                                                      facetVar = "cdm_name",
                                                                                       position = "dodge"),
                                                                           height = plotHeight), result = outcomeCategoriesCount)),
     "Monthly trends" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrends, dp = allDP), result = monthlyTrends),
                             handleEmptyResult(object = PlotPlotly$new(fun = trendsPlot,
-                                                                      args = list(data = monthlyTrends, xVar = "month", xLabel = "Month"),
+                                                                      args = list(data = monthlyTrends,
+                                                                                  xVar = "month",
+                                                                                  xLabel = "Month",
+                                                                                  facetVar = "cdm_name"),
                                                                       height = plotHeight), result = monthlyTrends)),
     "Monthly trend missing" = list(handleEmptyResult(object = FilterTableModule$new(data = monthlyTrendMissing, dp = allDP), result = monthlyTrendMissing),
                                    handleEmptyResult(object = PlotPlotly$new(fun = barPlot,
@@ -327,7 +317,10 @@ appStructure <- list(
                                                                              height = defaultPlotHeight), result = monthlyTrendMissing)),
     "Yearly trend" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrend, dp = allDP), result = yearlyTrend),
                          handleEmptyResult(object = PlotPlotly$new(fun = trendsPlot,
-                                                                   args = list(data = yearlyTrend, xVar = "year", xLabel = "Year",
+                                                                   args = list(data = yearlyTrend,
+                                                                               xVar = "year",
+                                                                               xLabel = "Year",
+                                                                               facetVar = "cdm_name",
                                                                                xIntercept = minObservationPeriod),
                                                                    height = plotHeight), result = yearlyTrend)),
     "Yearly trend missing" = list(handleEmptyResult(object = FilterTableModule$new(data = yearlyTrendMissing, dp = allDP), result = yearlyTrendMissing),

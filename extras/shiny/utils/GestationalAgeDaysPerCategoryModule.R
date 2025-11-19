@@ -116,12 +116,15 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
         # format
         if (nrow(data) > 0) {
-          result <- do.call(rbind, lapply(unique(data$cdm_name), FUN = function(name) {
-            data %>%
-              dplyr::filter(cdm_name == name) %>%
+          resultList <- lapply(unique(data$cdm_name), FUN = function(name) {
+            dbData <- data %>%dplyr::filter(cdm_name == name)
+            result <- dbData %>%
               dplyr::select(-c("cdm_name", "colName")) %>%
-              tidyr::pivot_longer(cols = setdiff(colnames(.), c("final_outcome_category")), names_to = "name", values_to = unique(data$cdm_name))
-          }))
+              tidyr::pivot_longer(cols = setdiff(colnames(.), c("final_outcome_category")), names_to = "name", values_to = unique(dbData$cdm_name))
+            return(result)
+          })
+          resultList <- resultList[order(sapply(resultList, nrow), decreasing = T)]
+          result <- do.call(dplyr::left_join, resultList)
         } else {
           result <- data.frame(final_outcome_category = character(0),
                                name = character(0))
