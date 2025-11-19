@@ -37,12 +37,15 @@ if (!file.exists(cachedResultsFile)) {
     dir.create(tempFolder)
     unzip(zipFiles[i], exdir = tempFolder, junkpaths = TRUE)
     csvFiles <- list.files(tempFolder, pattern = ".csv")
-    dbName <- gsub(".zip", "", basename(zipFiles[i]))
-    lapply(csvFiles, loadFile, dbName = dbName, folder = tempFolder, overwrite = (i == 1))
+    zipName <- gsub(".zip", "", basename(zipFiles[i]))
+    zipNameParts <- unlist(strsplit(zipName, "-"))
+    dbName <- zipNameParts[4]
+    runDate <- gsub(paste0("-", dbName, ".*"), "", zipName)
+    lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, folder = tempFolder, overwrite = (i == 1))
     unlink(tempFolder, recursive = TRUE)
   }
   # formatting
-  dbinfo <- dbinfo %>%
+  dbinfo <- cdmSource %>%
     dplyr::select_if(~ !all(is.na(.)))
 
   gestationalAgeDaysCounts <- gestationalAgeDaysCounts %>%
@@ -90,12 +93,8 @@ if (!file.exists(cachedResultsFile)) {
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("colName", "cdm_name")), names_to = "name", values_to = gestationalAgeDaysSummary$cdm_name) %>%
     dplyr::select(-c("cdm_name", "colName"))
 
-  gestationalAgeDaysPerCategorySummaryLong <- do.call(rbind, lapply(unique(gestationalAgeDaysPerCategorySummary$cdm_name), FUN = function(name) {
-    gestationalAgeDaysPerCategorySummary %>%
-      dplyr::filter(cdm_name == name) %>%
-      dplyr::select(-c("cdm_name", "colName")) %>%
-      tidyr::pivot_longer(cols = setdiff(colnames(.), c("final_outcome_category")), names_to = "name", values_to = unique(gestationalAgeDaysPerCategorySummary$cdm_name))
-  }))
+  gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
+    dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric)
 
   minObservationPeriod <- observationPeriodRange %>%
     dplyr::filter(name == "min_obs") %>%
@@ -153,6 +152,8 @@ if (!file.exists(cachedResultsFile)) {
   # incidence
   saveRDS(list("dbinfo" = dbinfo,
                "incidence" = incidence,
+               "prevalence" = prevalence,
+               "characteristics" = characteristics,
                "ageSummary" = ageSummary,
                "dateConsistancy" = dateConsistancy,
                "dateConsistancyPlot" = dateConsistancyPlot,
@@ -160,7 +161,6 @@ if (!file.exists(cachedResultsFile)) {
                "episodeFrequencySummary" = episodeFrequencySummary,
                "gestationalAgeDaysCounts" = gestationalAgeDaysCounts,
                "gestationalAgeDaysPerCategorySummary" = gestationalAgeDaysPerCategorySummary,
-               "gestationalAgeDaysPerCategorySummaryLong" = gestationalAgeDaysPerCategorySummaryLong,
                "gestationalAgeDaysSummary" = gestationalAgeDaysSummary,
                "gestationalWeeksSummary" = gestationalWeeksSummary,
                "monthlyTrends" = monthlyTrends,
@@ -181,6 +181,8 @@ if (!file.exists(cachedResultsFile)) {
   cachedData <- readRDS(cachedResultsFile)
   dbinfo <- cachedData$dbinfo
   incidence <- cachedData$incidence
+  prevalence <- cachedData$prevalence
+  characteristics <- cachedData$characteristics
   ageSummary <- cachedData$ageSummary
   dateConsistancy <- cachedData$dateConsistancy
   dateConsistancyPlot <- cachedData$dateConsistancyPlot
@@ -188,7 +190,6 @@ if (!file.exists(cachedResultsFile)) {
   episodeFrequencySummary <- cachedData$episodeFrequencySummary
   gestationalAgeDaysCounts <- cachedData$gestationalAgeDaysCounts
   gestationalAgeDaysPerCategorySummary <- cachedData$gestationalAgeDaysPerCategorySummary
-  gestationalAgeDaysPerCategorySummaryLong <- cachedData$gestationalAgeDaysPerCategorySummaryLong
   gestationalAgeDaysSummary <- cachedData$gestationalAgeDaysSummary
   gestationalWeeksSummary <- cachedData$gestationalWeeksSummary
   monthlyTrends <- cachedData$monthlyTrends
@@ -295,12 +296,10 @@ appStructure <- list(
                                                                    args = list(data = ageSummary, transform = TRUE),
                                                                    height = plotHeight), result = ageSummary)),
     "Observation period range" = handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
+    "Characteristics" = list(handleEmptyResult(object = Characteristics$new(characteristics), result = characteristics)),
     "Incidence" = list(handleEmptyResult(object = Incidence$new(incidence), result = incidence)),
-    "Gestational age days per category" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysPerCategorySummaryLong, dp = allDP), result = gestationalAgeDaysPerCategorySummaryLong),
-                                               handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
-                                                                                         args = list(data = gestationalAgeDaysPerCategorySummary,
-                                                                                                     colorVar = "final_outcome_category"),
-                                                                                         height = plotHeight), result = gestationalAgeDaysPerCategorySummary)),
+    "Prevalence" = list(handleEmptyResult(object = Prevalence$new(prevalence), result = prevalence)),
+    "Gestational age days per category" = handleEmptyResult(object = GestationalAgeDaysPerCategoryModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
     "Gestational age days summary" = list(handleEmptyResult(object = FilterTableModule$new(data = gestationalAgeDaysSummary, dp = allDP), result = gestationalAgeDaysSummary),
                                           handleEmptyResult(object = PlotPlotly$new(fun = boxPlot,
                                                                                     args = list(data = gestationalAgeDaysSummary, transform = TRUE),

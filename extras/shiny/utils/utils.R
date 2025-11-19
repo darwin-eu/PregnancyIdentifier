@@ -19,13 +19,16 @@ snakeCaseToCamelCase <- function(string) {
   return(string)
 }
 
-loadFile <- function(file, dbName, folder, overwrite) {
+loadFile <- function(file, dbName, runDate, folder, overwrite) {
   if (endsWith(file, ".csv")) {
     print(file)
     tableName <- gsub(".csv$", "", file)
     camelCaseName <- snakeCaseToCamelCase(tableName)
 
-    if (grepl("incidence", tolower(file))) {
+    if (grepl("incidence|prevalence|characteristics", tolower(file))) {
+      parts <- unlist(strsplit(tableName, "_"))
+      tableName <- parts[length(parts)]
+      camelCaseName <- snakeCaseToCamelCase(tableName)
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
       data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
     } else {
@@ -35,8 +38,20 @@ loadFile <- function(file, dbName, folder, overwrite) {
           dplyr::select(-"...1")
       }
       # make sure there is a column cdm_name
-      data <- data %>% dplyr::mutate(cdm_name= dbName, .before = 1)
+      if (!"cdm_name" %in% colnames(data)) {
+        data <- data %>% dplyr::mutate(cdm_name = dbName)
+      }
     }
+
+    # add version number to cdm_name
+    version <- NULL
+    if (runDate == "2025-11-17" || runDate == "2025-11-18") {
+      version <- "_v1"
+    }
+    data <- data %>%
+      dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
+      dplyr::mutate(cdm_name = paste0(cdm_name, version))
+
     if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
       existingData <- get(camelCaseName, envir = .GlobalEnv)
       if (nrow(existingData) > 0) {
@@ -106,7 +121,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, label = NULL, position = "
   plotly::ggplotly(p)
 }
 
-boxPlot <- function(data, colorVar = NULL, transform = FALSE) {
+boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
   plotData <- data
   if (transform) {
     # assume we have a column per DP, next to the first column

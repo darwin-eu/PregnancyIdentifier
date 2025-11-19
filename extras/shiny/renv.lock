@@ -38,6 +38,28 @@
       ],
       "Hash": "9da46df0fcfc169fd735f5c094e3aba0"
     },
+    "CohortCharacteristics": {
+      "Package": "CohortCharacteristics",
+      "Version": "1.0.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "CDMConnector",
+        "PatientProfiles",
+        "R",
+        "cli",
+        "clock",
+        "dplyr",
+        "lifecycle",
+        "omopgenerics",
+        "purrr",
+        "rlang",
+        "snakecase",
+        "stringr",
+        "tidyr"
+      ],
+      "Hash": "00115a105115dc727ad8d8e53ce934cc"
+    },
     "DBI": {
       "Package": "DBI",
       "Version": "1.2.3",
