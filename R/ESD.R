@@ -196,7 +196,7 @@ findIntersection <- function(intervals) {
     intervals <- purrr::reduce(intervals, rbind)
   }
   intervals <- as.data.frame(intervals) %>%
-    dplyr::mutate(across(everything(), as.Date)) %>%
+    dplyr::mutate(across(everything(), as.Date, format = "%Y-%m-%d")) %>%
     dplyr::arrange(V1)
 
   # First remove outlier ranges via the IQR*1.5 approach. Outlier ranges are determined by the number of overlaps each range has with other ranges.
@@ -332,7 +332,7 @@ get_gt_timing <- function(dateslist) {
   GW_list <- dateslist[sapply(dateslist, function(x) length(x) == 1)]
   GR3m_list <- dateslist[sapply(dateslist, function(x) length(x) == 2)]
 
-  inferred_start_date <- as.Date("2000-01-01")
+  inferred_start_date <- as.Date("2000-01-01", format = "%Y-%m-%d")
   precision_days <- 999
   precision_category <- "-999"
   intervalsCount <- 0
@@ -357,10 +357,10 @@ get_gt_timing <- function(dateslist) {
   daterangeMidpoint <- NULL
 
   if (!is.null(common_GR3m_interval)) { # if it's not an empty array
-    range_e <- as.Date(common_GR3m_interval[1]) # end date of range
-    range_s <- as.Date(common_GR3m_interval[2]) # start date of range
-    interval_e <- as.Date(common_GR3m_interval[3]) # end date of intersection
-    interval_s <- as.Date(common_GR3m_interval[4]) # start date of intersection
+    range_e <- as.Date(common_GR3m_interval[1], format = "%Y-%m-%d") # end date of range
+    range_s <- as.Date(common_GR3m_interval[2], format = "%Y-%m-%d") # start date of range
+    interval_e <- as.Date(common_GR3m_interval[3], format = "%Y-%m-%d") # end date of intersection
+    interval_s <- as.Date(common_GR3m_interval[4], format = "%Y-%m-%d") # start date of intersection
 
     plausibleDays <- as.numeric(difftime(interval_e, interval_s, units = "days"))
     maxRangeDays <- as.numeric(difftime(range_e, range_s, units = "days"))
