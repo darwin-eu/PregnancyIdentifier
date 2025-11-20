@@ -327,6 +327,11 @@ assign_precision_category <- function(precision_days) {
 
 # applying udf to the date array column to obtain the new column 'final_timing_info' (a list of [inferred_episode_start, precision_days, precision_category]) for each row
 get_gt_timing <- function(dateslist) {
+  p <-  file.path(getwd(), "datelist.rds")
+  saveRDS(dateslist, p)
+  message(sprintf("Wrote datelist to %s", p))
+  message(sprintf("To load in the object: `datelist <- readRDS(%s)`", p))
+
   # Iterate over the dateslist
   timing_arr <- purrr::map(dateslist[purrr::map_lgl(dateslist, validate)], sort)
   GW_list <- dateslist[sapply(dateslist, function(x) length(x) == 1)]
