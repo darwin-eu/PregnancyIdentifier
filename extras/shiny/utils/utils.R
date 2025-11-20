@@ -45,7 +45,7 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
 
     # add version number to cdm_name
     version <- NULL
-    if (runDate == "2025-11-17" || runDate == "2025-11-18") {
+    if (runDate %in% c("2025-11-17", "2025-11-18", "2025-11-19")) {
       version <- "_v1"
     }
     data <- data %>%

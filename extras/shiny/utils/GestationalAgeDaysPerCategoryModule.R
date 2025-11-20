@@ -124,7 +124,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
             return(result)
           })
           resultList <- resultList[order(sapply(resultList, nrow), decreasing = T)]
-          result <- do.call(dplyr::left_join, resultList)
+          result <- purrr::reduce(resultList, dplyr::left_join)
         } else {
           result <- data.frame(final_outcome_category = character(0),
                                name = character(0))

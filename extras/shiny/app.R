@@ -70,7 +70,7 @@ if (!file.exists(cachedResultsFile)) {
       dplyr::select(-"cdm_name") %>%
       dplyr::rename(!!name := number_individuals)})
   pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
-  pregnancyFrequency <- do.call(dplyr::left_join, pregnancyFrequencyList)
+  pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
   pregnancyFrequencyPlot <- pregnancyFrequency %>%
     tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
     dplyr::mutate(value = as.numeric(value))
