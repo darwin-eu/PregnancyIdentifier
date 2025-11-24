@@ -1,3 +1,88 @@
+exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
+  concepts <- read.csv(system.file(package = "PregnancyIdentifier", "concepts/check_concepts.csv"))
+
+  totalEpisodes <- nrow(res)
+
+  conceptsPerEpisodes <- cdm$condition_occurrence %>%
+    dplyr::select(
+      "person_id",
+      concept_id = "condition_concept_id",
+      concept_start = "condition_start_date",
+      concept_end = "condition_end_date"
+    ) %>%
+    dplyr::union_all(
+      cdm$procedure_occurrence %>%
+        dplyr::select(
+          "person_id",
+          concept_id = "procedure_concept_id",
+          concept_start = "procedure_date",
+          concept_end = "procedure_end_date"
+        )
+    ) %>%
+    dplyr::union_all(
+      cdm$observation %>%
+        dplyr::select(
+          "person_id",
+          concept_id = "observation_concept_id",
+          concept_start = "observation_date",
+          concept_end = "observation_date"
+        )
+    ) %>%
+    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
+    dplyr::filter(.data$concept_id %in% concepts$concept_id) %>%
+    dplyr::collect()
+
+  conceptsPerEpisodes <- conceptsPerEpisodes %>%
+    dplyr::left_join(concepts, by = "concept_id") %>%
+    dplyr::select(
+      "person_id", "episode_num", "pregnancy_start", "hip_end_date",
+      "pps_end_date", "concept_id", "concept_name", "concept_start",
+      "concept_end", "min_month", "max_month", "span", "midpoint"
+    )
+
+  conceptsPerEpisodes <- conceptsPerEpisodes %>%
+    dplyr::mutate(
+      concept_end = dplyr::case_when(
+        is.na(.data$concept_end) ~ .data$concept_start,
+        .default = .data$concept_end
+      )
+    ) %>%
+    dplyr::mutate(
+      min_date = .data$pregnancy_start + (.data$min_month * 30),
+      max_date = .data$pregnancy_start + (.data$max_month * 30),
+      after_min = .data$min_date >= .data$concept_start,
+      prior_max = .data$max_date <= .data$concept_end,
+      in_span = dplyr::case_when(
+        .data$concept_start >= .data$min_date
+        & .data$concept_start <= .data$max_date
+        ~ TRUE,
+        .default = FALSE
+      ),
+      at_midpoint = .data$concept_start >= (.data$pregnancy_start + .data$midpoint) & .data$concept_start <= (.data$pregnancy_start - .data$midpoint * 30)
+    )
+
+  conceptsPerEpisodes %>%
+    dplyr::group_by(.data$concept_id, .data$concept_name) %>%
+    dplyr::summarise(
+      n_after_min = sum(.data$after_min, na.rm = TRUE),
+      n_prior_max = sum(.data$prior_max, na.rm = TRUE),
+      n_in_span = sum(.data$in_span, na.rm = TRUE),
+      n_at_midpoint = sum(.data$at_midpoint, na.rm = TRUE),
+      total = dplyr::n()
+    ) |>
+    dplyr::mutate(
+      p_after_min = .data$n_after_min / totalEpisodes * 100,
+      p_prior_max = .data$n_prior_max / totalEpisodes * 100,
+      p_in_span = .data$n_in_span / totalEpisodes * 100,
+      p_at_midpoint = .data$n_at_midpoint / totalEpisodes * 100,
+      p_concept = .data$total / totalEpisodes * 100,
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date
+    ) %>%
+    write.csv(file.path(resPath, "concept_check.csv"))
+}
+
 addAge <- function(cdm, res) {
   cdm$person %>%
     dplyr::select("person_id", "gender_concept_id", "birth_datetime") %>%

@@ -1,35 +1,35 @@
-"","id","concept_name","concepts","min_month","max_month","span","midpoint"
-"1",1,"Breech presentation",74698,4.5,11,6.5,7.75
-"2",2,"Complication occurring during labor and delivery",440795,5,11,6,8
-"3",3,"Doppler velocimetry, fetal; umbilical artery",2211760,6,10,4,8
-"4",3,"Doppler velocimetry, fetal; umbilical artery",4082534,6,10,4,8
-"5",4,"Excessive fetal growth affecting management of mother",81636,7,11,4,9
-"6",5,"False labor",4062557,5,11,6,8
-"7",6,"False labor before 37 completed weeks of gestation",45757113,5,9.25,4.25,7.125
-"8",7,"Fetal biophysical profile; with non-stress testing",2211758,6,10,4,8
-"9",7,"Fetal biophysical profile; with non-stress testing",42535558,6,10,4,8
-"10",8,"Fetal biophysical profile; without non-stress testing",2211759,6,11,5,8.5
-"11",8,"Fetal biophysical profile; without non-stress testing",42535559,6,11,5,8.5
-"12",9,"Fetal non-stress test",2110284,6,11,5,8.5
-"13",9,"Fetal non-stress test",4308655,6,11,5,8.5
-"14",9,"Fetal non-stress test",4070024,6,11,5,8.5
-"15",10,"Gestation less than 24 weeks",438542,1,6,5,3.5
-"16",11,"Gestational diabetes mellitus",4024659,6,10,4,8
-"17",12,"Initial prenatal care visit (report at first prenatal encounter with health care professional providing obstetrical care. Report also date of visit and, in a separate field, the date of the last menstrual period [LMP]) (Prenatal)",2101829,1,11,10,6
-"18",12,"Initial prenatal care visit (report at first prenatal encounter with health care professional providing obstetrical care. Report also date of visit and, in a separate field, the date of the last menstrual period [LMP]) (Prenatal)",4047564,1,11,10,6
-"19",13,"Low lying placenta",40482406,4.5,11,6.5,7.75
-"20",14,"Medical genetics and genetic counseling services, each 30 minutes face-to-face with patient/family",2314183,2,7,5,4.5
-"21",15,"Polyhydramnios",437623,6,11,5,8.5
-"22",16,"Poor fetal growth affecting management",72693,6,11,5,8.5
-"23",17,"Pregnancy-induced hypertension",4167493,5,11,6,8
-"24",18,"Prenatal flow sheet documented in medical record by first prenatal visit (documentation includes at minimum blood pressure, weight, urine protein, uterine size, fetal heart tones, and estimated date of delivery). Report also: date of visit and, in a separ",2101830,1,11,10,6
-"25",19,"Preterm labor without delivery",36712703,5,11,6,8
-"26",20,"Reduced fetal movement",77619,5.5,11,5.5,8.25
-"27",21,"Requires diphtheria, tetanus and pertussis vaccination",45766222,6.75,11,4.25,8.875
-"28",22,"Suspected fetal abnormality affecting management of mother",36712695,3,11,8,7
-"29",23,"Third trimester pregnancy",4218813,7,11,4,9
-"30",24,"Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation, after first trimester (> or = 14 weeks 0 days), transabdominal approach; single or first gestation",2211749,4,11,7,7.5
-"31",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",2211757,1,6,5,3.5
-"32",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",4324607,1,6,5,3.5
-"33",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",44790261,1,6,5,3.5
-"34",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",40488298,1,6,5,3.5
+"","id","concept_name","concept_id","min_month","max_month","span","midpoint","table"
+"1",1,"Breech presentation",74698,4.5,11,6.5,7.75,"observation"
+"2",2,"Complication occurring during labor and delivery",440795,5,11,6,8,"condition"
+"3",3,"Doppler velocimetry, fetal; umbilical artery",2211760,6,10,4,8,"procedure"
+"4",3,"Doppler velocimetry, fetal; umbilical artery",4082534,6,10,4,8,"procedure"
+"5",4,"Excessive fetal growth affecting management of mother",81636,7,11,4,9,"condition"
+"6",5,"False labor",4062557,5,11,6,8,"condition"
+"7",6,"False labor before 37 completed weeks of gestation",45757113,5,9.25,4.25,7.125,"condition"
+"8",7,"Fetal biophysical profile; with non-stress testing",2211758,6,10,4,8,"procedure"
+"9",7,"Fetal biophysical profile; with non-stress testing",42535558,6,10,4,8,"procedure"
+"10",8,"Fetal biophysical profile; without non-stress testing",2211759,6,11,5,8.5,"procedure"
+"11",8,"Fetal biophysical profile; without non-stress testing",42535559,6,11,5,8.5,"procedure"
+"12",9,"Fetal non-stress test",2110284,6,11,5,8.5,"procedure"
+"13",9,"Fetal non-stress test",4308655,6,11,5,8.5,"observation"
+"14",9,"Fetal non-stress test",4070024,6,11,5,8.5,"procedure"
+"15",10,"Gestation less than 24 weeks",438542,1,6,5,3.5,"condition"
+"16",11,"Gestational diabetes mellitus",4024659,6,10,4,8,"condition"
+"17",12,"Initial prenatal care visit (report at first prenatal encounter with health care professional providing obstetrical care. Report also date of visit and, in a separate field, the date of the last menstrual period [LMP]) (Prenatal)",2101829,1,11,10,6,"observation"
+"18",12,"Initial prenatal care visit (report at first prenatal encounter with health care professional providing obstetrical care. Report also date of visit and, in a separate field, the date of the last menstrual period [LMP]) (Prenatal)",4047564,1,11,10,6,"observation"
+"19",13,"Low lying placenta",40482406,4.5,11,6.5,7.75,"condition"
+"20",14,"Medical genetics and genetic counseling services, each 30 minutes face-to-face with patient/family",2314183,2,7,5,4.5,"observation"
+"21",15,"Polyhydramnios",437623,6,11,5,8.5,"condition"
+"22",16,"Poor fetal growth affecting management",72693,6,11,5,8.5,"condition"
+"23",17,"Pregnancy-induced hypertension",4167493,5,11,6,8,"condition"
+"24",18,"Prenatal flow sheet documented in medical record by first prenatal visit (documentation includes at minimum blood pressure, weight, urine protein, uterine size, fetal heart tones, and estimated date of delivery). Report also: date of visit and, in a separ",2101830,1,11,10,6,"observation"
+"25",19,"Preterm labor without delivery",36712703,5,11,6,8,"condition"
+"26",20,"Reduced fetal movement",77619,5.5,11,5.5,8.25,"observation"
+"27",21,"Requires diphtheria, tetanus and pertussis vaccination",45766222,6.75,11,4.25,8.875,"observation"
+"28",22,"Suspected fetal abnormality affecting management of mother",36712695,3,11,8,7,"condition"
+"29",23,"Third trimester pregnancy",4218813,7,11,4,9,"condition"
+"30",24,"Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation, after first trimester (> or = 14 weeks 0 days), transabdominal approach; single or first gestation",2211749,4,11,7,7.5,"procedure"
+"31",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",2211757,1,6,5,3.5,"procedure"
+"32",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",4324607,1,6,5,3.5,"procedure"
+"33",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",44790261,1,6,5,3.5,"procedure"
+"34",25,"Ultrasound, pregnant uterus, real time with image documentation, transvaginal",40488298,1,6,5,3.5,"procedure"
