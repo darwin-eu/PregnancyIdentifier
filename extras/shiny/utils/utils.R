@@ -105,7 +105,7 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
   plotly::ggplotly(p)
 }
 
-barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = NULL, position = "stack", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
   p <- ggplot(data = data,
               mapping = aes_string(x = xVar, y = yVar, label = label))
 
