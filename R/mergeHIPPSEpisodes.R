@@ -27,12 +27,13 @@
 #' @param PPSMinMax (`data.frame`)
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
+#' @param logger (`logger`) Logger object
 #' @param ... Extra (dev) parameters
 #'
 #' @return `NULL`
 #' @export
-mergeHipPps <- function(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, ...) {
-  message("  * Merging HIP and PPS into HIPPS")
+mergeHipPps <- function(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, logger, ...) {
+  log4r::info(logger, "Merging HIP and PPS into HIPPS")
   # collect outcomes for PPS algorithm from lookahead window
 
   # PPS_episodes_df -> min max
@@ -48,10 +49,10 @@ mergeHipPps <- function(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, ...) {
     dplyr::collect()
 
   # merge HIPS and PPS episodes
-  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df)
+  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df, logger = logger)
 
   # remove any duplicated episodes
-  final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df)
+  final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df, logger = logger)
 
   # add (some) demographic details
   final_merged_episode_detailed_df <- final_merged_episode_detailed(final_merged_episodes_no_duplicates_df)
@@ -67,7 +68,7 @@ get_outcome_date <- function(x, outcome) {
   }
 }
 
-outcomes_per_episode <- function(PPS_episodes_df, get_PPS_episodes_df, cdm) {
+outcomes_per_episode <- function(PPS_episodes_df, get_PPS_episodes_df, cdm, logger) {
   # Get outcomes for Algorithm 2:
   # Outcomes are collected from a 'lookback to lookahead window', which is the
   # episode max date minus 14d to the earliest out of i) the next closest
@@ -219,7 +220,7 @@ add_outcomes <- function(outcomes_per_episode_df, PPS_episodes_df) {
   return(df)
 }
 
-final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outcomes_df) {
+final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outcomes_df, logger) {
   # Merge episodes by checking for any overlap of episodes between the two algorithms.
   #
   # algo1 = HIP episodes
@@ -286,7 +287,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
     dplyr::ungroup()
 
   # check overlap
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total initial number of episodes for HIP: %s",
     algo1_pregnancy %>%
       dplyr::distinct(.data$person_id, .data$episode) %>%
@@ -294,7 +295,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total initial number of episodes for PPS: %s",
     algo2 %>%
       dplyr::distinct(.data$person_id, .data$person_episode_number) %>%
@@ -302,7 +303,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Count of HIP episodes that overlap multiple PPS episodes: %s",
     all_episodes %>%
       dplyr::filter(.data$algo1_dup != 0) %>%
@@ -311,7 +312,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Count of PPS episodes that overlap multiple HIP episodes: %s",
     all_episodes %>%
       dplyr::filter(.data$algo2_dup != 0) %>%
@@ -320,7 +321,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total number of HIP episodes after merging: %s",
     all_episodes %>%
       dplyr::distinct(.data$algo1_id) %>%
@@ -328,7 +329,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
       dplyr::pull(.data$n) - 1 # don't count NA
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
       "Total number of PPS episodes after merging: %s",
       all_episodes %>%
         dplyr::distinct(.data$algo2_id) %>%
@@ -339,7 +340,7 @@ final_merged_episodes <- function(HIP_episodes_local_df, PPS_episodes_with_outco
   return(all_episodes)
 }
 
-final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
+final_merged_episodes_no_duplicates <- function(final_merged_episodes_df, logger) {
   # Remove any episodes that overlap with more than one episode.
 
   # 1. Keep algorithm 1 episodes with an end date closest to algorithm 2's end
@@ -640,7 +641,7 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
     )
 
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Count of duplicated algorithm 1 episodes: %s",
     dup_df %>%
       dplyr::filter(.data$algo1_dup != 0) %>%
@@ -649,7 +650,7 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Count of duplicated algorithm 2 episodes: %s",
     dup_df %>%
       dplyr::filter(.data$algo2_dup != 0) %>%
@@ -658,28 +659,28 @@ final_merged_episodes_no_duplicates <- function(final_merged_episodes_df) {
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "count of unduplicated episodes with both: %s",
     unduped_counts %>%
       dplyr::filter(!.data$no_algo1, !.data$no_algo2, .data$algo1_dup == 0, .data$algo2_dup == 0) %>%
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "count of unduplicated algorithm 1 episodes: %s",
     unduped_counts %>%
       dplyr::filter(!.data$no_algo1, .data$no_algo2, .data$algo1_dup == 0) %>%
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "count of unduplicated algorithm 2 episodes: %s",
     unduped_counts %>%
       dplyr::filter(.data$no_algo1, !.data$no_algo2, .data$algo2_dup == 0) %>%
       dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "total unduplicated episodes: %s",
     nrow(all_rows)
   ))

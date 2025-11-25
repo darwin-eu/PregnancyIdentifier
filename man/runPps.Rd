@@ -4,7 +4,7 @@
 \alias{runPps}
 \title{runPps}
 \usage{
-runPps(cdm, outputDir, uploadConceptSets = FALSE, ...)
+runPps(cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`)}
@@ -12,6 +12,8 @@ runPps(cdm, outputDir, uploadConceptSets = FALSE, ...)
 \item{outputDir}{output directory}
 
 \item{uploadConceptSets}{if concept sets should be uploaded}
+
+\item{logger}{(`logger`) Logger object.}
 
 \item{...}{optional parameters}
 }

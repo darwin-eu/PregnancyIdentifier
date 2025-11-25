@@ -4,7 +4,7 @@
 \alias{mergeHipPps}
 \title{mergeHipPps}
 \usage{
-mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, ...)
+mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, logger, ...)
 }
 \arguments{
 \item{HIP}{(`data.frame`) HIP result}
@@ -16,6 +16,8 @@ mergeHipPps(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, ...)
 \item{cdm}{(`cdm_reference`)}
 
 \item{outputDir}{(`character(1)`)}
+
+\item{logger}{(`logger`) Logger object}
 
 \item{...}{Extra (dev) parameters}
 }

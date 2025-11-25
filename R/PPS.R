@@ -5,33 +5,32 @@
 #' @param cdm (`cdm_reference`)
 #' @param outputDir output directory
 #' @param uploadConceptSets if concept sets should be uploaded
+#' @param logger (`logger`) Logger object.
 #' @param ... optional parameters
 #'
 #' @return cdm object
 #' @export
-runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
+runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
   dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
 
-  message("  * Running PPS")
+  log4r::info(logger, "START Running PPS")
   if (uploadConceptSets) {
-    message("  * Uploading Concepts")
-    cdm <- uploadConceptSets(cdm)
+    log4r::info(logger, "Uploading Concepts")
+    cdm <- uploadConceptSets(cdm, logger)
   }
-  message("  * Pull PPS Concepts from Tables")
+  log4r::info(logger, "Pull PPS Concepts from Tables")
   # pull PPS concepts from each table
-  cdm <- input_GT_concepts(cdm)
+  cdm <- input_GT_concepts(cdm, logger)
 
   # get the gestational timing information for each concept
-  message("  * Get gestational timing information")
-  get_PPS_episodes_df <- get_PPS_episodes(cdm)
+  log4r::info(logger, "Get gestational timing information")
+  get_PPS_episodes_df <- get_PPS_episodes(cdm, outputDir)
   saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
-  if (nrow(get_PPS_episodes_df) > 0) {
-    message("  * Get min and max dates for episodes")
-    PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
-    saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
-  }
+  log4r::info(logger, "Get min and max dates for episodes")
+  PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
+  saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
   return(cdm)
 }
 
@@ -57,8 +56,8 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, ...) {
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/PPS_algorithm_functions.R
 
-rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col) {
-  message(sprintf("    - Pulling data from %s", tblName))
+rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, logger) {
+  log4r::info(logger, sprintf("Pulling data from %s", tblName))
   cdm[[outcomeTblName]] <- cdm[[tblName]] %>%
     dplyr::rename(
       domain_concept_start_date = start_date_col,
@@ -71,41 +70,46 @@ rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col) {
   return(cdm)
 }
 
-input_GT_concepts <- function(cdm) {
+input_GT_concepts <- function(cdm, logger) {
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "condition_occurrence",
     outcomeTblName = "c_o",
     start_date_col = "condition_start_date",
-    id_col = "condition_concept_id"
+    id_col = "condition_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "procedure_occurrence",
     outcomeTblName = "p_o",
     start_date_col = "procedure_date",
-    id_col = "procedure_concept_id"
+    id_col = "procedure_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName = "observation",
     outcomeTblName = "o_df",
     start_date_col = "observation_date",
-    id_col = "observation_concept_id"
+    id_col = "observation_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName = "measurement",
     outcomeTblName = "m_df",
     start_date_col = "measurement_date",
-    id_col = "measurement_concept_id"
+    id_col = "measurement_concept_id",
+    logger = logger
   )
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "visit_occurrence",
     outcomeTblName = "v_o",
     start_date_col = "visit_start_date",
-    id_col = "visit_concept_id"
+    id_col = "visit_concept_id",
+    logger = logger
   )
 
   cdm$input_gt_concepts_df <- list(cdm$c_o, cdm$p_o, cdm$o_df, cdm$m_df, cdm$v_o) %>%
@@ -245,10 +249,18 @@ assign_episodes <- function(personlist, ...) {
   return(personlist)
 }
 
-get_PPS_episodes <- function(cdm) {
+get_PPS_episodes <- function(cdm, outputDir) {
   cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
     dplyr::filter(!is.na(.data$domain_concept_start_date)) %>%
     dplyr::left_join(cdm$pps_concepts, by = "domain_concept_id") %>%
+    dplyr::compute(name = "patients_with_preg_concepts")
+
+  cdm$patients_with_preg_concepts %>%
+    dplyr::group_by(.data$domain_concept_id, .data$domain_concept_name) %>%
+    dplyr::summarise(n = dplyr::n()) %>%
+    write.csv(file.path(outputDir, "PPS-concept_counts.csv"), row.names = FALSE)
+
+  cdm$patients_with_preg_concepts <- cdm$patients_with_preg_concepts %>%
     dplyr::inner_join(
       cdm$person %>%
         dplyr::select("person_id", "gender_concept_id", "year_of_birth", "day_of_birth", "month_of_birth"),
@@ -303,6 +315,20 @@ get_PPS_episodes <- function(cdm) {
 }
 
 get_episode_max_min_dates <- function(get_PPS_episodes_df) {
+  if (!"person_episode_number" %in% names(get_PPS_episodes_df)) {
+    if (nrow(get_PPS_episodes_df) > 0) {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(
+          person_episode_number = .data$person_id
+        )
+    } else {
+      get_PPS_episodes_df <- get_PPS_episodes_df %>%
+        dplyr::mutate(
+          person_episode_number = integer(0)
+        )
+    }
+  }
+
   df <- get_PPS_episodes_df %>%
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%

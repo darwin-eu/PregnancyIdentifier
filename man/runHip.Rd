@@ -4,12 +4,14 @@
 \alias{runHip}
 \title{runHip}
 \usage{
-runHip(cdm, outputDir, ...)
+runHip(cdm, outputDir, logger, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) A CDM-Reference object from CDMConnector.}
 
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
+
+\item{logger}{(`logger`) Logger object.}
 
 \item{...}{Dev params}
 }

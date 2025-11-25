@@ -4,7 +4,7 @@
 \alias{runEsd}
 \title{runEsd}
 \usage{
-runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...)
+runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 }
 \arguments{
 \item{HIPPS}{(`data.frame`)}
@@ -14,6 +14,8 @@ runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, ...)
 \item{outputDir}{(`character(1)`)}
 
 \item{uploadConceptSets}{if concept sets should be uploaded}
+
+\item{logger}{(`logger`) Logger object.}
 
 \item{...}{Extra (development) parameters}
 }
