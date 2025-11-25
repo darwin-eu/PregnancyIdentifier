@@ -8,15 +8,17 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param logger (`logger`) Logger object.
 #' @param ... Dev params
 #'
 #' @returns cdm object
 #'
 #' @export
-runHip <- function(cdm, outputDir, ...) {
+runHip <- function(cdm, outputDir, logger, ...) {
+  log4r::info(logger, "START Running HIP")
+
   dots <- list(...)
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-  message("  * Running HIP")
   ## Outcome-based episodes
 
   # get initial cohort based on hip_concepts
@@ -26,7 +28,7 @@ runHip <- function(cdm, outputDir, ...) {
     initial_pregnant_cohort(continue = dots$continue)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
-    warning("  ! No records after initializing pregnant cohort")
+    log4r::warn("No records after initializing pregnant cohort")
     return(cdm)
   }
 
@@ -45,30 +47,31 @@ runHip <- function(cdm, outputDir, ...) {
   )
 
   for (i in seq_len(length(categories))) {
-    message(sprintf("  * Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
+    log4r::info(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cdm <- final_visits(
       cdm,
       categories = categories[[i]],
-      tableName = sprintf("final_%s_visits_df", tolower(paste(categories[[i]], collapse = "_")))
+      tableName = sprintf("final_%s_visits_df", tolower(paste(categories[[i]], collapse = "_"))),
+      logger = logger
     )
   }
 
   # add stillbirth episodes to livebirth episodes
   # after making sure they are sufficiently spaced
-  message("  * Adding Still Birth")
+  log4r::info(logger, "Adding Still Birth")
   cdm <- add_stillbirth(cdm)
 
   # add ectopic episodes to previous
-  message("  * Adding Ectopic")
+  log4r::info(logger, "Adding Ectopic")
   cdm <- add_ectopic(cdm)
 
   # add abortion episodes to previous
-  message("  * Adding Abortion")
+  log4r::info(logger, "Adding Abortion")
   cdm <- add_abortion(cdm)
 
   # add delivery-only episodes to previous
-  message("  * Adding Delivery")
-  cdm <- add_delivery(cdm)
+  log4r::info(logger, "Adding Delivery")
+  cdm <- add_delivery(cdm, logger = logger)
 
   # calculate start of pregnancies based on outcomes
   # min start date = latest possible start date if shortest term
@@ -90,13 +93,13 @@ runHip <- function(cdm, outputDir, ...) {
   ## Combine gestation-based and outcome-based episodes
 
   # add gestation episodes to outcome episodes
-  cdm <- add_gestation(cdm)
+  cdm <- add_gestation(cdm, logger = logger)
 
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
-  cdm <- clean_episodes(cdm)
+  cdm <- clean_episodes(cdm, logger = logger)
 
   # remove any episodes that overlap and keep only the latter episode if the previous episode is PREG
-  cdm <- remove_overlaps(cdm)
+  cdm <- remove_overlaps(cdm, logger = logger)
 
   # keep subset of columns with episode start and end as well as category
   cdm <- final_episodes(cdm)
@@ -227,7 +230,7 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
 
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
-final_visits <- function(cdm, categories, tableName) {
+final_visits <- function(cdm, categories, tableName, logger) {
   cdm$temp_df <- cdm$initial_pregnant_cohort_df %>%
     dplyr::filter(category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
@@ -268,7 +271,7 @@ final_visits <- function(cdm, categories, tableName) {
     dplyr::distinct() %>%
     dplyr::compute()
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "  * Preliminary total number of episodes: %s",
     getTblRowCount(cdm$all_df)
   ))
@@ -495,7 +498,7 @@ add_abortion <- function(cdm) {
   return(cdm)
 }
 
-add_delivery <- function(cdm) {
+add_delivery <- function(cdm, logger) {
   #  Add delivery record only visits
 
   # get minimum days between outcomes
@@ -597,7 +600,7 @@ add_delivery <- function(cdm) {
     dplyr::collect()
 
   for (i in seq_len(nrow(counts))) {
-    message(sprintf("    - %s: %s", counts[i, "category"], counts[i, "n"]))
+    log4r::info(logger, sprintf("%s: %s", counts[i, "category"], counts[i, "n"]))
   }
   return(cdm)
 }
@@ -824,7 +827,7 @@ get_min_max_gestation <- function(cdm) {
 }
 
 ### START HERE
-add_gestation <- function(cdm, buffer_days = 28) {
+add_gestation <- function(cdm, buffer_days = 28, logger) {
   # Add gestation-based episodes. Any gestation-based episode that overlaps with an outcome-based
   # episode is removed as a distinct episode.
   # add unique id for each outcome visit
@@ -875,7 +878,6 @@ add_gestation <- function(cdm, buffer_days = 28) {
     dplyr::compute()
 
   # join both tables to find overlaps
-  # 18679
   cdm$both_df <- cdm$calculate_start_df %>%
     dplyr::inner_join(
       cdm$get_min_max_gestation_df,
@@ -959,35 +961,35 @@ add_gestation <- function(cdm, buffer_days = 28) {
   ) %>%
     dplyr::collect()
 
-  message(sprintf(
-    "  - Total number of outcome-based episodes: %s",
-    dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(n)
+  log4r::info(logger, sprintf(
+    "Total number of outcome-based episodes: %s",
+    dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
-    "  - Total number of gestation-based episodes: %s",
-    dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(n)
+  log4r::info(logger, sprintf(
+    "Total number of gestation-based episodes: %s",
+    dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
-    "  - Total number of only outcome-based episodes after merging: %s",
-    counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(n)
+  log4r::info(logger, sprintf(
+    "Total number of only outcome-based episodes after merging: %s",
+    counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
-    "  - Total number of only gestation-based episodes after merging: %s",
-    counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(n)
+  log4r::info(logger, sprintf(
+    "Total number of only gestation-based episodes after merging: %s",
+    counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(.data$n)
   ))
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total number of episodes with both after merging: %s",
-    counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(n)
+    counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(.data$n)
   ))
 
   return(cdm)
 }
 
-clean_episodes <- function(cdm, buffer_days = 28) {
+clean_episodes <- function(cdm, buffer_days = 28, logger) {
   # Clean up episodes by removing duplicate episodes and reclassifying outcome-based episodes
   # as gestation-based episodes if the outcome containing gestational info does not fall within
   # the term durations defined by Matcho et al.
@@ -1014,11 +1016,11 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     ) %>%
     dplyr::compute()
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total number of episodes over maximum term duration: %s",
     cdm$over_max_df %>%
       dplyr::tally() %>%
-      dplyr::pull(n) %>%
+      dplyr::pull(.data$n) %>%
       as.integer()
   ))
 
@@ -1046,12 +1048,12 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_over_min == 0 & .data$days_diff < -buffer_days)) %>%
     dplyr::compute()
 
-  message(sprintf(
-    "Total number of episodes under minimum term duration:",
-    cdm$under_min_df %>%
-      dplyr::tally() %>%
-      dplyr::pull(n) %>%
-      as.integer()
+  log4r::info(logger, sprintf(
+      "Total number of episodes under minimum term duration: %s",
+      cdm$under_min_df %>%
+        dplyr::count() %>%
+        dplyr::pull(.data$n) %>%
+        as.integer()
   ))
 
   # join episodes with new values to main table
@@ -1071,11 +1073,11 @@ clean_episodes <- function(cdm, buffer_days = 28) {
     ) %>%
     dplyr::compute()
 
-  message(sprintf(
+  log4r::info(logger, sprintf(
     "Total number of episodes with negative number of days between outcome and max_gest_date: %s",
     cdm$neg_days_df %>%
       dplyr::tally() %>%
-      dplyr::pull(n) %>%
+      dplyr::pull(.data$n) %>%
       as.integer()
   ))
 
@@ -1101,7 +1103,7 @@ clean_episodes <- function(cdm, buffer_days = 28) {
   return(cdm)
 }
 
-remove_overlaps <- function(cdm) {
+remove_overlaps <- function(cdm, logger) {
   # Identify episodes that overlap and keep only the latter episode if the previous episode is PREG.
   # If the latter episode doesn't have gestational info, redefine the start date to be the
   # previous episode end date plus the retry period.
@@ -1261,7 +1263,7 @@ remove_overlaps <- function(cdm) {
     dplyr::tally() %>%
     dplyr::pull(.data$n)
 
-  message(sprintf("Total number of episodes with removed outcome: %s", nRemovedOutcomes))
+  log4r::info(logger, sprintf("Total number of episodes with removed outcome: %s", nRemovedOutcomes))
 
   return(cdm)
 }

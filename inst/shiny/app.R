@@ -16,181 +16,124 @@ sapply(list.files("utils", full.names = T), source)
 
 ############################ Load data ############################
 
-cachedResultsFile <- "data.rds"
-if (!file.exists(cachedResultsFile)) {
-  if (!exists("shinySettings")) {
-    dataFolder <- "data"
-    if (file.exists(dataFolder)) {
-      shinySettings <- list(dataFolder = dataFolder)
-    } else {
-      shinySettings <- list(dataFolder = paste0("./", dataFolder))
-    }
+if (!exists("shinySettings")) {
+  dataFolder <- "data"
+  if (file.exists(dataFolder)) {
+    shinySettings <- list(dataFolder = dataFolder)
+  } else {
+    shinySettings <- list(dataFolder = paste0("./", dataFolder))
   }
-
-  dataFolder <- shinySettings$dataFolder
-
-  zipFiles <- list.files(dataFolder, pattern = ".zip", full.names = TRUE)
-
-  for (i in 1:length(zipFiles)) {
-    writeLines(paste("Processing", zipFiles[i]))
-    tempFolder <- tempfile()
-    dir.create(tempFolder)
-    unzip(zipFiles[i], exdir = tempFolder, junkpaths = TRUE)
-    csvFiles <- list.files(tempFolder, pattern = ".csv")
-    zipName <- gsub(".zip", "", basename(zipFiles[i]))
-    zipNameParts <- unlist(strsplit(zipName, "-"))
-    dbName <- zipNameParts[4]
-    runDate <- gsub(paste0("-", dbName, ".*"), "", zipName)
-    lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, folder = tempFolder, overwrite = (i == 1))
-    unlink(tempFolder, recursive = TRUE)
-  }
-  # formatting
-  dbinfo <- cdmSource %>%
-    dplyr::select_if(~ !all(is.na(.)))
-
-  gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
-
-  swappedDates <- dataToLong(swappedDates)
-  swappedDatesPlot <- swappedDates %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
-    dplyr::mutate(value = as.numeric(value))
-
-  ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
-
-  dateConsistancy <- dataToLong(dateConsistancy)
-  dateConsistancyPlot <- dateConsistancy %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
-    dplyr::mutate(value = as.numeric(value))
-
-  observationPeriodRange <- dataToLong(observationPeriodRange)
-
-  pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
-    pregnancyFrequency %>%
-      dplyr::filter(cdm_name == name) %>%
-      dplyr::select(-"cdm_name") %>%
-      dplyr::rename(!!name := number_individuals)})
-  pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
-  pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
-  pregnancyFrequencyPlot <- pregnancyFrequency %>%
-    tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
-    dplyr::mutate(value = as.numeric(value))
-
-  episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
-
-  gestationalAgeDaysSummary <- dataToLong(gestationalAgeDaysSummary, skipCols = c("colName", "cdm_name"))
-  gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
-    dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric)
-
-  minObservationPeriod <- observationPeriodRange %>%
-    dplyr::filter(name == "min_obs") %>%
-    dplyr::select(-c("name")) %>%
-    as.numeric() %>%
-    min()
-
-  pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
-    dplyr::select(-"colName") %>%
-    dplyr::mutate(n = as.numeric(n),
-                  total = as.numeric(total),
-                  pct = as.numeric(pct))
-
-  summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
-    data %>%
-      dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks <= upperBoundary) %>%
-      dplyr::select(-"gestational_weeks") %>%
-      dplyr::group_by(cdm_name) %>%
-      dplyr::summarise(n = sum(n),
-                       pct = sum(pct)) %>%
-      dplyr::ungroup() %>%
-      dplyr::mutate(gestational_weeks = glue::glue("{lowerBoundary}-{upperBoundary}"), .after = "cdm_name")
-  }
-
-  gestationalWeeks <- gestationalWeeks %>%
-    dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
-                  n = as.numeric(n),
-                  pct = as.numeric(pct))
-  maxWeeks <- round(max(gestationalWeeks$gestational_weeks), -2)
-  gestationalWeeksSummary <- rbind(gestationalWeeks %>% dplyr::filter(gestational_weeks <=50),
-                                   summariseGestationalWeeks(gestationalWeeks, 51, 100))
-  intervals <- seq(100, maxWeeks, 100)
-  gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
-                                   do.call("rbind", lapply(intervals, FUN = function(weeks) {
-                                     summariseGestationalWeeks(gestationalWeeks, weeks+1, weeks+100)
-                                   })))
-  gestationalWeeksSummary <- gestationalWeeksSummary %>%
-    dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = unique(gestationalWeeksSummary$gestational_weeks)))
-
-  # trend data
-  yearlyTrend <- yearlyTrend %>%
-    dplyr::mutate(count = as.numeric(count),
-                  year = as.numeric(year))
-  yearlyTrendMissing <- yearlyTrendMissing %>%
-    dplyr::mutate(count = as.numeric(count))
-  monthlyTrends <- monthlyTrends %>%
-    dplyr::mutate(count = as.numeric(count))
-  monthlyTrendMissing <- monthlyTrendMissing %>%
-    dplyr::mutate(count = as.numeric(count))
-
-  # outcome categories
-  outcomeCategoriesCount <- outcomeCategoriesCount %>%
-    dplyr::mutate(n = as.numeric(n),
-                  pct = round(as.numeric(pct), 4))
-
-  # incidence
-  saveRDS(list("dbinfo" = dbinfo,
-               "incidence" = incidence,
-               "prevalence" = prevalence,
-               "characteristics" = characteristics,
-               "ageSummary" = ageSummary,
-               "dateConsistancy" = dateConsistancy,
-               "dateConsistancyPlot" = dateConsistancyPlot,
-               "episodeFrequency" = episodeFrequency,
-               "episodeFrequencySummary" = episodeFrequencySummary,
-               "gestationalAgeDaysCounts" = gestationalAgeDaysCounts,
-               "gestationalAgeDaysPerCategorySummary" = gestationalAgeDaysPerCategorySummary,
-               "gestationalAgeDaysSummary" = gestationalAgeDaysSummary,
-               "gestationalWeeksSummary" = gestationalWeeksSummary,
-               "monthlyTrends" = monthlyTrends,
-               "monthlyTrendMissing" = monthlyTrendMissing,
-               "observationPeriodRange" = observationPeriodRange,
-               "minObservationPeriod" = minObservationPeriod,
-               "outcomeCategoriesCount" = outcomeCategoriesCount,
-               "pregnancyFrequency" = pregnancyFrequency,
-               "pregnancyFrequencyPlot" = pregnancyFrequencyPlot,
-               "pregnancyOverlapCounts" = pregnancyOverlapCounts,
-               "swappedDates" = swappedDates,
-               "swappedDatesPlot" = swappedDatesPlot,
-               "yearlyTrend" = yearlyTrend,
-               "yearlyTrendMissing" = yearlyTrendMissing
-               ),
-          cachedResultsFile)
-} else {
-  cachedData <- readRDS(cachedResultsFile)
-  dbinfo <- cachedData$dbinfo
-  incidence <- cachedData$incidence
-  prevalence <- cachedData$prevalence
-  characteristics <- cachedData$characteristics
-  ageSummary <- cachedData$ageSummary
-  dateConsistancy <- cachedData$dateConsistancy
-  dateConsistancyPlot <- cachedData$dateConsistancyPlot
-  episodeFrequency <- cachedData$episodeFrequency
-  episodeFrequencySummary <- cachedData$episodeFrequencySummary
-  gestationalAgeDaysCounts <- cachedData$gestationalAgeDaysCounts
-  gestationalAgeDaysPerCategorySummary <- cachedData$gestationalAgeDaysPerCategorySummary
-  gestationalAgeDaysSummary <- cachedData$gestationalAgeDaysSummary
-  gestationalWeeksSummary <- cachedData$gestationalWeeksSummary
-  monthlyTrends <- cachedData$monthlyTrends
-  monthlyTrendMissing <- cachedData$monthlyTrendMissing
-  observationPeriodRange <- cachedData$observationPeriodRange
-  minObservationPeriod <- cachedData$minObservationPeriod
-  outcomeCategoriesCount <- cachedData$outcomeCategoriesCount
-  pregnancyFrequency <- cachedData$pregnancyFrequency
-  pregnancyFrequencyPlot <- cachedData$pregnancyFrequencyPlot
-  pregnancyOverlapCounts <- cachedData$pregnancyOverlapCounts
-  swappedDates <- cachedData$swappedDates
-  swappedDatesPlot <- cachedData$swappedDatesPlot
-  yearlyTrend <- cachedData$yearlyTrend
-  yearlyTrendMissing <- cachedData$yearlyTrendMissing
 }
+
+dataFolder <- shinySettings$dataFolder
+
+zipFiles <- list.files(dataFolder, pattern = ".zip", full.names = TRUE)
+
+for (i in 1:length(zipFiles)) {
+  writeLines(paste("Processing", zipFiles[i]))
+  tempFolder <- tempfile()
+  dir.create(tempFolder)
+  unzip(zipFiles[i], exdir = tempFolder, junkpaths = TRUE)
+  csvFiles <- list.files(tempFolder, pattern = ".csv")
+  zipName <- gsub(".zip", "", basename(zipFiles[i]))
+  zipNameParts <- unlist(strsplit(zipName, "-"))
+  dbName <- zipNameParts[4]
+  runDate <- gsub(paste0("-", dbName, ".*"), "", zipName)
+  lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, folder = tempFolder, overwrite = (i == 1))
+  unlink(tempFolder, recursive = TRUE)
+}
+# formatting
+dbinfo <- cdmSource %>%
+  dplyr::select_if(~ !all(is.na(.)))
+
+gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
+
+swappedDates <- dataToLong(swappedDates)
+swappedDatesPlot <- swappedDates %>%
+  tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
+  dplyr::mutate(value = as.numeric(value))
+
+ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
+
+dateConsistancy <- dataToLong(dateConsistancy)
+dateConsistancyPlot <- dateConsistancy %>%
+  tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
+  dplyr::mutate(value = as.numeric(value))
+
+observationPeriodRange <- dataToLong(observationPeriodRange)
+
+pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
+  pregnancyFrequency %>%
+    dplyr::filter(cdm_name == name) %>%
+    dplyr::select(-"cdm_name") %>%
+    dplyr::rename(!!name := number_individuals)})
+pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
+pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
+pregnancyFrequencyPlot <- pregnancyFrequency %>%
+  tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
+  dplyr::mutate(value = as.numeric(value))
+
+episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
+
+gestationalAgeDaysSummary <- dataToLong(gestationalAgeDaysSummary, skipCols = c("colName", "cdm_name"))
+gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
+  dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric)
+
+minObservationPeriod <- observationPeriodRange %>%
+  dplyr::filter(name == "min_obs") %>%
+  dplyr::select(-c("name")) %>%
+  as.numeric() %>%
+  min()
+
+pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
+  dplyr::select(-"colName") %>%
+  dplyr::mutate(n = as.numeric(n),
+                total = as.numeric(total),
+                pct = as.numeric(pct))
+
+summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
+  data %>%
+    dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks <= upperBoundary) %>%
+    dplyr::select(-"gestational_weeks") %>%
+    dplyr::group_by(cdm_name) %>%
+    dplyr::summarise(n = sum(n),
+                     pct = sum(pct)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(gestational_weeks = glue::glue("{lowerBoundary}-{upperBoundary}"), .after = "cdm_name")
+}
+
+gestationalWeeks <- gestationalWeeks %>%
+  dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
+                n = as.numeric(n),
+                pct = as.numeric(pct))
+maxWeeks <- round(max(gestationalWeeks$gestational_weeks), -2)
+gestationalWeeksSummary <- rbind(gestationalWeeks %>% dplyr::filter(gestational_weeks <=50),
+                                 summariseGestationalWeeks(gestationalWeeks, 51, 100))
+intervals <- seq(100, maxWeeks, 100)
+gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
+                                 do.call("rbind", lapply(intervals, FUN = function(weeks) {
+                                   summariseGestationalWeeks(gestationalWeeks, weeks+1, weeks+100)
+                                 })))
+gestationalWeeksSummary <- gestationalWeeksSummary %>%
+  dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = unique(gestationalWeeksSummary$gestational_weeks)))
+
+# trend data
+yearlyTrend <- yearlyTrend %>%
+  dplyr::mutate(count = as.numeric(count),
+                year = as.numeric(year))
+yearlyTrendMissing <- yearlyTrendMissing %>%
+  dplyr::mutate(count = as.numeric(count))
+monthlyTrends <- monthlyTrends %>%
+  dplyr::mutate(count = as.numeric(count))
+monthlyTrendMissing <- monthlyTrendMissing %>%
+  dplyr::mutate(count = as.numeric(count))
+
+# outcome categories
+outcomeCategoriesCount <- outcomeCategoriesCount %>%
+  dplyr::mutate(n = as.numeric(n),
+                pct = round(as.numeric(pct), 4))
+
+
 
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)
