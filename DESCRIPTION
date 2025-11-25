@@ -29,6 +29,8 @@ Imports:
     TestGenerator,
     magrittr,
     tidyr,
-    log4r
+    log4r,
+    rlang,
+    shiny
 Suggests: 
     testthat (>= 3.0.0)
