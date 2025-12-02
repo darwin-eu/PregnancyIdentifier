@@ -703,7 +703,7 @@ gestation_episodes <- function(cdm, min_days = 70, buffer_days = 28) {
     ) %>%
     dplyr::mutate(
       # get difference in days between visit date and previous date
-      date_diff = !!CDMConnector::datediff("visit_date", "prev_date", "day"),
+      date_diff = !!CDMConnector::datediff("prev_date", "visit_date", "day"),
       # check if any negative or zero number in week_diff column corresponds to a new pregnancy episode
       # assume it does if the difference in actual dates is larger than the minimum
       # change to 1 (arbitrary positive number) if not;
@@ -718,16 +718,14 @@ gestation_episodes <- function(cdm, min_days = 70, buffer_days = 28) {
       # may correspond to new pregnancy episode, if so change to -1 (negative number)
       new_diff2 = dplyr::if_else(.data$date_diff >= .data$day_diff & .data$week_diff > 0, -1, .data$new_diff),
       # create new columns, index and episode; any zero or negative number in newdiff2 column indicates a new episode
-      index = dplyr::row_number()
-    ) %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate(
+      index = dplyr::row_number(),
       # count as an episodes if first row or
       # difference in gest age is negative and date_diff large enough for it to be a new pregnancy or
       # difference in gest age is positive but that difference is larger than the difference in dates
       episode = as.integer(cumsum(ifelse(.data$new_diff2 <= 0 | .data$index == 1, 1, 0))),
       episode_chr = as.character(.data$episode) # for grouping
     ) %>%
+    dplyr::ungroup() %>%
     dplyr::compute()
 
   return(cdm)
