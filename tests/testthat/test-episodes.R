@@ -25,10 +25,10 @@ test_that("test gestational episodes", {
                                    overwrite = TRUE,
                                    temporary = FALSE)
 
-  cdm <- PregnancyIdentifier:::gestation_episodes(cdm)
+  cdm <- PregnancyIdentifier:::gestation_episodes(cdm, min_days = 70, buffer_days = 28)
   episodes <- dplyr::collect(cdm$gestation_episodes_df)
 
-  testthat::expect_equal(length(unique(episodes$episode)), 2)
+  testthat::expect_equal(length(unique(episodes$episode)), 3)
 
   unlink(outputDir, recursive = TRUE)
 })
