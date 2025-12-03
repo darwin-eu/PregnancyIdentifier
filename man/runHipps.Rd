@@ -4,7 +4,7 @@
 \alias{runHipps}
 \title{runHipps}
 \usage{
-runHipps(cdm, outputDir, ...)
+runHipps(cdm, outputDir, justGestation = TRUE, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) A CDM-Reference object from CDMConnector.}

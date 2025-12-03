@@ -4,7 +4,7 @@
 \alias{runHip}
 \title{runHip}
 \usage{
-runHip(cdm, outputDir, logger, ...)
+runHip(cdm, outputDir, justGestation = TRUE, logger, ...)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) A CDM-Reference object from CDMConnector.}

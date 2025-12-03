@@ -58,7 +58,7 @@ makeLogger <- function(outputDir) {
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, ...) {
+runHipps <- function(cdm, outputDir, justGestation = TRUE, ...) {
   runStart <- data.frame(
     start = as.integer(Sys.time())
   )
@@ -73,7 +73,7 @@ runHipps <- function(cdm, outputDir, ...) {
 
   cdm <- uploadConceptSets(cdm, logger = logger)
 
-  cdm <- runHip(cdm, outputDir, logger = logger, ...)
+  cdm <- runHip(cdm, outputDir, justGestation, logger = logger, ...)
   cdm <- runPps(cdm, outputDir, logger = logger, ...)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))

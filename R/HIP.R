@@ -14,7 +14,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #' @returns cdm object
 #'
 #' @export
-runHip <- function(cdm, outputDir, logger, ...) {
+runHip <- function(cdm, outputDir, justGestation = TRUE, logger, ...) {
   log4r::info(logger, "START Running HIP")
 
   dots <- list(...)
@@ -93,7 +93,7 @@ runHip <- function(cdm, outputDir, logger, ...) {
   ## Combine gestation-based and outcome-based episodes
 
   # add gestation episodes to outcome episodes
-  cdm <- add_gestation(cdm, logger = logger)
+  cdm <- add_gestation(cdm, justGestation, logger = logger)
 
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
   cdm <- clean_episodes(cdm, logger = logger)
@@ -827,7 +827,7 @@ get_min_max_gestation <- function(cdm) {
 }
 
 ### START HERE
-add_gestation <- function(cdm, buffer_days = 28, logger) {
+add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
   # Add gestation-based episodes. Any gestation-based episode that overlaps with an outcome-based
   # episode is removed as a distinct episode.
   # add unique id for each outcome visit
@@ -924,6 +924,19 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     dplyr::compute()
 
   # only gestation-based episodes
+  tblList <- if (justGestation) {
+    list(
+      cdm$both_df,
+      cdm$just_outcome_df,
+      cdm$just_gestation_df
+    )
+  } else {
+    list(
+      cdm$both_df,
+      cdm$just_outcome_df,
+    )
+  }
+
   cdm$just_gestation_df <- cdm$get_min_max_gestation_df %>%
     dplyr::anti_join(
       cdm$both_df %>%
@@ -938,11 +951,7 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     dplyr::compute()
 
   cdm$add_gestation_df <- purrr::reduce(
-    list(
-      cdm$both_df,
-      cdm$just_outcome_df,
-      cdm$just_gestation_df
-    ),
+    tblList,
     dplyr::union_all
   ) %>%
     dplyr::select(-dplyr::all_of("episode")) %>%
