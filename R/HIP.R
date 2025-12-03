@@ -8,13 +8,15 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
+#' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) Logger object.
 #' @param ... Dev params
 #'
 #' @returns cdm object
 #'
 #' @export
-runHip <- function(cdm, outputDir, logger, ...) {
+runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
   log4r::info(logger, "START Running HIP")
 
   dots <- list(...)
@@ -25,7 +27,7 @@ runHip <- function(cdm, outputDir, logger, ...) {
   # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
   # for all the the HIP concepts that for women who were 15-55
   cdm <- cdm %>%
-    initial_pregnant_cohort(continue = dots$continue)
+    initial_pregnant_cohort(startDate = startDate, endDate = endDate, continue = dots$continue)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
     log4r::warn("No records after initializing pregnant cohort")
@@ -137,13 +139,17 @@ runHip <- function(cdm, outputDir, logger, ...) {
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/HIP_algorithm_functions.R
 
-initial_pregnant_cohort <- function(cdm, continue = FALSE) {
+initial_pregnant_cohort <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), continue = FALSE) {
   if (cdmTableExists(cdm, "initial_pregnant_cohort_df") & continue) {
     cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
     return(cdm)
   }
 
   cdm$observation_df <- cdm$observation %>%
+    dplyr::filter(
+      .data$observation_date >= startDate,
+      .data$observation_date <= endDate
+    ) %>%
     dplyr::select(
       "person_id",
       concept_id = "observation_concept_id",
@@ -154,6 +160,10 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
     dplyr::compute()
 
   cdm$measurement_df <- cdm$measurement %>%
+    dplyr::filter(
+      .data$measurement_date >= startDate,
+      .data$measurement_date <= endDate
+    ) %>%
     dplyr::select(
       "person_id",
       concept_id = "measurement_concept_id",
@@ -164,6 +174,10 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
     dplyr::compute()
 
   cdm$procedure_df <- cdm$procedure_occurrence %>%
+    dplyr::filter(
+      .data$procedure_date >= startDate,
+      .data$procedure_date <= endDate
+    ) %>%
     dplyr::select(
       "person_id",
       concept_id = "procedure_concept_id",
@@ -174,6 +188,10 @@ initial_pregnant_cohort <- function(cdm, continue = FALSE) {
 
   # filter condition table
   cdm$condition_df <- cdm$condition_occurrence %>%
+    dplyr::filter(
+      .data$condition_start_date >= startDate,
+      .data$condition_end_date <= endDate
+    ) %>%
     dplyr::select(
       "person_id",
       concept_id = "condition_concept_id",
