@@ -1,3 +1,17 @@
+#' exportConceptTimingCheck
+#'
+#' Checks if concepts occur within expected time from the identified start date
+#' of the pregnancy.
+#'
+#' @param cdm (`cdm_reference`)
+#' @param res (`data.frame`)
+#' @param resPath (`character(1)`)
+#' @param snap (`data.frame`)
+#' @param runStart (`date`)
+#'
+#' @returns `NULL`
+#'
+#' @noRd
 exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
   concepts <- read.csv(system.file(package = "PregnancyIdentifier", "concepts/check_concepts.csv"))
 
