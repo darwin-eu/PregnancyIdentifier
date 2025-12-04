@@ -7,7 +7,7 @@ test_that("test gestational episodes", {
   )
 
   # start run analysis
-  outputDir <- file.path(testPath, "Results")
+  outputDir <- file.path(tempdir(), "Results")
   if (!dir.exists(outputDir)) {
     dir.create(outputDir, recursive = T)
   }
