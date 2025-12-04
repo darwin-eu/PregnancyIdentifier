@@ -49,16 +49,8 @@ dbinfo <- cdmSource %>%
 gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
 
 swappedDates <- dataToLong(swappedDates)
-swappedDatesPlot <- swappedDates %>%
-  tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
-  dplyr::mutate(value = as.numeric(value))
-
 ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
-
 dateConsistancy <- dataToLong(dateConsistancy)
-dateConsistancyPlot <- dateConsistancy %>%
-  tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
-  dplyr::mutate(value = as.numeric(value))
 
 observationPeriodRange <- dataToLong(observationPeriodRange)
 
@@ -69,9 +61,8 @@ pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = func
     dplyr::rename(!!name := number_individuals)})
 pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
 pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
-pregnancyFrequencyPlot <- pregnancyFrequency %>%
-  tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
-  dplyr::mutate(value = as.numeric(value))
+pregnancyFrequency <- pregnancyFrequency %>%
+  dplyr::mutate(freq = factor(freq, levels = unique(pregnancyFrequency$freq)))
 
 episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
 
@@ -103,10 +94,11 @@ summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
 }
 
 gestationalWeeks <- gestationalWeeks %>%
+  dplyr::filter(gestational_weeks > 0) %>%
   dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
                 n = as.numeric(n),
                 pct = as.numeric(pct))
-maxWeeks <- round(max(gestationalWeeks$gestational_weeks), -2)
+maxWeeks <- round(max(gestationalWeeks$gestational_weeks, na.rm = T), -2)
 gestationalWeeksSummary <- rbind(gestationalWeeks %>% dplyr::filter(gestational_weeks <=50),
                                  summariseGestationalWeeks(gestationalWeeks, 51, 100))
 intervals <- seq(100, maxWeeks, 100)
@@ -117,7 +109,6 @@ gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
 gestationalWeeksSummary <- gestationalWeeksSummary %>%
   dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = unique(gestationalWeeksSummary$gestational_weeks)))
 
-# trend data
 # trend data
 yearlyTrend <- yearlyTrend %>%
   dplyr::mutate(count = as.numeric(count),
@@ -142,7 +133,6 @@ monthlyTrendMissing <- monthlyTrendMissing %>%
 
 trendData <- rbind(yearlyTrend, monthlyTrends)
 trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
-
 
 # outcome categories
 outcomeCategoriesCount <- outcomeCategoriesCount %>%

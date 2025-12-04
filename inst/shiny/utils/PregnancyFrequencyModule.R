@@ -65,9 +65,14 @@ PregnancyFrequencyModule <- R6::R6Class(
       })
 
       getPlotData <- reactive({
-        getData() %>%
+        result <- getData() %>%
           tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
           dplyr::mutate(value = as.numeric(value))
+        totalResult <- result %>%
+          dplyr::group_by(cdm_name) %>%
+          dplyr::summarise(total = sum(value, na.rm = T))
+        result %>% dplyr::left_join(totalResult, by = "cdm_name") %>%
+          dplyr::mutate(perc = round(100*(value/total), 2))
       })
 
       # handle updates
@@ -81,11 +86,18 @@ PregnancyFrequencyModule <- R6::R6Class(
         plot <- NULL
         data <- getPlotData()
         if (!is.null(data) && nrow(data) > 0) {
+          # create custom facet label
+          facetVector <- data %>%
+            dplyr::filter(freq == 1) %>%
+            dplyr::mutate(label = glue::glue("{perc}% first, {round(100-perc, 2)}% multiple pregnancies")) %>%
+            dplyr::select(cdm_name, label)
+
           plot <- barPlot(data = data,
                           xVar = "freq",
                           yVar = "value",
                           fillVar = "freq",
                           facetVar = "cdm_name",
+                          facetVector = facetVector,
                           xLabel = "Freq",
                           yLabel = "Count",
                           title = "Pregnancy frequency",
