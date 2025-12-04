@@ -131,9 +131,9 @@ IncidencePlot <- R6::R6Class(
             person_years = round(suppressWarnings(as.numeric(person_years))),
             person_days = round(suppressWarnings(as.numeric(person_days))),
             n_events = round(suppressWarnings(as.numeric(n_events))),
-            incidence_100000_pys = round(suppressWarnings(as.numeric(incidence_100000_pys))),
-            incidence_100000_pys_95CI_lower = round(suppressWarnings(as.numeric(incidence_100000_pys_95CI_lower))),
-            incidence_100000_pys_95CI_upper = round(suppressWarnings(as.numeric(incidence_100000_pys_95CI_upper)))
+            incidence_1000_pys = round(suppressWarnings(as.numeric(incidence_1000_pys))),
+            incidence_1000_pys_95CI_lower = round(suppressWarnings(as.numeric(incidence_1000_pys_95CI_lower))),
+            incidence_1000_pys_95CI_upper = round(suppressWarnings(as.numeric(incidence_1000_pys_95CI_upper)))
           )
         return(result)
       })
@@ -144,15 +144,22 @@ IncidencePlot <- R6::R6Class(
         shiny::validate(need(nrow(table) > 0, "No results for selected inputs"))
         class(table) <- c("IncidenceResult", "IncidencePrevalenceResult", class(table))
 
-        plot <- IncidencePrevalence::plotIncidence(
+        showConfidenceInterval <- as.logical(private$.pickers[["confInterval"]]$inputValues$confInterval)
+        if (showConfidenceInterval) {
+          yMax <- "incidence_1000_pys_95CI_upper"
+        } else {
+          yMax <- "incidence_1000_pys"
+        }
+
+        plot <- plotIncidence(
           result = table,
           x = private$.pickers[["xAxis"]]$inputValues$xAxis,
-          y = "incidence_100000_pys",
+          y = "incidence_1000_pys",
           line = FALSE,
           point = TRUE,
           ribbon = as.logical(private$.pickers[["ribbon"]]$inputValues$ribbon),
-          ymin = "incidence_100000_pys_95CI_lower",
-          ymax = "incidence_100000_pys_95CI_upper",
+          ymin = "incidence_1000_pys_95CI_lower",
+          ymax = yMax,
           facet = private$.pickers[["facet"]]$inputValues$facet_by,
           colour = private$.pickers[["color"]]$inputValues$color_by
         )
@@ -164,7 +171,11 @@ IncidencePlot <- R6::R6Class(
           }
         }
         if (as.logical(private$.pickers[["rotateXLabels"]]$inputValues$rotateXLabels)) {
-          plot <- plot + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1))
+          plot <- plot + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, size = 5),
+                                        axis.text.y = ggplot2::element_text(size = 8))
+        } else {
+          plot <- plot + ggplot2::theme(axis.text.x = ggplot2::element_text(size = 5),
+                                        axis.text.y = ggplot2::element_text(size = 8))
         }
         plot
       })
@@ -211,6 +222,9 @@ IncidencePlot <- R6::R6Class(
       data <- IncidencePrevalence::asIncidenceResult(data) %>%
         { if (!"analysis_interval" %in% names(.)) dplyr::mutate(., analysis_interval = "overall") else .} %>%
         dplyr::mutate(analysis_min_cell_count = !!minCellCount) %>%
+        dplyr::mutate(incidence_1000_pys = as.numeric(incidence_100000_pys)/100,
+                      incidence_1000_pys_95CI_lower = incidence_100000_pys_95CI_lower/100,
+                      incidence_1000_pys_95CI_upper = incidence_100000_pys_95CI_upper/100) %>%
         dplyr::rename(
           database = cdm_name,
           n_events = outcome_count,
@@ -251,7 +265,7 @@ IncidencePlot <- R6::R6Class(
       private$.pickers[["denomAgeGroup"]] <- InputPanel$new(
         funs = list(age_group = shinyWidgets::pickerInput),
         args = list(age_group = list(
-          inputId = "age_group", label = "Age group", choices = unique(private$.tidyData$denominator_age_group), selected = unique(private$.tidyData$denominator_age_group), multiple = TRUE,
+          inputId = "age_group", label = "Age group", choices = unique(private$.tidyData$denominator_age_group), selected = unique(private$.tidyData$denominator_age_group)[3], multiple = TRUE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"
@@ -323,7 +337,7 @@ IncidencePlot <- R6::R6Class(
       private$.pickers[["confInterval"]] <- InputPanel$new(
         funs = list(confInterval = shinyWidgets::pickerInput),
         args = list(confInterval = list(
-          inputId = "confInterval", choices = c(TRUE, FALSE), label = "Confidence interval", selected = TRUE, multiple = FALSE,
+          inputId = "confInterval", choices = c(TRUE, FALSE), label = "Confidence interval", selected = FALSE, multiple = FALSE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"

@@ -45,7 +45,7 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
 
     # add version number to cdm_name
     version <- NULL
-    if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-25"))) {
+    if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
     }
     data <- data %>%
@@ -105,7 +105,7 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
   plotly::ggplotly(p)
 }
 
-barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, facetVector = NULL, label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
   p <- ggplot(data = data,
               mapping = aes_string(x = xVar, y = yVar, label = label))
 
@@ -118,7 +118,16 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = N
                       mapping = aes_string(fill = fillVar))
   }
   if (!is.null(facetVar)) {
-    p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+    if (is.null(facetVector)) {
+      p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+    } else {
+      plot_labeller <- function(variable, value) {
+        perc <- data %>% dplyr::filter(freq == 1, cdm_name == .env$value) %>% dplyr::pull(perc)
+        result <- glue::glue("{value} - first pregnancy {perc}%")
+        return(result)
+      }
+      p <- p + facet_wrap(as.formula(paste("~", facetVar)), labeller = plot_labeller)
+    }
   }
 
   if (!is.null(xLabel) && !is.null(yLabel)) {
