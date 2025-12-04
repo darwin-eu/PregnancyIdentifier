@@ -923,6 +923,19 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
     ) %>%
     dplyr::compute()
 
+  cdm$just_gestation_df <- cdm$get_min_max_gestation_df %>%
+    dplyr::anti_join(
+      cdm$both_df %>%
+        dplyr::select("gest_id"),
+      by = "gest_id"
+    ) %>%
+    dplyr::mutate(
+      category = "PREG",
+      # visit date becomes
+      visit_date = .data$max_gest_date
+    ) %>%
+    dplyr::compute()
+
   # only gestation-based episodes
   tblList <- if (justGestation) {
     list(
@@ -936,19 +949,6 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
       cdm$just_outcome_df,
     )
   }
-
-  cdm$just_gestation_df <- cdm$get_min_max_gestation_df %>%
-    dplyr::anti_join(
-      cdm$both_df %>%
-        dplyr::select("gest_id"),
-      by = "gest_id"
-    ) %>%
-    dplyr::mutate(
-      category = "PREG",
-      # visit date becomes
-      visit_date = .data$max_gest_date
-    ) %>%
-    dplyr::compute()
 
   cdm$add_gestation_df <- purrr::reduce(
     tblList,
