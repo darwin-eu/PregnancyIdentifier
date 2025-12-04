@@ -93,7 +93,7 @@ runHip <- function(cdm, outputDir, justGestation = TRUE, logger, ...) {
   ## Combine gestation-based and outcome-based episodes
 
   # add gestation episodes to outcome episodes
-  cdm <- add_gestation(cdm, justGestation, logger = logger)
+  cdm <- add_gestation(cdm, justGestation = justGestation, logger = logger)
 
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
   cdm <- clean_episodes(cdm, logger = logger)
