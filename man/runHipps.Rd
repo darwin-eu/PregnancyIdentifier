@@ -8,7 +8,7 @@ runHipps(
   cdm,
   outputDir,
   startDate = as.Date("1900-01-01"),
-  endDate = Sys.Date()
+  endDate = Sys.Date(),
   justGestation = TRUE,
   ...
 )
