@@ -11,12 +11,13 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) Logger object.
+#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
 #' @param ... Dev params
 #'
 #' @returns cdm object
 #'
 #' @export
-runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
+runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger, ...) {
   log4r::info(logger, "START Running HIP")
 
   dots <- list(...)
@@ -95,7 +96,7 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
   ## Combine gestation-based and outcome-based episodes
 
   # add gestation episodes to outcome episodes
-  cdm <- add_gestation(cdm, logger = logger)
+  cdm <- add_gestation(cdm, justGestation = justGestation, logger = logger)
 
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
   cdm <- clean_episodes(cdm, logger = logger)
@@ -721,7 +722,7 @@ gestation_episodes <- function(cdm, min_days = 70, buffer_days = 28) {
     ) %>%
     dplyr::mutate(
       # get difference in days between visit date and previous date
-      date_diff = !!CDMConnector::datediff("visit_date", "prev_date", "day"),
+      date_diff = !!CDMConnector::datediff("prev_date", "visit_date", "day"),
       # check if any negative or zero number in week_diff column corresponds to a new pregnancy episode
       # assume it does if the difference in actual dates is larger than the minimum
       # change to 1 (arbitrary positive number) if not;
@@ -845,7 +846,7 @@ get_min_max_gestation <- function(cdm) {
 }
 
 ### START HERE
-add_gestation <- function(cdm, buffer_days = 28, logger) {
+add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
   # Add gestation-based episodes. Any gestation-based episode that overlaps with an outcome-based
   # episode is removed as a distinct episode.
   # add unique id for each outcome visit
@@ -941,7 +942,6 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     ) %>%
     dplyr::compute()
 
-  # only gestation-based episodes
   cdm$just_gestation_df <- cdm$get_min_max_gestation_df %>%
     dplyr::anti_join(
       cdm$both_df %>%
@@ -955,12 +955,22 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     ) %>%
     dplyr::compute()
 
-  cdm$add_gestation_df <- purrr::reduce(
+  # only gestation-based episodes
+  tblList <- if (justGestation) {
     list(
       cdm$both_df,
       cdm$just_outcome_df,
       cdm$just_gestation_df
-    ),
+    )
+  } else {
+    list(
+      cdm$both_df,
+      cdm$just_outcome_df
+    )
+  }
+
+  cdm$add_gestation_df <- purrr::reduce(
+    tblList,
     dplyr::union_all
   ) %>%
     dplyr::select(-dplyr::all_of("episode")) %>%

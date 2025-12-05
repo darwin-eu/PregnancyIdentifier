@@ -55,12 +55,13 @@ makeLogger <- function(outputDir) {
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
+#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
 #' @param ... Dev params
 #'
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), ...) {
+runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, ...) {
   runStart <- data.frame(
     start = as.integer(Sys.time())
   )
@@ -75,8 +76,8 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
 
   cdm <- uploadConceptSets(cdm, logger = logger)
 
-  cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, logger = logger, ...)
-  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, logger = logger, ...)
+  cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
+  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
