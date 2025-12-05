@@ -247,7 +247,7 @@ final_visits <- function(cdm, categories, tableName, logger) {
     dbplyr::window_order(visit_date) %>%
     # Create a new column called "days" that calculates the number of days between each visit for each person.
     dplyr::mutate(prev_visit_date = lag(.data$visit_date)) %>%
-    dplyr::mutate(days = !!CDMConnector::datediff(start = "visit_date", end = "prev_visit_date", interval = "day")) %>%
+    dplyr::mutate(days = !!CDMConnector::datediff(start = "prev_visit_date", end = "visit_date", interval = "day")) %>%
     dplyr::ungroup() %>%
     dplyr::compute()
 
@@ -311,9 +311,9 @@ add_stillbirth <- function(cdm) {
     ) %>%
     dplyr::mutate(
       # get difference in days with previous episode start date
-      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", "day"),
+      after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
       # and next episode start date
-      before_days = !!CDMConnector::datediff("next_visit", "visit_date", "day")
+      before_days = !!CDMConnector::datediff("visit_date", "next_visit", "day")
     ) %>%
     dplyr::filter(.data$category == "SB") %>%
     dplyr::filter(
@@ -376,9 +376,9 @@ add_ectopic <- function(cdm) {
     ) %>%
     dplyr::mutate(
       # get difference in days with previous episode start date
-      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", "day"),
+      after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
       # and next episode start date
-      before_days = !!CDMConnector::datediff("next_visit", "visit_date", "day")
+      before_days = !!CDMConnector::datediff("visit_date", "next_visit", "day")
     ) %>%
     # filter to ectopic visits
     # keep visits with days containing null values - indicates single event
@@ -463,9 +463,9 @@ add_abortion <- function(cdm) {
     ) %>%
     dplyr::mutate(
       # get difference in days with previous episode start date
-      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", "day"),
+      after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
       # and next episode start date
-      before_days = !!CDMConnector::datediff("next_visit", "visit_date", "day")
+      before_days = !!CDMConnector::datediff("visit_date", "next_visit", "day")
     ) %>%
     dplyr::filter(.data$temp_category == "AB") %>%
     dplyr::filter(
@@ -544,8 +544,8 @@ add_delivery <- function(cdm, logger) {
       # and next episode start date
     ) %>%
     dplyr::mutate(
-      after_days = !!CDMConnector::datediff("visit_date", "prev_visit", dbplyr::sql("day")),
-      before_days = !!CDMConnector::datediff("next_visit", "visit_date", "day")
+      after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
+      before_days = !!CDMConnector::datediff("visit_date", "next_visit", "day")
     ) %>%
     dplyr::compute()
 
@@ -874,7 +874,7 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
     dplyr::compute() %>%
     dplyr::mutate(
       # get difference in days between estimated start dates
-      gest_start_date_diff = !!CDMConnector::datediff("max_gest_start_date", "min_gest_start_date", "day")
+      gest_start_date_diff = !!CDMConnector::datediff("min_gest_start_date", "max_gest_start_date", "day")
     ) %>%
     dplyr::compute()
 
@@ -895,7 +895,7 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
       # add -- these are changed anyway so if there are multiple similar overlaps, choose
       # the one with the better term duration
       # visit date should be the first visit date at which there's an outcome
-      gest_at_outcome = !!CDMConnector::datediff("visit_date", "max_gest_start_date", "day")
+      gest_at_outcome = !!CDMConnector::datediff("max_gest_start_date", "visit_date", "day")
     ) %>%
     dplyr::mutate(
       # we want it to be under the max
@@ -904,7 +904,7 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
       is_over_min = ifelse(.data$gest_at_outcome >= .data$min_term, 1, 0)
     ) %>%
     dplyr::mutate(
-      days_diff = !!CDMConnector::datediff("visit_date", "max_gest_date", "day"),
+      days_diff = !!CDMConnector::datediff("max_gest_date", "visit_date", "day"),
       days_diff = dplyr::if_else(.data$is_over_min == 1 | .data$is_under_max == 1 | .data$days_diff < -buffer_days, 10000, .data$days_diff)
     ) %>%
     dplyr::group_by(visit_id) %>%
@@ -961,7 +961,7 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
     dplyr::mutate(episode = row_number()) %>%
     dplyr::ungroup() %>%
     # recalculate since I overwrote
-    dplyr::mutate(days_diff = !!CDMConnector::datediff("visit_date", "max_gest_date", "day")) %>%
+    dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "visit_date", "day")) %>%
     dplyr::compute()
 
   counts <- cdm$add_gestation_df %>%
@@ -1099,9 +1099,9 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     ###### add columns for quality check ######
     # get new gestational age at visit date
     dplyr::mutate(
-      gest_at_outcome = !!CDMConnector::datediff("visit_date", "max_gest_start_date", "day"),
-      min_gest_date_diff = !!CDMConnector::datediff("min_gest_date_2", "min_gest_date", "day"),
-      date_diff_max_end = !!CDMConnector::datediff("max_gest_date", "end_gest_date", "day")
+      gest_at_outcome = !!CDMConnector::datediff("max_gest_start_date", "visit_date", "day"),
+      min_gest_date_diff = !!CDMConnector::datediff("min_gest_date", "min_gest_date_2", "day"),
+      date_diff_max_end = !!CDMConnector::datediff("end_gest_date", "max_gest_date", "day")
     ) %>%
     # redo column for episode
     dplyr::group_by(person_id) %>%
@@ -1137,8 +1137,8 @@ remove_overlaps <- function(cdm, logger) {
     dplyr::mutate(
       prev_date_diff = ifelse(
         !is.na(.data$max_gest_start_date),
-        !!CDMConnector::datediff("max_gest_start_date", "prev_date", "day"),
-        !!CDMConnector::datediff("max_start_date", "prev_date", "day")
+        !!CDMConnector::datediff("prev_date", "max_gest_start_date", "day"),
+        !!CDMConnector::datediff("prev_date", "max_start_date", "day")
       )
     ) %>%
     dplyr::mutate(
@@ -1182,8 +1182,8 @@ remove_overlaps <- function(cdm, logger) {
     ) %>%
     # dplyr::compute(name = "final_df") %>%
     dplyr::mutate(
-      prev_date_diff_gest_tmp = !!CDMConnector::datediff("max_gest_start_date", "prev_date", "day"),
-      prev_date_diff_start_tmp = !!CDMConnector::datediff("max_start_date", "prev_date", "day")
+      prev_date_diff_gest_tmp = !!CDMConnector::datediff("prev_date", "max_gest_start_date", "day"),
+      prev_date_diff_start_tmp = !!CDMConnector::datediff("prev_date", "max_start_date", "day")
     ) %>%
     dplyr::mutate(
       prev_date_diff = dplyr::case_when(
@@ -1218,7 +1218,7 @@ remove_overlaps <- function(cdm, logger) {
     # dplyr::compute(name = "final_df") %>%
     dplyr::mutate(
       # get estimated gestational age in days at outcome_visit_date using estimated_start_date
-      gest_at_outcome = !!CDMConnector::datediff("visit_date", "estimated_start_date", "day")
+      gest_at_outcome = !!CDMConnector::datediff("estimated_start_date", "visit_date", "day")
     ) %>%
     # dplyr::compute(name = "final_df") %>%
     dplyr::mutate(
@@ -1241,7 +1241,7 @@ remove_overlaps <- function(cdm, logger) {
     dplyr::ungroup() %>%
     dplyr::mutate(
       prev_date_diff = dplyr::case_when(
-        !is.na(.data$estimated_start_date) ~ !!CDMConnector::datediff("estimated_start_date", "prev_date", "day")
+        !is.na(.data$estimated_start_date) ~ !!CDMConnector::datediff("prev_date", "estimated_start_date", "day")
       ),
       # checked, there are no remaining
       has_overlap = ifelse(.data$prev_date_diff < 0, 1, 0)
@@ -1332,7 +1332,7 @@ final_episodes_with_length <- function(cdm) {
     dplyr::mutate(
       episode_length = dplyr::if_else(
         !is.na(gest_date),
-        !!CDMConnector::datediff("visit_date", "gest_date", "day"),
+        !!CDMConnector::datediff("gest_date", "visit_date", "day"),
         1
     )) %>%
     dplyr::compute()
