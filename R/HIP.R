@@ -9,6 +9,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param logger (`logger`) Logger object.
+#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
 #' @param ... Dev params
 #'
 #' @returns cdm object
@@ -946,7 +947,7 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
   } else {
     list(
       cdm$both_df,
-      cdm$just_outcome_df,
+      cdm$just_outcome_df
     )
   }
 

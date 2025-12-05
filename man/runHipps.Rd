@@ -11,6 +11,8 @@ runHipps(cdm, outputDir, justGestation = TRUE, ...)
 
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
 
+\item{justGestation}{(`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?}
+
 \item{...}{Dev params}
 }
 \value{

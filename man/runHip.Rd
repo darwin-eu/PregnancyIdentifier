@@ -11,6 +11,8 @@ runHip(cdm, outputDir, justGestation = TRUE, logger, ...)
 
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
 
+\item{justGestation}{(`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?}
+
 \item{logger}{(`logger`) Logger object.}
 
 \item{...}{Dev params}

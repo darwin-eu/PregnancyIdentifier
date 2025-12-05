@@ -53,6 +53,7 @@ makeLogger <- function(outputDir) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
 #' @param ... Dev params
 #'
 #' @returns `NULL`
