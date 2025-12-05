@@ -31,4 +31,5 @@ Imports:
     tidyr,
     log4r
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    omopgenerics
