@@ -28,12 +28,14 @@
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
 #' @param uploadConceptSets if concept sets should be uploaded
+#' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
+#' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) Logger object.
 #' @param ... Extra (development) parameters
 #'
 #' @return `NULL`
 #' @export
-runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
+runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   log4r::info(logger, "Running ESD")
 
@@ -44,7 +46,9 @@ runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
     cdm = cdm,
-    HIPPS
+    HIPPS,
+    startDate = startDate,
+    endDate = endDate
   )
 
   # get gestational timing info
@@ -72,7 +76,7 @@ get_preg_related_concepts <- function(df, person_id_list, df_date_col) {
     )
 }
 
-get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
+get_timing_concepts <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), final_merged_episode_detailed_df) {
   # obtain the gestational timing <= 3 month concept information to use as additional information for precision category designation
 
   pregnant_dates <- final_merged_episode_detailed_df
@@ -109,28 +113,52 @@ get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
     dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
   c_o <- concepts_to_search %>%
-    dplyr::inner_join(cdm$condition_occurrence, by = c("concept_id" = "condition_concept_id")) %>%
+    dplyr::inner_join(
+      cdm$condition_occurrence %>%
+        dplyr::filter(
+          .data$condition_start_date >= startDate,
+          .data$condition_end_date <= endDate
+        ),
+      by = c("concept_id" = "condition_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$concept_name
     ) %>%
     get_preg_related_concepts(person_id_list, "condition_start_date")
 
   o_df <- concepts_to_search %>%
-    dplyr::inner_join(cdm$observation, by = c("concept_id" = "observation_concept_id")) %>%
+    dplyr::inner_join(
+      cdm$observation %>%
+        dplyr::filter(
+          .data$observation_date >= startDate,
+          .data$observation_date <= endDate
+        ),
+      by = c("concept_id" = "observation_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$value_as_string
     ) %>%
     get_preg_related_concepts(person_id_list, "observation_date")
 
   m_df <- concepts_to_search %>%
-    dplyr::inner_join(cdm$measurement, by = c("concept_id" = "measurement_concept_id")) %>%
+    dplyr::inner_join(
+      cdm$measurement %>%
+        dplyr::filter(
+          .data$measurement_date >= startDate,
+          .data$measurement_date <= endDate
+        ),
+      by = c("concept_id" = "measurement_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$value_as_number
     ) %>%
     get_preg_related_concepts(person_id_list, "measurement_date")
 
   p_df <- concepts_to_search %>%
-    dplyr::inner_join(cdm$procedure_occurrence, by = c("concept_id" = "procedure_concept_id")) %>%
+    dplyr::inner_join(
+      cdm$procedure_occurrence %>%
+        dplyr::filter(
+          .data$procedure_date >= startDate,
+          .data$procedure_date <= endDate
+        ),
+      by = c("concept_id" = "procedure_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$concept_name
     ) %>%

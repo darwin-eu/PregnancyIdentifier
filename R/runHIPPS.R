@@ -53,13 +53,15 @@ makeLogger <- function(outputDir) {
 #'
 #' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
+#' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
 #' @param ... Dev params
 #'
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, justGestation = TRUE, ...) {
+runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, ...) {
   runStart <- data.frame(
     start = as.integer(Sys.time())
   )
@@ -74,8 +76,8 @@ runHipps <- function(cdm, outputDir, justGestation = TRUE, ...) {
 
   cdm <- uploadConceptSets(cdm, logger = logger)
 
-  cdm <- runHip(cdm, outputDir, justGestation, logger = logger, ...)
-  cdm <- runPps(cdm, outputDir, logger = logger, ...)
+  cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
+  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
@@ -110,7 +112,9 @@ runHipps <- function(cdm, outputDir, justGestation = TRUE, ...) {
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
     cdm,
-    final_merged_episode_detailed_df
+    final_merged_episode_detailed_df,
+    startDate = startDate,
+    endDate = endDate
   )
 
   # get gestational timing info
