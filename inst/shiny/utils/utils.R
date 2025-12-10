@@ -41,12 +41,17 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
       if (!"cdm_name" %in% colnames(data)) {
         data <- data %>% dplyr::mutate(cdm_name = dbName)
       }
+      if (file == "cdm_source.csv" && "cdm_data_hash" %in% colnames(data)) {
+        data <- data %>% dplyr::select(-"cdm_data_hash")
+      }
     }
 
     # add version number to cdm_name
     version <- NULL
     if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2025-12-30"))) {
+      version <- "_v2"
     }
     data <- data %>%
       dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
