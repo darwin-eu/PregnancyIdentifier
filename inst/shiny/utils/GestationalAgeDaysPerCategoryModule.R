@@ -57,6 +57,15 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       )
       private$.colorByInputPanel$parentNamespace <- self$namespace
 
+      private$.maxInputPanel <- InputPanel$new(funs = list(max = shiny::checkboxInput),
+                                                           args = list(max = list(
+                                                             inputId = "max",
+                                                             value = TRUE,
+                                                             label = "IQR only"
+                                                           )),
+                                                           growDirection = "horizontal")
+      private$.maxInputPanel$parentNamespace <- self$namespace
+
       private$.flipCoordinatesInputPanel <- InputPanel$new(funs = list(flip = shiny::checkboxInput),
                                                             args = list(flip = list(
                                                               inputId = "flip",
@@ -76,6 +85,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
     .outcomeInputPanel = NULL,
     .facetByInputPanel = NULL,
     .colorByInputPanel = NULL,
+    .maxInputPanel = NULL,
     .flipCoordinatesInputPanel = NULL,
     .height = NULL,
 
@@ -83,13 +93,16 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       shiny::tagList(
         private$.cdmInputPanel$UI(),
         private$.outcomeInputPanel$UI(),
-        private$.table$UI(),
         p("Plotting options"),
         private$.facetByInputPanel$UI(),
         private$.colorByInputPanel$UI(),
         shiny::HTML("&nbsp;&nbsp;"),
+        private$.maxInputPanel$UI(),
+        shiny::HTML("&nbsp;&nbsp;"),
         private$.flipCoordinatesInputPanel$UI(),
-        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height)
+        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
+        p(),
+        private$.table$UI()
       )
     },
 
@@ -101,6 +114,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       private$.outcomeInputPanel$server(input, output, session)
       private$.facetByInputPanel$server(input, output, session)
       private$.colorByInputPanel$server(input, output, session)
+      private$.maxInputPanel$server(input, output, session)
       private$.flipCoordinatesInputPanel$server(input, output, session)
 
       getData <- reactive({
@@ -140,7 +154,10 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         data <- getData()
         if (!is.null(data) && nrow(data) > 0) {
           colorBy <- private$.colorByInputPanel$inputValues$color_by
-          plot <- ggplot2::ggplot(data, ggplot2::aes_string(x = colorBy, ymin = "min", lower = "Q25", middle = "median", upper = "Q75", ymax = "max")) +
+          iqrOnly <- private$.maxInputPanel$inputValues$max
+          ymaxValue <- ifelse(iqrOnly, "Q75", "max")
+          yminValue <- ifelse(iqrOnly, "Q25", "min")
+          plot <- ggplot2::ggplot(data, ggplot2::aes_string(x = colorBy, ymin = yminValue, lower = "Q25", middle = "median", upper = "Q75", ymax = ymaxValue)) +
             ggplot2::geom_boxplot(ggplot2::aes_string(fill = colorBy), stat = "identity")
 
           facetBy <- private$.facetByInputPanel$inputValues$facet_by

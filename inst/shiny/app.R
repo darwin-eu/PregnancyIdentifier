@@ -159,6 +159,7 @@ appStructure <- list(
   "Episode duration" = list(
     "Gestational age weeks" = handleEmptyResult(object = GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts, dp = allDP), result = gestationalWeeksSummary),
     "Gestational age binned" = DarwinShinyModules::Text$new(markdown = "TODO"),
+    "Gestational age days per category" = handleEmptyResult(object = GestationalAgeDaysPerCategoryModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
     "Temporal patterns" = handleEmptyResult(object = TemporalPatternsModule$new(data = trendData, missingData = trendDataMissing, dp = allDP), result = trendData)
   ),
   "Episode construction" = list(
