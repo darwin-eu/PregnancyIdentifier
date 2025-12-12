@@ -187,9 +187,9 @@ get_timing_concepts <- function(cdm, startDate = as.Date("1900-01-01"), endDate 
     dplyr::mutate(domain_value = as.integer(as.numeric(.data$domain_value))) %>%
     dplyr::mutate(
       keep_value = dplyr::if_else(
-        (stringr::str_detect(tolower(domain_concept_name), "gestation period,"))
-        | (stringr::str_detect(tolower(domain_concept_name), "gestational age"))
-        | (domain_concept_id %in% c(3048230, 3002209, 3012266) & domain_value < 44 & domain_value > 0),
+        ((stringr::str_detect(tolower(.data$domain_concept_name), "gestation period,"))
+         | (stringr::str_detect(tolower(.data$domain_concept_name), "gestational age"))
+         | .data$domain_concept_id %in% c(3048230, 3002209, 3012266)) & (.data$domain_value < 44 & .data$domain_value > 0),
         1,
         0
       ),
