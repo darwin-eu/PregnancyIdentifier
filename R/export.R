@@ -358,8 +358,9 @@ export <- function(cdm, outputDir, exportDir) {
   exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart)
   exportOutcomeCategoriesCounts(res, exportDir, snap = snap, runStart = runStart)
 
+  pkgVersion <- packageVersion("PregnancyIdentifier")
   utils::zip(
-    zipfile = file.path(exportDir, sprintf("%s-%s-results.zip", snap$snapshot_date, snap$cdm_name)),
+    zipfile = file.path(exportDir, sprintf("%s-%s-%s-results.zip", snap$snapshot_date, pkgVersion, snap$cdm_name)),
     files = list.files(path = exportDir, full.names = TRUE),
     flags = "-j"
   )
