@@ -11,12 +11,17 @@ cdm <- TestGenerator::patientsCDM(
   pathJson = "inst/testCases",
   testName = "test")
 
-cdm <- PregnancyIdentifier:::uploadConceptSets(cdm)
+# start run analysis
+outputDir <- outputDir <- "./dev/output/"
+if (!dir.exists(outputDir)) {
+  dir.create(outputDir, recursive = T)
+}
 
-outputDir <- "./dev/output/"
+logger <- PregnancyIdentifier:::makeLogger(outputDir)
+cdm <- PregnancyIdentifier:::uploadConceptSets(cdm, logger)
 
-cdm <- runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
-cdm <- runPps(cdm = cdm, outputDir = outputDir)
+cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger, continue = TRUE)
+cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
 
 ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
 ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
@@ -28,11 +33,12 @@ mergeHipPps(
   PPSEpisode = ppsEpisode,
   PPSMinMax = ppsMinMax,
   outputDir = outputDir,
-  fileName = "merge.csv"
+  fileName = "merge.csv",
+  logger = logger
 )
 
 cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
 
 hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
 
-runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir)
+runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir, logger = logger)
