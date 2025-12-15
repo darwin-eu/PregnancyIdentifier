@@ -138,7 +138,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
     ) %>%
-    write.csv(file.path(resPath, "age_summary_bin.csv"), row.names = FALSE)
+    write.csv(file.path(resPath, "age_summary_groups.csv"), row.names = FALSE)
 }
 
 exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
@@ -161,12 +161,13 @@ exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
   write.csv(precisionDaysRes, file.path(resPath, "precision_days.csv"), row.names = FALSE)
 }
 
-exportEpisodeFrequency <- function(res, resPath, snap, runStart, pkgVersion) {
+exportEpisodeFrequency <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::summarise(
       total_episodes = dplyr::n(),
       total_individuals = dplyr::n_distinct(person_id)
     ) %>%
+    suppressCounts(colNames = c("total_individuals"), minCellCount = minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -176,10 +177,11 @@ exportEpisodeFrequency <- function(res, resPath, snap, runStart, pkgVersion) {
     write.csv(file.path(resPath, "episode_frequency.csv"), row.names = FALSE)
 }
 
-exportPregnancyFrequency <- function(res, resPath, snap, runStart, pkgVersion) {
+exportPregnancyFrequency <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::count(.data$person_id, name = "freq") %>%
     dplyr::count(.data$freq, name = "number_individuals") %>%
+    suppressCounts(colNames = c("number_individuals"), minCellCount = minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -338,7 +340,7 @@ exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
   write.csv(monthly_trends, file.path(resPath, "monthly_trends.csv"), row.names = FALSE)
 }
 
-exportObservationPeriodRange <- function(res, resPath, snap, runStart, pkgVersion) {
+exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgVersion) {
   dates <- cdm$observation_period %>%
     dplyr::summarise(
       min_obs = min(!!CDMConnector::datepart("observation_period_start_date", interval = "year"), na.rm = TRUE),
@@ -365,6 +367,7 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
     dplyr::mutate(
       prev_end = dplyr::lag(inferred_episode_end),
       overlap = as.Date(inferred_episode_start, format = "%Y-%m-%d") <= as.Date(prev_end, format = "%Y-%m-%d")) %>%
+    dplyr::filter(!is.na(prev_end)) %>%
     summariseColumn("overlap") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
@@ -481,15 +484,15 @@ export <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   pkgVersion <- packageVersion("PregnancyIdentifier")
   exportAgeSummary(res = res, cdm = cdm, resPath = exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion, minCellCount = minCellCount)
   exportPrecisionDays(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
-  exportEpisodeFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
-  exportPregnancyFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportEpisodeFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion, minCellCount = minCellCount)
+  exportPregnancyFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion, minCellCount = minCellCount)
   exportEpisodeFrequencySummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalAgeSummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalAgeCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalWeeksCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalDurationCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportTimeTrends(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
-  exportObservationPeriodRange(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportObservationPeriodRange(res, cdm = cdm, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportPregnancyOverlapCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportDateConsistancy(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
