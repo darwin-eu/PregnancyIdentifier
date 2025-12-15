@@ -125,6 +125,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
   resAge %>%
+    dplyr::filter(!is.na(age_pregnancy_start)) %>%
     dplyr::mutate(age_pregnancy_start_bin = dplyr::case_when(age_pregnancy_start < 12 | age_pregnancy_start > 55 ~ "<12 or >55",
                                                              age_pregnancy_start >=12 & age_pregnancy_start <= 20 ~ "12-20",
                                                              age_pregnancy_start >=21 & age_pregnancy_start <= 30 ~ "21-30",
