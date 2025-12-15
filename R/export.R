@@ -10,7 +10,7 @@ addAge <- function(cdm, res) {
     )
 }
 
-exportAgeSummary <- function(res, cdm, resPath, snap, runStart) {
+exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion) {
   res %>%
     addAge(cdm = cdm) %>%
     summariseColumn("age_pregnancy_start") %>%
@@ -18,12 +18,13 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 }
 
-exportPrecisionDays <- function(res, resPath, snap, runStart) {
+exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
   d <- res |>
     dplyr::filter(!is.na(.data$precision_days)) |>
     dplyr::pull(.data$precision_days) |>
@@ -36,13 +37,14 @@ exportPrecisionDays <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(precisionDaysRes, file.path(resPath, "precision_days.csv"), row.names = FALSE)
 }
 
-exportEpisodeFrequency <- function(res, resPath, snap, runStart) {
+exportEpisodeFrequency <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::summarise(
       total_episodes = dplyr::n(),
@@ -51,48 +53,52 @@ exportEpisodeFrequency <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "episode_frequency.csv"), row.names = FALSE)
 }
 
-exportPregnancyFrequency <- function(res, resPath, snap, runStart) {
+exportPregnancyFrequency <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::count(.data$person_id, name = "freq") %>%
     dplyr::count(.data$freq, name = "number_individuals") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "pregnancy_frequency.csv"), row.names = FALSE)
 }
 
-exportEpisodeFrequencySummary <- function(res, resPath, snap, runStart) {
+exportEpisodeFrequencySummary <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::count(.data$person_id, name = "freq") %>%
     summariseColumn("freq") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "episode_frequency_summary.csv"), row.names = FALSE)
 }
 
-exportGestationalAgeSummary <- function(res, resPath, snap, runStart) {
+exportGestationalAgeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
   gestAgeDaysSummary <- res %>%
     summariseColumn("gestational_age_days_calculated") %>%
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ .)) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "gestational_age_days_summary.csv"), row.names = FALSE)
 }
 
-exportGestationalAgeCounts <- function(res, resPath, snap, runStart) {
+exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::summarise(
       less_1day = sum(.data$gestational_age_days_calculated < 1),
@@ -100,12 +106,13 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "gestational_age_days_counts.csv"), row.names = FALSE)
 }
 
-exportGestationalWeeksCounts <- function(res, resPath, snap, runStart) {
+exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$gestational_age_days_calculated / 7)) %>%
     dplyr::group_by(.data$gestational_weeks) %>%
@@ -116,12 +123,13 @@ exportGestationalWeeksCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     write.csv(file.path(resPath, "gestational_weeks.csv"), row.names = FALSE)
 }
 
-exportGestationalDurationCounts <- function(res, resPath, snap, runStart) {
+exportGestationalDurationCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   gestDuration <- res %>%
     dplyr::group_by(.data$final_outcome_category) %>%
     summariseColumn("gestational_age_days_calculated") %>%
@@ -129,13 +137,14 @@ exportGestationalDurationCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(gestDuration, file.path(resPath, "gestational_age_days_per_category_summary.csv"), row.names = FALSE)
 }
 
-exportTimeTrends <- function(res, resPath, snap, runStart) {
+exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
   date_cols <- c("pregnancy_start", "hip_end_date", "pps_end_date", "episode_min_date" , "episode_max_date", "recorded_episode_start",  "recorded_episode_end", "inferred_episode_start", "inferred_episode_end")
   # date_cols <- tolower(date_cols)
 
@@ -166,7 +175,8 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(yearly_trends_missing, file.path(resPath, "yearly_trend_missing.csv"), row.names = FALSE)
@@ -176,7 +186,8 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(yearly_trends, file.path(resPath, "yearly_trend.csv"), row.names = FALSE)
@@ -192,7 +203,8 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(missingMonth, file.path(resPath, "monthly_trend_missing.csv"), row.names = FALSE)
@@ -202,13 +214,14 @@ exportTimeTrends <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(monthly_trends, file.path(resPath, "monthly_trends.csv"), row.names = FALSE)
 }
 
-exportObservationPeriodRange <- function(res, resPath, snap, runStart) {
+exportObservationPeriodRange <- function(res, resPath, snap, runStart, pkgVersion) {
   dates <- cdm$observation_period %>%
     dplyr::summarise(
       min_obs = min(!!CDMConnector::datepart("observation_period_start_date", interval = "year"), na.rm = TRUE),
@@ -218,13 +231,14 @@ exportObservationPeriodRange <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(dates, file.path(resPath, "observation_period_range.csv"), row.names = FALSE)
 }
 
-exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart) {
+exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   overlap <- res %>%
     dplyr::add_count(person_id) %>%
     dplyr::filter(n > 1) %>% # only keep individuals with multiple episodes
@@ -238,27 +252,29 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
   # [,c("person_id", "inferred_episode_start", "inferred_episode_end", "overlap")]
 
   write.csv(overlap, file.path(resPath, "pregnancy_overlap_counts.csv"), row.names = FALSE)
 }
 
-exportDateConsistancy <- function(res, resPath, snap, runStart) {
+exportDateConsistancy <- function(res, resPath, snap, runStart, pkgVersion) {
   date_cols <- c("pregnancy_start", "HIP_end_date", "PPS_end_date", "episode_min_date" , "episode_max_date", "recorded_episode_start",  "recorded_episode_end", "inferred_episode_start", "inferred_episode_end")
   dateConsistancy <- res %>%
     dplyr::summarise(dplyr::across(dplyr::any_of(c(date_cols)), ~ mean(is.na(.)))) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
   # summarise(across(everything(), ~ mean(is.na(.))))
   write.csv(dateConsistancy, file.path(resPath, "date_consistancy.csv"), row.names = FALSE)
 }
 
-exportReversedDatesCounts <- function(res, resPath, snap, runStart) {
+exportReversedDatesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   revDates <- res %>%
     dplyr::mutate(
       rev_hip = .data$pregnancy_start > .data$hip_end_date,
@@ -271,13 +287,14 @@ exportReversedDatesCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(revDates, file.path(resPath, "swapped_dates.csv"), row.names = FALSE)
 }
 
-exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart) {
+exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   outcomeCat <- res %>%
     dplyr::group_by(.data$hip_outcome_category) %>%
     dplyr::summarise(n = dplyr::n()) %>%
@@ -302,7 +319,8 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart) {
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     )
 
   write.csv(outcomeCat, file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
@@ -342,23 +360,23 @@ export <- function(cdm, outputDir, exportDir) {
     to = file.path(exportDir, "log.txt")
   )
 
-  exportAgeSummary(res = res, cdm = cdm, resPath = exportDir, snap = snap, runStart = runStart)
-  exportPrecisionDays(res, exportDir, snap = snap, runStart = runStart)
-  exportEpisodeFrequency(res, exportDir, snap = snap, runStart = runStart)
-  exportPregnancyFrequency(res, exportDir, snap = snap, runStart = runStart)
-  exportEpisodeFrequencySummary(res, exportDir, snap = snap, runStart = runStart)
-  exportGestationalAgeSummary(res, exportDir, snap = snap, runStart = runStart)
-  exportGestationalAgeCounts(res, exportDir, snap = snap, runStart = runStart)
-  exportGestationalWeeksCounts(res, exportDir, snap = snap, runStart = runStart)
-  exportGestationalDurationCounts(res, exportDir, snap = snap, runStart = runStart)
-  exportTimeTrends(res, exportDir, snap = snap, runStart = runStart)
-  exportObservationPeriodRange(res, exportDir, snap = snap, runStart = runStart)
-  exportPregnancyOverlapCounts(res, exportDir, snap = snap, runStart = runStart)
-  exportDateConsistancy(res, exportDir, snap = snap, runStart = runStart)
-  exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart)
-  exportOutcomeCategoriesCounts(res, exportDir, snap = snap, runStart = runStart)
-
   pkgVersion <- packageVersion("PregnancyIdentifier")
+  exportAgeSummary(res = res, cdm = cdm, resPath = exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportPrecisionDays(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportEpisodeFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportPregnancyFrequency(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportEpisodeFrequencySummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportGestationalAgeSummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportGestationalAgeCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportGestationalWeeksCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportGestationalDurationCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportTimeTrends(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportObservationPeriodRange(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportPregnancyOverlapCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportDateConsistancy(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportOutcomeCategoriesCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+
   utils::zip(
     zipfile = file.path(exportDir, sprintf("%s-%s-%s-results.zip", snap$snapshot_date, pkgVersion, snap$cdm_name)),
     files = list.files(path = exportDir, full.names = TRUE),
