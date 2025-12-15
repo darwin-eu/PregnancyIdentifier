@@ -124,14 +124,22 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
-  resAge %>%
+  resAgeRound <- resAge %>%
     dplyr::filter(!is.na(age_pregnancy_start)) %>%
-    dplyr::mutate(age_pregnancy_start_bin = dplyr::case_when(age_pregnancy_start < 12 | age_pregnancy_start > 55 ~ "<12 or >55",
-                                                             age_pregnancy_start >=12 & age_pregnancy_start <= 20 ~ "12-20",
-                                                             age_pregnancy_start >=21 & age_pregnancy_start <= 30 ~ "21-30",
-                                                             age_pregnancy_start >=31 & age_pregnancy_start <= 40 ~ "31-40",
-                                                             age_pregnancy_start >=41 & age_pregnancy_start <= 55 ~ "41-55")) %>%
-    summariseCategory("age_pregnancy_start_bin") %>%
+    dplyr::mutate(age_pregnancy_start = round(age_pregnancy_start))
+
+  # counts per year
+  resAgePerYear <- resAgeRound %>%
+    summariseCategory("age_pregnancy_start")
+
+  # counts per category
+  resAgeGroups <- resAgeRound %>%
+    dplyr::mutate(age_pregnancy_start_group = dplyr::case_when(age_pregnancy_start <12 ~ "<12",
+                                                               age_pregnancy_start >55 ~ ">55")) %>%
+    dplyr::filter(!is.na(age_pregnancy_start_group)) %>%
+    summariseCategory("age_pregnancy_start_group")
+
+  rbind(resAgePerYear, resAgeGroups) %>%
     suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
