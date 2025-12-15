@@ -1,0 +1,13 @@
+﻿person_id;concept_id;visit_date;value_as_number;concept_name;category;gest_value;date_of_birth;date_diff;age
+1;3012266;2021-05-27;7;Gestational age;PREG;7;1990-01-01;;
+1;3012266;2021-06-03;7;Gestational age;PREG;7;1990-01-01;;
+1;3012266;2021-06-28;11;Gestational age;PREG;11;1990-01-01;;
+1;3012266;2021-08-05;16;Gestational age;PREG;16;1990-01-01;;
+1;3012266;2021-08-15;17.5;Gestational age;PREG;18;1990-01-01;;
+1;3012266;2021-11-13;30;Gestational age;PREG;30;1990-01-01;;
+1;3012266;2022-01-10;39;Gestational age;PREG;39;1990-01-01;;
+1;3012266;2023-06-26;5;Gestational age;PREG;5;1990-01-01;;
+1;3012266;2023-11-02;12;Gestational age;PREG;12;1990-01-01;;
+1;3012266;2023-11-24;15;Gestational age;PREG;15;1990-01-01;;
+1;3012266;2024-01-21;23;Gestational age;PREG;23;1990-01-01;;
+1;3012266;2024-04-20;36.5;Gestational age;PREG;37;1990-01-01;;
