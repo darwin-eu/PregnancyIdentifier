@@ -4,7 +4,16 @@
 \alias{runEsd}
 \title{runEsd}
 \usage{
-runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
+runEsd(
+  HIPPS,
+  cdm,
+  outputDir,
+  uploadConceptSets = FALSE,
+  startDate = as.Date("1900-01-01"),
+  endDate = Sys.Date(),
+  logger,
+  ...
+)
 }
 \arguments{
 \item{HIPPS}{(`data.frame`)}
@@ -14,6 +23,10 @@ runEsd(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, logger, ...)
 \item{outputDir}{(`character(1)`)}
 
 \item{uploadConceptSets}{if concept sets should be uploaded}
+
+\item{startDate}{(`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01}
+
+\item{endDate}{(`Date(1)`: `Sys.Date()`) End date of data to use. By default today.}
 
 \item{logger}{(`logger`) Logger object.}
 
