@@ -5,12 +5,14 @@
 #' @param cdm (`cdm_reference`)
 #' @param outputDir output directory
 #' @param uploadConceptSets if concept sets should be uploaded
+#' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
+#' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) Logger object.
 #' @param ... optional parameters
 #'
 #' @return cdm object
 #' @export
-runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
+runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
   dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
 
   log4r::info(logger, "START Running PPS")
@@ -20,7 +22,7 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
   }
   log4r::info(logger, "Pull PPS Concepts from Tables")
   # pull PPS concepts from each table
-  cdm <- input_GT_concepts(cdm, logger)
+  cdm <- input_GT_concepts(cdm, startDate, endDate, logger)
 
   # get the gestational timing information for each concept
   log4r::info(logger, "Get gestational timing information")
@@ -56,35 +58,44 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, logger, ...) {
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/PPS_algorithm_functions.R
 
-rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, logger) {
+rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger) {
   log4r::info(logger, sprintf("Pulling data from %s", tblName))
   cdm[[outcomeTblName]] <- cdm[[tblName]] %>%
+    dplyr::filter(
+      .data[[start_date_col]] >= startDate,
+      .data[[start_date_col]] <= endDate
+    ) %>%
     dplyr::rename(
       domain_concept_start_date = start_date_col,
       domain_concept_id = id_col
     ) %>%
     dplyr::inner_join(cdm$pps_concepts, by = "domain_concept_id") %>%
-    dplyr::select(person_id, domain_concept_start_date, domain_concept_id) %>%
+    dplyr::select("person_id", "domain_concept_start_date", "domain_concept_id") %>%
     dplyr::distinct() %>%
     dplyr::compute()
   return(cdm)
 }
 
-input_GT_concepts <- function(cdm, logger) {
+input_GT_concepts <- function(cdm, startDate, endDate, logger) {
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "condition_occurrence",
     outcomeTblName = "c_o",
     start_date_col = "condition_start_date",
     id_col = "condition_concept_id",
+    startDate = startDate,
+    endDate = endDate,
     logger = logger
   )
+
   cdm <- rename_cols(
     cdm = cdm,
     tblName  = "procedure_occurrence",
     outcomeTblName = "p_o",
     start_date_col = "procedure_date",
     id_col = "procedure_concept_id",
+    startDate = startDate,
+    endDate = endDate,
     logger = logger
   )
   cdm <- rename_cols(
@@ -93,6 +104,8 @@ input_GT_concepts <- function(cdm, logger) {
     outcomeTblName = "o_df",
     start_date_col = "observation_date",
     id_col = "observation_concept_id",
+    startDate = startDate,
+    endDate = endDate,
     logger = logger
   )
   cdm <- rename_cols(
@@ -101,6 +114,8 @@ input_GT_concepts <- function(cdm, logger) {
     outcomeTblName = "m_df",
     start_date_col = "measurement_date",
     id_col = "measurement_concept_id",
+    startDate = startDate,
+    endDate = endDate,
     logger = logger
   )
   cdm <- rename_cols(
@@ -109,6 +124,8 @@ input_GT_concepts <- function(cdm, logger) {
     outcomeTblName = "v_o",
     start_date_col = "visit_start_date",
     id_col = "visit_concept_id",
+    startDate = startDate,
+    endDate = endDate,
     logger = logger
   )
 
