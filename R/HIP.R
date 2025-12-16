@@ -20,6 +20,7 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger, ...) {
   log4r::info(logger, "START Running HIP")
 
+  browser()
   dots <- list(...)
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   ## Outcome-based episodes
