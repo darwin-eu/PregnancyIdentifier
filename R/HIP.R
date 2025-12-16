@@ -20,7 +20,6 @@ cdmTableExists <- function(cdm, tableName, attach = TRUE) {
 runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger, ...) {
   log4r::info(logger, "START Running HIP")
 
-  browser()
   dots <- list(...)
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   ## Outcome-based episodes
@@ -32,7 +31,7 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
     initial_pregnant_cohort(startDate = startDate, endDate = endDate, continue = dots$continue)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
-    log4r::warn("No records after initializing pregnant cohort")
+    log4r::warn(logger, "No records after initializing pregnant cohort")
     return(cdm)
   }
 
