@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +37,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">export</span><span class="op">(</span><span class="va">cdm</span>, <span class="va">outputDir</span>, <span class="va">exportDir</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">export</span><span class="op">(</span><span class="va">cdm</span>, <span class="va">outputDir</span>, <span class="va">exportDir</span>, minCellCount <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -54,6 +54,10 @@
 
 <dt id="arg-exportdir">exportDir<a class="anchor" aria-label="anchor" href="#arg-exportdir"></a></dt>
 <dd><p>(`character(1)`) The path to the folder where the sharable outputs should be written to.</p></dd>
+
+
+<dt id="arg-mincellcount">minCellCount<a class="anchor" aria-label="anchor" href="#arg-mincellcount"></a></dt>
+<dd><p>minimum counts</p></dd>
 
 </dl></div>
     <div class="section level2">

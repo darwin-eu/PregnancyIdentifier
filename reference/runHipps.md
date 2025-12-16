@@ -7,7 +7,14 @@ https://github.com/louisahsmith/allofus-pregnancy/ without requiring the
 ## Usage
 
 ``` r
-runHipps(cdm, outputDir, ...)
+runHipps(
+  cdm,
+  outputDir,
+  startDate = as.Date("1900-01-01"),
+  endDate = Sys.Date(),
+  justGestation = TRUE,
+  ...
+)
 ```
 
 ## Arguments
@@ -19,6 +26,21 @@ runHipps(cdm, outputDir, ...)
 - outputDir:
 
   (\`character(1)\`) Output directory to write output to.
+
+- startDate:
+
+  (\`Date(1)\`: \`as.Date("1900-01-01"\`) Start date of data to use. By
+  default 1900-01-01
+
+- endDate:
+
+  (\`Date(1)\`: \`Sys.Date()\`) End date of data to use. By default
+  today.
+
+- justGestation:
+
+  (\`logical(1)\`: \`TRUE\`) Should episodes that only have gestational
+  concepts be concidered?
 
 - ...:
 

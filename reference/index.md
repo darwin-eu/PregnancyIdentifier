@@ -16,3 +16,5 @@
   : runHipps
 - [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)
   : runPps
+- [`viewResults()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/viewResults.md)
+  : View the results in the Shiny app

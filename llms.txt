@@ -21,4 +21,6 @@ all (<https://doi.org/10.1093/jamia/ocae195>).
   : runHipps
 - [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)
   : runPps
+- [`viewResults()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/viewResults.md)
+  : View the results in the Shiny app
 

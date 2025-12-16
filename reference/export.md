@@ -5,7 +5,7 @@ Exports the patient level results to summarised share-able csv-files.
 ## Usage
 
 ``` r
-export(cdm, outputDir, exportDir)
+export(cdm, outputDir, exportDir, minCellCount = 5)
 ```
 
 ## Arguments
@@ -22,6 +22,10 @@ export(cdm, outputDir, exportDir)
 
   (\`character(1)\`) The path to the folder where the sharable outputs
   should be written to.
+
+- minCellCount:
+
+  minimum counts
 
 ## Value
 
