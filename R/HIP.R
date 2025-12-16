@@ -27,6 +27,7 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
   # get initial cohort based on hip_concepts
   # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
   # for all the the HIP concepts that for women who were 15-55
+  browser()
   cdm <- cdm %>%
     initial_pregnant_cohort(startDate = startDate, endDate = endDate, continue = dots$continue)
 
