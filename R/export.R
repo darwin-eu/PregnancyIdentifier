@@ -137,7 +137,8 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     dplyr::mutate(age_pregnancy_start_group = dplyr::case_when(age_pregnancy_start <12 ~ "<12",
                                                                age_pregnancy_start >55 ~ ">55")) %>%
     dplyr::filter(!is.na(age_pregnancy_start_group)) %>%
-    summariseCategory("age_pregnancy_start_group")
+    summariseCategory("age_pregnancy_start_group") %>%
+    dplyr::rename(age_pregnancy_start = age_pregnancy_start_group)
 
   rbind(resAgePerYear, resAgeGroups) %>%
     suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
