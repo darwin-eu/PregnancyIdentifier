@@ -551,7 +551,7 @@ add_delivery <- function(cdm, logger) {
     ) %>%
     dplyr::mutate(temp_category = ifelse(.data$category == "SA", "AB", .data$category)) %>%
     dplyr::group_by(.data$person_id) %>%
-    dbplyr::window_order(.data$visit_date) %>%
+    dbplyr::window_order(.data$visit_date, .data$visit_occurrence_id) %>%
     dplyr::mutate(
       # get previous category if available
       previous_category = lag(temp_category),
@@ -575,7 +575,7 @@ add_delivery <- function(cdm, logger) {
         !is.na(.data$previous_category)
         & .data$previous_category == "DELIV"
         & .data$category %in% c("LB", "SB") & .data$after_days < after_min_sb,
-        dplyr::lag(visit_date),
+        .data$prev_visit,
         .data$visit_date
       )
     ) %>%
