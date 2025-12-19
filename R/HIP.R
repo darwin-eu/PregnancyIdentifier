@@ -1091,7 +1091,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
   # join episodes with new values to main table
   cdm$final_df <- cdm$final_df %>%
     dplyr::union_all(cdm$under_min_df) %>%
-    dplyr::compute()
+    dplyr::compute(name = "final_df", temporary = FALSE, overwrite = TRUE)
 
   ###### remove any outcomes where the difference between max_gest_date in days is negative ######
   # filter to episodes with max_gest_date is after the outcome visit_date with buffer
@@ -1103,7 +1103,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
       visit_date = .data$max_gest_date,
       removed_outcome = 1
     ) %>%
-    dplyr::compute()
+    dplyr::compute(name = "neg_days_df", temporary = FALSE, overwrite = TRUE)
 
   log4r::info(logger, sprintf(
     "Total number of episodes with negative number of days between outcome and max_gest_date: %s",
@@ -1130,7 +1130,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     dbplyr::window_order(visit_date) %>%
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
-    dplyr::compute()
+    dplyr::compute(name = "clean_episodes_df", temporary = FALSE, overwrite = TRUE)
 
   return(cdm)
 }
@@ -1139,9 +1139,8 @@ remove_overlaps <- function(cdm, logger) {
   # Identify episodes that overlap and keep only the latter episode if the previous episode is PREG.
   # If the latter episode doesn't have gestational info, redefine the start date to be the
   # previous episode end date plus the retry period.
-  cdm$df <- cdm$clean_episodes_df
 
-  cdm$df <- cdm$df %>%
+  cdm$df <- cdm$clean_episodes_df %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(visit_date) %>%
     # get previous date
