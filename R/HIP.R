@@ -551,7 +551,7 @@ add_delivery <- function(cdm, logger) {
     ) %>%
     dplyr::mutate(temp_category = ifelse(.data$category == "SA", "AB", .data$category)) %>%
     dplyr::group_by(.data$person_id) %>%
-    dbplyr::window_order(.data$visit_date, .data$visit_occurrence_id) %>%
+    dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(
       # get previous category if available
       previous_category = lag(temp_category),
@@ -630,6 +630,10 @@ calculate_start <- function(cdm) {
   # join tables
   cdm$calculate_start_df <- cdm$add_delivery_df %>%
     dplyr::left_join(cdm$matcho_term_durations, by = "category") %>%
+    dplyr::mutate(
+      min_term = dplyr::if_else(is.na(.data$min_term), NA_integer_, as.integer(.data$min_term)),
+      max_term = dplyr::if_else(is.na(.data$max_term), NA_integer_, as.integer(.data$max_term))
+    ) %>%
     # based only on the outcome, when did pregnancy start
     # calculate latest start start date
     dplyr::mutate(
