@@ -100,7 +100,7 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
 addAge <- function(cdm, res) {
   cdm$person %>%
     dplyr::select("person_id", "gender_concept_id", "birth_datetime", "year_of_birth") %>%
-    dplyr::mutate(birth_datetime = dplyr::if_else(is.na(birth_datetime), as.Date(paste(year_of_birth, as.integer(1), as.integer(1), sep = "-")), birth_datetime)) %>%
+    dplyr::mutate(birth_datetime = dplyr::if_else(is.na(birth_datetime), as.Date(paste0(as.character(year_of_birth), "-01-01")), birth_datetime)) %>%
     dplyr::right_join(res, by = c("person_id" = "person_id"), copy = TRUE) %>%
     dplyr::collect() %>%
     dplyr::mutate(age_pregnancy_start = as.Date(inferred_episode_start) - as.Date(birth_datetime)) %>%
