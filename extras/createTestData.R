@@ -1,0 +1,50 @@
+
+# Test data from https://github.com/darwin-eu-dev/PregnancyIdentifier/issues/61#issuecomment-3675914672
+# create the test json data
+TestGenerator::readPatients.xl(
+  here::here("extras/TestData_P4_C5_002.1.xlsx"),
+  outputPath = here::here("inst/testCases"),
+  testName = "TestData_P4_C5_002_1",
+  extraTable = T
+)
+
+
+# devtools::install_github("darwin-eu-dev/Pregnancy")
+
+cdm <- TestGenerator::patientsCDM(
+  pathJson = system.file("testCases", package = "PregnancyIdentifier"),
+  testName = 'TestData_P4_C5_002_1',
+  cdmVersion = "5.3",
+  cdmName = "TestData_P4_C5_002_1"
+)
+
+
+# library(CDMConnector)
+
+
+cdm$procedure_occurrence
+
+outputFolder <- file.path(tempdir(), "testHipps")
+
+dir.create(outputFolder)
+library(PregnancyIdentifier)
+
+runHipps(cdm, outputFolder, continue = T)
+list.files(outputFolder)
+df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))
+
+library(dplyr)
+df |>
+  filter(person_id == 28) |>
+  mutate_all(as.character) |>
+  # slice(1) |>
+  tidyr::gather() |>
+  print(n=100)
+
+
+cdm$pregnancy_extension |>
+  filter(person_id == 22)
+
+
+
+
