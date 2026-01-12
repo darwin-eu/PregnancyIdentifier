@@ -128,6 +128,11 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
     logger = logger
   )
 
+  # apply study period
+  merged_episodes_with_metadata_df <- merged_episodes_with_metadata_df %>%
+    filter((inferred_episode_start >= startDate | is.na(inferred_episode_start)) &
+             (inferred_episode_end <= endDate | is.na(inferred_episode_end)))
+
   outputPath <- file.path(outputDir, "identified_pregancy_episodes.rds")
 
   saveRDS(merged_episodes_with_metadata_df, outputPath)
