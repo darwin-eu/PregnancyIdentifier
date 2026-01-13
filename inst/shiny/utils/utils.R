@@ -48,13 +48,19 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
 
     # add version number to cdm_name
     version <- NULL
-    if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
+    if ("pkg_version" %in% colnames(data)) {
+      version <- data %>% dplyr::pull("pkg_version") %>% unique()
+      version <- paste0("_v", as.numeric(substr(version, 1, 1)))
+      data <- data %>% dplyr::select(-"pkg_version")
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
     } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2025-12-30"))) {
       version <- "_v2"
     }
+
     data <- data %>%
       dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
+      dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
       dplyr::mutate(cdm_name = paste0(cdm_name, version))
 
     if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
@@ -98,7 +104,7 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
     geom_line() +
     geom_point() +
     labs(x = xLabel, y = "Count (N)") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 6))
 
   if (!is.null(facetVar)) {
     p <- p + facet_wrap(as.formula(paste("~", facetVar)))
@@ -110,7 +116,9 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
   plotly::ggplotly(p)
 }
 
-barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, facetVector = NULL, label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunction = NULL,
+                    label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL,
+                    rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL) {
   p <- ggplot(data = data,
               mapping = aes_string(x = xVar, y = yVar, label = label))
 
@@ -123,15 +131,10 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, facetVect
                       mapping = aes_string(fill = fillVar))
   }
   if (!is.null(facetVar)) {
-    if (is.null(facetVector)) {
+    if (is.null(labelFunction)) {
       p <- p + facet_wrap(as.formula(paste("~", facetVar)))
     } else {
-      plot_labeller <- function(variable, value) {
-        perc <- data %>% dplyr::filter(freq == 1, cdm_name == .env$value) %>% dplyr::pull(perc)
-        result <- glue::glue("{value} - first pregnancy {perc}%")
-        return(result)
-      }
-      p <- p + facet_wrap(as.formula(paste("~", facetVar)), labeller = plot_labeller)
+      p <- p + facet_wrap(as.formula(paste("~", facetVar)), labeller = labelFunction)
     }
   }
 
@@ -140,7 +143,8 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, facetVect
   }
   if (rotateAxisText) {
     p <- p + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-          plot.title = element_text(hjust = 0.5))
+                   plot.title = element_text(hjust = 0.5),
+                   strip.text = element_text(size = facetTextSize))
   }
   if (!is.null(ggtitle)) {
     p <- p + ggtitle(title)
@@ -148,10 +152,15 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, facetVect
   if (flipCoordinates) {
     p <- p + coord_flip()
   }
+  if (!is.null(verticalLinesPos)) {
+    for (pos in verticalLinesPos) {
+      p <- p + geom_vline(xintercept = pos, colour = "red")
+    }
+  }
   plotly::ggplotly(p)
 }
 
-boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
+boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, gg_plot = FALSE) {
   plotData <- data
   if (transform) {
     # assume we have a column per DP, next to the first column
@@ -165,24 +174,39 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
       }))
   }
 
-  p <- NULL
-  if (is.null(colorVar)) {
-    p <- plot_ly(data = plotData,
-                 x = ~ cdm_name)
+  if (gg_plot) {
+    plotData <- plotData %>%
+      dplyr::mutate(min = as.numeric(min),
+                    Q25 = as.numeric(Q25),
+                    mean = as.numeric(mean),
+                    Q75 = as.numeric(Q75),
+                    max = as.numeric(max),
+                    x = 1)
+
+    ggplot(plotData, aes(x)) +
+      geom_boxplot(aes(ymin = min, lower = Q25, middle = mean, upper = Q75, ymax = max),
+                   stat = "identity") +
+      facet_wrap(~ cdm_name)
   } else {
-    p <- plot_ly(data = plotData,
-                 x = ~ cdm_name,
-                 color = ~ get(colorVar))
+    p <- NULL
+    if (is.null(colorVar)) {
+      p <- plot_ly(data = plotData,
+                   x = ~ cdm_name)
+    } else {
+      p <- plot_ly(data = plotData,
+                   x = ~ cdm_name,
+                   color = ~ get(colorVar))
+    }
+    p %>%
+      add_boxplot(
+        lowerfence = ~ min,
+        q1 = ~ Q25,
+        median = ~ median,
+        mean = ~ mean,
+        sd = ~ sd,
+        q3 = ~ Q75,
+        upperfence = ~ max)
   }
-  p %>%
-    add_boxplot(
-      lowerfence = ~ min,
-      q1 = ~ Q25,
-      median = ~ median,
-      mean = ~ mean,
-      sd = ~ sd,
-      q3 = ~ Q75,
-      upperfence = ~ max)
 }
 
 customDarwinFooter <- function() {

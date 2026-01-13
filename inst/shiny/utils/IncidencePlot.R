@@ -240,10 +240,12 @@ IncidencePlot <- R6::R6Class(
     },
     initPickers = function() {
       # cdm
+      allDP <- unique(private$.tidyData$database)
+      allDP <- allDP[order(allDP)]
       private$.pickers[["cdm"]] <- InputPanel$new(
         funs = list(cdm = shinyWidgets::pickerInput),
         args = list(cdm = list(
-          inputId = "cdm", label = "Database", choices = unique(private$.tidyData$database), selected = unique(private$.tidyData$database), multiple = TRUE,
+          inputId = "cdm", label = "Database", choices = allDP, selected = allDP, multiple = TRUE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"
