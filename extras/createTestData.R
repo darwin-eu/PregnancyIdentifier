@@ -9,8 +9,6 @@ TestGenerator::readPatients.xl(
 )
 
 
-# devtools::install_github("darwin-eu-dev/Pregnancy")
-
 cdm <- TestGenerator::patientsCDM(
   pathJson = system.file("testCases", package = "PregnancyIdentifier"),
   testName = 'TestData_P4_C5_002_1',
@@ -19,15 +17,8 @@ cdm <- TestGenerator::patientsCDM(
 )
 
 
-# library(CDMConnector)
-
-
-cdm$procedure_occurrence
-
 outputFolder <- file.path(tempdir(), "testHipps")
-
-dir.create(outputFolder)
-library(PregnancyIdentifier)
+dir.create
 
 runHipps(cdm, outputFolder, continue = T)
 list.files(outputFolder)
@@ -41,9 +32,6 @@ df |>
   tidyr::gather() |>
   print(n=100)
 
-
-cdm$pregnancy_extension |>
-  filter(person_id == 22)
 
 
 
