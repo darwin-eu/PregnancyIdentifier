@@ -64,14 +64,16 @@ EpisodeConstructionModule <- R6::R6Class(
         data <- NULL
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
+            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name) %>%
+            dplyr::arrange(cdm_name) %>%
+            dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp)))
         } else {
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
             dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
         }
-        return(data)
+      return(data)
       })
 
       getPlotData <- reactive({
@@ -79,6 +81,7 @@ EpisodeConstructionModule <- R6::R6Class(
         if (private$.convertDataForPlot) {
           data <- data %>%
             tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
+            dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp))) %>%
             dplyr::mutate(value = as.numeric(value))
         }
         return(data)
@@ -102,7 +105,7 @@ EpisodeConstructionModule <- R6::R6Class(
                           label = private$.label,
                           position = "stack",
                           xLabel = "cdm_name",
-                          yLabel = "Pct",
+                          yLabel = private$.yVar,
                           title = private$.title,
                           rotateAxisText = TRUE,
                           flipCoordinates = TRUE)

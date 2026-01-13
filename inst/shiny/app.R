@@ -44,13 +44,16 @@ for (i in 1:length(zipFiles)) {
 }
 # formatting
 dbinfo <- cdmSource %>%
-  dplyr::select_if(~ !all(is.na(.)))
+  dplyr::select_if(~ !all(is.na(.))) %>%
+  dplyr::arrange(cdm_name)
 
 gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
 
 swappedDates <- dataToLong(swappedDates)
 ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
-dateConsistancy <- dataToLong(dateConsistancy)
+numRound <- function(x) { round(100*as.numeric(x), 2) }
+dateConsistancy <- dataToLong(dateConsistancy) %>%
+  dplyr::mutate(across(!name, numRound))
 
 observationPeriodRange <- dataToLong(observationPeriodRange)
 
@@ -82,32 +85,40 @@ pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
                 total = as.numeric(total),
                 pct = as.numeric(pct))
 
-summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary) {
+summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary, label = NULL) {
+  if (is.null(label)) {
+    label <- glue::glue("{lowerBoundary}-{upperBoundary}")
+  }
   data %>%
-    dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks <= upperBoundary) %>%
+    dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks < upperBoundary) %>%
     dplyr::select(-"gestational_weeks") %>%
     dplyr::group_by(cdm_name) %>%
     dplyr::summarise(n = sum(n),
                      pct = sum(pct)) %>%
     dplyr::ungroup() %>%
-    dplyr::mutate(gestational_weeks = glue::glue("{lowerBoundary}-{upperBoundary}"), .after = "cdm_name")
+    dplyr::mutate(gestational_weeks = label, .after = "cdm_name")
 }
 
 gestationalWeeks <- gestationalWeeks %>%
-  dplyr::filter(gestational_weeks > 0) %>%
+  #dplyr::filter(gestational_weeks > 0) %>%
   dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
                 n = as.numeric(n),
                 pct = as.numeric(pct))
 maxWeeks <- round(max(gestationalWeeks$gestational_weeks, na.rm = T), -2)
-gestationalWeeksSummary <- rbind(gestationalWeeks %>% dplyr::filter(gestational_weeks <=50),
-                                 summariseGestationalWeeks(gestationalWeeks, 51, 100))
-intervals <- seq(100, maxWeeks, 100)
-gestationalWeeksSummary <- rbind(gestationalWeeksSummary,
-                                 do.call("rbind", lapply(intervals, FUN = function(weeks) {
-                                   summariseGestationalWeeks(gestationalWeeks, weeks+1, weeks+100)
-                                 })))
-gestationalWeeksSummary <- gestationalWeeksSummary %>%
-  dplyr::mutate(gestational_weeks = factor(x = gestational_weeks, levels = unique(gestationalWeeksSummary$gestational_weeks)))
+
+gestationalWeeksSummary <- gestationalWeeks %>%
+  dplyr::mutate(pct = round(pct, 1))
+
+gestationalWeeksBinned <- rbind(summariseGestationalWeeks(gestationalWeeks, 0, 12, "<12"),
+                                summariseGestationalWeeks(gestationalWeeks, 12, 28),
+                                summariseGestationalWeeks(gestationalWeeks, 28, 32),
+                                summariseGestationalWeeks(gestationalWeeks, 32, 37),
+                                summariseGestationalWeeks(gestationalWeeks, 37, 42),
+                                summariseGestationalWeeks(gestationalWeeks, 42, maxWeeks, ">42"))
+
+gestationalWeeksBinned <- gestationalWeeksBinned %>%
+  dplyr::mutate(gestational_weeks = factor(gestational_weeks, levels = c("<12", "12-28", "28-32", "32-37", "37-42", ">42")),
+                pct = round(pct, 1))
 
 # trend data
 yearlyTrend <- yearlyTrend %>%
@@ -141,6 +152,7 @@ outcomeCategoriesCount <- outcomeCategoriesCount %>%
 
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)
+allDP <- allDP[order(allDP)]
 defaultPlotHeight <- "400px"
 plotHeight <- "600px"
 
@@ -158,7 +170,7 @@ appStructure <- list(
   ),
   "Episode duration" = list(
     "Gestational age weeks" = handleEmptyResult(object = GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts, dp = allDP), result = gestationalWeeksSummary),
-    "Gestational age binned" = DarwinShinyModules::Text$new(markdown = "TODO"),
+    "Gestational age binned" = handleEmptyResult(object = GestationalAgeModule$new(data = gestationalWeeksBinned, dp = allDP, maxWeeksFilter = FALSE), result = gestationalWeeksSummary),
     "Gestational age days per category" = handleEmptyResult(object = GestationalAgeDaysPerCategoryModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP), result = gestationalAgeDaysPerCategorySummary),
     "Temporal patterns" = handleEmptyResult(object = TemporalPatternsModule$new(data = trendData, missingData = trendDataMissing, dp = allDP), result = trendData)
   ),

@@ -86,7 +86,8 @@ EpisodeFrequencyModule <- R6::R6Class(
                           xVar = "name",
                           yVar = "value",
                           fillVar = "name",
-                          facetVar = "cdm_name")
+                          facetVar = "cdm_name",
+                          rotateAxisText = TRUE)
         }
         return(plot)
       })

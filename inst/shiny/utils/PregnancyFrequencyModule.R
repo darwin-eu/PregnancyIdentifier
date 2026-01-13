@@ -92,17 +92,25 @@ PregnancyFrequencyModule <- R6::R6Class(
             dplyr::mutate(label = glue::glue("{perc}% first, {round(100-perc, 2)}% multiple pregnancies")) %>%
             dplyr::select(cdm_name, label)
 
+          plot_labeller <- function(variable, value) {
+            perc <- data %>% dplyr::filter(freq == 1, cdm_name == .env$value) %>% dplyr::pull(perc) %>% round(digits = 1)
+            perc2 <- round(100 - perc, digits = 1)
+            result <- glue::glue("{value} - 1: {perc}%, ≥1: {perc2}%")
+            return(result)
+          }
+
           plot <- barPlot(data = data,
                           xVar = "freq",
                           yVar = "value",
                           fillVar = "freq",
                           facetVar = "cdm_name",
-                          facetVector = facetVector,
+                          labelFunction = plot_labeller,
                           xLabel = "Freq",
                           yLabel = "Count",
                           title = "Pregnancy frequency",
                           rotateAxisText = TRUE,
-                          flipCoordinates = FALSE)
+                          flipCoordinates = FALSE,
+                          facetTextSize = 7)
         }
         return(plot)
       })

@@ -48,6 +48,15 @@ TemporalPatternsModule <- R6::R6Class(
                                                     options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
                                                   growDirection = "horizontal")
       private$.inputPanelColumn$parentNamespace <- self$namespace
+
+      private$.inputPanelMinYear <- InputPanel$new(fun = list(min_year = shiny::sliderInput),
+                                                    args = list(min_year = list(
+                                                      inputId = "min_year", label = "Min year",
+                                                      min = min(as.numeric(private$.data$value), na.rm = T),
+                                                      max = max(as.numeric(private$.data$value), na.rm = T),
+                                                      value = 2000)),
+                                                    growDirection = "horizontal")
+      private$.inputPanelMinYear$parentNamespace <- self$namespace
     }
   ),
 
@@ -61,12 +70,14 @@ TemporalPatternsModule <- R6::R6Class(
     .inputPanelCDM = NULL,
     .inputPanelPeriod = NULL,
     .inputPanelColumn = NULL,
+    .inputPanelMinYear = NULL,
 
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
         private$.inputPanelPeriod$UI(),
         private$.inputPanelColumn$UI(),
+        private$.inputPanelMinYear$UI(),
         shiny::tabsetPanel(
           id = shiny::NS(private$.namespace, "tabsetPanel"),
           type = "tabs",
@@ -91,6 +102,7 @@ TemporalPatternsModule <- R6::R6Class(
       private$.inputPanelCDM$server(input, output, session)
       private$.inputPanelPeriod$server(input, output, session)
       private$.inputPanelColumn$server(input, output, session)
+      private$.inputPanelMinYear$server(input, output, session)
 
       getData <- reactive({
         data <-  private$.data %>%
@@ -98,6 +110,10 @@ TemporalPatternsModule <- R6::R6Class(
           dplyr::filter(.data$period %in% private$.inputPanelPeriod$inputValues$period) %>%
           dplyr::filter(.data$column %in% private$.inputPanelColumn$inputValues$column)
 
+        if (private$.inputPanelPeriod$inputValues$period == "year") {
+          data <- data %>%
+            dplyr::filter(as.numeric(.data$value) >= private$.inputPanelMinYear$inputValues$min_year)
+        }
         return(data)
       })
 
@@ -113,6 +129,7 @@ TemporalPatternsModule <- R6::R6Class(
       # handle updates
       shiny::observeEvent(c(private$.inputPanelCDM$inputValues$cdm_name,
                             private$.inputPanelPeriod$inputValues$period,
+                            private$.inputPanelMinYear$inputValues$min_year,
                             private$.inputPanelColumn$inputValues$column), {
 
         private$.table$data <- getData()
