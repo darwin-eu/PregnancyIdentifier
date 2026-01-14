@@ -1,6 +1,6 @@
 test_that("Outcome category is correct", {
 
-  library(dplyr, warn.conflicts = F)
+  library(dplyr, warn.conflicts = FALSE)
 
   suppressMessages({
     cdm <- TestGenerator::patientsCDM(
@@ -17,7 +17,7 @@ test_that("Outcome category is correct", {
   }
 
 
-  invisible(capture.output(runHipps(cdm, outputFolder, continue = F)))
+  invisible(capture.output(runHipps(cdm, outputFolder, continue = FALSE)))
 
   CDMConnector::cdmDisconnect(cdm)
 

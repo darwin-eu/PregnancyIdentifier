@@ -5,7 +5,7 @@ TestGenerator::readPatients.xl(
   here::here("extras/TestData_P4_C5_002.1.xlsx"),
   outputPath = here::here("inst/testCases"),
   testName = "TestData_P4_C5_002_1",
-  extraTable = T
+  extraTable = TRUE
 )
 
 
@@ -20,7 +20,7 @@ cdm <- TestGenerator::patientsCDM(
 outputFolder <- file.path(tempdir(), "testHipps")
 dir.create
 
-runHipps(cdm, outputFolder, continue = T)
+runHipps(cdm, outputFolder, continue = FALSE)
 list.files(outputFolder)
 df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))
 
