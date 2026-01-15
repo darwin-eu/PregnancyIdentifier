@@ -16,10 +16,16 @@ cdm <- TestGenerator::patientsCDM(
   cdmName = "TestData_P4_C5_002_1"
 )
 
+library(CDMConnector)
+library(dplyr)
+cdm <- cdmSubset(cdm, personId = 28L)
+
+cdm$condition_occurrence |>
+  select(1:4, condition_source_value)
 
 outputFolder <- file.path(tempdir(), "testHipps")
-dir.create
 
+debugonce(runHipps)
 runHipps(cdm, outputFolder, continue = FALSE)
 list.files(outputFolder)
 df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))

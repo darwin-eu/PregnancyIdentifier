@@ -462,7 +462,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 2,
@@ -472,7 +472,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 3,
@@ -482,7 +482,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 4,
@@ -492,7 +492,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 5,
@@ -502,7 +502,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 6,
@@ -512,7 +512,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 7,
@@ -522,7 +522,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 8,
@@ -532,7 +532,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 9,
@@ -542,7 +542,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 10,
@@ -552,7 +552,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 11,
@@ -562,7 +562,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 12,
@@ -572,7 +572,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 13,
@@ -582,7 +582,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 14,
@@ -592,7 +592,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 25 weeks"
+      "condition_source_value": "Gestation period, 25 weeks"
     },
     {
       "condition_occurrence_id": 15,
@@ -602,7 +602,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 16,
@@ -612,7 +612,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Stillbrith"
+      "condition_source_value": "Stillbrith"
     },
     {
       "condition_occurrence_id": 21,
@@ -622,7 +622,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 22,
@@ -632,7 +632,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 23,
@@ -642,7 +642,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 24,
@@ -652,7 +652,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 25,
@@ -662,7 +662,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 20 weeks"
+      "condition_source_value": "Gestation period, 20 weeks"
     },
     {
       "condition_occurrence_id": 26,
@@ -672,7 +672,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 32 weeks"
+      "condition_source_value": "Gestation period, 32 weeks"
     },
     {
       "condition_occurrence_id": 27,
@@ -682,7 +682,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single stillbirth"
+      "condition_source_value": "Single stillbirth"
     },
     {
       "condition_occurrence_id": 28,
@@ -692,7 +692,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 29,
@@ -702,7 +702,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 30,
@@ -712,7 +712,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 8 weeks"
+      "condition_source_value": "Gestation period, 8 weeks"
     },
     {
       "condition_occurrence_id": 31,
@@ -722,17 +722,17 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Ectopic pregnancy"
+      "condition_source_value": "Ectopic pregnancy"
     },
     {
       "condition_occurrence_id": 32,
       "person_id": 25,
       "condition_concept_id": 4094910,
-      "condition_start_date": "2023-11-25",
+      "condition_start_date": "2021-11-25",
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 33,
@@ -742,17 +742,17 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 12 weeks"
+      "condition_source_value": "Gestation period, 12 weeks"
     },
     {
       "condition_occurrence_id": 34,
       "person_id": 25,
-      "condition_concept_id": 437611,
+      "condition_concept_id": 4081422,
       "condition_start_date": "2021-02-10",
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Elective termination of pregnancy"
+      "condition_source_value": "Elective termination of pregnancy"
     },
     {
       "condition_occurrence_id": 35,
@@ -762,7 +762,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 36,
@@ -772,7 +772,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 8 weeks"
+      "condition_source_value": "Gestation period, 8 weeks"
     },
     {
       "condition_occurrence_id": 37,
@@ -782,7 +782,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Miscarriage"
+      "condition_source_value": "Miscarriage"
     },
     {
       "condition_occurrence_id": 38,
@@ -792,7 +792,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 12 weeks"
+      "condition_source_value": "Gestation period, 12 weeks"
     },
     {
       "condition_occurrence_id": 39,
@@ -802,7 +802,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 20 weeks"
+      "condition_source_value": "Gestation period, 20 weeks"
     },
     {
       "condition_occurrence_id": 40,
@@ -812,7 +812,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 41,
@@ -822,7 +822,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 40 weeks"
+      "condition_source_value": "Gestation period, 40 weeks"
     },
     {
       "condition_occurrence_id": 42,
@@ -832,7 +832,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 43,
@@ -842,7 +842,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Miscarriage"
+      "condition_source_value": "Miscarriage"
     },
     {
       "condition_occurrence_id": 44,
@@ -852,7 +852,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 8 weeks"
+      "condition_source_value": "Gestation period, 8 weeks"
     },
     {
       "condition_occurrence_id": 45,
@@ -862,7 +862,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 46,
@@ -872,7 +872,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 47,
@@ -882,7 +882,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 40 weeks"
+      "condition_source_value": "Gestation period, 40 weeks"
     },
     {
       "condition_occurrence_id": 48,
@@ -892,7 +892,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Miscarriage"
+      "condition_source_value": "Miscarriage"
     },
     {
       "condition_occurrence_id": 49,
@@ -902,7 +902,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 50,
@@ -912,7 +912,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 40 weeks"
+      "condition_source_value": "Gestation period, 40 weeks"
     },
     {
       "condition_occurrence_id": 51,
@@ -922,7 +922,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 52,
@@ -932,7 +932,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Stillbrith"
+      "condition_source_value": "Stillbrith"
     },
     {
       "condition_occurrence_id": 53,
@@ -942,7 +942,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 40 weeks"
+      "condition_source_value": "Gestation period, 40 weeks"
     },
     {
       "condition_occurrence_id": 54,
@@ -952,7 +952,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 20 weeks"
+      "condition_source_value": "Gestation period, 20 weeks"
     },
     {
       "condition_occurrence_id": 55,
@@ -962,7 +962,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 56,
@@ -972,7 +972,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 12 weeks"
+      "condition_source_value": "Gestation period, 12 weeks"
     },
     {
       "condition_occurrence_id": 57,
@@ -982,7 +982,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 58,
@@ -992,7 +992,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 12 weeks"
+      "condition_source_value": "Gestation period, 12 weeks"
     },
     {
       "condition_occurrence_id": 59,
@@ -1002,7 +1002,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Pregnancy test positive"
+      "condition_source_value": "Pregnancy test positive"
     },
     {
       "condition_occurrence_id": 64,
@@ -1012,7 +1012,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Single live birth"
+      "condition_source_value": "Single live birth"
     },
     {
       "condition_occurrence_id": 65,
@@ -1022,7 +1022,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 40 weeks"
+      "condition_source_value": "Gestation period, 40 weeks"
     }
   ],
   "observation": [
