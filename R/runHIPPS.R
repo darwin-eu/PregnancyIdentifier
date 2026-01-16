@@ -1,17 +1,3 @@
-uploadConceptSets <- function(cdm, logger) {
-  HIP_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
-  cdm <- CDMConnector::insertTable(cdm = cdm, name = "hip_concepts", table = HIP_concepts)
-
-  log4r::info(logger, "Inserted HIP concepts")
-
-
-
-
-
-
-  return(cdm)
-}
-
 makeLogger <- function(outputDir) {
   logFile <- file.path(outputDir, "log.txt")
   file.create(logFile)
