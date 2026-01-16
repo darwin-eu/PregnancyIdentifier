@@ -2,20 +2,19 @@
 % Please edit documentation in R/HIP.R
 \name{runHip}
 \alias{runHip}
-\title{runHip}
+\title{Run the HIP pregnancy identification algorithm}
 \usage{
 runHip(
   cdm,
-  outputDir,
+  outputDir = NULL,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   justGestation = TRUE,
-  logger,
-  ...
+  logger = NULL
 )
 }
 \arguments{
-\item{cdm}{(`cdm_reference`) A CDM-Reference object from CDMConnector.}
+\item{cdm}{(`cdm_reference`) A cdm reference object from CDMConnector.}
 
 \item{outputDir}{(`character(1)`) Output directory to write output to.}
 
@@ -23,15 +22,34 @@ runHip(
 
 \item{endDate}{(`Date(1)`: `Sys.Date()`) End date of data to use. By default today.}
 
-\item{justGestation}{(`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?}
+\item{justGestation}{(`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be considered?}
 
-\item{logger}{(`logger`) Logger object.}
-
-\item{...}{Dev params}
+\item{logger}{(`logger`) A log4r logger object.}
 }
 \value{
-cdm object
+The input cdm object with cdm$preg_hip_episodes table added.
+Columns of this table are:
+- person_id: Unique person identifier
+- gest_date: ?
+- category: HIP pregnancy outcome category
+- visit_date: Date of the pregnancy outcome (i.e. pregnancy end date)
+- estimated_start_date
+- episode: number of the episode within person_id (1=first, 2=second, etc.)
+- gest_flag: Were gestational age concepts found in the episode? yes or no
+- episode_length: length of the episode in days
 }
 \description{
-Runs the HIP
+This function runs the HIP outcome based pregnancy identification algorithm.
+It assumes that the `initPregnancies` function has already been run and the
+preg_initial_cohort and preg_hip_concepts tables are in the cdm. The algorithm
+identifies start and end dates for pregnancies by first prioritizing pregnancy
+outcomes and then using inference to set a pregnancy start date. Each pregnancy
+is classified into one of several categories.
+- "LB": Live birth
+- "SB": Still birth
+- "AB": abortion,
+- "SA": miscarriage,
+- "DELIV": unspecified delivery
+- "ECT": ectopic pregnancy
+- "PREG": unspecified delivery
 }

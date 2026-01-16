@@ -2,8 +2,10 @@
 
 export("%>%")
 export(export)
+export(initPregnancies)
 export(insertPregnancyEpisodesTable)
 export(mergeHipPps)
+export(mockPregnancyCdm)
 export(runEsd)
 export(runHip)
 export(runHipps)

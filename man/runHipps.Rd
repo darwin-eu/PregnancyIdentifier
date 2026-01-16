@@ -9,8 +9,7 @@ runHipps(
   outputDir,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
-  justGestation = TRUE,
-  ...
+  justGestation = TRUE
 )
 }
 \arguments{
@@ -23,8 +22,6 @@ runHipps(
 \item{endDate}{(`Date(1)`: `Sys.Date()`) End date of data to use. By default today.}
 
 \item{justGestation}{(`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?}
-
-\item{...}{Dev params}
 }
 \value{
 `NULL`
