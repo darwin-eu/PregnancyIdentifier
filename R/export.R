@@ -14,7 +14,7 @@
 #' @noRd
 exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
   concepts <- read.csv(system.file(package = "PregnancyIdentifier", "concepts/check_concepts.csv"))
-
+  personIds <- res$person_id %>% unique() %>% as.integer()
   totalEpisodes <- nrow(res)
 
   conceptsPerEpisodes <- cdm$condition_occurrence %>%
@@ -42,7 +42,7 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
           concept_end = "observation_date"
         )
     ) %>%
-    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
+    dplyr::filter(.data$person_id %in% local(personIds)) %>%
     dplyr::filter(.data$concept_id %in% concepts$concept_id) %>%
     dplyr::collect()
 
@@ -98,11 +98,13 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
 }
 
 addAge <- function(cdm, res) {
+  personIds <- res$person_id %>% unique() %>% as.integer()
   cdm$person %>%
     dplyr::select("person_id", "gender_concept_id", "birth_datetime", "year_of_birth") %>%
-    dplyr::mutate(birth_datetime = dplyr::if_else(is.na(birth_datetime), as.Date(paste0(as.character(year_of_birth), "-01-01")), birth_datetime))
-    dplyr::right_join(res, by = c("person_id" = "person_id"), copy = TRUE) %>%
+    dplyr::mutate(birth_datetime = dplyr::if_else(is.na(birth_datetime), as.Date(paste0(as.character(year_of_birth), "-01-01")), birth_datetime)) %>%
+    dplyr::filter(person_id %in% local(personIds)) %>%
     dplyr::collect() %>%
+    dplyr::right_join(res, by = "person_id") %>%
     dplyr::mutate(age_pregnancy_start = as.Date(inferred_episode_start) - as.Date(birth_datetime)) %>%
     dplyr::mutate(
       age_pregnancy_start = as.numeric(.data$age_pregnancy_start)
