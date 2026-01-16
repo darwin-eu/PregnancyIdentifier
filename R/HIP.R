@@ -1,37 +1,61 @@
-cdmTableExists <- function(cdm, tableName, attach = TRUE) {
-  DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = "initial_pregnant_cohort_df")
-}
-
-#' runHip
+#' Run the HIP pregnancy identification algorithm
 #'
-#' Runs the HIP
+#' This function runs the HIP outcome based pregnancy identification algorithm.
+#' It assumes that the `initPregnancies` function has already been run and the
+#' preg_initial_cohort and preg_hip_concepts tables are in the cdm. The algorithm
+#' identifies start and end dates for pregnancies by first prioritizing pregnancy
+#' outcomes and then using inference to set a pregnancy start date. Each pregnancy
+#' is classified into one of several categories.
+#' - "LB": Live birth
+#' - "SB": Still birth
+#' - "AB": abortion,
+#' - "SA": miscarriage,
+#' - "DELIV": unspecified delivery
+#' - "ECT": ectopic pregnancy
+#' - "PREG": unspecified delivery
 #'
-#' @param cdm (`cdm_reference`) A CDM-Reference object from CDMConnector.
+#'
+#' @param cdm (`cdm_reference`) A cdm reference object from CDMConnector.
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
-#' @param logger (`logger`) Logger object.
-#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
-#' @param ... Dev params
+#' @param logger (`logger`) A log4r logger object.
+#' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be considered?
 #'
-#' @returns cdm object
+#' @returns The input cdm object with cdm$preg_hip_episodes table added.
+#' Columns of this table are:
+#' - person_id: Unique person identifier
+#' - gest_date: ?
+#' - category: HIP pregnancy outcome category
+#' - visit_date: Date of the pregnancy outcome (i.e. pregnancy end date)
+#' - estimated_start_date
+#' - episode: number of the episode within person_id (1=first, 2=second, etc.)
+#' - gest_flag: Were gestational age concepts found in the episode? yes or no
+#' - episode_length: length of the episode in days
 #'
 #' @export
-runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger, ...) {
-  log4r::info(logger, "START Running HIP")
+runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger = NULL) {
 
-  dots <- list(...)
-  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-  ## Outcome-based episodes
+  checkmate::assertClass(cdm, "cdm_reference")
+  checkmate::assertCharacter(outputDir, len = 1, null.ok = TRUE, any.missing = FALSE)
+  checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
+  checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
+  checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
+  checkmate::assertClass(logger, "logger", null.ok = TRUE)
 
-  # get initial cohort based on hip_concepts
-  # this returns a dataset with person_id, concept_id, visit_date, domain, etc.
-  # for all the the HIP concepts that for women who were 15-55
-  cdm <- cdm %>%
-    initial_pregnant_cohort(startDate = startDate, endDate = endDate, continue = dots$continue)
+  if (!is.null(outputDir)) {
+    dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+    checkmate::assertDirectoryExists(outputDir)
+  }
 
-  if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
-    log4r::warn(logger, "No records after initializing pregnant cohort")
+  logInfo(logger, "START Running HIP")
+
+  if  (!("preg_initial_cohort" %in% names(cdm))) {
+    rlang::abort("preg_initial_cohort is not in the cdm! Run `initPregnancies` function first.")
+  }
+
+  if (getTblRowCount(cdm$preg_initial_cohort) == 0) {
+    logWarn(logger, "No records after initializing pregnancy cohort")
     return(cdm)
   }
 
@@ -49,8 +73,18 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
     "LB"
   )
 
+  logInfo(logger,"Inserting matcho_outcome_limits table into cdm")
+  matcho_outcome_limits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx"))
+  cdm <- CDMConnector::insertTable(
+    cdm = cdm,
+    name = "matcho_outcome_limits",
+    table = matcho_outcome_limits,
+    overwrite = TRUE,
+    temporary = FALSE
+  )
+
   for (i in seq_len(length(categories))) {
-    log4r::info(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
+    logInfo(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cdm <- final_visits(
       cdm,
       categories = categories[[i]],
@@ -61,24 +95,34 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
 
   # add stillbirth episodes to livebirth episodes
   # after making sure they are sufficiently spaced
-  log4r::info(logger, "Adding Still Birth")
+  logInfo(logger, "Adding Still Birth")
   cdm <- add_stillbirth(cdm)
 
   # add ectopic episodes to previous
-  log4r::info(logger, "Adding Ectopic")
+  logInfo(logger,"Adding Ectopic")
   cdm <- add_ectopic(cdm)
 
   # add abortion episodes to previous
-  log4r::info(logger, "Adding Abortion")
+  logInfo(logger,"Adding Abortion")
   cdm <- add_abortion(cdm)
 
   # add delivery-only episodes to previous
-  log4r::info(logger, "Adding Delivery")
+  logInfo(logger,"Adding Delivery")
   cdm <- add_delivery(cdm, logger = logger)
 
   # calculate start of pregnancies based on outcomes
   # min start date = latest possible start date if shortest term
   # max start date = earliest possible start date if max term
+
+  logInfo(logger, "Inserting Matcho term durations")
+  matcho_term_durations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
+  cdm <- CDMConnector::insertTable(
+    cdm = cdm,
+    name = "matcho_term_durations",
+    table = matcho_term_durations,
+    overwrite = TRUE,
+    temporary = FALSE
+  )
   cdm <- calculate_start(cdm)
 
   ## Gestation-based episodes
@@ -86,8 +130,9 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
   # now go back to the initial set of concepts and find ones with gestation weeks
   cdm <- gestation_visits(cdm)
 
-  # identify the start of episodes based on the difference in time between gestational age-related concepts
-  # and the actual difference in days
+  # Identify the start of episodes based on the difference in time between gestational age-related concepts
+  # and the actual difference in days.
+  # Needs cdm$preg_initial_cohort
   cdm <- gestation_episodes(cdm)
 
   # get various mins and maxes of gestational age and dates
@@ -111,9 +156,59 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
   # based on the date of the first gestation record and the visit date
   cdm <- final_episodes_with_length(cdm)
 
-  cdm$hip_episodes %>%
-    dplyr::collect() %>%
-    saveRDS(file.path(outputDir, "HIP_episodes.rds"))
+  if (!is.null(outputDir)) {
+    cdm$preg_hip_episodes %>%
+      dplyr::collect() %>%
+      saveRDS(file.path(outputDir, "HIP_episodes.rds"))
+  }
+
+  cdm <- omopgenerics::dropSourceTable(
+    cdm,
+    c("add_abortion_df",
+      "add_abortion_df_rev",
+      "add_delivery_df",
+      "add_ectopic_df",
+      "add_gestation_df",
+      "add_stillbirth_df",
+      "both_df",
+      "calculate_start_df",
+      "clean_episodes_df",
+      "df",
+      "final_ab_sa_visits_df",
+      "final_deliv_visits_df",
+      "final_df",
+      "final_ect_visits_df",
+      "final_episodes_df",
+      "final_lb_visits_df",
+      "final_sb_visits_df",
+      "final_temp_df",
+      "gest_df",
+      "gestation_episodes_df",
+      "gestation_visits_df",
+      "get_min_max_gestation_df",
+      "hip_episodes",
+      "just_gestation_df",
+      "just_outcome_df",
+      "matcho_outcome_limits",
+      "matcho_term_durations",
+      "merged",
+      "neg_days_df",
+      "new_end_df",
+      "new_first_df",
+      "new_max_df",
+      "new_min_df",
+      "over_max_df",
+      "overlap_df",
+      "pregnancy_extension",
+      "remove_overlaps_df",
+      "second_min_df",
+      "temp_df",
+      "temp_end_df",
+      "temp_max_df",
+      "temp_min_df",
+      "under_min_df"
+    )
+  )
 
   return(cdm)
 }
@@ -140,117 +235,10 @@ runHip <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = 
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/HIP_algorithm_functions.R
 
-initial_pregnant_cohort <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), continue = FALSE) {
-  if (cdmTableExists(cdm, "initial_pregnant_cohort_df") & continue) {
-    cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
-    return(cdm)
-  }
-
-  cdm$observation_df <- cdm$observation %>%
-    dplyr::filter(
-      .data$observation_date >= startDate,
-      .data$observation_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "observation_concept_id",
-      visit_date = "observation_date",
-      "value_as_number"
-    ) %>%
-    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  cdm$measurement_df <- cdm$measurement %>%
-    dplyr::filter(
-      .data$measurement_date >= startDate,
-      .data$measurement_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "measurement_concept_id",
-      visit_date = "measurement_date",
-      "value_as_number"
-    ) %>%
-    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  cdm$procedure_df <- cdm$procedure_occurrence %>%
-    dplyr::filter(
-      .data$procedure_date >= startDate,
-      .data$procedure_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "procedure_concept_id",
-      visit_date = "procedure_date"
-    ) %>%
-    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  # filter condition table
-  cdm$condition_df <- cdm$condition_occurrence %>%
-    dplyr::filter(
-      .data$condition_start_date >= startDate,
-      .data$condition_start_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "condition_concept_id",
-      visit_date = "condition_start_date"
-    ) %>%
-    dplyr::inner_join(cdm$hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  # combine tables
-  all_dfs <- list(cdm$measurement_df, cdm$procedure_df, cdm$observation_df, cdm$condition_df)
-  cdm$union_df <- purrr::reduce(all_dfs, dplyr::union_all) %>%
-    dplyr::compute()
-
-  # get unique person ids for women of reproductive age
-  cdm$person_df <- cdm$person %>%
-    dplyr::filter(
-      # 45878463: Female
-      # 46273637: Intersex
-      # 45880669: Male
-      # 1177221: I prefer not to answer
-      # 903096: Skip
-      # 4124462: None
-      # TODO: Add option to specify specific column and/or concept ID(s)
-      .data$gender_concept_id == 8532
-      # .data$sex_at_birth_concept_id != 45880669
-      # the majority of the people in the other non-Female or Male categories
-      # also report female gender
-    ) %>%
-    dplyr::mutate(
-      day_of_birth = as.integer(dplyr::if_else(is.na(.data$day_of_birth), 1L, .data$day_of_birth)),
-      month_of_birth = as.integer(dplyr::if_else(is.na(.data$month_of_birth), 1L, .data$month_of_birth)),
-      date_of_birth = as.Date(paste0(as.character(as.integer(.data$year_of_birth)), "-", as.character(as.integer(.data$month_of_birth)), "-", as.character(as.integer(.data$day_of_birth))))
-    ) %>%
-    dplyr::select("person_id", "date_of_birth") %>%
-    dplyr::compute()
-
-  # keep only person_ids of women of reproductive age at some visit
-  cdm$initial_pregnant_cohort_df <- cdm$union_df %>%
-    dplyr::inner_join(cdm$person_df, by = "person_id") %>%
-    dplyr::mutate(
-      date_diff = !!CDMConnector::datediff("date_of_birth", "visit_date", interval = "day")
-    ) %>%
-    dplyr::mutate(
-      age = .data$date_diff / 365
-    ) %>%
-    # TODO: Add param for upper and lower bounds
-    dplyr::filter(.data$age >= 15) %>%
-    dplyr::filter(.data$age < 56) %>%
-    dplyr::distinct() %>%
-    dplyr::compute(name = "initial_pregnant_cohort_df", temporary = FALSE, overwrite = TRUE)
-
-  return(cdm)
-}
-
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
 final_visits <- function(cdm, categories, tableName, logger) {
-  cdm$temp_df <- cdm$initial_pregnant_cohort_df %>%
+  cdm$temp_df <- cdm$preg_initial_cohort %>%
     dplyr::filter(category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
@@ -290,13 +278,15 @@ final_visits <- function(cdm, categories, tableName, logger) {
     dplyr::distinct() %>%
     dplyr::compute()
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "  * Preliminary total number of episodes: %s",
     getTblRowCount(cdm$all_df)
   ))
 
   cdm[[tableName]] <- cdm$all_df %>%
     dplyr::compute(name = tableName, temporary = FALSE, overwrite = TRUE)
+
+  cdm <- omopgenerics::dropSourceTable(cdm, c("all_df", "temp_df", "other_df", "first_df"))
   return(cdm)
 }
 
@@ -619,7 +609,7 @@ add_delivery <- function(cdm, logger) {
     dplyr::collect()
 
   for (i in seq_len(nrow(counts))) {
-    log4r::info(logger, sprintf("%s: %s", counts[i, "category"], counts[i, "n"]))
+    logInfo(logger,sprintf("%s: %s", counts[i, "category"], counts[i, "n"]))
   }
   return(cdm)
 }
@@ -654,11 +644,11 @@ gestation_visits <- function(cdm) {
   # 3012266 - Gestational age
 
   # Get records with gestation period
-  gest_df <- cdm$initial_pregnant_cohort_df %>%
+  gest_df <- cdm$preg_initial_cohort %>%
     dplyr::filter(!is.na(.data$gest_value))
 
   # Get records with gestational age in weeks
-  cdm$gestation_visits_df <- cdm$initial_pregnant_cohort_df %>%
+  cdm$gestation_visits_df <- cdm$preg_initial_cohort %>%
     dplyr::filter(
       .data$concept_id %in% c(3002209, 3048230, 3012266),
       !is.na(.data$value_as_number),
@@ -993,27 +983,27 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
   ) %>%
     dplyr::collect()
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of outcome-based episodes: %s",
     dplyr::tally(cdm$calculate_start_df) %>% dplyr::pull(.data$n)
   ))
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of gestation-based episodes: %s",
     dplyr::tally(cdm$get_min_max_gestation_df) %>% dplyr::pull(.data$n)
   ))
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of only outcome-based episodes after merging: %s",
     counts %>% dplyr::filter(!gestation_based, outcome_based) %>% dplyr::pull(.data$n)
   ))
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of only gestation-based episodes after merging: %s",
     counts %>% dplyr::filter(gestation_based, !outcome_based) %>% dplyr::pull(.data$n)
   ))
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of episodes with both after merging: %s",
     counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(.data$n)
   ))
@@ -1048,7 +1038,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     ) %>%
     dplyr::compute()
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of episodes over maximum term duration: %s",
     cdm$over_max_df %>%
       dplyr::tally() %>%
@@ -1080,7 +1070,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_over_min == 0 & .data$days_diff < -buffer_days)) %>%
     dplyr::compute()
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
       "Total number of episodes under minimum term duration: %s",
       cdm$under_min_df %>%
         dplyr::count() %>%
@@ -1105,7 +1095,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     ) %>%
     dplyr::compute(name = "neg_days_df", temporary = FALSE, overwrite = TRUE)
 
-  log4r::info(logger, sprintf(
+  logInfo(logger,sprintf(
     "Total number of episodes with negative number of days between outcome and max_gest_date: %s",
     cdm$neg_days_df %>%
       dplyr::tally() %>%
@@ -1295,7 +1285,7 @@ remove_overlaps <- function(cdm, logger) {
     dplyr::tally() %>%
     dplyr::pull(.data$n)
 
-  log4r::info(logger, sprintf("Total number of episodes with removed outcome: %s", nRemovedOutcomes))
+  logInfo(logger,sprintf("Total number of episodes with removed outcome: %s", nRemovedOutcomes))
 
   return(cdm)
 }
@@ -1325,7 +1315,7 @@ final_episodes_with_length <- function(cdm) {
   # select columns and rename column
   cdm$gest_df <- cdm$gestation_visits_df %>%
     dplyr::select("person_id", "gest_value", "visit_date") %>%
-    dplyr::rename(gest_date = .data$visit_date) %>%
+    dplyr::rename(gest_date = "visit_date") %>%
     dplyr::compute()
 
   cdm$merged <- cdm$gest_df %>%
@@ -1333,7 +1323,7 @@ final_episodes_with_length <- function(cdm) {
       cdm$df,
       by = dplyr::join_by(
         person_id,
-        between(gest_date, estimated_start_date, visit_date)
+        dplyr::between(gest_date, estimated_start_date, visit_date)
       )
     ) %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%
@@ -1360,11 +1350,11 @@ final_episodes_with_length <- function(cdm) {
     dplyr::compute()
 
   # if an episode length is 0, change to 1
-  cdm$hip_episodes <- cdm$final_df %>%
+  cdm$preg_hip_episodes <- cdm$final_df %>%
     dplyr::mutate(
       episode_length = dplyr::if_else(.data$episode_length == 0, 1, .data$episode_length)) %>%
     dplyr::select(-"gest_value") %>%
     dplyr::distinct() %>%
-    dplyr::compute(name = "hip_episodes", temporary = FALSE, overwrite = TRUE)
+    dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
   return(cdm)
 }
