@@ -34,70 +34,29 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     rlang::abort("The lower age bound (ageBounds[1]) must be less than the upper age bound (ageBounds[2])")
   }
 
+  message("Inserting HIP concepts into the CDM")
   HIP_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "preg_hip_concepts", table = HIP_concepts, overwrite = TRUE)
-  message("Inserted HIP concepts into the CDM")
 
-  cdm$observation_df <- cdm$observation %>%
-    dplyr::filter(
-      .data$observation_date >= startDate,
-      .data$observation_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "observation_concept_id",
-      visit_date = "observation_date",
-      "value_as_number"
-    ) %>%
-    dplyr::inner_join(cdm$preg_hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
+  message("Getting all initial pregnancy records")
+  mk <- function(tbl, concept, date) {
+    hip <- dplyr::select(cdm$preg_hip_concepts, "concept_id", "category")
+    tbl %>%
+      dplyr::inner_join(hip, by = stats::setNames("concept_id", concept)) %>%
+      dplyr::filter(!!rlang::sym(date) >= startDate, !!rlang::sym(date) <= endDate) %>%
+      dplyr::transmute(
+        person_id,
+        concept_id = !!rlang::sym(concept),
+        visit_date = !!rlang::sym(date),
+        category = .data$category,
+      )
+  }
 
-  cdm$measurement_df <- cdm$measurement %>%
-    dplyr::filter(
-      .data$measurement_date >= startDate,
-      .data$measurement_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "measurement_concept_id",
-      visit_date = "measurement_date",
-      "value_as_number"
-    ) %>%
-    dplyr::inner_join(cdm$preg_hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  cdm$procedure_df <- cdm$procedure_occurrence %>%
-    dplyr::filter(
-      .data$procedure_date >= startDate,
-      .data$procedure_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "procedure_concept_id",
-      visit_date = "procedure_date"
-    ) %>%
-    dplyr::inner_join(cdm$preg_hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  # filter condition table
-  cdm$condition_df <- cdm$condition_occurrence %>%
-    dplyr::filter(
-      .data$condition_start_date >= startDate,
-      .data$condition_start_date <= endDate
-    ) %>%
-    dplyr::select(
-      "person_id",
-      concept_id = "condition_concept_id",
-      visit_date = "condition_start_date"
-    ) %>%
-    dplyr::inner_join(cdm$preg_hip_concepts, by = "concept_id") %>%
-    dplyr::compute()
-
-  # combine tables
-  all_dfs <- list(cdm$measurement_df, cdm$procedure_df, cdm$observation_df, cdm$condition_df)
-
-  cdm$all_pregnancy_records <- purrr::reduce(all_dfs, dplyr::union_all) %>%
-    dplyr::compute()
+  cdm$all_pregnancy_records <- mk(cdm$measurement, "measurement_concept_id", "measurement_date") %>%
+    dplyr::union_all(mk(cdm$procedure_occurrence, "procedure_concept_id", "procedure_date")) %>%
+    dplyr::union_all(mk(cdm$observation, "observation_concept_id", "observation_date")) %>%
+    dplyr::union_all(mk(cdm$condition_occurrence, "condition_concept_id", "condition_start_date")) %>%
+    dplyr::compute(name = "all_pregnancy_records", temporary = FALSE, overwrite = TRUE)
 
   # get unique person ids for women of reproductive age
   cdm$person_df <- cdm$person %>%
