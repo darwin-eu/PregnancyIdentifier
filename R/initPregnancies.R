@@ -95,7 +95,8 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
 
   # combine tables
   all_dfs <- list(cdm$measurement_df, cdm$procedure_df, cdm$observation_df, cdm$condition_df)
-  cdm$union_df <- purrr::reduce(all_dfs, dplyr::union_all) %>%
+
+  cdm$all_pregnancy_records <- purrr::reduce(all_dfs, dplyr::union_all) %>%
     dplyr::compute()
 
   # get unique person ids for women of reproductive age
@@ -122,7 +123,7 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     dplyr::compute()
 
   # keep only person_ids of women of reproductive age at some visit
-  cdm$preg_initial_cohort <- cdm$union_df %>%
+  cdm$preg_initial_cohort <- cdm$all_pregnancy_records %>%
     dplyr::inner_join(cdm$person_df, by = "person_id") %>%
     dplyr::mutate(
       date_diff = !!CDMConnector::datediff("date_of_birth", "visit_date", interval = "day")
@@ -139,7 +140,7 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
   cdm <- omopgenerics::dropSourceTable(
     cdm,
     c("condition_df", "measurement_df", "procedure_df",
-      "union_df", "person_df", "observation_df")
+      "all_pregnancy_records", "person_df", "observation_df")
   )
 
   return(cdm)
