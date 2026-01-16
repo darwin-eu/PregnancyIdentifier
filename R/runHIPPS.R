@@ -9,8 +9,8 @@ makeLogger <- function(outputDir) {
   return(logger)
 }
 
-outputDir = here::here("testOutput")
-startDate = as.Date("1900-01-01"); endDate = Sys.Date(); justGestation = TRUE
+# outputDir = here::here("testOutput")
+# startDate = as.Date("1900-01-01"); endDate = Sys.Date(); justGestation = TRUE
 
 #' runHipps
 #'
