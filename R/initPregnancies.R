@@ -18,6 +18,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' cdm <- mockPregnancyCdm()
+#' cdm <-initPregnancies(cdm)
+#' }
 initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 56L)) {
 
   checkmate::assertClass(cdm, "cdm_reference")

@@ -31,3 +31,9 @@ the following columns:"person_id" "concept_id" "visit_date" "value_as_number" "c
 Get initial cohort based on HIP concepts for women who are age 15 to 55
 at the time of pregnancy
 }
+\examples{
+\dontrun{
+cdm <- mockPregnancyCdm()
+cdm <-initPregnancies(cdm)
+}
+}

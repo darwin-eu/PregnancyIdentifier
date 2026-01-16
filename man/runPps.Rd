@@ -2,36 +2,30 @@
 % Please edit documentation in R/PPS.R
 \name{runPps}
 \alias{runPps}
-\title{runPps}
+\title{Run the PPS algorithm}
 \usage{
 runPps(
   cdm,
   outputDir,
-  uploadConceptSets = FALSE,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
-  logger,
-  ...
+  logger = NULL
 )
 }
 \arguments{
 \item{cdm}{(`cdm_reference`)}
 
-\item{outputDir}{output directory}
-
-\item{uploadConceptSets}{if concept sets should be uploaded}
+\item{outputDir}{output directory (optional)}
 
 \item{startDate}{(`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01}
 
 \item{endDate}{(`Date(1)`: `Sys.Date()`) End date of data to use. By default today.}
 
-\item{logger}{(`logger`) Logger object.}
-
-\item{...}{optional parameters}
+\item{logger}{(`logger`) A log4r logger object (optional)}
 }
 \value{
 cdm object
 }
 \description{
-Runs PPS algorithm
+Run the PPS algorithm
 }
