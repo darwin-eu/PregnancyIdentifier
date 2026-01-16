@@ -1,38 +1,55 @@
-#' runPps
-#'
-#' Runs PPS algorithm
+#' Run the PPS algorithm
 #'
 #' @param cdm (`cdm_reference`)
-#' @param outputDir output directory
-#' @param uploadConceptSets if concept sets should be uploaded
+#' @param outputDir output directory (optional)
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
-#' @param logger (`logger`) Logger object.
-#' @param ... optional parameters
+#' @param logger (`logger`) A log4r logger object (optional)
 #'
 #' @return cdm object
 #' @export
-runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
-  dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
+runPps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger = NULL) {
 
-  log4r::info(logger, "START Running PPS")
-  if (uploadConceptSets) {
-    log4r::info(logger, "Uploading Concepts")
-    cdm <- uploadConceptSets(cdm, logger)
-  }
-  log4r::info(logger, "Pull PPS Concepts from Tables")
+  checkmate::assertClass(cdm, "cdm_reference")
+  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
+  checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
+  checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
+  checkmate::assertClass(logger, "logger", null.ok = TRUE)
+
+  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+  checkmate::assertDirectoryExists(outputDir)
+
+  logInfo(logger, "Inserting PPS concepts")
+  PPS_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "PPS_concepts.xlsx")) %>%
+    dplyr::mutate(domain_concept_id = as.integer(.data$domain_concept_id))
+
+  names(PPS_concepts) <- tolower(names(PPS_concepts))
+  cdm <- CDMConnector::insertTable(cdm = cdm, name = "preg_pps_concepts", table = PPS_concepts)
+
+  logInfo(logger, "START Running PPS")
+  logInfo(logger, "Pull PPS Concepts from Tables")
   # pull PPS concepts from each table
   cdm <- input_GT_concepts(cdm, startDate, endDate, logger)
 
   # get the gestational timing information for each concept
-  log4r::info(logger, "Get gestational timing information")
+  logInfo(logger, "Get gestational timing information")
   get_PPS_episodes_df <- get_PPS_episodes(cdm, outputDir)
-  saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
 
   # get the min and max dates for each episode
-  log4r::info(logger, "Get min and max dates for episodes")
+  logInfo(logger, "Get min and max dates for episodes")
   PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
+
+  saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
   saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
+
+  cdm <- omopgenerics::dropSourceTable(
+    cdm,
+    c(
+      "input_gt_concepts_df"
+      # "preg_pps_concepts", # leave this in the database?
+    )
+  )
+
   return(cdm)
 }
 
@@ -59,7 +76,7 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Dat
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/PPS_algorithm_functions.R
 
 rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger) {
-  log4r::info(logger, sprintf("Pulling data from %s", tblName))
+  logInfo(logger, sprintf("Pulling data from %s", tblName))
   cdm[[outcomeTblName]] <- cdm[[tblName]] %>%
     dplyr::filter(
       .data[[start_date_col]] >= startDate,
@@ -69,7 +86,7 @@ rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, st
       domain_concept_start_date = start_date_col,
       domain_concept_id = id_col
     ) %>%
-    dplyr::inner_join(cdm$pps_concepts, by = "domain_concept_id") %>%
+    dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
     dplyr::select("person_id", "domain_concept_start_date", "domain_concept_id") %>%
     dplyr::distinct() %>%
     dplyr::compute()
@@ -133,6 +150,16 @@ input_GT_concepts <- function(cdm, startDate, endDate, logger) {
     purrr::reduce(dplyr::union_all) %>%
     dplyr::compute()
 
+  cdm <- omopgenerics::dropSourceTable(
+    cdm,
+    c(
+      "c_o",
+      "p_o",
+      "o_df",
+      "m_df",
+      "v_o"
+    )
+  )
   return(cdm)
 }
 
@@ -269,7 +296,7 @@ assign_episodes <- function(personlist, ...) {
 get_PPS_episodes <- function(cdm, outputDir) {
   cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
     dplyr::filter(!is.na(.data$domain_concept_start_date)) %>%
-    dplyr::left_join(cdm$pps_concepts, by = "domain_concept_id") %>%
+    dplyr::left_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
     dplyr::compute(name = "patients_with_preg_concepts")
 
   cdm$patients_with_preg_concepts %>%
