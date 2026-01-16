@@ -11,27 +11,9 @@ uploadConceptSets <- function(cdm, logger) {
 
   log4r::info(logger, "Inserted PPS concepts")
 
-  matcho_outcome_limits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx"))
-  cdm <- CDMConnector::insertTable(
-    cdm = cdm,
-    name = "matcho_outcome_limits",
-    table = matcho_outcome_limits,
-    overwrite = TRUE,
-    temporary = FALSE
-  )
 
-  log4r::info(logger, "Inserted Matcho concepts")
 
-  matcho_term_durations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
-  cdm <- CDMConnector::insertTable(
-    cdm = cdm,
-    name = "matcho_term_durations",
-    table = matcho_term_durations,
-    overwrite = TRUE,
-    temporary = FALSE
-  )
 
-  log4r::info(logger, "Inserted Matcho term durations")
   return(cdm)
 }
 
@@ -46,6 +28,9 @@ makeLogger <- function(outputDir) {
   return(logger)
 }
 
+outputDir = here::here("testOutput")
+startDate = as.Date("1900-01-01"); endDate = Sys.Date(); justGestation = TRUE
+
 #' runHipps
 #'
 #' Runs the HIPPS algorithm (HIP, PPS, and ESD) from: https://github.com/louisahsmith/allofus-pregnancy/
@@ -56,34 +41,46 @@ makeLogger <- function(outputDir) {
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be concidered?
-#' @param ... Dev params
 #'
 #' @returns `NULL`
 #'
 #' @export
-runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, ...) {
+runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE) {
+
+  checkmate::assertClass(cdm, "cdm_reference")
+  checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
+  checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
+  checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
+  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
+
   runStart <- data.frame(
     start = as.integer(Sys.time())
   )
 
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+  checkmate::assertDirectoryExists(outputDir)
+
   logger <- makeLogger(outputDir)
 
-  dots <- list(...)
   log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
 
-  write.csv(runStart, file.path(outputDir, "runStart.csv"))
+  log4r::info(logger, "running `initPregnancies`")
+  # Add a table cdm$preg_initial_cohort (person_id, visit_date, category)
+  # Also inserts the cdm$preg_hip_concepts table (concept_id, concept_name, category, gest_value)
+  cdm <- initPregnancies(cdm, startDate = startDate, endDate = endDate, ageBounds = c(15L, 56L))
 
-  cdm <- uploadConceptSets(cdm, logger = logger)
+  log4r::info(logger, "running `runHip`")
+  # Adds cdm$preg_hip_episodes (person_id gest_date  category visit_date estimated_start_date episode gest_flag episode_length)
+  # Also writes this table to outputDir/HIP_episodes.rds
+  cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger)
 
-  cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
-  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger, ...)
+  log4r::info(logger, "running `runPps`")
+  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
   HIP_episodes_df <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
-  cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
 
   # Merge HIPPS ---------------------------------------------------------------
   log4r::info(logger, "START Merging HIP and PPS into HIPPS")
