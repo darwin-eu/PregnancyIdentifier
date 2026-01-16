@@ -4,12 +4,7 @@ uploadConceptSets <- function(cdm, logger) {
 
   log4r::info(logger, "Inserted HIP concepts")
 
-  PPS_concepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "PPS_concepts.xlsx")) %>%
-    dplyr::mutate(domain_concept_id = as.integer(.data$domain_concept_id))
-  names(PPS_concepts) <- tolower(names(PPS_concepts))
-  cdm <- CDMConnector::insertTable(cdm = cdm, name = "pps_concepts", table = PPS_concepts)
 
-  log4r::info(logger, "Inserted PPS concepts")
 
 
 
@@ -75,7 +70,7 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
   cdm <- runHip(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger)
 
   log4r::info(logger, "running `runPps`")
-  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, justGestation = justGestation, logger = logger)
+  cdm <- runPps(cdm, outputDir, startDate = startDate, endDate = endDate, logger = logger)
 
   PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   get_PPS_episodes_df <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
@@ -90,12 +85,8 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
   # add outcomes to PPS episodes
   PPS_episodes_with_outcomes_df <- add_outcomes(outcomes_per_episode_df, PPS_episodes_df)
 
-  # bring HIP episodes into environment
-  HIP_episodes_local_df <- HIP_episodes_df %>%
-    dplyr::collect()
-
   # merge HIPS and PPS episodes
-  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df, logger = logger)
+  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_df, PPS_episodes_with_outcomes_df, logger = logger)
 
   # remove any duplicated episodes
   final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df, logger = logger)
