@@ -456,7 +456,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
   write.csv(outcomeCat, file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
 }
 
-#' export
+#' exportPregnancies
 #'
 #' Exports the patient level results to summarised share-able csv-files.
 #'
@@ -467,7 +467,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
 #'
 #' @returns `NULL`
 #' @export
-export <- function(cdm, outputDir, exportDir, minCellCount = 5) {
+exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   runStart <- read.csv(file.path(outputDir, "runStart.csv"))$start
 
   dir.create(exportDir, showWarnings = FALSE, recursive = TRUE)
@@ -558,24 +558,17 @@ summariseNumeric <- function(df, colName) {
 summariseColumn <- function(df, colName) {
   suppressWarnings({
     sampleClass <- df %>%
-      head() %>%
+      head(1000) %>%
       dplyr::pull(.data[[colName]]) %>%
       class()
 
     switch(
       sampleClass,
-      "numeric" = {
-        summariseNumeric(df, colName)
-      },
-      "integer" = {
-        summariseNumeric(df, colName)
-      },
-      "character" = {
-        summariseCategory(df, colName)
-      },
-      "logical" = {
-        summariseCategory(df, colName)
-      }
+      "numeric" = summariseNumeric(df, colName),
+      "integer" = summariseNumeric(df, colName),
+      "character" = summariseCategory(df, colName),
+      "logical" = summariseCategory(df, colName),
+      rlang::abort("class not supported by summariseColumn!")
     )
   })
 }
