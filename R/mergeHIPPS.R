@@ -20,36 +20,32 @@
 
 # From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/Merge_HIPPS_episodes.R
 
-#' mergeHipPps
+#' mergeHip
 #'
-#' @param HIP (`data.frame`) HIP result
-#' @param PPSEpisode (`data.frame`)
-#' @param PPSMinMax (`data.frame`)
 #' @param cdm (`cdm_reference`)
 #' @param outputDir (`character(1)`)
 #' @param logger (`logger`) Logger object
-#' @param ... Extra (dev) parameters
 #'
 #' @return `NULL`
 #' @export
-mergeHipPps <- function(HIP, PPSEpisode, PPSMinMax, cdm, outputDir, logger, ...) {
+mergeHips <- function(cdm, outputDir, logger) {
   log4r::info(logger, "Merging HIP and PPS into HIPPS")
   # collect outcomes for PPS algorithm from lookahead window
 
   # PPS_episodes_df -> min max
   # get_PPS_episodes_df -> episode
 
+  PPSMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
+  PPSEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+  HIP <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
+
   outcomes_per_episode_df <- outcomes_per_episode(PPSMinMax, PPSEpisode, cdm)
 
   # add outcomes to PPS episodes
   PPS_episodes_with_outcomes_df <- add_outcomes(outcomes_per_episode_df, PPSMinMax)
 
-  # bring HIP episodes into environment
-  HIP_episodes_local_df <- HIP %>%
-    dplyr::collect()
-
   # merge HIPS and PPS episodes
-  final_merged_episodes_df <- final_merged_episodes(HIP_episodes_local_df, PPS_episodes_with_outcomes_df, logger = logger)
+  final_merged_episodes_df <- final_merged_episodes(HIP, PPS_episodes_with_outcomes_df, logger = logger)
 
   # remove any duplicated episodes
   final_merged_episodes_no_duplicates_df <- final_merged_episodes_no_duplicates(final_merged_episodes_df, logger = logger)
