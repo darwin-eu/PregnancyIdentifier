@@ -6,7 +6,8 @@ EpisodeConstructionModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, dp = unique(data$cdm_name), convertDataForPlot = FALSE, label = NULL, title = "", yVar = "pct", fillVar = "cdm_name", height = "600px") {
+    initialize = function(data, dp = unique(data$cdm_name), convertDataForPlot = FALSE, label = NULL, title = "",
+                          yVar = "pct", fillVar = "cdm_name", position = "stack", height = "600px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -16,6 +17,7 @@ EpisodeConstructionModule <- R6::R6Class(
       private$.yVar <- yVar
       private$.fillVar <- fillVar
       private$.height <- height
+      private$.position <- position
 
       private$.table <- Table$new(data = data)
       private$.table$parentNamespace <- self$namespace
@@ -42,6 +44,7 @@ EpisodeConstructionModule <- R6::R6Class(
     .yVar = NULL,
     .fillVar = NULL,
     .height = NULL,
+    .position = NULL,
     .table = NULL,
     .inputPanelCDM = NULL,
 
@@ -82,7 +85,11 @@ EpisodeConstructionModule <- R6::R6Class(
           data <- data %>%
             tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
             dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp))) %>%
-            dplyr::mutate(value = as.numeric(value))
+            dplyr::mutate(value = as.numeric(value)) %>%
+            dplyr::rename(!!private$.yVar := value)
+          if ("name" %in% colnames(data) &&  any(grepl("perc", unique(data$name)))) {
+            data <- data %>% dplyr::filter(grepl("perc", name))
+          }
         }
         return(data)
       })
@@ -103,7 +110,7 @@ EpisodeConstructionModule <- R6::R6Class(
                           yVar = private$.yVar,
                           fillVar = private$.fillVar,
                           label = private$.label,
-                          position = "stack",
+                          position = private$.position,
                           xLabel = "cdm_name",
                           yLabel = private$.yVar,
                           title = private$.title,

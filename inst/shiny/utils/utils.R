@@ -54,7 +54,7 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
       data <- data %>% dplyr::select(-"pkg_version")
     } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
-    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2025-12-30"))) {
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-01-31"))) {
       version <- "_v2"
     }
 
@@ -221,4 +221,13 @@ customDarwinFooter <- function() {
       )
     )
   )
+}
+
+suppressCounts <- function(result, colNames, minCellCount = 5) {
+  suppressCountCol <- function (values) {
+    values[values > 0 & values < minCellCount] <- NA
+    return(values)
+  }
+  result %>%
+    dplyr::mutate(dplyr::across(colNames, suppressCountCol))
 }

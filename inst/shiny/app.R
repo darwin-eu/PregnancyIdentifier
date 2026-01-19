@@ -47,9 +47,28 @@ dbinfo <- cdmSource %>%
   dplyr::select_if(~ !all(is.na(.))) %>%
   dplyr::arrange(cdm_name)
 
+allDP <- unique(dbinfo$cdm_name)
+allDP <- allDP[order(allDP)]
+
 gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
 
-swappedDates <- dataToLong(swappedDates)
+swappedDates <- dataToLong(swappedDates) %>%
+  dplyr::select(dplyr::all_of(c("name", allDP))) %>%
+  dplyr::mutate(across(!name, as.numeric))
+
+episodeCount <- pregnancyOverlapCounts %>%
+  dplyr::mutate(total = as.numeric(total)) %>%
+  dplyr::group_by(cdm_name, total) %>%
+  dplyr::summarise(total = mean(total), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = "cdm_name", values_from = "total") %>%
+  dplyr::mutate(name = "total") %>%
+  dplyr::select(dplyr::all_of(c("name", allDP)))
+swappedDates <- rbind(swappedDates, episodeCount)
+percDF <- rbind(cbind(name = "rev_hip_perc", round(100*swappedDates[1, -1] / swappedDates[3, -1], 2)),
+                cbind(name = "rev_pps_perc", round(100*swappedDates[2, -1] / swappedDates[3, -1], 2)))
+swappedDates <- rbind(swappedDates, percDF) %>%
+  dplyr::arrange(match(name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
+
 ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
 numRound <- function(x) { round(100*as.numeric(x), 2) }
 dateConsistancy <- dataToLong(dateConsistancy) %>%
@@ -65,13 +84,16 @@ pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = func
 pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = T)]
 pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
 pregnancyFrequency <- pregnancyFrequency %>%
-  dplyr::mutate(freq = factor(freq, levels = unique(pregnancyFrequency$freq)))
+  dplyr::mutate(freq = factor(freq, levels = unique(pregnancyFrequency$freq))) %>%
+  dplyr::mutate(across(!freq, as.numeric)) %>%
+  suppressCounts(colNames = allDP)
 
 episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
 
 gestationalAgeDaysSummary <- dataToLong(gestationalAgeDaysSummary, skipCols = c("colName", "cdm_name"))
 gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
-  dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric)
+  dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric) %>%
+  dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
 minObservationPeriod <- observationPeriodRange %>%
   dplyr::filter(name == "min_obs") %>%
@@ -100,7 +122,6 @@ summariseGestationalWeeks <- function(data, lowerBoundary, upperBoundary, label 
 }
 
 gestationalWeeks <- gestationalWeeks %>%
-  #dplyr::filter(gestational_weeks > 0) %>%
   dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks),
                 n = as.numeric(n),
                 pct = as.numeric(pct))
@@ -148,7 +169,8 @@ trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
 # outcome categories
 outcomeCategoriesCount <- outcomeCategoriesCount %>%
   dplyr::mutate(n = as.numeric(n),
-                pct = round(as.numeric(pct), 4))
+                pct = round(as.numeric(pct), 4)) %>%
+  dplyr::mutate(outcome_category = factor(outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)

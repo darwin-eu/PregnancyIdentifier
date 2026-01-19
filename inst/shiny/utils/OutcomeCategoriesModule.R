@@ -84,6 +84,7 @@ OutcomeCategoriesModule <- R6::R6Class(
                           yVar = "pct",
                           fillVar = "algorithm",
                           facetVar = "cdm_name",
+                          rotateAxisText = TRUE,
                           position = "dodge")
         }
         return(plot)
