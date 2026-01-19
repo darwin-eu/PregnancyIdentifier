@@ -1127,9 +1127,7 @@ removeOverlaps <- function(cdm, logger) {
     dplyr::distinct(.data$prev_gest_id) %>%
     dplyr::pull()
 
-  gestIdList <- if (length(gestIdList) == 0) {
-    ""
-  }
+  gestIdList <- ifelse(length(gestIdList) == 0, "", gestIdList)
 
   # remove episodes that overlap
   cdm$final_df <- cdm$df %>%
