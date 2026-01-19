@@ -115,6 +115,16 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     dplyr::mutate(age_pregnancy_start = age_pregnancy_start/365.25)
 
   resAge %>%
+    dplyr::select(age_pregnancy_start) %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    ) %>%
+    write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
+
+  resAge %>%
     summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,

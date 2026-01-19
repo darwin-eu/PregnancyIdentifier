@@ -100,12 +100,13 @@ test_that("run runHipps", {
 
   expect_true(dir.exists(exportDir))
   csvResult <- list.files(exportDir, pattern = "*.csv")
-  expect_length(csvResult, 21)
+  expect_length(csvResult, 22)
   zipResult <- list.files(exportDir, pattern = "*.zip")
   expect_length(zipResult, 1)
 
   expect_equal(sort(csvResult), sort(c(
     "PPS-concept_counts.csv",
+    "age.csv",
     "age_summary.csv",
     "age_summary_groups.csv",
     "cdm_source.csv",
