@@ -31,17 +31,13 @@
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) Logger object.
-#' @param ... Extra (development) parameters
 #'
 #' @return `NULL`
 #' @export
-runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
-  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+runEsd <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger) {
   log4r::info(logger, "Running ESD")
 
-  if (uploadConceptSets) {
-    cdm <- uploadConceptSets(cdm)
-  }
+  HIPPS <- readRDS(file.path(outputDir,  "HIP_episodes.rds"))
 
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
@@ -54,6 +50,26 @@ runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, startDate =
   # get gestational timing info
   episodes_with_gestational_timing_info_df <- episodes_with_gestational_timing_info(get_timing_concepts_df, logger = logger)
   saveRDS(episodes_with_gestational_timing_info_df, file.path(outputDir, "ESD.rds"))
+
+  # merge with metadata
+  merged_episodes_with_metadata_df <- merged_episodes_with_metadata(
+    episodes_with_gestational_timing_info_df,
+    final_merged_episode_detailed_df,
+    cdm,
+    logger = logger
+  )
+
+  # apply study period
+  merged_episodes_with_metadata_df <- merged_episodes_with_metadata_df %>%
+    filter((inferred_episode_start >= startDate | is.na(inferred_episode_start)) &
+             (inferred_episode_end <= endDate | is.na(inferred_episode_end)))
+
+  outputPath <- file.path(outputDir, "identified_pregancy_episodes.rds")
+
+  saveRDS(merged_episodes_with_metadata_df, outputPath)
+  log4r::info(logger, sprintf("Wrote output to %s", outputPath))
+
+  return(invisible(NULL))
 }
 
 get_preg_related_concepts <- function(df, person_id_list, df_date_col) {
