@@ -1,12 +1,36 @@
-#' Run the PPS algorithm
+# Copyright (c) 2024 Louisa Smith
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+#' Run the PPS Algorithm to Identify Pregnancy Episodes
 #'
-#' @param cdm (`cdm_reference`)
-#' @param outputDir output directory
-#' @param startDate (`Date(1)`) Start date of data to use
-#' @param endDate (`Date(1)`) End date of data to use
-#' @param logger (`logger`) log4r logger (optional)
+#' This function executes the Pregnancy Progression Signature (PPS) algorithm against a Common Data Model (CDM) instance.
+#' It inserts the required PPS concept lookup table, extracts gestational timing evidence (e.g., gestational weeks, trimesters) across OMOP clinical domains,
+#' assembles person-level gestational timing records, and writes intermediate episode and summary files to the specified output directory.
 #'
-#' @return cdm object
+#' @param cdm A `cdm_reference` object; must include all OMOP tables and structure needed for pregnancy concept search.
+#' @param outputDir Character. Directory path where intermediate and output RDS files will be saved.
+#' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
+#' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
+#' @param logger Optional `log4r` logger object for emitting information and debug messages.
+#'
+#' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
+#'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
 #' @export
 runPps <- function(cdm,
                    outputDir,
