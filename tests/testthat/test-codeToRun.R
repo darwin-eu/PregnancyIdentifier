@@ -21,18 +21,15 @@ test_that("run mergeHipPps", {
   ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
   hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
+
   mergeHips(
     cdm = cdm,
-    HIP = hipRes,
-    PPSEpisode = ppsEpisode,
-    PPSMinMax = ppsMinMax,
     outputDir = outputDir,
-    fileName = "merge.csv",
     logger = logger
   )
-  cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
+  cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "preg_initial_cohort")
   hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
-  runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir, logger = logger)
+  runEsd(cdm = cdm, outputDir = outputDir, logger = logger)
   # end analysis
 
   expect_true(dir.exists(outputDir))

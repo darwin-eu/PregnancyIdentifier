@@ -125,7 +125,7 @@ getTimingConcepts <- function(cdm,
 
   pregnantDates <- final_merged_episode_detailed_df
 
-  algo2TimingConceptIds <- cdm$pps_concepts |>
+  algo2TimingConceptIds <- cdm$preg_pps_concepts |>
     dplyr::pull(.data$domain_concept_id) |>
     as.integer()
 
@@ -152,7 +152,6 @@ getTimingConcepts <- function(cdm,
         .data$concept_id %in% conceptIdsToSearch
     ) |>
     dplyr::select("concept_id", "concept_name")
-
   # add: change to pregnancy start rather than recorded episode start
   personIdList <- pregnantDates |>
     dplyr::mutate(start_date = pmin(.data$pregnancy_start, .data$recorded_episode_start, na.rm = TRUE)) |>
@@ -205,7 +204,7 @@ getTimingConcepts <- function(cdm,
 
   pregRelatedConcepts <- purrr::reduce(list(c_o, o_df, m_df, p_df), dplyr::union_all)
 
-  algo2TimingDf <- cdm$pps_concepts |>
+  algo2TimingDf <- cdm$preg_pps_concepts |>
     dplyr::select("domain_concept_id", "min_month", "max_month")
 
   # Clean/parse gestational-week style values and compute extrapolated pregnancy starts

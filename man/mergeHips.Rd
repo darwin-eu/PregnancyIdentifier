@@ -8,7 +8,7 @@ mergeHips(cdm, outputDir, logger)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) CDM reference containing required tables
-(`initial_pregnant_cohort_df`, `pps_concepts`, etc.).}
+(`preg_initial_cohort`, `preg_pps_concepts`, etc.).}
 
 \item{outputDir}{(`character(1)`) Directory containing intermediate RDS artifacts:
 `PPS_min_max_episodes.rds`, `PPS_gest_timing_episodes.rds`, `HIP_episodes.rds`.}
@@ -29,7 +29,7 @@ with standardized columns used downstream by ESD and reporting.
 Key steps:
 \itemize{
   \item Load HIP episodes, PPS episode rows, and PPS episode min/max summary tables
-  \item Infer PPS outcomes from `cdm$initial_pregnant_cohort_df` within an episode-specific window
+  \item Infer PPS outcomes from `cdm$preg_initial_cohort` within an episode-specific window
   \item Merge HIP + PPS episodes by overlap; flag episodes involved in many-to-many overlaps
   \item Remove duplicated overlap matches (retain best matches by end-date proximity and episode plausibility)
   \item Add standardized columns and per-person episode ordering

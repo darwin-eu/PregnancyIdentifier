@@ -37,7 +37,7 @@ mergeHipPps(
   logger = logger
 )
 
-cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
+cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "preg_initial_cohort")
 
 hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
 

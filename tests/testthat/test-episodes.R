@@ -13,10 +13,10 @@ test_that("test gestational episodes", {
   }
   logger <- PregnancyIdentifier:::makeLogger(outputDir)
 
-  cdm <- PregnancyIdentifier:::uploadConceptSets(cdm, logger)
+  cdm <- initPregnancies(cdm)
 
   # insert gestation_visits data
-  gestation_visits <- read.csv("gestation_visits.csv", sep = ";") %>%
+  gestation_visits <- utils::read.csv("gestation_visits.csv", sep = ";") %>%
     dplyr::mutate(visit_date = as.Date(visit_date),
                   date_of_birth = as.Date(date_of_birth))
   cdm <- omopgenerics::insertTable(cdm,
@@ -25,7 +25,7 @@ test_that("test gestational episodes", {
                                    overwrite = TRUE,
                                    temporary = FALSE)
 
-  cdm <- PregnancyIdentifier:::gestation_episodes(cdm, min_days = 70, buffer_days = 28)
+  cdm <- PregnancyIdentifier:::gestationEpisodes(cdm, minDays = 70, bufferDays = 28)
   episodes <- dplyr::collect(cdm$gestation_episodes_df)
 
   testthat::expect_equal(length(unique(episodes$episode)), 3)

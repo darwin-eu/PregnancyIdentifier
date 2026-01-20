@@ -30,14 +30,14 @@
 #' Key steps:
 #' \itemize{
 #'   \item Load HIP episodes, PPS episode rows, and PPS episode min/max summary tables
-#'   \item Infer PPS outcomes from `cdm$initial_pregnant_cohort_df` within an episode-specific window
+#'   \item Infer PPS outcomes from `cdm$preg_initial_cohort` within an episode-specific window
 #'   \item Merge HIP + PPS episodes by overlap; flag episodes involved in many-to-many overlaps
 #'   \item Remove duplicated overlap matches (retain best matches by end-date proximity and episode plausibility)
 #'   \item Add standardized columns and per-person episode ordering
 #' }
 #'
 #' @param cdm (`cdm_reference`) CDM reference containing required tables
-#'   (`initial_pregnant_cohort_df`, `pps_concepts`, etc.).
+#'   (`preg_initial_cohort`, `preg_pps_concepts`, etc.).
 #' @param outputDir (`character(1)`) Directory containing intermediate RDS artifacts:
 #'   `PPS_min_max_episodes.rds`, `PPS_gest_timing_episodes.rds`, `HIP_episodes.rds`.
 #' @param logger (`logger`) log4r logger.
@@ -119,7 +119,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     dplyr::ungroup() |>
     dplyr::mutate(
       months_to_add = 11L - as.integer(.data$min_month),
-      max_pregnancy_date = lubridate::`%m+%`(.data$domain_concept_start_date, lubridate::months(.data$months_to_add))
+      max_pregnancy_date = lubridate::add_with_rollback(.data$domain_concept_start_date, lubridate::period(months = .data$months_to_add))
     ) |>
     dplyr::select("person_id", "person_episode_number", "max_pregnancy_date")
 
@@ -139,7 +139,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     )
 
   # begin searching for outcomes within the relevant lookback and lookahead dates
-  pregRelatedConcepts <- cdm$initial_pregnant_cohort_df |>
+  pregRelatedConcepts <- cdm$preg_initial_cohort |>
     dplyr::filter(.data$category %in% c("LB", "SB", "DELIV", "ECT", "AB", "SA")) |>
     dplyr::collect() |>
     dplyr::inner_join(

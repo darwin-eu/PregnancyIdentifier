@@ -17,7 +17,7 @@ test_that("Outcome category is correct", {
   }
 
 
-  invisible(capture.output(runHipps(cdm, outputFolder, continue = FALSE)))
+  invisible(capture.output(runPregnancyIdentifier(cdm, outputFolder)))
 
   CDMConnector::cdmDisconnect(cdm)
 

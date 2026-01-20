@@ -15,29 +15,7 @@ cdm <- CDMConnector::cdmFromCon(
   writeSchema = "..."
 )
 
-# add concept tables: hip_concepts, pps_concepts, matcho_outcome_limits, matcho_term_durations
-cdm <- PregnancyIdentifier:::uploadConceptSets(cdm)
-
 outputDir <- "./dev/output/"
 
-cdm <- runHip(cdm = cdm, outputDir = outputDir, continue = TRUE)
-cdm <- runPps(cdm = cdm, outputDir = outputDir)
+runPregnancyIdentifier(cdm = cdm, outputDir = outputDir, minCellCount = 5L)
 
-ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
-ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
-hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
-
-mergeHipPps(
-  cdm = cdm,
-  HIP = hipRes,
-  PPSEpisode = ppsEpisode,
-  PPSMinMax = ppsMinMax,
-  outputDir = outputDir,
-  fileName = "merge.csv"
-)
-
-cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "initial_pregnant_cohort_df")
-
-hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
-
-runEsd(HIPPS = hippsRes, cdm = cdm, outputDir = outputDir)
