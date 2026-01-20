@@ -1,4 +1,22 @@
-
+# Copyright (c) 2024 Louisa Smith
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 #' Create Initial Pregnancy Table
 #'
@@ -8,7 +26,7 @@
 #' @param cdm A CDM reference
 #' @param startDate Earliest date to look for pregnancies in the CDM
 #' @param endDate Latest date to look for pregnancies in the CDM
-#' @param ageBound The upper and lower bounds for age at pregnancy end date
+#' @param ageBounds The upper and lower bounds for age at pregnancy end date
 #' represented using a length 2 integer vector. By default this will be
 #' c(15, 56) and will include anyone >= 15 and < 56.
 #'
@@ -20,7 +38,7 @@
 #' @examples
 #' \dontrun{
 #' cdm <- mockPregnancyCdm()
-#' cdm <-initPregnancies(cdm)
+#' cdm <- initPregnancies(cdm)
 #' }
 initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 56L)) {
 
@@ -48,14 +66,28 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
         concept = c("measurement_concept_id","procedure_concept_id","observation_concept_id","condition_concept_id"),
         date    = c("measurement_date","procedure_date","observation_date","condition_start_date")
       ),
-      \(tbl, concept, date) tbl %>%
-        dplyr::inner_join(hip, by = stats::setNames("concept_id", concept)) %>%
-        dplyr::filter(!!rlang::sym(date) >= startDate, !!rlang::sym(date) <= endDate) %>%
-        dplyr::transmute(person_id, concept_id  = !!rlang::sym(concept), visit_date  = !!rlang::sym(date), category)
+      function (tbl, concept, date) {
+        valueExpr <- if (concept == "measurement_concept_id") {
+          rlang::sym("value_as_number")
+        } else {
+          rlang::expr(dplyr::sql("NULL"))
+        }
+
+        tbl %>%
+          dplyr::inner_join(hip, by = stats::setNames("concept_id", concept)) %>%
+          dplyr::filter(!!rlang::sym(date) >= startDate, !!rlang::sym(date) <= endDate) %>%
+          dplyr::transmute(
+            person_id,
+            concept_id  = !!rlang::sym(concept),
+            visit_date  = !!rlang::sym(date),
+            category,
+            value_as_number = !!valueExpr
+          ) %>%
+          dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id")
+      }
     ) %>%
     purrr::reduce(dplyr::union_all) %>%
-    dplyr::compute(name = "all_pregnancy_records", temporary = FALSE, overwrite = TRUE)
-
+    dplyr::compute()
 
   # get unique person ids for women of reproductive age
   cdm$person_df <- cdm$person %>%
@@ -89,10 +121,10 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     dplyr::mutate(
       age = .data$date_diff / 365.25
     ) %>%
-    dplyr::filter(.data$age >= .env$lowerAgeBound) %>%
-    dplyr::filter(.data$age < .env$upperAgeBound) %>%
+    dplyr::filter(.data$age >= lowerAgeBound) %>%
+    dplyr::filter(.data$age < upperAgeBound) %>%
     dplyr::distinct() %>%
-    dplyr::select("person_id", "visit_date", "category") %>%
+    dplyr::select("person_id", "visit_date", "category", "concept_id", "value_as_number") %>%
     dplyr::compute(name = "preg_initial_cohort", temporary = FALSE, overwrite = TRUE)
 
   cdm <- omopgenerics::dropSourceTable(
