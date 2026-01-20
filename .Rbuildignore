@@ -7,3 +7,5 @@
 ^\.github$
 ^dev$
 ^extras$
+^doc$
+^Meta$
