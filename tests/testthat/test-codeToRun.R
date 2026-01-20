@@ -14,14 +14,14 @@ test_that("run mergeHipPps", {
   logger <- PregnancyIdentifier:::makeLogger(outputDir)
 
   # start analysis
-  cdm <- PregnancyIdentifier:::uploadConceptSets(cdm, logger)
-  cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger, continue = TRUE)
+  cdm <- initPregnancies(cdm)
+  cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger)
   cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
 
   ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
   ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
   hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
-  mergeHipPps(
+  mergeHips(
     cdm = cdm,
     HIP = hipRes,
     PPSEpisode = ppsEpisode,
@@ -71,10 +71,9 @@ test_that("run runHipps", {
   }
 
   # start analysis
-  PregnancyIdentifier::runHipps(
+  PregnancyIdentifier::runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
-    continue = TRUE
+    outputDir = outputDir
   )
 
   PregnancyIdentifier::export(

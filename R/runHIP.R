@@ -262,16 +262,14 @@ finalVisits <- function(cdm, categories, tableName, logger) {
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
     dplyr::group_by(person_id, visit_date) %>%
-    # slicing by minimum concept id just a choice to make the code work
-    # could have also done something like filter(row_number() == 1) but doesn't
-    # work on databases
-    dplyr::slice_min(order_by = concept_id, n = 1, with_ties = FALSE) %>%
+    # slicing by category - choose AB over SA
+    dplyr::slice_min(order_by = .data$category, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
     # distinct(person_id, visit_date, .keep_all = TRUE) %>% stopped working?!
     dplyr::group_by(person_id) %>%
     dbplyr::window_order(visit_date) %>%
     # Create a new column called "days" that calculates the number of days between each visit for each person.
-    dplyr::mutate(prev_visit_date = lag(.data$visit_date)) %>%
+    dplyr::mutate(prev_visit_date = dplyr::lag(.data$visit_date)) %>%
     dplyr::mutate(days = !!CDMConnector::datediff(start = "prev_visit_date", end = "visit_date", interval = "day")) %>%
     dplyr::ungroup() %>%
     dplyr::compute()
@@ -290,7 +288,7 @@ finalVisits <- function(cdm, categories, tableName, logger) {
     dplyr::compute()
 
   cdm$other_df <- cdm$temp_df %>%
-    dplyr::filter(.data$days >= min_day) %>%
+    dplyr::filter(.data$days >= minDay) %>%
     dplyr::compute()
 
   cdm$all_df <- dplyr::union_all(cdm$first_df, cdm$other_df) %>%
@@ -323,16 +321,16 @@ addStillbirth <- function(cdm) {
 
   # pull out the stillbirth episodes again, but first figure out if it's plausible
   # that they happened relative to a live birth
-  cdm$finalTempDf <- cdm$final_sb_visits_df %>%
+  cdm$final_temp_df <- cdm$final_sb_visits_df %>%
     dplyr::union_all(cdm$final_lb_visits_df) %>%
     dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number"))) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(
       previous_category = dplyr::lag(.data$category),
-      prev_visit = dplyr::lag(visit_date),
-      next_category = dplyr::lead(category),
-      next_visit = dplyr::lead(visit_date)
+      prev_visit = dplyr::lag(.data$visit_date),
+      next_category = dplyr::lead(.data$category),
+      next_visit = dplyr::lead(.data$visit_date)
     ) %>%
     dplyr::mutate(
       after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
@@ -352,7 +350,7 @@ addStillbirth <- function(cdm) {
     dplyr::compute()
 
   cdm$add_stillbirth_df <- cdm$final_lb_visits_df %>%
-    dplyr::union_all(cdm$finalTempDf) %>%
+    dplyr::union_all(cdm$final_temp_df) %>%
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days") %>%
     dplyr::distinct() %>%
     dplyr::compute()
@@ -373,15 +371,15 @@ addEctopic <- function(cdm) {
   cdm$final_temp_df <- cdm$add_stillbirth_df %>%
     dplyr::union_all(
       cdm$final_ect_visits_df %>%
-        dplyr::select(-any_of(c("gest_value", "value_as_number")))
+        dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
     ) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(
       previous_category = dplyr::lag(.data$category),
-      next_category = dplyr::lead(category),
-      prev_visit = dplyr::lag(visit_date),
-      next_visit = dplyr::lead(visit_date)
+      next_category = dplyr::lead(.data$category),
+      prev_visit = dplyr::lag(.data$visit_date),
+      next_visit = dplyr::lead(.data$visit_date)
     ) %>%
     dplyr::mutate(
       after_days = !!CDMConnector::datediff("prev_visit", "visit_date", "day"),
@@ -430,10 +428,10 @@ addAbortion <- function(cdm) {
     dplyr::pull(.data$min_days)
 
   # get difference in days with subsequent visit
-  cdm$finalTempDf <- cdm$add_ectopic_df %>%
+  cdm$final_temp_df <- cdm$add_ectopic_df %>%
     dplyr::union_all(
       cdm$final_ab_sa_visits_df %>%
-        dplyr::select(-any_of(c("gest_value", "value_as_number")))
+        dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
     ) %>%
     dplyr::mutate(
       temp_category = ifelse(.data$category == "SA", "AB", .data$category)
@@ -444,8 +442,8 @@ addAbortion <- function(cdm) {
       # get previous category if available
       previous_category = dplyr::lag(.data$temp_category),
       next_category = dplyr::lead(.data$temp_category),
-      prev_visit = dplyr::lag(visit_date),
-      next_visit = dplyr::lead(visit_date)
+      prev_visit = dplyr::lag(.data$visit_date),
+      next_visit = dplyr::lead(.data$visit_date)
     ) %>%
     dplyr::mutate(
       # get difference in days with previous episode start date
@@ -478,7 +476,7 @@ addAbortion <- function(cdm) {
     dplyr::compute()
 
   cdm$add_abortion_df <- cdm$add_ectopic_df %>%
-    dplyr::union_all(cdm$finalTempDf) %>%
+    dplyr::union_all(cdm$final_temp_df) %>%
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days", -"temp_category") %>%
     dplyr::distinct() %>%
     dplyr::compute()
@@ -508,25 +506,25 @@ addDelivery <- function(cdm, logger) {
     dplyr::pull(.data$min_days)
 
   afterMinEct <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(first_preg_category == "DELIV" & outcome_preg_category == "ECT") %>%
-    dplyr::pull(min_days)
+    dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "ECT") %>%
+    dplyr::pull(.data$min_days)
 
   # get difference in days with subsequent visit
   cdm$final_temp_df <- cdm$add_abortion_df %>%
     dplyr::union_all(
       cdm$final_deliv_visits_df %>%
-        dplyr::select(-any_of(c("gest_value", "value_as_number")))
+        dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
     ) %>%
     dplyr::mutate(temp_category = ifelse(.data$category == "SA", "AB", .data$category)) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(
       # get previous category if available
-      previous_category = lag(temp_category),
-      prev_visit = lag(visit_date),
+      previous_category = dplyr::lag(.data$temp_category),
+      prev_visit = dplyr::lag(.data$visit_date),
       # get difference in days with previous episode start date
-      next_category = lead(temp_category),
-      next_visit = lead(visit_date)
+      next_category = dplyr::lead(.data$temp_category),
+      next_visit = dplyr::lead(.data$visit_date)
       # and next episode start date
     ) %>%
     dplyr::mutate(
@@ -622,7 +620,7 @@ gestationVisits <- function(cdm) {
   # 3012266 - Gestational age
 
   # Get records with gestation period
-  gestDf <- cdm$preg_initial_cohort %>%
+  gest <- cdm$preg_initial_cohort %>%
     dplyr::filter(!is.na(.data$gest_value))
 
   # Get records with gestational age in weeks
@@ -634,7 +632,7 @@ gestationVisits <- function(cdm) {
       .data$value_as_number > 0, .data$value_as_number <= 44
     ) %>%
     dplyr::mutate(gest_value = as.integer(.data$value_as_number)) %>%
-    dplyr::union_all(gestDf) %>%
+    dplyr::union_all(gest) %>%
     dplyr::compute()
 
   return(cdm)
@@ -772,14 +770,14 @@ getMinMaxGestation <- function(cdm) {
 
   # identify end visit for each pregnancy episode
   # keep in mind this could be a month after pregnancy actually ended...
-  cdm$tempEndDf <- cdm$gestation_episodes_df %>%
+  cdm$temp_end_df <- cdm$gestation_episodes_df %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%
     dplyr::slice_max(.data$visit_date, n = 1) %>%
     dplyr::mutate(end_gest_date = .data$visit_date) %>%
     dplyr::compute()
 
   # get max gestation week at end visit date
-  cdm$newEndDf <- cdm$tempEndDf %>%
+  cdm$new_end_df <- cdm$temp_end_df %>%
     dplyr::group_by(.data$person_id, .data$episode, .data$end_gest_date) %>%
     dplyr::summarise(end_gest_week = max(.data$gest_week, na.rm = TRUE), .groups = "drop") %>%
     dbplyr::window_order() %>%
@@ -788,7 +786,7 @@ getMinMaxGestation <- function(cdm) {
   ############ Max Gestation Week ############
 
   # identify max gestation week for each pregnancy episode
-  cdm$tempMaxDf <- cdm$gestation_episodes_df %>%
+  cdm$temp_max_df <- cdm$gestation_episodes_df %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%
     dplyr::slice_max(.data$gest_week, n = 1) %>%
     dplyr::mutate(max_gest_week = .data$gest_week) %>%
@@ -796,7 +794,7 @@ getMinMaxGestation <- function(cdm) {
     dplyr::compute()
 
   # get first occurrence of max gestation week
-  cdm$newMaxDf <- cdm$tempMaxDf %>%
+  cdm$new_max_df <- cdm$temp_max_df %>%
     dplyr::group_by(.data$person_id, .data$episode, .data$max_gest_week) %>%
     dplyr::summarize(max_gest_date = min(.data$visit_date, na.rm = TRUE), .groups = "drop") %>%
     dbplyr::window_order() %>%
@@ -807,11 +805,11 @@ getMinMaxGestation <- function(cdm) {
   ############ Join tables ############
 
   # join first and end tables
-  cdm$get_min_max_gestation_df <- cdm$newFirstDf %>%
-    dplyr::inner_join(cdm$newEndDf, by = c("person_id", "episode")) %>%
+  cdm$get_min_max_gestation_df <- cdm$new_first_df %>%
+    dplyr::inner_join(cdm$new_end_df, by = c("person_id", "episode")) %>%
     dplyr::inner_join(cdm$new_min_df, by = c("person_id", "episode")) %>%
     dplyr::inner_join(cdm$second_min_df, by = c("person_id", "episode")) %>%
-    dplyr::inner_join(cdm$newMaxDf, by = c("person_id", "episode")) %>%
+    dplyr::inner_join(cdm$new_max_df, by = c("person_id", "episode")) %>%
     dplyr::compute()
 
   return(cdm)
@@ -947,7 +945,7 @@ addGestation <- function(cdm, bufferDays = 28, justGestation = TRUE, logger) {
     dplyr::select(-dplyr::all_of("episode")) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$visit_date) %>%
-    dplyr::mutate(episode = row_number()) %>%
+    dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     # recalculate since I overwrote
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "visit_date", "day")) %>%
@@ -1240,8 +1238,8 @@ removeOverlaps <- function(cdm, logger) {
 
   # if there are any remaining episodes with gestational age in weeks at
   # outcome date not within the term durations, reclassify as PREG
-  cdm$tempDf <- cdm$final_df %>%
-    dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0) %>%
+  cdm$temp_df <- cdm$final_df %>%
+    dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_id) & .data$is_over_min == 0) %>%
     dplyr::mutate(
       removed_category = .data$category,
       category = "PREG",
@@ -1251,8 +1249,8 @@ removeOverlaps <- function(cdm, logger) {
     dplyr::compute()
 
   cdm$remove_overlaps_df <- cdm$final_df %>%
-    dplyr::filter(!(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0)) %>%
-    dplyr::union_all(cdm$tempDf) %>%
+    dplyr::filter(!(!is.na(.data$max_gest_week) & !is.na(.data$concept_id) & .data$is_over_min == 0)) %>%
+    dplyr::union_all(cdm$temp_df) %>%
     dplyr::compute()
 
   nRemovedOutcomes <- cdm$remove_overlaps_df %>%
@@ -1288,12 +1286,12 @@ finalEpisodesWithLength <- function(cdm) {
     dplyr::compute()
 
   # select columns and rename column
-  cdm$gestDf <- cdm$gestation_visits_df %>%
+  cdm$gest_df <- cdm$gestation_visits_df %>%
     dplyr::select("person_id", "gest_value", "visit_date") %>%
     dplyr::rename(gest_date = "visit_date") %>%
     dplyr::compute()
 
-  cdm$merged <- cdm$gestDf %>%
+  cdm$merged <- cdm$gest_df %>%
     dplyr::right_join(
       cdm$df,
       by = dplyr::join_by(

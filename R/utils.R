@@ -46,3 +46,4 @@ logWarn <- function(logger, x) {
     rlang::warn(x)
   }
 }
+

@@ -112,8 +112,8 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
       domain_concept_name = .data$concept_name,
       start_date,
       recorded_episode_end,
-      value_col,
-      episode_number
+      value_col = .data$value_col,
+      episode_number = .data$episode_number
     )
 }
 
@@ -281,7 +281,8 @@ findIntersection <- function(intervals) {
     }
   }
 
-  intervalsDf$overlapCountDict <- overlapCount
+  intervalsDf <- intervalsDf |>
+    dplyr::mutate(overlapCountDict = overlapCount)
 
   countsQ1 <- stats::quantile(overlapCount, 0.25)
   countsQ3 <- stats::quantile(overlapCount, 0.75)
@@ -310,7 +311,7 @@ findIntersection <- function(intervals) {
 
   if (N == 0) {
     # If everything is filtered out, take the interval with the most overlaps
-    top <- intervalsDf[order(overlapCount, decreasing = TRUE), , drop = FALSE][1, ]
+    top <- intervalsDf[order(intervalsDf$overlapCountDict, decreasing = TRUE), , drop = FALSE][1, ]
     return(makeResult(top[1, 2], top[1, 1], top[1, 2], top[1, 1]))
   }
 
@@ -502,7 +503,7 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
         lubridate::NA_Date_
       )
     ) |>
-    dplyr::select(-min_days_to_pregnancy_start, -max_days_to_pregnancy_start)
+    dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
   # Remove type if GW values are null (preserves original logic)
   timingDf <- timingDf |>
@@ -566,9 +567,9 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     ) |>
     dplyr::ungroup() |>
     dplyr::select(
-      person_id, episode_number, GT_info_list, GW_flag, GR3m_flag,
-      inferred_episode_start, precision_days, precision_category,
-      intervalsCount, majorityOverlapCount
+      person_id, .data$episode_number, .data$GT_info_list, .data$GW_flag, .data$GR3m_flag,
+      .data$inferred_episode_start, .data$precision_days, .data$precision_category,
+      .data$intervalsCount, .data$majorityOverlapCount
     )
 
   # print the GW and GR3m concept overlap information to log

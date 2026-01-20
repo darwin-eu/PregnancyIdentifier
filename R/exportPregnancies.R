@@ -20,7 +20,7 @@
 #' @return Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.
 #' @export
 exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
-  runStart <- read.csv(file.path(outputDir, "runStart.csv"))$start
+  runStart <- utils::read.csv(file.path(outputDir, "runStart.csv"))$start
 
   dir.create(exportDir, showWarnings = FALSE, recursive = TRUE)
   snap <- CDMConnector::snapshot(cdm)
@@ -74,77 +74,77 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
 
 #' @noRd
 exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
-  concepts <- read.csv(system.file("concepts/check_concepts.csv", package = "PregnancyIdentifier"))
+  concepts <- utils::read.csv(system.file("concepts/check_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE))
   totalEpisodes <- nrow(res)
 
   # Standardize concepts from multiple OMOP domains into one schema
   conceptsPerEpisode <- dplyr::union_all(
-    cdm$condition_occurrence |>
+    cdm$condition_occurrence %>%
       dplyr::select(
-        person_id,
-        concept_id = condition_concept_id,
-        concept_start = condition_start_date,
-        concept_end = condition_end_date
+        "person_id",
+        concept_id = "condition_concept_id",
+        concept_start = "condition_start_date",
+        concept_end = "condition_end_date"
       ),
-    cdm$procedure_occurrence |>
+    cdm$procedure_occurrence %>%
       dplyr::select(
-        person_id,
-        concept_id = procedure_concept_id,
-        concept_start = procedure_date,
-        concept_end = procedure_end_date
+        "person_id",
+        concept_id = "procedure_concept_id",
+        concept_start = "procedure_date",
+        concept_end = "procedure_end_date"
       )
-  ) |>
+  ) %>%
     dplyr::union_all(
-      cdm$observation |>
+      cdm$observation %>%
         dplyr::select(
-          person_id,
-          concept_id = observation_concept_id,
-          concept_start = observation_date,
-          concept_end = observation_date
+          "person_id",
+          concept_id = "observation_concept_id",
+          concept_start = "observation_date",
+          concept_end = "observation_date"
         )
-    ) |>
-    dplyr::right_join(res, by = "person_id", copy = TRUE) |>
-    dplyr::filter(.data$concept_id %in% concepts$concept_id) |>
-    dplyr::collect() |>
-    dplyr::left_join(concepts, by = "concept_id") |>
+    ) %>%
+    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
+    dplyr::filter(.data$concept_id %in% concepts$concept_id) %>%
+    dplyr::collect() %>%
+    dplyr::left_join(concepts, by = "concept_id") %>%
     dplyr::transmute(
-      person_id, episode_num, pregnancy_start, hip_end_date, pps_end_date,
-      concept_id, concept_name,
-      concept_start,
-      concept_end = dplyr::coalesce(concept_end, concept_start),
-      min_month, max_month, span, midpoint
-    ) |>
+      "person_id", episode_num = .data$episode_number, "pregnancy_start", "hip_end_date", "pps_end_date",
+      "concept_id", "concept_name",
+      "concept_start",
+      concept_end = dplyr::coalesce(.data$concept_end, .data$concept_start),
+      "min_month", "max_month", "span", "midpoint"
+    ) %>%
     dplyr::mutate(
-      min_date = pregnancy_start + (min_month * 30),
-      max_date = pregnancy_start + (max_month * 30),
-      after_min = min_date >= concept_start,
-      prior_max = max_date <= concept_end,
-      in_span = concept_start >= min_date & concept_start <= max_date,
+      min_date = .data$pregnancy_start + (.data$min_month * 30),
+      max_date = .data$pregnancy_start + (.data$max_month * 30),
+      after_min = .data$min_date >= .data$concept_start,
+      prior_max = .data$max_date <= .data$concept_end,
+      in_span = .data$concept_start >= .data$min_date & .data$concept_start <= .data$max_date,
       # NOTE: keeping original behavior (even though this condition looks suspicious)
-      at_midpoint = concept_start >= (pregnancy_start + midpoint) &
-        concept_start <= (pregnancy_start - midpoint * 30)
+      at_midpoint = .data$concept_start >= (.data$pregnancy_start + .data$midpoint) &
+        .data$concept_start <= (.data$pregnancy_start - .data$midpoint * 30)
     )
 
-  conceptsPerEpisode |>
-    dplyr::group_by(concept_id, concept_name) |>
+  conceptsPerEpisode %>%
+    dplyr::group_by(.data$concept_id, .data$concept_name) %>%
     dplyr::summarise(
-      n_after_min = sum(after_min, na.rm = TRUE),
-      n_prior_max = sum(prior_max, na.rm = TRUE),
-      n_in_span = sum(in_span, na.rm = TRUE),
-      n_at_midpoint = sum(at_midpoint, na.rm = TRUE),
+      n_after_min = sum(.data$after_min, na.rm = TRUE),
+      n_prior_max = sum(.data$prior_max, na.rm = TRUE),
+      n_in_span = sum(.data$in_span, na.rm = TRUE),
+      n_at_midpoint = sum(.data$at_midpoint, na.rm = TRUE),
       total = dplyr::n(),
       .groups = "drop"
-    ) |>
+    ) %>%
     dplyr::mutate(
-      p_after_min = n_after_min / totalEpisodes * 100,
-      p_prior_max = n_prior_max / totalEpisodes * 100,
-      p_in_span = n_in_span / totalEpisodes * 100,
-      p_at_midpoint = n_at_midpoint / totalEpisodes * 100,
-      p_concept = total / totalEpisodes * 100,
+      p_after_min = .data$n_after_min / totalEpisodes * 100,
+      p_prior_max = .data$n_prior_max / totalEpisodes * 100,
+      p_in_span = .data$n_in_span / totalEpisodes * 100,
+      p_at_midpoint = .data$n_at_midpoint / totalEpisodes * 100,
+      p_concept = .data$total / totalEpisodes * 100,
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "concept_check.csv"), row.names = FALSE)
 }
 
@@ -152,185 +152,185 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
 
 #' @noRd
 addAge <- function(cdm, res) {
-  cdm$person |>
-    dplyr::select(person_id, gender_concept_id, birth_datetime, year_of_birth) |>
+  cdm$person %>%
+    dplyr::select("person_id", "gender_concept_id", "birth_datetime", "year_of_birth") %>%
     dplyr::mutate(
       birth_datetime = dplyr::if_else(
-        is.na(birth_datetime),
-        as.Date(paste0(as.character(year_of_birth), "-01-01")),
-        as.Date(birth_datetime)
+        is.na(.data$birth_datetime),
+        as.Date(paste0(as.character(.data$year_of_birth), "-01-01")),
+        as.Date(.data$birth_datetime)
       )
-    ) |>
-    dplyr::right_join(res, by = "person_id", copy = TRUE) |>
-    dplyr::collect() |>
+    ) %>%
+    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
+    dplyr::collect() %>%
     dplyr::mutate(
-      age_pregnancy_start = as.numeric(as.Date(inferred_episode_start) - birth_datetime)
+      age_pregnancy_start = as.numeric(as.Date(.data$inferred_episode_start) - .data$birth_datetime)
     )
 }
 
 #' @noRd
 exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minCellCount) {
-  resAge <- addAge(cdm, res) |>
+  resAge <- addAge(cdm, res) %>%
     dplyr::mutate(age_pregnancy_start = age_pregnancy_start / 365.25)
 
-  resAge |>
-    summariseColumn("age_pregnancy_start") |>
+  resAge %>%
+    summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
-  resAgeRound <- resAge |>
-    dplyr::filter(!is.na(age_pregnancy_start)) |>
-    dplyr::mutate(age_pregnancy_start = round(age_pregnancy_start))
+  resAgeRound <- resAge %>%
+    dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%
+    dplyr::mutate(age_pregnancy_start = round(.data$age_pregnancy_start))
 
   perYear <- summariseCategory(resAgeRound, "age_pregnancy_start")
 
-  groups <- resAgeRound |>
+  groups <- resAgeRound %>%
     dplyr::mutate(
       age_pregnancy_start_group = dplyr::case_when(
-        age_pregnancy_start < 12 ~ "<12",
-        age_pregnancy_start > 55 ~ ">55",
+        .data$age_pregnancy_start < 12 ~ "<12",
+        .data$age_pregnancy_start > 55 ~ ">55",
         TRUE ~ NA_character_
       )
-    ) |>
-    dplyr::filter(!is.na(age_pregnancy_start_group)) |>
-    summariseCategory("age_pregnancy_start_group") |>
-    dplyr::rename(age_pregnancy_start = age_pregnancy_start_group)
+    ) %>%
+    dplyr::filter(!is.na(.data$age_pregnancy_start_group)) %>%
+    summariseCategory("age_pregnancy_start_group") %>%
+    dplyr::rename(age_pregnancy_start = "age_pregnancy_start_group")
 
-  dplyr::bind_rows(perYear, groups) |>
-    suppressCounts("n", minCellCount) |>
+  dplyr::bind_rows(perYear, groups) %>%
+    suppressCounts("n", minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "age_summary_groups.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
-  d <- res |>
-    dplyr::filter(!is.na(.data$precision_days)) |>
-    dplyr::pull(.data$precision_days) |>
+  d <- res %>%
+    dplyr::filter(!is.na(.data$precision_days)) %>%
+    dplyr::pull(.data$precision_days) %>%
     stats::density()
 
-  data.frame(precision_days = d$x, density = d$y) |>
+  data.frame(precision_days = d$x, density = d$y) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "precision_days.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportEpisodeFrequency <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
-  res |>
+  res %>%
     dplyr::summarise(
       total_episodes = dplyr::n(),
       total_individuals = dplyr::n_distinct(.data$person_id)
-    ) |>
-    suppressCounts("total_individuals", minCellCount) |>
+    ) %>%
+    suppressCounts("total_individuals", minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "episode_frequency.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportPregnancyFrequency <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
-  res |>
-    dplyr::count(.data$person_id, name = "freq") |>
-    dplyr::count(.data$freq, name = "number_individuals") |>
-    suppressCounts("number_individuals", minCellCount) |>
+  res %>%
+    dplyr::count(.data$person_id, name = "freq") %>%
+    dplyr::count(.data$freq, name = "number_individuals") %>%
+    suppressCounts("number_individuals", minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "pregnancy_frequency.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportEpisodeFrequencySummary <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
-    dplyr::count(.data$person_id, name = "freq") |>
-    summariseColumn("freq") |>
+  res %>%
+    dplyr::count(.data$person_id, name = "freq") %>%
+    summariseColumn("freq") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "episode_frequency_summary.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportGestationalAgeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
-    summariseColumn("gestational_age_days_calculated") |>
+  res %>%
+    summariseColumn("gestational_age_days_calculated") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "gestational_age_days_summary.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
+  res %>%
     dplyr::summarise(
       less_1day = sum(.data$gestational_age_days_calculated < 1, na.rm = TRUE),
       over_308days = sum(.data$gestational_age_days_calculated > 308, na.rm = TRUE)
-    ) |>
+    ) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "gestational_age_days_counts.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
-    dplyr::mutate(gestational_weeks = floor(.data$gestational_age_days_calculated / 7)) |>
-    dplyr::count(.data$gestational_weeks, name = "n") |>
+  res %>%
+    dplyr::mutate(gestational_weeks = floor(.data$gestational_age_days_calculated / 7)) %>%
+    dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
       pct = .data$n / sum(.data$n) * 100,
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "gestational_weeks.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportGestationalDurationCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
-    dplyr::group_by(.data$final_outcome_category) |>
-    summariseColumn("gestational_age_days_calculated") |>
-    dplyr::ungroup() |>
+  res %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
+    summariseColumn("gestational_age_days_calculated") %>%
+    dplyr::ungroup() %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(
       file.path(resPath, "gestational_age_days_per_category_summary.csv"),
       row.names = FALSE
@@ -344,8 +344,8 @@ exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
     "recorded_episode_start", "recorded_episode_end", "inferred_episode_start", "inferred_episode_end"
   )
 
-  resLong <- res |>
-    tidyr::pivot_longer(cols = dplyr::any_of(dateCols), names_to = "column", values_to = "date") |>
+  resLong <- res %>%
+    tidyr::pivot_longer(cols = dplyr::any_of(dateCols), names_to = "column", values_to = "date") %>%
     dplyr::mutate(
       date = as.Date(.data$date),
       month = as.integer(format(.data$date, "%m")),
@@ -353,24 +353,24 @@ exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
     )
 
   writeTrend <- function(df, fileName) {
-    df |>
+    df %>%
       dplyr::mutate(
         cdm_name = snap$cdm_name,
         date_run = runStart,
         date_export = snap$snapshot_date,
         pkg_version = pkgVersion
-      ) |>
+      ) %>%
       utils::write.csv(file.path(resPath, fileName), row.names = FALSE)
   }
 
-  yearly <- resLong |>
+  yearly <- resLong %>%
     dplyr::count(.data$column, .data$year, name = "count")
 
   writeTrend(dplyr::filter(yearly, is.na(.data$year)), "yearly_trend_missing.csv")
   writeTrend(dplyr::filter(yearly, !is.na(.data$year)), "yearly_trend.csv")
 
-  monthly <- resLong |>
-    dplyr::count(.data$column, .data$month, name = "count") |>
+  monthly <- resLong %>%
+    dplyr::count(.data$column, .data$month, name = "count") %>%
     dplyr::mutate(month = factor(base::month.name[.data$month], levels = base::month.name))
 
   writeTrend(dplyr::filter(monthly, is.na(.data$month)), "monthly_trend_missing.csv")
@@ -379,40 +379,40 @@ exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
 
 #' @noRd
 exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgVersion) {
-  cdm$observation_period |>
+  cdm$observation_period %>%
     dplyr::summarise(
       min_obs = min(!!CDMConnector::datepart("observation_period_start_date", interval = "year"), na.rm = TRUE),
       max_obs = max(!!CDMConnector::datepart("observation_period_end_date", interval = "year"), na.rm = TRUE)
-    ) |>
-    dplyr::collect() |>
+    ) %>%
+    dplyr::collect() %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "observation_period_range.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
-    dplyr::add_count(.data$person_id) |>
-    dplyr::filter(.data$n > 1) |>
-    dplyr::arrange(.data$person_id, .data$inferred_episode_start, .data$inferred_episode_end) |>
-    dplyr::group_by(.data$person_id) |>
+  res %>%
+    dplyr::add_count(.data$person_id) %>%
+    dplyr::filter(.data$n > 1) %>%
+    dplyr::arrange(.data$person_id, .data$inferred_episode_start, .data$inferred_episode_end) %>%
+    dplyr::group_by(.data$person_id) %>%
     dplyr::mutate(
       prev_end = dplyr::lag(.data$inferred_episode_end),
       overlap = as.Date(.data$inferred_episode_start) <= as.Date(.data$prev_end)
-    ) |>
-    dplyr::filter(!is.na(.data$prev_end)) |>
-    summariseColumn("overlap") |>
+    ) %>%
+    dplyr::filter(!is.na(.data$prev_end)) %>%
+    summariseColumn("overlap") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "pregnancy_overlap_counts.csv"), row.names = FALSE)
 }
 
@@ -423,43 +423,43 @@ exportDateConsistency <- function(res, resPath, snap, runStart, pkgVersion) {
     "recorded_episode_start", "recorded_episode_end", "inferred_episode_start", "inferred_episode_end"
   )
 
-  res |>
-    dplyr::summarise(dplyr::across(dplyr::any_of(dateCols), ~ mean(is.na(.)))) |>
+  res %>%
+    dplyr::summarise(dplyr::across(dplyr::any_of(dateCols), ~ mean(is.na(.)))) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "date_consistency.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportReversedDatesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res |>
+  res %>%
     dplyr::mutate(
       rev_hip = .data$pregnancy_start > .data$hip_end_date,
       rev_pps = .data$pregnancy_start > .data$pps_end_date
-    ) |>
+    ) %>%
     dplyr::summarise(
       n_rev_hip = sum(.data$rev_hip, na.rm = TRUE),
       n_rev_pps = sum(.data$rev_pps, na.rm = TRUE)
-    ) |>
+    ) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "swapped_dates.csv"), row.names = FALSE)
 }
 
 #' @noRd
 exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   bindCounts <- function(df, col, algo) {
-    df |>
-      dplyr::count(.data[[col]], name = "n") |>
-      dplyr::mutate(algorithm = algo) |>
+    df %>%
+      dplyr::count(.data[[col]], name = "n") %>%
+      dplyr::mutate(algorithm = algo) %>%
       dplyr::rename(outcome_category = .data[[col]])
   }
 
@@ -467,16 +467,16 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
     bindCounts(res, "hip_outcome_category", "hip"),
     bindCounts(res, "pps_outcome_category", "pps"),
     bindCounts(res, "final_outcome_category", "hipps")
-  ) |>
-    dplyr::group_by(.data$algorithm) |>
-    dplyr::mutate(pct = .data$n / sum(.data$n) * 100) |>
-    dplyr::ungroup() |>
+  ) %>%
+    dplyr::group_by(.data$algorithm) %>%
+    dplyr::mutate(pct = .data$n / sum(.data$n) * 100) %>%
+    dplyr::ungroup() %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
-    ) |>
+    ) %>%
     utils::write.csv(file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
 }
 
@@ -488,25 +488,25 @@ suppressCounts <- function(df, colNames, minCellCount) {
     x[x > 0 & x < minCellCount] <- NA
     x
   }
-  df |>
+  df %>%
     dplyr::mutate(dplyr::across(dplyr::all_of(colNames), suppressOne))
 }
 
 #' @noRd
 summariseCategory <- function(df, colName) {
-  df |>
-    dplyr::count(.data[[colName]], name = "n") |>
+  df %>%
+    dplyr::count(.data[[colName]], name = "n") %>%
     dplyr::mutate(
       colName = colName,
       total = sum(.data$n),
       pct = .data$n / .data$total * 100
-    ) |>
+    ) %>%
     dplyr::relocate("colName")
 }
 
 #' @noRd
 summariseNumeric <- function(df, colName) {
-  df |>
+  df %>%
     dplyr::summarise(
       colName = colName,
       min = min(.data[[colName]], na.rm = TRUE),
@@ -516,16 +516,16 @@ summariseNumeric <- function(df, colName) {
       max = max(.data[[colName]], na.rm = TRUE),
       mean = mean(.data[[colName]], na.rm = TRUE),
       sd = stats::sd(.data[[colName]], na.rm = TRUE)
-    ) |>
+    ) %>%
     dplyr::tibble()
 }
 
 #' @noRd
 summariseColumn <- function(df, colName) {
   suppressWarnings({
-    sampleClass <- df |>
-      head(1000) |>
-      dplyr::pull(.data[[colName]]) |>
+    sampleClass <- df %>%
+      utils::head(1000) %>%
+      dplyr::pull(.data[[colName]]) %>%
       class()
 
     switch(

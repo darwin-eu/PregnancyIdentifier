@@ -54,8 +54,8 @@ runPps <- function(cdm,
 
   ppsConcepts <- readxl::read_excel(
     system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
-  ) |>
-    dplyr::rename_with(tolower) |>
+  ) %>%
+    dplyr::rename_with(tolower) %>%
     dplyr::mutate(domain_concept_id = as.integer(domain_concept_id))
 
   cdm <- CDMConnector::insertTable(
@@ -112,18 +112,18 @@ pullPpsDomain <- function(cdm,
 
   logInfo(logger, sprintf("Pulling data from %s", tableName))
 
-  cdm[[outputName]] <- cdm[[tableName]] |>
+  cdm[[outputName]] <- cdm[[tableName]] %>%
     dplyr::filter(
       .data[[dateColumn]] >= startDate,
       .data[[dateColumn]] <= endDate
-    ) |>
+    ) %>%
     dplyr::transmute(
       person_id,
       domain_concept_start_date = .data[[dateColumn]],
       domain_concept_id         = .data[[conceptIdColumn]]
-    ) |>
-    dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") |>
-    dplyr::distinct() |>
+    ) %>%
+    dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
+    dplyr::distinct() %>%
     dplyr::compute()
 
   cdm
@@ -159,7 +159,7 @@ inputGtConcepts <- function(cdm, startDate, endDate, logger) {
   cdm$input_gt_concepts_df <- purrr::reduce(
     cdm[domainSpecs$output_name],
     dplyr::union_all
-  ) |>
+  ) %>%
     dplyr::compute()
 
   # Remove intermediate tables
@@ -293,15 +293,14 @@ assignEpisodes <- function(personDf, ...) {
 getPpsEpisodes <- function(cdm, outputDir) {
 
   # Identify all patients with pregnancy-related concepts
-  cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df |>
-    dplyr::filter(!is.na(domain_concept_start_date)) |>
-    dplyr::left_join(cdm$preg_pps_concepts, by = "domain_concept_id") |>
+  cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
+    dplyr::filter(!is.na(domain_concept_start_date)) %>%
     dplyr::compute("patients_with_preg_concepts")
 
   # Save concept frequency counts for QA
-  cdm$patients_with_preg_concepts |>
-    dplyr::group_by(domain_concept_id, domain_concept_name) |>
-    dplyr::summarise(n = dplyr::n(), .groups = "drop") |>
+  cdm$patients_with_preg_concepts %>%
+    dplyr::group_by(domain_concept_id, domain_concept_name) %>%
+    dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
     utils::write.csv(
       file.path(outputDir, "pps_concept_counts.csv"),
       row.names = FALSE
@@ -310,44 +309,41 @@ getPpsEpisodes <- function(cdm, outputDir) {
   # ----------------------------------------------------------
   # Restrict to women of reproductive age
   # ----------------------------------------------------------
-  patientsDf <- cdm$patients_with_preg_concepts |>
+  patientsDf <- cdm$patients_with_preg_concepts %>%
     dplyr::inner_join(
-      cdm$person |>
+      cdm$person %>%
         dplyr::select(
-          person_id,
-          gender_concept_id,
-          year_of_birth,
-          month_of_birth,
-          day_of_birth
+          "person_id",
+          "gender_concept_id",
+          "year_of_birth",
+          "month_of_birth",
+          "day_of_birth"
         ),
       by = "person_id"
-    ) |>
+    ) %>%
     dplyr::mutate(
-      day_of_birth   = dplyr::coalesce(day_of_birth, 1L),
-      month_of_birth = dplyr::coalesce(month_of_birth, 1L),
-      date_of_birth  = as.Date(sprintf(
-        "%d-%02d-%02d",
-        year_of_birth, month_of_birth, day_of_birth
-      )),
+      day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
+      month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L),
+      date_of_birth  = as.Date(paste0(.data$year_of_birth, "-", .data$month_of_birth, "-", .data$day_of_birth)),
       age =
         !!CDMConnector::datediff(
           "date_of_birth",
           "domain_concept_start_date",
           "day"
         ) / 365
-    ) |>
+    ) %>%
     dplyr::filter(
-      gender_concept_id == 8532,
-      age >= 15,
-      age < 56
-    ) |>
-    dplyr::collect(page_size = 50000) |>
-    dplyr::group_by(person_id) |>
-    dplyr::arrange(domain_concept_start_date)
+      .data$gender_concept_id == 8532,
+      .data$age >= 15,
+      .data$age < 56
+    ) %>%
+    dplyr::collect(page_size = 50000) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::arrange(.data$domain_concept_start_date)
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 
-  patientsDf |>
+  patientsDf %>%
     dplyr::group_modify(assignEpisodes)
 }
 
@@ -359,15 +355,14 @@ getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
       if (nrow(ppsEpisodesDf) > 0) ppsEpisodesDf$person_id else integer(0)
   }
 
-  ppsEpisodesDf |>
-    dplyr::filter(!is.na(person_episode_number)) |>
-    dplyr::group_by(person_id, person_episode_number) |>
+  ppsEpisodesDf %>%
+    dplyr::filter(!is.na(.data$person_episode_number)) %>%
+    dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
     dplyr::summarise(
-      episode_min_date = min(domain_concept_start_date, na.rm = TRUE),
-      episode_max_date = max(domain_concept_start_date, na.rm = TRUE),
-      episode_max_date_plus_two_months =
-        lubridate::`%m+%`(episode_max_date, lubridate::months(2)),
-      n_gt_concepts = dplyr::n_distinct(domain_concept_id),
+      episode_min_date = min(.data$domain_concept_start_date, na.rm = TRUE),
+      episode_max_date = max(.data$domain_concept_start_date, na.rm = TRUE),
+      episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$episode_max_date, lubridate::period(months = 2)),
+      n_gt_concepts = dplyr::n_distinct(.data$domain_concept_id),
       .groups = "drop"
     )
 }

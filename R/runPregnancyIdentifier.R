@@ -17,6 +17,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+makeLogger <- function(outputDir) {
+  logFile <- file.path(outputDir, "log.txt")
+  file.create(logFile)
+  logger <- log4r::create.logger(logfile = logFile)
+  logger <- log4r::logger(threshold = "INFO", appenders = list(
+    log4r::console_appender(),
+    log4r::file_appender(logFile)
+  ))
+  return(logger)
+}
+
 #' Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD + export)
 #'
 #' Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
@@ -66,7 +77,8 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
-  checkmate::assertInt(minCellCount, len = 1, lower = 0)
+  checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
+  minCellCount <- as.integer(minCellCount)
 
   # ---- Prepare output location + logger --------------------------------------
   # Inputs: outputDir

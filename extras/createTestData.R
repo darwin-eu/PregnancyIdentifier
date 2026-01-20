@@ -20,7 +20,7 @@ library(CDMConnector)
 library(dplyr)
 cdm <- cdmSubset(cdm, personId = 21L)
 
-cdm$condition_occurrence |>
+cdm$condition_occurrence %>%
   select(1:4, condition_source_value)
 
 outputFolder <- file.path(tempdir(), "testHipps")
@@ -31,19 +31,19 @@ list.files(outputFolder)
 df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))
 
 printLong <- function(x) {
-  x |>
-    dplyr::collect() |>
-    dplyr::mutate_all(as.character) |>
-    tidyr::gather() |>
+  x %>%
+    dplyr::collect() %>%
+    dplyr::mutate_all(as.character) %>%
+    tidyr::gather() %>%
     print(n=1000)
 }
 
 library(dplyr)
-df |>
-  filter(person_id == 28) |>
-  mutate_all(as.character) |>
-  slice(2) |>
-  tidyr::gather() |>
+df %>%
+  filter(person_id == 28) %>%
+  mutate_all(as.character) %>%
+  slice(2) %>%
+  tidyr::gather() %>%
   print(n=100)
 
 

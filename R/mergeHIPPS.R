@@ -121,7 +121,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
       months_to_add = 11L - as.integer(.data$min_month),
       max_pregnancy_date = lubridate::`%m+%`(.data$domain_concept_start_date, lubridate::months(.data$months_to_add))
     ) |>
-    dplyr::select(.data$person_id, .data$person_episode_number, .data$max_pregnancy_date)
+    dplyr::select("person_id", "person_episode_number", "max_pregnancy_date")
 
   pregnantDates <- pregnantDates |>
     dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) |>
@@ -268,7 +268,7 @@ mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
     df |>
       dplyr::group_by(.data[[idCol]]) |>
       dplyr::mutate(
-        "{outCol}" := dplyr::if_else(is.na(.data[[idCol]])[1], NA, as.integer(dplyr::n() > 1))
+        !!rlang::sym(outCol) := dplyr::if_else(is.na(.data[[idCol]])[1], NA, as.integer(dplyr::n() > 1))
       ) |>
       dplyr::ungroup()
   }
