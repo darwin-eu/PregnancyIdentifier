@@ -254,13 +254,17 @@ mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
       algo2Df,
       by = dplyr::join_by(
         person_id,
-        dplyr::overlaps(pregnancy_start, pregnancy_end, episode_min_date, episode_max_date_plus_two_months)
+        pregnancy_start <= episode_max_date_plus_two_months,
+        pregnancy_end   >= episode_min_date
       )
     ) |>
     dplyr::mutate(
-      merged_episode_start = as.Date(pmin(.data$first_gest_date, .data$episode_min_date, .data$pregnancy_end)),
-      merged_episode_end   = as.Date(pmax(.data$episode_max_date, .data$pregnancy_end)),
-      merged_episode_length = as.numeric(difftime(.data$merged_episode_end, .data$merged_episode_start, units = "days")) / 30.25
+      merged_episode_start =
+        as.Date(pmin(.data$first_gest_date, .data$episode_min_date, .data$pregnancy_end)),
+      merged_episode_end   =
+        as.Date(pmax(.data$episode_max_date, .data$pregnancy_end)),
+      merged_episode_length =
+        as.numeric(difftime(.data$merged_episode_end, .data$merged_episode_start, units = "days")) / 30.25
     )
 
   # flag duplicates (many-to-many overlap matches)

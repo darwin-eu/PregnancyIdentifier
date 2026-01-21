@@ -18,7 +18,7 @@ initPregnancies(
 
 \item{endDate}{Latest date to look for pregnancies in the CDM}
 
-\item{ageBound}{The upper and lower bounds for age at pregnancy end date
+\item{ageBounds}{The upper and lower bounds for age at pregnancy end date
 represented using a length 2 integer vector. By default this will be
 c(15, 56) and will include anyone >= 15 and < 56.}
 }
@@ -34,6 +34,6 @@ at the time of pregnancy
 \examples{
 \dontrun{
 cdm <- mockPregnancyCdm()
-cdm <-initPregnancies(cdm)
+cdm <- initPregnancies(cdm)
 }
 }

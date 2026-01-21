@@ -1,10 +1,12 @@
 test_that("run mergeHipPps", {
-  testPath <- getwd()
+  testPath <- system.file("testCases", mustWork = TRUE, package = "PregnancyIdentifier")
   # Read patients from JSON
-  cdm <- TestGenerator::patientsCDM(
-    pathJson = testPath,
-    testName = "testData"
-  )
+  suppressMessages({
+    cdm <- TestGenerator::patientsCDM(
+      pathJson = testPath,
+      testName = "testData"
+    )
+  })
 
   # setup
   outputDir <- file.path(tempdir(), "output")
@@ -15,42 +17,40 @@ test_that("run mergeHipPps", {
 
   # start analysis
   cdm <- initPregnancies(cdm)
-  cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger)
-  cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
 
-  ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
-  ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+  cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger)
   hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
-  mergeHips(
-    cdm = cdm,
-    outputDir = outputDir,
-    logger = logger
-  )
-  cdm <- CDMConnector::readSourceTable(cdm = cdm, name = "preg_initial_cohort")
+  cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
+  ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
+  ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+
+  mergeHips(cdm = cdm, outputDir = outputDir, logger = logger)
   hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
+
   runEsd(cdm = cdm, outputDir = outputDir, logger = logger)
-  # end analysis
+  identified_pregnancy_episodes <- readRDS(file.path(outputDir, "identified_pregnancy_episodes.rds"))
 
   expect_true(dir.exists(outputDir))
   result <- list.files(outputDir)
-  expect_length(result, 7)
+  expect_length(result, 8)
 
   expect_equal(sort(result), sort(c(
-    "PPS-concept_counts.csv",
+    "pps_concept_counts.csv",
     "ESD.rds",
     "HIPPS_episodes.rds",
     "HIP_episodes.rds",
-    "PPS_gest_timing_episodes.rds",
-    "PPS_min_max_episodes.rds",
-    "log.txt"
+    "pps_gest_timing_episodes.rds",
+    "pps_min_max_episodes.rds",
+    "log.txt",
+    "identified_pregnancy_episodes.rds"
   )))
 
   unlink(outputDir, recursive = TRUE)
 })
 
 test_that("run runHipps", {
-  testPath <- getwd()
+  testPath <- system.file("testCases", mustWork = TRUE, package = "PregnancyIdentifier")
   # Read patients from JSON
   cdm <- TestGenerator::patientsCDM(
     pathJson = testPath,
@@ -73,7 +73,7 @@ test_that("run runHipps", {
     outputDir = outputDir
   )
 
-  PregnancyIdentifier::export(
+  PregnancyIdentifier::exportPregnancies(
     cdm = cdm,
     outputDir = outputDir,
     exportDir = exportDir
@@ -82,30 +82,32 @@ test_that("run runHipps", {
 
   expect_true(dir.exists(outputDir))
   result <- list.files(outputDir)
-  expect_length(result, 7)
+  expect_length(result, 9)
 
   expect_equal(sort(result), sort(c(
     "HIP_episodes.rds",
-    "PPS-concept_counts.csv",
-    "PPS_gest_timing_episodes.rds",
-    "PPS_min_max_episodes.rds",
-    "identified_pregancy_episodes.rds",
+    "ESD.rds",
+    "HIPPS_episodes.rds",
+    "pps_concept_counts.csv",
+    "pps_gest_timing_episodes.rds",
+    "pps_min_max_episodes.rds",
+    "identified_pregnancy_episodes.rds",
     "log.txt",
     "runStart.csv"
   )))
 
   expect_true(dir.exists(exportDir))
   csvResult <- list.files(exportDir, pattern = "*.csv")
-  expect_length(csvResult, 21)
+  expect_length(csvResult, 20)
   zipResult <- list.files(exportDir, pattern = "*.zip")
   expect_length(zipResult, 1)
 
   expect_equal(sort(csvResult), sort(c(
-    "PPS-concept_counts.csv",
+    # "pps_concept_counts.csv",
     "age_summary.csv",
     "age_summary_groups.csv",
     "cdm_source.csv",
-    "date_consistancy.csv",
+    "date_consistency.csv",
     "episode_frequency.csv",
     "episode_frequency_summary.csv",
     "gestational_age_days_counts.csv",

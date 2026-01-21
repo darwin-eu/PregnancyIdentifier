@@ -47,23 +47,6 @@ runPps <- function(cdm,
 
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 
-  # ----------------------------------------------------------
-  # Insert PPS concept lookup table
-  # ----------------------------------------------------------
-  logInfo(logger, "Inserting PPS concepts")
-
-  ppsConcepts <- readxl::read_excel(
-    system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
-  ) %>%
-    dplyr::rename_with(tolower) %>%
-    dplyr::mutate(domain_concept_id = as.integer(domain_concept_id))
-
-  cdm <- CDMConnector::insertTable(
-    cdm = cdm,
-    name = "preg_pps_concepts",
-    table = ppsConcepts
-  )
-
   logInfo(logger, "START Running PPS")
 
   # ----------------------------------------------------------

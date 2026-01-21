@@ -33,7 +33,7 @@ res %>%
   summariseColumn("pps_outcome_category")
 
 res %>%
-  as_tibble() %>%
+  dplyr::as_tibble() %>%
   dplyr::filter(.data$precision_days < 50)
 
 d <- density(res$precision_days)

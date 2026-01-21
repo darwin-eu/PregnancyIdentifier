@@ -31,7 +31,9 @@ Imports:
     tidyr,
     log4r,
     rlang,
-    shiny
+    shiny,
+    checkmate,
+    tibble
 Suggests: 
     testthat (>= 3.0.0),
     omopgenerics,

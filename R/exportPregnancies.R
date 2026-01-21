@@ -26,7 +26,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   snap <- CDMConnector::snapshot(cdm)
   utils::write.csv(snap, file.path(exportDir, "cdm_source.csv"), row.names = FALSE)
 
-  res <- readRDS(file.path(outputDir, "identified_pregancy_episodes.rds"))
+  res <- readRDS(file.path(outputDir, "identified_pregnancy_episodes.rds"))
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
 
   # Copy key raw artifacts (if present)
@@ -201,7 +201,8 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     summariseCategory("age_pregnancy_start_group") %>%
     dplyr::rename(age_pregnancy_start = "age_pregnancy_start_group")
 
-  dplyr::bind_rows(perYear, groups) %>%
+  # dplyr::bind_rows(perYear, groups) %>% type mismatch chr vs numeric in age_pregnancy_start
+  rbind(perYear, groups) %>%
     suppressCounts("n", minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,

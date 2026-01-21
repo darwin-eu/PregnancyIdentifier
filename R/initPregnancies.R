@@ -56,6 +56,27 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
   hipConcepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "preg_hip_concepts", table = hipConcepts, overwrite = TRUE)
 
+  message("Inserting PPS concepts into the CDM")
+  ppsConcepts <- readxl::read_excel(
+    system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
+  ) %>%
+    dplyr::rename_with(tolower) %>%
+    dplyr::mutate(domain_concept_id = as.integer(domain_concept_id))
+
+  cdm <- CDMConnector::insertTable(
+    cdm = cdm,
+    name = "preg_pps_concepts",
+    table = ppsConcepts
+  )
+
+  message("Inserting Matcho term durations into the CDM")
+  matchoTermDurations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
+  cdm <- CDMConnector::insertTable(
+    cdm = cdm,
+    name = "preg_matcho_term_durations",
+    table = matchoTermDurations,
+  )
+
   message("Getting all initial pregnancy records")
   hip <- dplyr::select(cdm$preg_hip_concepts, concept_id, category)
 
@@ -77,10 +98,10 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
           dplyr::inner_join(hip, by = stats::setNames("concept_id", concept)) %>%
           dplyr::filter(!!rlang::sym(date) >= startDate, !!rlang::sym(date) <= endDate) %>%
           dplyr::transmute(
-            person_id,
+            person_id = .data$person_id,
             concept_id  = !!rlang::sym(concept),
             visit_date  = !!rlang::sym(date),
-            category,
+            category = .data$category,
             value_as_number = !!valueExpr
           ) %>%
           dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id")

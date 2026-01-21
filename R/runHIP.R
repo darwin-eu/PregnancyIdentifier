@@ -133,15 +133,6 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # min start date = latest possible start date if shortest term
   # max start date = earliest possible start date if max term
 
-  logInfo(logger, "Inserting Matcho term durations")
-  matchoTermDurations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
-  cdm <- CDMConnector::insertTable(
-    cdm = cdm,
-    name = "matcho_term_durations",
-    table = matchoTermDurations,
-    overwrite = TRUE,
-    temporary = FALSE
-  )
   cdm <- calculateStart(cdm)
 
   ## Gestation-based episodes
@@ -209,7 +200,6 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
       "just_gestation_df",
       "just_outcome_df",
       "matcho_outcome_limits",
-      "matcho_term_durations",
       "merged",
       "neg_days_df",
       "new_end_df",
@@ -258,16 +248,16 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 # only one will be (essentially randomly) chosen
 finalVisits <- function(cdm, categories, tableName, logger) {
   cdm$temp_df <- cdm$preg_initial_cohort %>%
-    dplyr::filter(category %in% categories) %>%
+    dplyr::filter(.data$category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
-    dplyr::group_by(person_id, visit_date) %>%
+    dplyr::group_by(.data$person_id, .data$visit_date) %>%
     # slicing by category - choose AB over SA
     dplyr::slice_min(order_by = .data$category, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
     # distinct(person_id, visit_date, .keep_all = TRUE) %>% stopped working?!
-    dplyr::group_by(person_id) %>%
-    dbplyr::window_order(visit_date) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dbplyr::window_order(.data$visit_date) %>%
     # Create a new column called "days" that calculates the number of days between each visit for each person.
     dplyr::mutate(prev_visit_date = dplyr::lag(.data$visit_date)) %>%
     dplyr::mutate(days = !!CDMConnector::datediff(start = "prev_visit_date", end = "visit_date", interval = "day")) %>%
@@ -595,7 +585,7 @@ calculateStart <- function(cdm) {
 
   # join tables
   cdm$calculate_start_df <- cdm$add_delivery_df %>%
-    dplyr::left_join(cdm$matcho_term_durations, by = "category") %>%
+    dplyr::left_join(cdm$preg_matcho_term_durations, by = "category") %>%
     dplyr::mutate(
       min_term = as.integer(.data$min_term),
       max_term = as.integer(.data$max_term)
@@ -869,7 +859,7 @@ addGestation <- function(cdm, bufferDays = 28, justGestation = TRUE, logger) {
   cdm$both_df <- cdm$calculate_start_df %>%
     dplyr::inner_join(
       cdm$get_min_max_gestation_df,
-      by = dplyr::join_by(person_id, overlaps(
+      by = dplyr::join_by(person_id, dplyr::overlaps(
         max_start_date, visit_date,
         max_gest_start_date, max_gest_date
       ))
@@ -1091,8 +1081,8 @@ cleanEpisodes <- function(cdm, bufferDays = 28, logger) {
       date_diff_max_end = !!CDMConnector::datediff("end_gest_date", "max_gest_date", "day")
     ) %>%
     # redo column for episode
-    dplyr::group_by(person_id) %>%
-    dbplyr::window_order(visit_date) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     dplyr::compute(name = "clean_episodes_df", temporary = FALSE, overwrite = TRUE)
@@ -1107,7 +1097,7 @@ removeOverlaps <- function(cdm, logger) {
 
   cdm$df <- cdm$clean_episodes_df %>%
     dplyr::group_by(.data$person_id) %>%
-    dbplyr::window_order(visit_date) %>%
+    dbplyr::window_order(.data$visit_date) %>%
     # get previous date
     dplyr::mutate(
       prev_date = dplyr::lag(.data$visit_date),

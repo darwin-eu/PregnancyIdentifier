@@ -71,7 +71,7 @@ runPregnancyIdentifier <- function(cdm,
                                    justGestation = TRUE,
                                    minCellCount = 5L) {
 
-  # ---- Validate inputs (fail fast) --------------------------------------------
+  # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
@@ -88,6 +88,9 @@ runPregnancyIdentifier <- function(cdm,
 
   logger <- makeLogger(outputDir)
   log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
+
+  runStart <- data.frame(start = as.integer(Sys.time()))
+  utils::write.csv(runStart, file.path(outputDir, "runStart.csv"))
 
   # ---- Step 1: Initialize cohort + concept sets ------------------------------
   # Inputs:
@@ -158,20 +161,6 @@ runPregnancyIdentifier <- function(cdm,
     startDate = startDate,
     endDate = endDate,
     logger = logger
-  )
-
-  # ---- Step 6: Export shareable summaries ------------------------------------
-  # Inputs:
-  #   - identified_pregancy_episodes.rds in outputDir
-  # Outputs:
-  #   - writes multiple CSV summaries to outputDir/export/
-  #   - creates a ZIP archive in exportDir
-  log4r::info(logger, "Running `exportPregnancies`")
-  exportPregnancies(
-    cdm,
-    outputDir = outputDir,
-    exportDir = file.path(outputDir, "export"),
-    minCellCount = minCellCount
   )
 
   invisible(NULL)

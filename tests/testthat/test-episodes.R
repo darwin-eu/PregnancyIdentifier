@@ -1,5 +1,5 @@
 test_that("test gestational episodes", {
-  testPath <- getwd()
+  testPath <- system.file("testCases", mustWork = TRUE, package = "PregnancyIdentifier")
   # Read patients from JSON
   cdm <- TestGenerator::patientsCDM(
     pathJson = testPath,
