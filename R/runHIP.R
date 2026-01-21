@@ -859,7 +859,7 @@ addGestation <- function(cdm, bufferDays = 28, justGestation = TRUE, logger) {
   cdm$both_df <- cdm$calculate_start_df %>%
     dplyr::inner_join(
       cdm$get_min_max_gestation_df,
-      by = dplyr::join_by(person_id, dplyr::overlaps(
+      by = dplyr::join_by(person_id, overlaps(
         max_start_date, visit_date,
         max_gest_start_date, max_gest_date
       ))

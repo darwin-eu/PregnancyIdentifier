@@ -31,17 +31,7 @@ utils::globalVariables(
     "removed_outcome",
     "start_date",
     "visit_date",
-    "visit_id"
+    "visit_id",
+    "overlaps"
   )
 )
-
-{
-  "cells": [],
-  "metadata": {
-    "language_info": {
-      "name": "python"
-    }
-  },
-  "nbformat": 4,
-  "nbformat_minor": 2
-}
