@@ -461,7 +461,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
     df %>%
       dplyr::count(.data[[col]], name = "n") %>%
       dplyr::mutate(algorithm = algo) %>%
-      dplyr::rename(outcome_category = .data[[col]])
+      dplyr::rename(outcome_category = dplyr::all_of(col))
   }
 
   dplyr::bind_rows(

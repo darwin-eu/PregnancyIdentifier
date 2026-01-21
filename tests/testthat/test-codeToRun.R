@@ -22,8 +22,8 @@ test_that("run mergeHipPps", {
   hipRes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
   cdm <- runPps(cdm = cdm, outputDir = outputDir, logger = logger)
-  ppsMinMax <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
-  ppsEpisode <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+  ppsMinMax <- readRDS(file.path(outputDir, "pps_min_max_episodes.rds"))
+  ppsEpisode <- readRDS(file.path(outputDir, "pps_gest_timing_episodes.rds"))
 
   mergeHips(cdm = cdm, outputDir = outputDir, logger = logger)
   hippsRes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))

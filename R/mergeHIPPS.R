@@ -47,8 +47,8 @@
 mergeHips <- function(cdm, outputDir, logger) {
   log4r::info(logger, "Merging HIP and PPS into HIPPS")
 
-  ppsMinMaxDf   <- readRDS(file.path(outputDir, "PPS_min_max_episodes.rds"))
-  ppsEpisodesDf <- readRDS(file.path(outputDir, "PPS_gest_timing_episodes.rds"))
+  ppsMinMaxDf   <- readRDS(file.path(outputDir, "pps_min_max_episodes.rds"))
+  ppsEpisodesDf <- readRDS(file.path(outputDir, "pps_gest_timing_episodes.rds"))
   hipDf         <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
   outcomesDf <- outcomesPerEpisode(
@@ -205,8 +205,8 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
 addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
   outDf <- outcomesDf |>
     dplyr::select(
-      .data$person_id, .data$person_episode_number, .data$episode_min_date,
-      .data$algo2_category, .data$algo2_outcome_date, .data$n_gt_concepts
+      "person_id", "person_episode_number", "episode_min_date",
+      "algo2_category", "algo2_outcome_date", "n_gt_concepts"
     )
 
   ppsMinMaxDf |>

@@ -235,7 +235,7 @@ findIntersection <- function(intervals) {
   }
 
   intervalsDf <- intervalsDf %>%
-    dplyr::mutate(dplyr::across(dplyr::everything(), as.Date, format = "%Y-%m-%d")) %>%
+    dplyr::mutate(dplyr::across(dplyr::everything(), ~as.Date(., format = "%Y-%m-%d"))) %>%
     dplyr::arrange(.data$V1)
 
   # First remove outlier ranges via the IQR*1.5 approach.
@@ -497,7 +497,7 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
   # - GW uses extrapolated pregnancy start (single date)
   timingDf <- timingDf %>%
     dplyr::mutate(
-      dplyr::across(c(.data$extrapolated_preg_start, .data$min_pregnancy_start, .data$max_pregnancy_start), as.character),
+      dplyr::across(c("extrapolated_preg_start", "min_pregnancy_start", "max_pregnancy_start"), as.character),
       preg_start_range = dplyr::if_else(
         is.na(.data$extrapolated_preg_start),
         paste(.data$max_pregnancy_start, .data$min_pregnancy_start),
@@ -544,9 +544,9 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select(
-      person_id, .data$episode_number, .data$GT_info_list, .data$GW_flag, .data$GR3m_flag,
-      .data$inferred_episode_start, .data$precision_days, .data$precision_category,
-      .data$intervalsCount, .data$majorityOverlapCount
+      "person_id", "episode_number", "GT_info_list", "GW_flag", "GR3m_flag",
+      "inferred_episode_start", "precision_days", "precision_category",
+      "intervalsCount", "majorityOverlapCount"
     )
 
   # print the GW and GR3m concept overlap information to log

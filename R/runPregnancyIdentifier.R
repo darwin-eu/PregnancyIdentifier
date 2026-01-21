@@ -129,8 +129,8 @@ runPregnancyIdentifier <- function(cdm,
   # Inputs:
   #   - cdm + study window
   # Outputs:
-  #   - writes: outputDir/PPS_gest_timing_episodes.rds
-  #   - writes: outputDir/PPS_min_max_episodes.rds
+  #   - writes: outputDir/pps_gest_timing_episodes.rds
+  #   - writes: outputDir/pps_min_max_episodes.rds
   #   - may add supporting PPS tables in the CDM
   log4r::info(logger, "Running `runPps`")
   cdm <- runPps(
