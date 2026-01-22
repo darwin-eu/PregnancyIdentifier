@@ -136,9 +136,9 @@ Interpretation of categories:
 
 5.  **Summarize episodes** For each episode, PPS computes min/max dates and a convenience extension window (max + 2 months), plus a concept diversity count.
 
-## `mergeHips()`: merge HIP + PPS into unified HIPPS episodes
+## `mergeHipps()`: merge HIP + PPS into unified HIPPS episodes
 
-`mergeHips()` combines the outputs of HIP (outcome-anchored episodes) and PPS (timing-anchored episodes) into a single standardized episode table. It:
+`mergeHipps()` combines the outputs of HIP (outcome-anchored episodes) and PPS (timing-anchored episodes) into a single standardized episode table. It:
 
 -   loads HIP and PPS artifacts from `outputDir`,
 -   infers outcomes for PPS episodes using a lookback/lookahead window around each PPS episode end,

@@ -39,7 +39,7 @@ makeLogger <- function(outputDir) {
 #'    tables and an initial cohort in the CDM,
 #' 2) HIP episode identification (`runHip()`): identifies episodes based on HIP rules,
 #' 3) PPS episode identification (`runPps()`): identifies episodes based on PPS rules,
-#' 4) merge (`mergeHips()`): merges HIP and PPS into combined HIPPS episodes,
+#' 4) merge (`mergeHipps()`): merges HIP and PPS into combined HIPPS episodes,
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
 #' 6) export (`exportPregnancies()`): writes shareable summary outputs (with optional
@@ -146,8 +146,8 @@ runPregnancyIdentifier <- function(cdm,
   #   - RDS artifacts written by HIP and PPS steps in outputDir
   # Outputs:
   #   - writes: outputDir/HIPPS_episodes.rds
-  log4r::info(logger, "Running `mergeHips`")
-  mergeHips(cdm, outputDir = outputDir, logger = logger)
+  log4r::info(logger, "Running `mergeHipps`")
+  mergeHipps(cdm, outputDir = outputDir, logger = logger)
 
   # ---- Step 5: ESD refinement -------------------------------------------------
   # Inputs:
