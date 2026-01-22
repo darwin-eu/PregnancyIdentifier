@@ -46,9 +46,9 @@ runEsd <- function(HIPPS, cdm, outputDir, uploadConceptSets = FALSE, startDate =
   # get timing concepts
   get_timing_concepts_df <- get_timing_concepts(
     cdm = cdm,
-    HIPPS,
     startDate = startDate,
-    endDate = endDate
+    endDate = endDate,
+    final_merged_episode_detailed_df = HIPPS
   )
 
   # get gestational timing info
@@ -112,9 +112,7 @@ get_timing_concepts <- function(cdm, startDate = as.Date("1900-01-01"), endDate 
     ) %>%
     dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
-  cdm <- omopgenerics::insertTable(
-    cdm, name = "person_id_list", table = person_id_list
-  )
+  cdm <- CDMConnector::insertTable(cdm, name = "person_id_list", table = person_id_list, overwrite = TRUE)
 
   c_o <- concepts_to_search %>%
     dplyr::inner_join(

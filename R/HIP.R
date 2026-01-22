@@ -575,7 +575,7 @@ add_delivery <- function(cdm, logger) {
         !is.na(.data$previous_category)
         & .data$previous_category == "DELIV"
         & .data$category %in% c("LB", "SB") & .data$after_days < after_min_sb,
-        dplyr::lag(visit_date),
+        .data$prev_visit,
         .data$visit_date
       )
     ) %>%
@@ -630,6 +630,10 @@ calculate_start <- function(cdm) {
   # join tables
   cdm$calculate_start_df <- cdm$add_delivery_df %>%
     dplyr::left_join(cdm$matcho_term_durations, by = "category") %>%
+    dplyr::mutate(
+      min_term = as.integer(.data$min_term),
+      max_term = as.integer(.data$max_term)
+    ) %>%
     # based only on the outcome, when did pregnancy start
     # calculate latest start start date
     dplyr::mutate(
@@ -864,9 +868,9 @@ add_gestation <- function(cdm, buffer_days = 28, justGestation = TRUE, logger) {
     dplyr::compute() %>%
     dplyr::mutate(
       # add column for gestation period in days for largest gestation week on record
-      max_gest_day = (.data$max_gest_week * 7),
+      max_gest_day = as.integer(.data$max_gest_week * 7),
       # add column for gestation period in days for smallest gestation week on record
-      min_gest_day = (.data$min_gest_week * 7),
+      min_gest_day = as.integer(.data$min_gest_week * 7),
     ) %>%
     dplyr::compute() %>%
     dplyr::mutate(
@@ -1087,7 +1091,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
   # join episodes with new values to main table
   cdm$final_df <- cdm$final_df %>%
     dplyr::union_all(cdm$under_min_df) %>%
-    dplyr::compute()
+    dplyr::compute(name = "final_df", temporary = FALSE, overwrite = TRUE)
 
   ###### remove any outcomes where the difference between max_gest_date in days is negative ######
   # filter to episodes with max_gest_date is after the outcome visit_date with buffer
@@ -1099,7 +1103,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
       visit_date = .data$max_gest_date,
       removed_outcome = 1
     ) %>%
-    dplyr::compute()
+    dplyr::compute(name = "neg_days_df", temporary = FALSE, overwrite = TRUE)
 
   log4r::info(logger, sprintf(
     "Total number of episodes with negative number of days between outcome and max_gest_date: %s",
@@ -1126,7 +1130,7 @@ clean_episodes <- function(cdm, buffer_days = 28, logger) {
     dbplyr::window_order(visit_date) %>%
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
-    dplyr::compute()
+    dplyr::compute(name = "clean_episodes_df", temporary = FALSE, overwrite = TRUE)
 
   return(cdm)
 }
@@ -1135,9 +1139,8 @@ remove_overlaps <- function(cdm, logger) {
   # Identify episodes that overlap and keep only the latter episode if the previous episode is PREG.
   # If the latter episode doesn't have gestational info, redefine the start date to be the
   # previous episode end date plus the retry period.
-  cdm$df <- cdm$clean_episodes_df
 
-  cdm$df <- cdm$df %>%
+  cdm$df <- cdm$clean_episodes_df %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(visit_date) %>%
     # get previous date
@@ -1222,6 +1225,7 @@ remove_overlaps <- function(cdm, logger) {
       )
     ) %>%
     # dplyr::compute(name = "final_df") %>%
+    dplyr::mutate(prev_retry = as.integer(.data$prev_retry)) %>%
     dplyr::mutate(
       # get estimated start date
       estimated_start_date = dplyr::case_when(
