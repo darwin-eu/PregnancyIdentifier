@@ -84,250 +84,168 @@ runPps <- function(cdm,
 
 # Pulls concepts from a single OMOP table and normalizes column names so that
 # all downstream logic can operate on a consistent schema.
-pullPpsDomain <- function(cdm,
-                          tableName,
-                          outputName,
-                          dateColumn,
-                          conceptIdColumn,
-                          startDate,
-                          endDate,
-                          logger) {
+inputGtConcepts <- function(cdm, startDate, endDate, logger) {
 
-  logInfo(logger, sprintf("Pulling data from %s", tableName))
+  domainSpecs <- tibble::tribble(
+    ~table_name,            ~date_column,            ~concept_id_column,
+    "condition_occurrence", "condition_start_date",  "condition_concept_id",
+    "procedure_occurrence", "procedure_date",        "procedure_concept_id",
+    "observation",          "observation_date",      "observation_concept_id",
+    "measurement",          "measurement_date",      "measurement_concept_id",
+    "visit_occurrence",     "visit_start_date",      "visit_concept_id"
+  )
 
-  cdm[[outputName]] <- cdm[[tableName]] %>%
-    dplyr::filter(
-      .data[[dateColumn]] >= startDate,
-      .data[[dateColumn]] <= endDate
-    ) %>%
-    dplyr::transmute(
-      person_id,
-      domain_concept_start_date = .data[[dateColumn]],
-      domain_concept_id         = .data[[conceptIdColumn]]
-    ) %>%
-    dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
-    dplyr::distinct() %>%
+  pulls <- purrr::map(seq_len(nrow(domainSpecs)), \(i) {
+    spec <- domainSpecs[i, ]
+
+    tableName <- spec$table_name[[1]]
+    dateCol   <- spec$date_column[[1]]
+    cidCol    <- spec$concept_id_column[[1]]
+
+    logInfo(logger, sprintf("Pulling data from %s", tableName))
+
+    cdm[[tableName]] %>%
+      dplyr::filter(.data[[dateCol]] >= startDate, .data[[dateCol]] <= endDate) %>%
+      dplyr::transmute(
+        person_id,
+        domain_concept_start_date = .data[[dateCol]],
+        domain_concept_id         = .data[[cidCol]]
+      ) %>%
+      dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
+      dplyr::distinct()
+  })
+
+  cdm$input_gt_concepts_df <- purrr::reduce(pulls, dplyr::union_all) %>%
+    dplyr::filter(!is.na(domain_concept_start_date)) %>%
     dplyr::compute()
 
   cdm
 }
 
-inputGtConcepts <- function(cdm, startDate, endDate, logger) {
+getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
-  # Specification of all OMOP tables containing pregnancy-related concepts
-  domainSpecs <- tibble::tribble(
-    ~table_name,             ~output_name, ~date_column,              ~concept_id_column,
-    "condition_occurrence",  "c_o",         "condition_start_date",    "condition_concept_id",
-    "procedure_occurrence",  "p_o",         "procedure_date",          "procedure_concept_id",
-    "observation",           "o_df",        "observation_date",        "observation_concept_id",
-    "measurement",           "m_df",        "measurement_date",        "measurement_concept_id",
-    "visit_occurrence",      "v_o",         "visit_start_date",        "visit_concept_id"
-  )
+  # ------------------------------------------------------------------
+  # Episode logic (per-person):
+  # - Each record is a pregnancy-related concept with an observed date.
+  # - Concepts have expected gestational windows (min_month/max_month).
+  # - Two records "agree" if their observed spacing (months) is consistent
+  #   with what we'd expect given their gestational windows (± slack).
+  #
+  # Episodes are created by scanning records in date order:
+  # - By default, record 1 starts episode 1.
+  # - For each subsequent record i:
+  #     * If it "fits" with earlier context, keep same episode.
+  #     * Otherwise, start a new episode only if there is a meaningful gap:
+  #         - gap > 1 month AND no agreement (to allow short "retry"/noise)
+  #         - OR gap > 10 months (definitely a different pregnancy)
+  #
+  # After assignment:
+  # - Drop implausibly long episodes (> 12 months) as invalid (set to 0).
+  # - Renumber remaining episodes sequentially (1..K), keep 0 as invalid.
+  # ------------------------------------------------------------------
 
-  # Pull concepts from each domain table
-  for (i in seq_len(nrow(domainSpecs))) {
-    cdm <- pullPpsDomain(
-      cdm               = cdm,
-      tableName         = domainSpecs$table_name[[i]],
-      outputName        = domainSpecs$output_name[[i]],
-      dateColumn        = domainSpecs$date_column[[i]],
-      conceptIdColumn   = domainSpecs$concept_id_column[[i]],
-      startDate         = startDate,
-      endDate           = endDate,
-      logger            = logger
-    )
+  agrees <- function(df, later, earlier) {
+    # Observed spacing in months (approx)
+    delta <- as.numeric(difftime(df$domain_concept_start_date[later],
+                                 df$domain_concept_start_date[earlier],
+                                 units = "days")) / 30
+
+    # Expected spacing bounds derived from gestational windows:
+    # latest plausible month for "later" minus earliest plausible month for "earlier"
+    maxExp <- df$max_month[later] - df$min_month[earlier] + slackMonths
+    # earliest plausible month for "later" minus latest plausible month for "earlier"
+    minExp <- df$min_month[later] - df$max_month[earlier] - slackMonths
+
+    delta >= minExp && delta <= maxExp
   }
 
-  # Union all concepts into a single table
-  cdm$input_gt_concepts_df <- purrr::reduce(
-    cdm[domainSpecs$output_name],
-    dplyr::union_all
-  ) %>%
-    dplyr::compute()
+  hasAgreement <- function(df, i) {
+    if (i <= 1) return(TRUE)
 
-  # Remove intermediate tables
-  omopgenerics::dropSourceTable(cdm, domainSpecs$output_name)
-}
+    # Reasoning: record i can stay in the current episode if it is compatible
+    # with at least one earlier record in the same person's timeline.
+    if (any(purrr::map_lgl(seq_len(i - 1), \(j) agrees(df, i, j)))) return(TRUE)
 
-# ============================================================
-# Episode construction logic
-# ============================================================
+    # Reasoning: record i itself may be an "outlier" (bad date/code),
+    # so also allow keeping the episode if there exists *any* pair
+    # of records that bracket i (some left record and some right record)
+    # that agree with each other—suggesting the pregnancy is continuous
+    # and i is just noise.
+    left  <- seq_len(i - 1)
+    right <- (i + 1):nrow(df)
+    if (length(right) == 0) return(FALSE)
 
-# For the below:
-#   t = time (actual observed difference between records)
-#   c = concept (expected difference based on clinician knowledge)
-#
-# A record is considered compatible with another record if the observed
-# difference in months falls within the expected gestational window.
-.agrees <- function(df, later, earlier, slackMonths = 2) {
+    any(purrr::map_lgl(right, \(r) any(purrr::map_lgl(left, \(l) agrees(df, r, l)))))
+  }
 
-  # Observed time difference (months)
-  deltaMonths <- as.numeric(
-    difftime(
-      df$domain_concept_start_date[later],
-      df$domain_concept_start_date[earlier],
-      units = "days"
-    )
-  ) / 30
-
-  # Expected min / max month differences between concepts
-  maxExpected <- df$max_month[later] - df$min_month[earlier] + slackMonths
-  minExpected <- df$min_month[later] - df$max_month[earlier] - slackMonths
-
-  deltaMonths <= maxExpected && deltaMonths >= minExpected
-}
-
-recordsComparison <- function(personDf, i) {
-
-  # ----------------------------------------------------------
-  # Compare current record to all previous records
-  # ----------------------------------------------------------
-  for (j in seq_len(i - 1)) {
-    if (.agrees(personDf, i, i - j)) {
-      return(TRUE) # return early — agreement only needs to occur once
+  assignEpisodes <- function(df, ...) {
+    n <- nrow(df)
+    if (n <= 1) {
+      # Single record => trivially one episode
+      return(dplyr::mutate(df, person_episode_number = 1L))
     }
-  }
 
-  # ----------------------------------------------------------
-  # Compare records surrounding record i
-  # This handles cases where record i is an outlier
-  # ----------------------------------------------------------
-  left  <- i - 1
-  right <- nrow(personDf) - i
+    # Consecutive gaps in months:
+    # used as a pragmatic "break" signal when compatibility is absent.
+    gaps <- c(0, as.numeric(diff(df$domain_concept_start_date)) / 30)
 
-  if (left == 0 || right == 0) return(FALSE)
-
-  for (l in seq_len(left)) {
-    for (r in seq_len(right)) {
-      if (.agrees(personDf, i + r, i - l)) {
-        return(TRUE)
-      }
-    }
-  }
-
-  FALSE
-}
-
-assignEpisodes <- function(personDf, ...) {
-
-  if (nrow(personDf) == 1) {
-    personDf$person_episode_number <- 1L
-    return(personDf)
-  }
-
-  # Treat the first record as belonging to the first episode
-  episodeNumber <- integer(nrow(personDf))
-  episodeNumber[1] <- 1L
-
-  for (i in 2:nrow(personDf)) {
-
-    # Time difference (months) between consecutive records
-    deltaMonths <- as.numeric(
-      difftime(
-        personDf$domain_concept_start_date[i],
-        personDf$domain_concept_start_date[i - 1],
-        units = "days"
-      )
-    ) / 30
-
-    # Determine whether concepts are temporally compatible
-    agreement <- recordsComparison(personDf, i)
-
-    # Start a new episode if:
-    #   - concepts are incompatible and gap > 1 month (retry period), OR
-    #   - gap > 10 months (definitely a new pregnancy)
-    startNewEpisode <-
-      (!agreement && deltaMonths > 1) ||
-      (deltaMonths > 10)
-
-    episodeNumber[i] <- episodeNumber[i - 1] + as.integer(startNewEpisode)
-  }
-
-  # ----------------------------------------------------------
-  # Remove implausibly long episodes (> 12 months)
-  # Pregnancy should last ~9–10 months, plus some documentation noise
-  # ----------------------------------------------------------
-  spans <- tapply(
-    personDf$domain_concept_start_date,
-    episodeNumber,
-    function(d)
-      as.numeric(difftime(max(d), min(d), units = "days")) / 30
-  )
-
-  invalidEpisodes <- as.integer(names(spans)[spans > 12])
-  episodeNumber[episodeNumber %in% invalidEpisodes] <- 0L
-
-  # Renumber remaining episodes sequentially
-  validEpisodes <- sort(unique(episodeNumber[episodeNumber != 0L]))
-  episodeNumber <- ifelse(
-    episodeNumber == 0L,
-    0L,
-    match(episodeNumber, validEpisodes)
-  )
-
-  personDf$person_episode_number <- episodeNumber
-  personDf
-}
-
-# ============================================================
-# Episode extraction + summarisation
-# ============================================================
-
-getPpsEpisodes <- function(cdm, outputDir) {
-
-  # Identify all patients with pregnancy-related concepts
-  cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
-    dplyr::filter(!is.na(domain_concept_start_date)) %>%
-    dplyr::compute("patients_with_preg_concepts")
-
-  # Save concept frequency counts for QA
-  cdm$patients_with_preg_concepts %>%
-    dplyr::group_by(domain_concept_id, domain_concept_name) %>%
-    dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
-    utils::write.csv(
-      file.path(outputDir, "pps_concept_counts.csv"),
-      row.names = FALSE
+    # Start a new episode at record i if:
+    # - No agreement with pregnancy context AND gap is meaningfully large (> 1 mo),
+    #   which avoids splitting episodes due to short documentation retries/noise.
+    # - OR gap is huge (> 10 mo), which is taken as definitive evidence of a new
+    #   pregnancy regardless of concept compatibility.
+    starts <- purrr::map_lgl(seq_len(n), \(i)
+                             i > 1 && ( (!hasAgreement(df, i) && gaps[i] > 1) || gaps[i] > 10 )
     )
 
-  # ----------------------------------------------------------
-  # Restrict to women of reproductive age
-  # ----------------------------------------------------------
-  patientsDf <- cdm$patients_with_preg_concepts %>%
+    # Episode number increments each time we "start" a new episode
+    ep <- 1L + cumsum(starts)
+
+    # Post-filter: pregnancies shouldn't span > 12 months (9–10 expected, + noise).
+    # Mark those episodes invalid by setting episode number to 0.
+    spans <- tapply(df$domain_concept_start_date, ep, \(d)
+                    as.numeric(difftime(max(d), min(d), units = "days")) / 30
+    )
+    invalid <- as.integer(names(spans)[spans > 12])
+    ep[ep %in% invalid] <- 0L
+
+    # Renumber valid episodes to be consecutive (1..K); keep 0 for invalid
+    valid <- sort(unique(ep[ep != 0L]))
+    ep <- ifelse(ep == 0L, 0L, match(ep, valid))
+
+    dplyr::mutate(df, person_episode_number = ep)
+  }
+
+  # ------------------------------------------------------------------
+  # Episode extraction pipeline
+  # ------------------------------------------------------------------
+
+  # Restrict to women of reproductive age and bring to R for per-person iteration
+  patientsDf <- cdm$input_gt_concepts_df %>%
     dplyr::inner_join(
-      cdm$person %>%
-        dplyr::select(
-          "person_id",
-          "gender_concept_id",
-          "year_of_birth",
-          "month_of_birth",
-          "day_of_birth"
-        ),
+      dplyr::select(cdm$person, "person_id", "gender_concept_id", "year_of_birth", "month_of_birth", "day_of_birth"),
       by = "person_id"
     ) %>%
     dplyr::mutate(
       day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
       month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L),
       date_of_birth  = as.Date(paste0(.data$year_of_birth, "-", .data$month_of_birth, "-", .data$day_of_birth)),
-      age =
-        !!CDMConnector::datediff(
-          "date_of_birth",
-          "domain_concept_start_date",
-          "day"
-        ) / 365
+      age = !!CDMConnector::datediff("date_of_birth", "domain_concept_start_date", "day") / 365
     ) %>%
-    dplyr::filter(
-      .data$gender_concept_id == 8532,
-      .data$age >= 15,
-      .data$age < 56
-    ) %>%
-    dplyr::collect(page_size = 50000) %>%
-    dplyr::group_by(.data$person_id) %>%
-    dplyr::arrange(.data$domain_concept_start_date)
+    dplyr::filter(.data$gender_concept_id == 8532, .data$age >= 15, .data$age < 56) %>%
+    dplyr::collect()
+
+  # QA: write concept frequencies
+  patientsDf %>%
+    dplyr::count(domain_concept_id, domain_concept_name, name = "n") %>%
+    utils::write.csv(file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 
   patientsDf %>%
-    dplyr::group_modify(assignEpisodes)
+    tidyr::nest(.by = person_id) %>%
+    dplyr::mutate(data = purrr::map(data, assignEpisodes)) %>%
+    tidyr::unnest(data)
 }
 
 getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
