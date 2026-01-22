@@ -127,7 +127,7 @@ getTimingConcepts <- function(cdm,
     dplyr::pull(.data$domain_concept_id) %>%
     as.integer()
 
-  # Domain-specific concept lists (kept as-is; behavior depends on these IDs)
+  # Domain-specific concept lists
   observationConceptIds  <- c(3011536, 3026070, 3024261, 4260747, 40758410, 3002549, 43054890, 46234792, 4266763, 40485048, 3048230, 3002209, 3012266)
   measurementConceptIds  <- c(3036844, 3048230, 3001105, 3002209, 3050433, 3012266)
   estDeliveryConceptIds  <- c(1175623, 1175623, 3001105, 3011536, 3024261, 3024973, 3026070, 3036322, 3038318, 3038608, 4059478, 4128833, 40490322, 40760182, 40760183, 42537958)
@@ -243,7 +243,6 @@ findIntersection <- function(intervals) {
   n <- nrow(intervalsDf)
   overlapCount <- integer(n)
 
-  # Keep exact original overlap logic, but make loop intent clearer
   for (j in seq_len(n)) {
     last  <- intervalsDf[j, 2]
     first <- intervalsDf[j, 1]

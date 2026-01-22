@@ -66,13 +66,17 @@ runPps <- function(cdm,
   ppsEpisodes <- getPpsEpisodes(cdm, outputDir)
 
   # ----------------------------------------------------------
-  # Get min and max dates for each episode
+  # Get min and max dates and outcomes for each episode
   # ----------------------------------------------------------
   logInfo(logger, "Get min and max dates for episodes")
   ppsMinMax <- getEpisodeMaxMinDates(ppsEpisodes)
 
+  ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) |>
+    addOutcomes(ppsMinMax)
+
   saveRDS(ppsEpisodes, file.path(outputDir, "pps_gest_timing_episodes.rds"))
   saveRDS(ppsMinMax,  file.path(outputDir, "pps_min_max_episodes.rds"))
+  saveRDS(ppsWithOutcomes,  file.path(outputDir, "pps_with_outcomes.rds"))
 
   # Drop temporary source tables
   omopgenerics::dropSourceTable(cdm, "input_gt_concepts_df")
@@ -265,5 +269,142 @@ getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
       episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$episode_max_date, lubridate::period(months = 2)),
       n_gt_concepts = dplyr::n_distinct(.data$domain_concept_id),
       .groups = "drop"
+    )
+}
+
+# ---- Outcomes for PPS episodes ----------------------------------------------
+
+getOutcomeDate <- function(x, outcome) {
+  # outcomes_list contains strings like "YYYY-MM-DD,concept_id,CATEGORY"
+  # return the first date matching CATEGORY, else NA
+  hit <- grep(outcome, x)
+  if (length(hit)) strsplit(x[hit[1]], ",")[[1]][1] else NA_character_
+}
+
+outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
+  # Outcomes are inferred for PPS episodes within an episode-specific window:
+  # - lookback: 14 days before episode_max_date
+  # - lookahead: earliest of:
+  #   (a) the day before the next episode starts, or
+  #   (b) the latest plausible pregnancy outcome date based on the last concept
+  #
+  # Within that window, choose one outcome using the Matcho hierarchy.
+
+  # Ensure ppsEpisodesDf has person_episode_number (preserve original behavior)
+  if (!"person_episode_number" %in% names(ppsEpisodesDf)) {
+    ppsEpisodesDf$person_episode_number <- if (nrow(ppsEpisodesDf)) 1L else integer(0)
+  }
+
+  pregnantDates <- ppsMinMaxDf |>
+    dplyr::group_by(.data$person_id) |>
+    dplyr::arrange(.data$person_episode_number, .data$episode_min_date, .by_group = TRUE) |>
+    dplyr::mutate(
+      # next episode bounds the lookahead to avoid borrowing outcomes from later pregnancies
+      next_closest_episode_date = dplyr::coalesce(
+        dplyr::lead(.data$episode_min_date) - lubridate::days(1),
+        lubridate::ymd("2999-01-01")
+      ),
+      episode_max_date_minus_lookback_window = .data$episode_max_date - lubridate::days(14)
+    ) |>
+    dplyr::ungroup()
+
+  # Determine the last plausible pregnancy outcome date based on the last concept
+  # months_to_add = 11 - min_month, then add to the last concept date.
+  maxPregnancyDateDf <- ppsEpisodesDf |>
+    dplyr::group_by(.data$person_id, .data$person_episode_number) |>
+    dplyr::arrange(
+      dplyr::desc(.data$domain_concept_start_date),
+      dplyr::desc(.data$max_month),
+      dplyr::desc(.data$min_month),
+      .by_group = TRUE
+    ) |>
+    dplyr::slice(1) |>
+    dplyr::ungroup() |>
+    dplyr::transmute(
+      person_id, person_episode_number,
+      max_pregnancy_date = lubridate::add_with_rollback(
+        .data$domain_concept_start_date,
+        lubridate::period(months = 11L - as.integer(.data$min_month))
+      )
+    )
+
+  pregnantDates <- pregnantDates |>
+    dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) |>
+    dplyr::mutate(
+      # final lookahead is the earliest of (next episode) and (max plausible outcome date)
+      episode_max_date_plus_lookahead_window =
+        pmin(.data$next_closest_episode_date, .data$max_pregnancy_date, na.rm = TRUE)
+    )
+
+  # Pull outcome concepts (LB/SB/ECT/SA/AB/DELIV) that fall within each episode window
+  pregRelatedConcepts <- cdm$preg_initial_cohort |>
+    dplyr::filter(.data$category %in% c("LB", "SB", "DELIV", "ECT", "AB", "SA")) |>
+    dplyr::collect() |>
+    dplyr::inner_join(
+      pregnantDates,
+      by = dplyr::join_by(
+        person_id,
+        dplyr::between(
+          visit_date,
+          episode_max_date_minus_lookback_window,
+          episode_max_date_plus_lookahead_window
+        )
+      ),
+      relationship = "many-to-many"
+    )
+
+  outcomesListDf <- pregRelatedConcepts |>
+    dplyr::mutate(lst = paste(.data$visit_date, ",", .data$concept_id, ",", .data$category)) |>
+    dplyr::group_by(
+      .data$person_id, .data$person_episode_number, .data$episode_min_date, .data$episode_max_date,
+      .data$episode_max_date_minus_lookback_window, .data$episode_max_date_plus_lookahead_window,
+      .data$n_gt_concepts
+    ) |>
+    dplyr::summarise(outcomes_list = list(sort(unique(.data$lst))), .groups = "drop") |>
+    dplyr::filter(purrr::map_lgl(.data$outcomes_list, ~ length(.x) > 0))
+
+  # Matcho hierarchy (priority order) for PPS outcomes
+  outcomeOrder <- c("LB", "SB", "ECT", "SA", "AB", "DELIV")
+  dateCols <- paste0(outcomeOrder, "_delivery_date")
+
+  outcomesListDf |>
+    dplyr::mutate(
+      # Extract first matching date per outcome category
+      !!!rlang::set_names(
+        purrr::map(outcomeOrder, \(cat)
+                   rlang::expr(purrr::map_chr(.data$outcomes_list, getOutcomeDate, !!cat))
+        ),
+        dateCols
+      ),
+      # Choose one category/date by hierarchy
+      algo2_category = dplyr::case_when(
+        !is.na(.data$LB_delivery_date)    ~ "LB",
+        !is.na(.data$SB_delivery_date)    ~ "SB",
+        !is.na(.data$ECT_delivery_date)   ~ "ECT",
+        !is.na(.data$SA_delivery_date)    ~ "SA",
+        !is.na(.data$AB_delivery_date)    ~ "AB",
+        !is.na(.data$DELIV_delivery_date) ~ "DELIV"
+      ),
+      algo2_outcome_date = lubridate::ymd(dplyr::case_when(
+        !is.na(.data$LB_delivery_date)    ~ .data$LB_delivery_date,
+        !is.na(.data$SB_delivery_date)    ~ .data$SB_delivery_date,
+        !is.na(.data$ECT_delivery_date)   ~ .data$ECT_delivery_date,
+        !is.na(.data$SA_delivery_date)    ~ .data$SA_delivery_date,
+        !is.na(.data$AB_delivery_date)    ~ .data$AB_delivery_date,
+        !is.na(.data$DELIV_delivery_date) ~ .data$DELIV_delivery_date
+      ))
+    )
+}
+
+addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
+  # Attach inferred PPS outcomes back onto the PPS episode min/max table
+  ppsMinMaxDf |>
+    dplyr::left_join(
+      outcomesDf |>
+        dplyr::select(
+          person_id, person_episode_number, episode_min_date,
+          algo2_category, algo2_outcome_date, n_gt_concepts
+        ),
+      by = c("person_id", "person_episode_number", "episode_min_date", "n_gt_concepts")
     )
 }
