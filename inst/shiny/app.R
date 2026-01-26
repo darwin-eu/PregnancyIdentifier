@@ -66,6 +66,7 @@ episodeCount <- pregnancyOverlapCounts %>%
 swappedDates <- rbind(swappedDates, episodeCount)
 percDF <- rbind(cbind(name = "rev_hip_perc", round(100*swappedDates[1, -1] / swappedDates[3, -1], 2)),
                 cbind(name = "rev_pps_perc", round(100*swappedDates[2, -1] / swappedDates[3, -1], 2)))
+colnames(percDF) <- colnames(swappedDates)
 swappedDates <- rbind(swappedDates, percDF) %>%
   dplyr::arrange(match(name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
 
