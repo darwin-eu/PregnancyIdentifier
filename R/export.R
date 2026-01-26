@@ -1,12 +1,18 @@
 addAge <- function(cdm, res) {
-  cdm$person %>%
+  cdm <- omopgenerics::insertTable(dplyr::select(res, "person_id"), "person_ids")
+
+  out <- cdm$person %>%
+    dplyr::inner_join(cdm$person_ids, by = "person_id") %>%
     dplyr::select("person_id", "gender_concept_id", "birth_datetime") %>%
-    dplyr::right_join(res, by = c("person_id" = "person_id"), copy = TRUE) %>%
     dplyr::collect() %>%
+    dplyr::right_join(res, by = c("person_id" = "person_id")) %>%
     dplyr::mutate(age_pregnancy_start = as.Date(inferred_episode_start) - as.Date(birth_datetime)) %>%
     dplyr::mutate(
       age_pregnancy_start = as.numeric(.data$age_pregnancy_start)
     )
+
+  omopgenerics::dropSourceTable(cdm, "person_ids")
+  return(out)
 }
 
 exportAgeSummary <- function(res, cdm, resPath, snap, runStart) {

@@ -59,7 +59,7 @@ get_preg_related_concepts <- function(df, person_id_list, df_date_col) {
     dplyr::inner_join(person_id_list, by = dplyr::join_by(
       person_id, domain_concept_start_date >= start_date,
       domain_concept_start_date <= recorded_episode_end
-    ), copy = TRUE) %>%
+    )) %>%
     dplyr::select(
       "person_id",
       "domain_concept_start_date",
@@ -108,33 +108,35 @@ get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
     ) %>%
     dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
+  cdm <- omopgenerics::insertTable(cdm, person_id_list, "person_id_list")
+
   c_o <- concepts_to_search %>%
     dplyr::inner_join(cdm$condition_occurrence, by = c("concept_id" = "condition_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$concept_name
     ) %>%
-    get_preg_related_concepts(person_id_list, "condition_start_date")
+    get_preg_related_concepts(cdm$person_id_list, "condition_start_date")
 
   o_df <- concepts_to_search %>%
     dplyr::inner_join(cdm$observation, by = c("concept_id" = "observation_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$value_as_string
     ) %>%
-    get_preg_related_concepts(person_id_list, "observation_date")
+    get_preg_related_concepts(cdm$person_id_list, "observation_date")
 
   m_df <- concepts_to_search %>%
     dplyr::inner_join(cdm$measurement, by = c("concept_id" = "measurement_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$value_as_number
     ) %>%
-    get_preg_related_concepts(person_id_list, "measurement_date")
+    get_preg_related_concepts(cdm$person_id_list, "measurement_date")
 
   p_df <- concepts_to_search %>%
     dplyr::inner_join(cdm$procedure_occurrence, by = c("concept_id" = "procedure_concept_id")) %>%
     dplyr::mutate(
       value_col = .data$concept_name
     ) %>%
-    get_preg_related_concepts(person_id_list, "procedure_date")
+    get_preg_related_concepts(cdm$person_id_list, "procedure_date")
 
   preg_related_concepts <- list(
     c_o,

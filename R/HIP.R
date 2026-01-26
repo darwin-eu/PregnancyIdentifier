@@ -28,7 +28,7 @@ runHip <- function(cdm, outputDir, logger, ...) {
     initial_pregnant_cohort(continue = dots$continue)
 
   if (getTblRowCount(cdm$initial_pregnant_cohort_df) == 0) {
-    log4r::warn("No records after initializing pregnant cohort")
+    log4r::warn(logger, "No records after initializing pregnant cohort")
     return(cdm)
   }
 
