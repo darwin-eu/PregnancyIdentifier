@@ -88,15 +88,14 @@ runPps <- function(cdm,
 
 # Pulls concepts from a single OMOP table and normalizes column names so that
 # all downstream logic can operate on a consistent schema.
+# PPS concepts (in the PPS_concepts excel file) occur in the condition, measurement, and procedure domains
 inputGtConcepts <- function(cdm, startDate, endDate, logger) {
 
   domainSpecs <- tibble::tribble(
     ~table_name,            ~date_column,            ~concept_id_column,
     "condition_occurrence", "condition_start_date",  "condition_concept_id",
     "procedure_occurrence", "procedure_date",        "procedure_concept_id",
-    "observation",          "observation_date",      "observation_concept_id",
     "measurement",          "measurement_date",      "measurement_concept_id",
-    "visit_occurrence",     "visit_start_date",      "visit_concept_id"
   )
 
   pulls <- purrr::map(seq_len(nrow(domainSpecs)), \(i) {
@@ -112,15 +111,15 @@ inputGtConcepts <- function(cdm, startDate, endDate, logger) {
       dplyr::filter(.data[[dateCol]] >= startDate, .data[[dateCol]] <= endDate) %>%
       dplyr::transmute(
         person_id,
-        domain_concept_start_date = .data[[dateCol]],
-        domain_concept_id         = .data[[cidCol]]
+        pps_concept_start_date = .data[[dateCol]],
+        pps_concept_id         = .data[[cidCol]]
       ) %>%
-      dplyr::inner_join(cdm$preg_pps_concepts, by = "domain_concept_id") %>%
+      dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") %>%
       dplyr::distinct()
   })
 
   cdm$input_gt_concepts_df <- purrr::reduce(pulls, dplyr::union_all) %>%
-    dplyr::filter(!is.na(domain_concept_start_date)) %>%
+    dplyr::filter(!is.na(pps_concept_start_date)) %>%
     dplyr::compute()
 
   cdm
@@ -150,8 +149,8 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
   agrees <- function(df, later, earlier) {
     # Observed spacing in months (approx)
-    delta <- as.numeric(difftime(df$domain_concept_start_date[later],
-                                 df$domain_concept_start_date[earlier],
+    delta <- as.numeric(difftime(df$pps_concept_start_date[later],
+                                 df$pps_concept_start_date[earlier],
                                  units = "days")) / 30
 
     # Expected spacing bounds derived from gestational windows:
@@ -168,21 +167,24 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
     # Reasoning: record i can stay in the current episode if it is compatible
     # with at least one earlier record in the same person's timeline.
-    if (any(purrr::map_lgl(seq_len(i - 1), \(j) agrees(df, i, j)))) return(TRUE)
+    # i is the current record index. j iterates over all previous records (seq_len(i-1))
+    if (any(purrr::map_lgl(seq_len(i-1), \(j) agrees(df, i, j)))) return(TRUE)
 
     # Reasoning: record i itself may be an "outlier" (bad date/code),
     # so also allow keeping the episode if there exists *any* pair
-    # of records that bracket i (some left record and some right record)
+    # of records that bracket i (some earlier record and some later record)
     # that agree with each other—suggesting the pregnancy is continuous
     # and i is just noise.
-    left  <- seq_len(i - 1)
-    right <- (i + 1):nrow(df)
-    if (length(right) == 0) return(FALSE)
+    earlier  <- seq_len(i - 1)
+    later <- (i + 1):nrow(df)
+    if (length(later) == 0) return(FALSE)
 
-    any(purrr::map_lgl(right, \(r) any(purrr::map_lgl(left, \(l) agrees(df, r, l)))))
+    # For each later record, is there any earlier record that agrees?
+    # If there is any agreement between any later record and any earlier record, return TRUE => same episode
+    any(purrr::map_lgl(later, \(r) any(purrr::map_lgl(earlier, \(l) agrees(df, r, l)))))
   }
 
-  assignEpisodes <- function(df, ...) {
+  assignEpisodes <- function(df) {
     n <- nrow(df)
     if (n <= 1) {
       # Single record => trivially one episode
@@ -191,23 +193,21 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
     # Consecutive gaps in months:
     # used as a pragmatic "break" signal when compatibility is absent.
-    gaps <- c(0, as.numeric(diff(df$domain_concept_start_date)) / 30)
+    gaps <- c(0, as.numeric(diff(df$pps_concept_start_date)) / 30)
 
     # Start a new episode at record i if:
     # - No agreement with pregnancy context AND gap is meaningfully large (> 1 mo),
     #   which avoids splitting episodes due to short documentation retries/noise.
     # - OR gap is huge (> 10 mo), which is taken as definitive evidence of a new
     #   pregnancy regardless of concept compatibility.
-    starts <- purrr::map_lgl(seq_len(n), \(i)
-                             i > 1 && ( (!hasAgreement(df, i) && gaps[i] > 1) || gaps[i] > 10 )
-    )
+    starts <- purrr::map_lgl(seq_len(n), \(i) i > 1 && ((!hasAgreement(df, i) && gaps[i] > 1) || gaps[i] > 10))
 
     # Episode number increments each time we "start" a new episode
     ep <- 1L + cumsum(starts)
 
     # Post-filter: pregnancies shouldn't span > 12 months (9–10 expected, + noise).
     # Mark those episodes invalid by setting episode number to 0.
-    spans <- tapply(df$domain_concept_start_date, ep, \(d)
+    spans <- tapply(df$pps_concept_start_date, ep, \(d)
                     as.numeric(difftime(max(d), min(d), units = "days")) / 30
     )
     invalid <- as.integer(names(spans)[spans > 12])
@@ -226,22 +226,13 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
   # Restrict to women of reproductive age and bring to R for per-person iteration
   patientsDf <- cdm$input_gt_concepts_df %>%
-    dplyr::inner_join(
-      dplyr::select(cdm$person, "person_id", "gender_concept_id", "year_of_birth", "month_of_birth", "day_of_birth"),
-      by = "person_id"
-    ) %>%
-    dplyr::mutate(
-      day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
-      month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L),
-      date_of_birth  = as.Date(paste0(.data$year_of_birth, "-", .data$month_of_birth, "-", .data$day_of_birth)),
-      age = !!CDMConnector::datediff("date_of_birth", "domain_concept_start_date", "day") / 365
-    ) %>%
+    addAgeSex("pps_concept_start_date") %>%
     dplyr::filter(.data$gender_concept_id == 8532, .data$age >= 15, .data$age < 56) %>%
     dplyr::collect()
 
   # QA: write concept frequencies
   patientsDf %>%
-    dplyr::count(domain_concept_id, domain_concept_name, name = "n") %>%
+    dplyr::count(.data$pps_concept_id, .data$pps_concept_name, name = "n") %>%
     utils::write.csv(file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
 
   if (nrow(patientsDf) == 0) return(patientsDf)
@@ -264,10 +255,10 @@ getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
     dplyr::summarise(
-      episode_min_date = min(.data$domain_concept_start_date, na.rm = TRUE),
-      episode_max_date = max(.data$domain_concept_start_date, na.rm = TRUE),
+      episode_min_date = min(.data$pps_concept_start_date, na.rm = TRUE),
+      episode_max_date = max(.data$pps_concept_start_date, na.rm = TRUE),
       episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$episode_max_date, lubridate::period(months = 2)),
-      n_gt_concepts = dplyr::n_distinct(.data$domain_concept_id),
+      n_gt_concepts = dplyr::n_distinct(.data$pps_concept_id),
       .groups = "drop"
     )
 }
@@ -313,7 +304,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
   maxPregnancyDateDf <- ppsEpisodesDf |>
     dplyr::group_by(.data$person_id, .data$person_episode_number) |>
     dplyr::arrange(
-      dplyr::desc(.data$domain_concept_start_date),
+      dplyr::desc(.data$pps_concept_start_date),
       dplyr::desc(.data$max_month),
       dplyr::desc(.data$min_month),
       .by_group = TRUE
@@ -323,7 +314,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     dplyr::transmute(
       person_id, person_episode_number,
       max_pregnancy_date = lubridate::add_with_rollback(
-        .data$domain_concept_start_date,
+        .data$pps_concept_start_date,
         lubridate::period(months = 11L - as.integer(.data$min_month))
       )
     )

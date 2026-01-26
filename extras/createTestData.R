@@ -31,12 +31,20 @@ list.files(outputFolder)
 df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))
 
 printLong <- function(x) {
-  x %>%
+  df <- x %>%
     dplyr::collect() %>%
-    dplyr::mutate_all(as.character) %>%
-    tidyr::gather() %>%
-    print(n=1000)
+    dplyr::mutate_all(as.character)
+
+  out <- cbind(
+    column = colnames(df),
+    as.data.frame(t(df), stringsAsFactors = FALSE)
+  )
+
+  colnames(out)[-1] <- paste0("row", seq_len(ncol(out) - 1))
+
+  print(dplyr::tibble(out), n = 1000)
 }
+
 
 library(dplyr)
 df %>%

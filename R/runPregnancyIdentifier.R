@@ -147,7 +147,7 @@ runPregnancyIdentifier <- function(cdm,
   # Outputs:
   #   - writes: outputDir/HIPPS_episodes.rds
   log4r::info(logger, "Running `mergeHipps`")
-  mergeHipps(cdm, outputDir = outputDir, logger = logger)
+  mergeHipps(outputDir = outputDir, logger = logger)
 
   # ---- Step 5: ESD refinement -------------------------------------------------
   # Inputs:
