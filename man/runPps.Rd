@@ -9,7 +9,8 @@ runPps(
   outputDir,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
-  logger = NULL
+  logger = NULL,
+  debugMode = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ runPps(
 \item{endDate}{Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).}
 
 \item{logger}{Optional `log4r` logger object for emitting information and debug messages.}
+
+\item{debugMode}{(`Logical`) Should intermediat datasets be written to the output folder for debugging? TRUE or FALSE (default)}
 }
 \value{
 Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.

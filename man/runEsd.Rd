@@ -9,7 +9,8 @@ runEsd(
   outputDir,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
-  logger
+  logger,
+  debugMode = FALSE
 )
 }
 \arguments{
@@ -22,9 +23,11 @@ runEsd(
 \item{endDate}{Latest episode date to include (as.Date). Default: \code{Sys.Date()}.}
 
 \item{logger}{A \code{log4r} logger object for info/debug messages.}
+
+\item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermidation datasets to the outputDir? `TRUE` or `FALSE` (default)}
 }
 \value{
-Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{identified_pregnancy_episodes.rds}) to \code{outputDir}.
+Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
         The output contains one row per inferred pregnancy episode, with all metadata and gestational timing fields required for downstream analysis.
 }
 \description{
@@ -38,6 +41,6 @@ This function performs the following major steps:
   \item Infers episode start and start precision using all available gestational timing evidence, with logging.
   \item Merges inferred start dates, timing evidence, and metadata back onto the merged episodes table and computes final start/end/outcome fields.
   \item Filters episodes to retain only those overlapping the requested \code{startDate}--\code{endDate} study period, including episodes with missing inferred dates.
-  \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{identified_pregnancy_episodes.rds}) in \code{outputDir}.
+  \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{final_pregnancy_episodes.rds}) in \code{outputDir}.
 }
 }

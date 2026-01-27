@@ -42,10 +42,10 @@ runPregnancyIdentifier(cdm, outputDir, minCellCount = 0L)
 hipEpisodes <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 ppsMinMax <- readRDS(file.path(outputDir, "pps_min_max_episodes.rds"))
 ppsEpisode <- readRDS(file.path(outputDir, "pps_gest_timing_episodes.rds"))
-pps <- readRDS(file.path(outputDir, "pps_with_outcomes.rds"))
+pps <- readRDS(file.path(outputDir, "PPS_episodes.rds"))
 hipps <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
 esd <- readRDS(file.path(outputDir, "ESD.rds"))
-final <- readRDS(file.path(outputDir, "identified_pregnancy_episodes.rds"))
+final <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
 
 
 exportPregnancies(cdm, outputDir, exportDir = here::here("test_export"), minCellCount = 0L)

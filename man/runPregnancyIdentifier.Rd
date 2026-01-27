@@ -10,7 +10,8 @@ runPregnancyIdentifier(
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   justGestation = TRUE,
-  minCellCount = 5L
+  minCellCount = 5L,
+  debugMode = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ gestational concepts (HIP behavior). Passed through to `runHip()`.}
 
 \item{minCellCount}{(`integer(1)`) Minimum cell count used for suppression in
 exported summaries. Passed through to `exportPregnancies()`.}
+
+\item{debugMode}{(`logical(1)`) Should extra intermediate datasets be written to
+the outputDir for debugging? `TRUE` or `FALSE` (default)}
 }
 \value{
 Invisibly returns `NULL`. Side effects:

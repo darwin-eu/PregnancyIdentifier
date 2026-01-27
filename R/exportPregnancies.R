@@ -26,7 +26,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   snap <- CDMConnector::snapshot(cdm)
   utils::write.csv(snap, file.path(exportDir, "cdm_source.csv"), row.names = FALSE)
 
-  res <- readRDS(file.path(outputDir, "identified_pregnancy_episodes.rds"))
+  res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
 
   # Copy key raw artifacts (if present)

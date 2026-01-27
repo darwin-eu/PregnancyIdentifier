@@ -17,6 +17,8 @@ URL: https://darwin-eu.github.io/PregnancyIdentifier/
 BugReports: https://darwin-eu.github.io/PregnancyIdentifier/issues/
 Config/testthat/edition: 3
 Config/testthat/parallel: true
+Depends:
+    R (>= 4.1.0)
 Imports: 
     CDMConnector,
     dplyr,
@@ -33,7 +35,9 @@ Imports:
     rlang,
     shiny,
     checkmate,
-    tibble
+    tibble,
+    DT,
+    readr
 Suggests: 
     testthat (>= 3.0.0),
     omopgenerics,

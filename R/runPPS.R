@@ -28,6 +28,7 @@
 #' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
 #' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
 #' @param logger Optional `log4r` logger object for emitting information and debug messages.
+#' @param debugMode (`Logical`) Should intermediat datasets be written to the output folder for debugging? TRUE or FALSE (default)
 #'
 #' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
 #'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
@@ -36,7 +37,8 @@ runPps <- function(cdm,
                    outputDir,
                    startDate = as.Date("1900-01-01"),
                    endDate   = Sys.Date(),
-                   logger = NULL) {
+                   logger = NULL,
+                   debugMode = FALSE) {
 
   # ---- validation ----
   checkmate::assertClass(cdm, "cdm_reference")
@@ -74,9 +76,11 @@ runPps <- function(cdm,
   ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) |>
     addOutcomes(ppsMinMax)
 
-  saveRDS(ppsEpisodes, file.path(outputDir, "pps_gest_timing_episodes.rds"))
-  saveRDS(ppsMinMax,  file.path(outputDir, "pps_min_max_episodes.rds"))
-  saveRDS(ppsWithOutcomes,  file.path(outputDir, "pps_with_outcomes.rds"))
+  if (debugMode) {
+    saveRDS(ppsEpisodes, file.path(outputDir, "pps_gest_timing_episodes.rds"))
+    saveRDS(ppsMinMax,  file.path(outputDir, "pps_min_max_episodes.rds"))
+  }
+  saveRDS(ppsWithOutcomes,  file.path(outputDir, "PPS_episodes.rds"))
 
   # Drop temporary source tables
   omopgenerics::dropSourceTable(cdm, "input_gt_concepts_df")
@@ -119,7 +123,7 @@ inputGtConcepts <- function(cdm, startDate, endDate, logger) {
   })
 
   cdm$input_gt_concepts_df <- purrr::reduce(pulls, dplyr::union_all) %>%
-    dplyr::filter(!is.na(pps_concept_start_date)) %>%
+    dplyr::filter(!is.na(.data$pps_concept_start_date)) %>%
     dplyr::compute()
 
   cdm
@@ -130,7 +134,7 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
   # ------------------------------------------------------------------
   # Episode logic (per-person):
   # - Each record is a pregnancy-related concept with an observed date.
-  # - Concepts have expected gestational windows (min_month/max_month).
+  # - Concepts have expected gestational windows (pps_min_month/pps_max_month).
   # - Two records "agree" if their observed spacing (months) is consistent
   #   with what we'd expect given their gestational windows (± slack).
   #
@@ -155,9 +159,9 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
     # Expected spacing bounds derived from gestational windows:
     # latest plausible month for "later" minus earliest plausible month for "earlier"
-    maxExp <- df$max_month[later] - df$min_month[earlier] + slackMonths
+    maxExp <- df$pps_max_month[later] - df$pps_min_month[earlier] + slackMonths
     # earliest plausible month for "later" minus latest plausible month for "earlier"
-    minExp <- df$min_month[later] - df$max_month[earlier] - slackMonths
+    minExp <- df$pps_min_month[later] - df$pps_max_month[earlier] - slackMonths
 
     delta >= minExp && delta <= maxExp
   }
@@ -227,8 +231,9 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
   # Restrict to women of reproductive age and bring to R for per-person iteration
   patientsDf <- cdm$input_gt_concepts_df %>%
     addAgeSex("pps_concept_start_date") %>%
-    dplyr::filter(.data$gender_concept_id == 8532, .data$age >= 15, .data$age < 56) %>%
-    dplyr::collect()
+    dplyr::filter(.data$sex == "female", .data$age >= 15, .data$age < 56) %>%
+    dplyr::collect() %>%
+    dplyr::select(-"sex", -"age")
 
   # QA: write concept frequencies
   patientsDf %>%
@@ -237,10 +242,12 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 
+  patientsDf %>% dplyr::filter(person_id == 26) %>% assignEpisodes()
+
   patientsDf %>%
     tidyr::nest(.by = person_id) %>%
-    dplyr::mutate(data = purrr::map(data, assignEpisodes)) %>%
-    tidyr::unnest(data)
+    dplyr::mutate(data = purrr::map(.data$data, assignEpisodes)) %>%
+    tidyr::unnest("data")
 }
 
 getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
@@ -281,7 +288,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
   #
   # Within that window, choose one outcome using the Matcho hierarchy.
 
-  # Ensure ppsEpisodesDf has person_episode_number (preserve original behavior)
+  # Ensure ppsEpisodesDf has person_episode_number
   if (!"person_episode_number" %in% names(ppsEpisodesDf)) {
     ppsEpisodesDf$person_episode_number <- if (nrow(ppsEpisodesDf)) 1L else integer(0)
   }
@@ -300,22 +307,22 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     dplyr::ungroup()
 
   # Determine the last plausible pregnancy outcome date based on the last concept
-  # months_to_add = 11 - min_month, then add to the last concept date.
+  # months_to_add = 11 - pps_min_month, then add to the last concept date.
   maxPregnancyDateDf <- ppsEpisodesDf |>
     dplyr::group_by(.data$person_id, .data$person_episode_number) |>
     dplyr::arrange(
       dplyr::desc(.data$pps_concept_start_date),
-      dplyr::desc(.data$max_month),
-      dplyr::desc(.data$min_month),
+      dplyr::desc(.data$pps_max_month),
+      dplyr::desc(.data$pps_min_month),
       .by_group = TRUE
     ) |>
     dplyr::slice(1) |>
     dplyr::ungroup() |>
     dplyr::transmute(
-      person_id, person_episode_number,
+      .data$person_id, .data$person_episode_number,
       max_pregnancy_date = lubridate::add_with_rollback(
         .data$pps_concept_start_date,
-        lubridate::period(months = 11L - as.integer(.data$min_month))
+        lubridate::period(months = 11L - as.integer(.data$pps_min_month))
       )
     )
 
@@ -393,8 +400,8 @@ addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
     dplyr::left_join(
       outcomesDf |>
         dplyr::select(
-          person_id, person_episode_number, episode_min_date,
-          algo2_category, algo2_outcome_date, n_gt_concepts
+          "person_id", "person_episode_number", "episode_min_date",
+          "algo2_category", "algo2_outcome_date", "n_gt_concepts"
         ),
       by = c("person_id", "person_episode_number", "episode_min_date", "n_gt_concepts")
     )

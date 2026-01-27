@@ -61,7 +61,7 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
   ) %>%
     dplyr::rename_with(tolower) %>%
-    dplyr::mutate(domain_concept_id = as.integer(domain_concept_id))
+    dplyr::mutate(pps_concept_id = as.integer(.data$pps_concept_id))
 
   cdm <- CDMConnector::insertTable(
     cdm = cdm,

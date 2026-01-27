@@ -42,13 +42,13 @@
 #' @export
 mergeHipps <- function(outputDir, logger) {
   checkmate::assertDirectoryExists(outputDir)
-  checkmate::assertFileExists(file.path(outputDir, "pps_with_outcomes.rds"))
+  checkmate::assertFileExists(file.path(outputDir, "PPS_episodes.rds"))
   checkmate::assertFileExists(file.path(outputDir, "HIP_episodes.rds"))
   checkmate::assertClass(logger, "logger")
 
   log4r::info(logger, "Merging HIP and PPS into HIPPS")
 
-  ppsWithOutcomesDf <- readRDS(file.path(outputDir, "pps_with_outcomes.rds"))
+  ppsWithOutcomesDf <- readRDS(file.path(outputDir, "PPS_episodes.rds"))
   hipDf <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
 
   mergedDf <- mergeEpisodes(hipDf, ppsWithOutcomesDf, logger) %>%
@@ -242,13 +242,13 @@ addMergedEpisodeDetails <- function(mergedDf) {
       )
     ) %>%
     dplyr::rename(
-      HIP_end_date = pregnancy_end,
-      HIP_outcome_category = category,
-      PPS_outcome_category = algo2_category,
-      PPS_end_date = algo2_outcome_date,
-      recorded_episode_start = merged_episode_start,
-      recorded_episode_end   = merged_episode_end,
-      recorded_episode_length = merged_episode_length
+      HIP_end_date = "pregnancy_end",
+      HIP_outcome_category = "category",
+      PPS_outcome_category = "algo2_category",
+      PPS_end_date = "algo2_outcome_date",
+      recorded_episode_start = "merged_episode_start",
+      recorded_episode_end   = "merged_episode_end",
+      recorded_episode_length = "merged_episode_length"
     ) %>%
     dplyr::mutate(
       HIP_flag = dplyr::if_else(!is.na(.data$algo1_id), 1L, 0L),

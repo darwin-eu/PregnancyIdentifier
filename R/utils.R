@@ -65,7 +65,7 @@ addAgeSex <- function(tbl, dateColumn) {
   checkmate::assertTRUE("person_id" %in% colnames(tbl))
   checkmate::assertTRUE(dateColumn %in% colnames(tbl))
   cdm_local <- attr(tbl, "cdm_reference")
-  checkmate::assertClass(cdm, "cdm_reference")
+  checkmate::assertClass(cdm_local, "cdm_reference")
 
   person <- cdm_local$person %>%
     dplyr::select("person_id", "gender_concept_id", "year_of_birth", "month_of_birth", "day_of_birth")
@@ -86,7 +86,7 @@ addAgeSex <- function(tbl, dateColumn) {
         gender_concept_id == 8507L ~ "male",
         TRUE ~ "unknown")
     ) %>%
-    dplyr::select(-c("day_of_birth", "month_of_birth", "year_of_birth", "gender_concept_id"))
+    dplyr::select(-c("day_of_birth", "month_of_birth", "year_of_birth", "gender_concept_id", "date_of_birth"))
 }
 
 

@@ -31,7 +31,7 @@
 #'   \item Infers episode start and start precision using all available gestational timing evidence, with logging.
 #'   \item Merges inferred start dates, timing evidence, and metadata back onto the merged episodes table and computes final start/end/outcome fields.
 #'   \item Filters episodes to retain only those overlapping the requested \code{startDate}--\code{endDate} study period, including episodes with missing inferred dates.
-#'   \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{identified_pregnancy_episodes.rds}) in \code{outputDir}.
+#'   \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{final_pregnancy_episodes.rds}) in \code{outputDir}.
 #' }
 #'
 #' @param cdm A CDM reference, must include all necessary OMOP tables and concept sets for pregnancy inference algorithms.
@@ -39,36 +39,41 @@
 #' @param startDate Earliest episode date to include (as.Date). Default: \code{as.Date("1900-01-01")}.
 #' @param endDate Latest episode date to include (as.Date). Default: \code{Sys.Date()}.
 #' @param logger A \code{log4r} logger object for info/debug messages.
+#' @param debugMode (`logical(1)`) Should the ESD algorithm write intermidation datasets to the outputDir? `TRUE` or `FALSE` (default)
 #'
-#' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{identified_pregnancy_episodes.rds}) to \code{outputDir}.
+#' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
 #'         The output contains one row per inferred pregnancy episode, with all metadata and gestational timing fields required for downstream analysis.
 #' @export
 runEsd <- function(cdm,
                    outputDir,
                    startDate = as.Date("1900-01-01"),
                    endDate = Sys.Date(),
-                   logger) {
+                   logger,
+                   debugMode = FALSE) {
 
   log4r::info(logger, "Running ESD")
 
-  hipps <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
+  hippsEpisodes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
 
   # 1) Pull gestational timing concepts (GW / GR3m candidates) for HIP episodes
   timingConceptsDf <- getTimingConcepts(
     cdm = cdm,
     startDate = startDate,
     endDate = endDate,
-    final_merged_episode_detailed_df = hipps
+    hippsEpisodes = hippsEpisodes
   )
 
   # 2) Convert concept evidence into inferred episode start + precision
   esdDf <- episodesWithGestationalTimingInfo(timingConceptsDf, logger = logger)
-  saveRDS(esdDf, file.path(outputDir, "ESD.rds"))
+
+  if (debugMode) {
+    saveRDS(esdDf, file.path(outputDir, "ESD.rds"))
+  }
 
   # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes
   mergedDf <- mergedEpisodesWithMetadata(
     episodes_with_gestational_timing_info_df = esdDf,
-    final_merged_episode_detailed_df = hipps,
+    hippsEpisodes = hippsEpisodes,
     cdm = cdm,
     logger = logger
   )
@@ -80,7 +85,7 @@ runEsd <- function(cdm,
         (.data$inferred_episode_end <= endDate | is.na(.data$inferred_episode_end))
     )
 
-  outputPath <- file.path(outputDir, "identified_pregnancy_episodes.rds")
+  outputPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
@@ -98,18 +103,18 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
     dplyr::inner_join(
       personIdList,
       by = dplyr::join_by(
-        person_id,
-        domain_concept_start_date >= start_date,
-        domain_concept_start_date <= recorded_episode_end
+        .data$person_id,
+        .data$domain_concept_start_date >= .data$start_date,
+        .data$domain_concept_start_date <= .data$recorded_episode_end
       )
     ) %>%
     dplyr::transmute(
-      person_id,
-      domain_concept_start_date,
+      .data$person_id,
+      .data$domain_concept_start_date,
       domain_concept_id   = .data$concept_id,
       domain_concept_name = .data$concept_name,
-      start_date,
-      recorded_episode_end,
+      .data$start_date,
+      .data$recorded_episode_end,
       value_col = .data$value_col,
       episode_number = .data$episode_number
     )
@@ -118,40 +123,29 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
 getTimingConcepts <- function(cdm,
                               startDate = as.Date("1900-01-01"),
                               endDate = Sys.Date(),
-                              final_merged_episode_detailed_df) {
+                              hippsEpisodes) {
   # obtain the gestational timing <= 3 month concept information to use as additional information for precision category designation
 
-  pregnantDates <- final_merged_episode_detailed_df
+  ppsConcepts <-
+    system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+    readxl::read_xlsx()
 
-  algo2TimingConceptIds <- cdm$preg_pps_concepts %>%
-    dplyr::pull(.data$domain_concept_id) %>%
-    as.integer()
+  esdConcepts <-
+    system.file("concepts", "ESD_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+    readxl::read_xlsx()
 
-  # Domain-specific concept lists
-  observationConceptIds  <- c(3011536, 3026070, 3024261, 4260747, 40758410, 3002549, 43054890, 46234792, 4266763, 40485048, 3048230, 3002209, 3012266)
-  measurementConceptIds  <- c(3036844, 3048230, 3001105, 3002209, 3050433, 3012266)
-  estDeliveryConceptIds  <- c(1175623, 1175623, 3001105, 3011536, 3024261, 3024973, 3026070, 3036322, 3038318, 3038608, 4059478, 4128833, 40490322, 40760182, 40760183, 42537958)
-  estConceptionConceptIds <- c(3002314, 3043737, 4058439, 4072438, 4089559, 44817092)
-  gestAtBirthConceptIds  <- c(4260747, 43054890, 46234792, 4266763, 40485048)
-
-  conceptIdsToSearch <- unique(c(
-    observationConceptIds,
-    measurementConceptIds,
-    algo2TimingConceptIds,
-    estDeliveryConceptIds,
-    estConceptionConceptIds,
-    gestAtBirthConceptIds
-  ))
+  conceptIdsToSearch <- as.integer(c(ppsConcepts$pps_concept_id, esdConcepts$esd_concept_id))
 
   # need to find concept names that contain 'gestation period' as well as the specific concepts
   conceptsToSearch <- cdm$concept %>%
     dplyr::filter(
-      .data$concept_name %like% "gestation period" |
-        .data$concept_id %in% conceptIdsToSearch
+      .data$concept_name %like% "gestation period" | # TODO why not precompute this list of concepts?
+        .data$concept_id %in% .env$conceptIdsToSearch
     ) %>%
     dplyr::select("concept_id", "concept_name")
+
   # add: change to pregnancy start rather than recorded episode start
-  personIdList <- pregnantDates %>%
+  personIdList <- hippsEpisodes %>%
     dplyr::mutate(start_date = pmin(.data$pregnancy_start, .data$recorded_episode_start, na.rm = TRUE)) %>%
     dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
@@ -184,8 +178,8 @@ getTimingConcepts <- function(cdm,
 
   pregRelatedConcepts %>%
     dplyr::left_join(
-      dplyr::select(cdm$preg_pps_concepts, "domain_concept_id", "min_month", "max_month"),
-      by = "domain_concept_id") %>%
+      dplyr::select(cdm$preg_pps_concepts, "pps_concept_id", "min_month" = "pps_min_month", "max_month" = "pps_max_month"),
+      by = c("domain_concept_id" = "pps_concept_id")) %>%
     dplyr::collect() %>%
     dplyr::mutate(
       domain_value = stringr::str_replace(.data$value_col, "\\|text_result_val:", ""),
@@ -434,6 +428,10 @@ getGtTiming <- function(dateslist) {
 episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
   # add on either GW or GR3m designation depending on whether the concept is present
 
+  esdConcepts2 <-
+    system.file("concepts", "ESD_concepts2.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+    readxl::read_xlsx()
+
   if (nrow(get_timing_concepts_df) == 0) {
     log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", 0))
     log4r::info(logger, sprintf("Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", 0))
@@ -457,7 +455,7 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
       domain_concept_id = as.integer(.data$domain_concept_id),
       GT_type = dplyr::case_when(
         stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period") |
-          .data$domain_concept_id %in% c(3048230, 3002209, 3012266, 3050433) ~ "GW",
+          .data$domain_concept_id %in% local(esdConcepts2$concept_id) ~ "GW",
         !is.na(.data$min_month) ~ "GR3m",
         TRUE ~ NA_character_
       )
@@ -563,17 +561,16 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
 }
 
 mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
-                                       final_merged_episode_detailed_df,
+                                       hippsEpisodes,
                                        cdm,
                                        logger) {
   # Add other pregnancy and demographic related info for each episode.
 
-  demographicsDf <- final_merged_episode_detailed_df
   timingDf <- episodes_with_gestational_timing_info_df %>%
     dplyr::select(-"GT_info_list")
   termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
 
-  finalDf <- demographicsDf %>%
+  finalDf <- hippsEpisodes %>%
     dplyr::left_join(timingDf, by = c("person_id", "episode_number")) %>%
     dplyr::distinct() %>%
     dplyr::mutate(

@@ -17,7 +17,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+#' Create a new logger
+#'
+#' @param outputDir The directory where the log should be created
+#'
+#' @returns A log4r logger object
+#' @export
 makeLogger <- function(outputDir) {
+  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
+  checkmate::assertDirectoryExists(outputDir)
   logFile <- file.path(outputDir, "log.txt")
   file.create(logFile)
   logger <- log4r::create.logger(logfile = logFile)
@@ -57,6 +65,8 @@ makeLogger <- function(outputDir) {
 #'   gestational concepts (HIP behavior). Passed through to `runHip()`.
 #' @param minCellCount (`integer(1)`) Minimum cell count used for suppression in
 #'   exported summaries. Passed through to `exportPregnancies()`.
+#' @param debugMode (`logical(1)`) Should extra intermediate datasets be written to
+#'   the outputDir for debugging? `TRUE` or `FALSE` (default)
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_initial_cohort`, concept
@@ -69,7 +79,8 @@ runPregnancyIdentifier <- function(cdm,
                                    startDate = as.Date("1900-01-01"),
                                    endDate = Sys.Date(),
                                    justGestation = TRUE,
-                                   minCellCount = 5L) {
+                                   minCellCount = 5L,
+                                   debugMode = FALSE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
@@ -138,7 +149,8 @@ runPregnancyIdentifier <- function(cdm,
     outputDir = outputDir,
     startDate = startDate,
     endDate = endDate,
-    logger = logger
+    logger = logger,
+    debugMode = debugMode
   )
 
   # ---- Step 4: Merge HIP + PPS => HIPPS episodes -----------------------------
@@ -153,7 +165,7 @@ runPregnancyIdentifier <- function(cdm,
   # Inputs:
   #   - HIPPS (and other intermediate artifacts) in outputDir
   # Outputs:
-  #   - writes: outputDir/identified_pregancy_episodes.rds (final patient-level episodes)
+  #   - writes: outputDir/final_pregnancy_episodes.rds (final patient-level episodes)
   log4r::info(logger, "Running `runEsd`")
   runEsd(
     cdm,

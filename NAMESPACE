@@ -3,6 +3,7 @@
 export("%>%")
 export(exportPregnancies)
 export(initPregnancies)
+export(makeLogger)
 export(mergeHipps)
 export(mockPregnancyCdm)
 export(runEsd)
