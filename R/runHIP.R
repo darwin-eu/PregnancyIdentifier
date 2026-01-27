@@ -21,7 +21,7 @@
 #'
 #' This function runs the HIP outcome based pregnancy identification algorithm.
 #' It assumes that the `initPregnancies` function has already been run and the
-#' preg_initial_cohort and preg_hip_concepts tables are in the cdm. The algorithm
+#' preg_hip_records and preg_hip_concepts tables are in the cdm. The algorithm
 #' identifies start and end dates for pregnancies by first prioritizing pregnancy
 #' outcomes and then using inference to set a pregnancy start date. Each pregnancy
 #' is classified into one of several categories.
@@ -69,11 +69,11 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 
   logInfo(logger, "START Running HIP")
 
-  if  (!("preg_initial_cohort" %in% names(cdm))) {
-    rlang::abort("preg_initial_cohort is not in the cdm! Run `initPregnancies` function first.")
+  if  (!("preg_hip_records" %in% names(cdm))) {
+    rlang::abort("preg_hip_records is not in the cdm! Run `initPregnancies` function first.")
   }
 
-  if (getTblRowCount(cdm$preg_initial_cohort) == 0) {
+  if (getTblRowCount(cdm$preg_hip_records) == 0) {
     logWarn(logger, "No records after initializing pregnancy cohort")
     return(cdm)
   }
@@ -142,7 +142,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 
   # Identify the start of episodes based on the difference in time between gestational age-related concepts
   # and the actual difference in days.
-  # Needs cdm$preg_initial_cohort
+  # Needs cdm$preg_hip_records
   cdm <- gestationEpisodes(cdm)
 
   # get various mins and maxes of gestational age and dates
@@ -247,7 +247,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 # Note here that for SA and AB, if there is an episode that contains concepts for both,
 # only one will be (essentially randomly) chosen
 finalVisits <- function(cdm, categories, tableName, logger) {
-  cdm$temp_df <- cdm$preg_initial_cohort %>%
+  cdm$temp_df <- cdm$preg_hip_records %>%
     dplyr::filter(.data$category %in% categories) %>%
     # only keep one obs per person-date -- they're all in the same category
     # select(person_id, visit_date, category) %>%
@@ -610,11 +610,11 @@ gestationVisits <- function(cdm) {
   # 3012266 - Gestational age
 
   # Get records with gestation period
-  gest <- cdm$preg_initial_cohort %>%
+  gest <- cdm$preg_hip_records %>%
     dplyr::filter(!is.na(.data$gest_value))
 
   # Get records with gestational age in weeks
-  cdm$gestation_visits_df <- cdm$preg_initial_cohort %>%
+  cdm$gestation_visits_df <- cdm$preg_hip_records %>%
     dplyr::filter(
       .data$concept_id %in% c(3002209, 3048230, 3012266),
       !is.na(.data$value_as_number),

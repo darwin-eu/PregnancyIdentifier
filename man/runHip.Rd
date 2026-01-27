@@ -41,7 +41,7 @@ Columns of this table are:
 \description{
 This function runs the HIP outcome based pregnancy identification algorithm.
 It assumes that the `initPregnancies` function has already been run and the
-preg_initial_cohort and preg_hip_concepts tables are in the cdm. The algorithm
+preg_hip_records and preg_hip_concepts tables are in the cdm. The algorithm
 identifies start and end dates for pregnancies by first prioritizing pregnancy
 outcomes and then using inference to set a pregnancy start date. Each pregnancy
 is classified into one of several categories.

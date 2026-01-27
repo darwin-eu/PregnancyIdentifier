@@ -52,16 +52,6 @@ runPps <- function(cdm,
   logInfo(logger, "START Running PPS")
 
   # ----------------------------------------------------------
-  # Pull PPS concepts from OMOP domain tables
-  # ----------------------------------------------------------
-  cdm <- inputGtConcepts(
-    cdm = cdm,
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
-
-  # ----------------------------------------------------------
   # Get gestational timing information for each person
   # ----------------------------------------------------------
   logInfo(logger, "Get gestational timing information")
@@ -73,7 +63,7 @@ runPps <- function(cdm,
   logInfo(logger, "Get min and max dates for episodes")
   ppsMinMax <- getEpisodeMaxMinDates(ppsEpisodes)
 
-  ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) |>
+  ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) %>%
     addOutcomes(ppsMinMax)
 
   if (debugMode) {
@@ -81,50 +71,6 @@ runPps <- function(cdm,
     saveRDS(ppsMinMax,  file.path(outputDir, "pps_min_max_episodes.rds"))
   }
   saveRDS(ppsWithOutcomes,  file.path(outputDir, "PPS_episodes.rds"))
-
-  # Drop temporary source tables
-  omopgenerics::dropSourceTable(cdm, "input_gt_concepts_df")
-}
-
-# ============================================================
-# Pull PPS concepts from OMOP domain tables
-# ============================================================
-
-# Pulls concepts from a single OMOP table and normalizes column names so that
-# all downstream logic can operate on a consistent schema.
-# PPS concepts (in the PPS_concepts excel file) occur in the condition, measurement, and procedure domains
-inputGtConcepts <- function(cdm, startDate, endDate, logger) {
-
-  domainSpecs <- tibble::tribble(
-    ~table_name,            ~date_column,            ~concept_id_column,
-    "condition_occurrence", "condition_start_date",  "condition_concept_id",
-    "procedure_occurrence", "procedure_date",        "procedure_concept_id",
-    "measurement",          "measurement_date",      "measurement_concept_id",
-  )
-
-  pulls <- purrr::map(seq_len(nrow(domainSpecs)), \(i) {
-    spec <- domainSpecs[i, ]
-
-    tableName <- spec$table_name[[1]]
-    dateCol   <- spec$date_column[[1]]
-    cidCol    <- spec$concept_id_column[[1]]
-
-    logInfo(logger, sprintf("Pulling data from %s", tableName))
-
-    cdm[[tableName]] %>%
-      dplyr::filter(.data[[dateCol]] >= startDate, .data[[dateCol]] <= endDate) %>%
-      dplyr::transmute(
-        person_id,
-        pps_concept_start_date = .data[[dateCol]],
-        pps_concept_id         = .data[[cidCol]]
-      ) %>%
-      dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") %>%
-      dplyr::distinct()
-  })
-
-  cdm$input_gt_concepts_df <- purrr::reduce(pulls, dplyr::union_all) %>%
-    dplyr::filter(!is.na(.data$pps_concept_start_date)) %>%
-    dplyr::compute()
 
   cdm
 }
@@ -228,12 +174,8 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
   # Episode extraction pipeline
   # ------------------------------------------------------------------
 
-  # Restrict to women of reproductive age and bring to R for per-person iteration
-  patientsDf <- cdm$input_gt_concepts_df %>%
-    addAgeSex("pps_concept_start_date") %>%
-    dplyr::filter(.data$sex == "female", .data$age >= 15, .data$age < 56) %>%
-    dplyr::collect() %>%
-    dplyr::select(-"sex", -"age")
+  patientsDf <- cdm$preg_pps_records %>%
+   dplyr::collect()
 
   # QA: write concept frequencies
   patientsDf %>%
@@ -293,9 +235,9 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     ppsEpisodesDf$person_episode_number <- if (nrow(ppsEpisodesDf)) 1L else integer(0)
   }
 
-  pregnantDates <- ppsMinMaxDf |>
-    dplyr::group_by(.data$person_id) |>
-    dplyr::arrange(.data$person_episode_number, .data$episode_min_date, .by_group = TRUE) |>
+  pregnantDates <- ppsMinMaxDf %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::arrange(.data$person_episode_number, .data$episode_min_date, .by_group = TRUE) %>%
     dplyr::mutate(
       # next episode bounds the lookahead to avoid borrowing outcomes from later pregnancies
       next_closest_episode_date = dplyr::coalesce(
@@ -303,21 +245,21 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
         lubridate::ymd("2999-01-01")
       ),
       episode_max_date_minus_lookback_window = .data$episode_max_date - lubridate::days(14)
-    ) |>
+    ) %>%
     dplyr::ungroup()
 
   # Determine the last plausible pregnancy outcome date based on the last concept
   # months_to_add = 11 - pps_min_month, then add to the last concept date.
-  maxPregnancyDateDf <- ppsEpisodesDf |>
-    dplyr::group_by(.data$person_id, .data$person_episode_number) |>
+  maxPregnancyDateDf <- ppsEpisodesDf %>%
+    dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
     dplyr::arrange(
       dplyr::desc(.data$pps_concept_start_date),
       dplyr::desc(.data$pps_max_month),
       dplyr::desc(.data$pps_min_month),
       .by_group = TRUE
-    ) |>
-    dplyr::slice(1) |>
-    dplyr::ungroup() |>
+    ) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup() %>%
     dplyr::transmute(
       .data$person_id, .data$person_episode_number,
       max_pregnancy_date = lubridate::add_with_rollback(
@@ -326,8 +268,8 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
       )
     )
 
-  pregnantDates <- pregnantDates |>
-    dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) |>
+  pregnantDates <- pregnantDates %>%
+    dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) %>%
     dplyr::mutate(
       # final lookahead is the earliest of (next episode) and (max plausible outcome date)
       episode_max_date_plus_lookahead_window =
@@ -335,9 +277,9 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     )
 
   # Pull outcome concepts (LB/SB/ECT/SA/AB/DELIV) that fall within each episode window
-  pregRelatedConcepts <- cdm$preg_initial_cohort |>
-    dplyr::filter(.data$category %in% c("LB", "SB", "DELIV", "ECT", "AB", "SA")) |>
-    dplyr::collect() |>
+  pregRelatedConcepts <- cdm$preg_hip_records %>%
+    dplyr::filter(.data$category %in% c("LB", "SB", "DELIV", "ECT", "AB", "SA")) %>%
+    dplyr::collect() %>%
     dplyr::inner_join(
       pregnantDates,
       by = dplyr::join_by(
@@ -351,21 +293,21 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
       relationship = "many-to-many"
     )
 
-  outcomesListDf <- pregRelatedConcepts |>
-    dplyr::mutate(lst = paste(.data$visit_date, ",", .data$concept_id, ",", .data$category)) |>
+  outcomesListDf <- pregRelatedConcepts %>%
+    dplyr::mutate(lst = paste(.data$visit_date, ",", .data$concept_id, ",", .data$category)) %>%
     dplyr::group_by(
       .data$person_id, .data$person_episode_number, .data$episode_min_date, .data$episode_max_date,
       .data$episode_max_date_minus_lookback_window, .data$episode_max_date_plus_lookahead_window,
       .data$n_gt_concepts
-    ) |>
-    dplyr::summarise(outcomes_list = list(sort(unique(.data$lst))), .groups = "drop") |>
+    ) %>%
+    dplyr::summarise(outcomes_list = list(sort(unique(.data$lst))), .groups = "drop") %>%
     dplyr::filter(purrr::map_lgl(.data$outcomes_list, ~ length(.x) > 0))
 
   # Matcho hierarchy (priority order) for PPS outcomes
   outcomeOrder <- c("LB", "SB", "ECT", "SA", "AB", "DELIV")
   dateCols <- paste0(outcomeOrder, "_delivery_date")
 
-  outcomesListDf |>
+  outcomesListDf %>%
     dplyr::mutate(
       # Extract first matching date per outcome category
       !!!rlang::set_names(
@@ -396,9 +338,9 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
 
 addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
   # Attach inferred PPS outcomes back onto the PPS episode min/max table
-  ppsMinMaxDf |>
+  ppsMinMaxDf %>%
     dplyr::left_join(
-      outcomesDf |>
+      outcomesDf %>%
         dplyr::select(
           "person_id", "person_episode_number", "episode_min_date",
           "algo2_category", "algo2_outcome_date", "n_gt_concepts"

@@ -6,6 +6,8 @@ test_that("mergeHipps runs without error", {
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   logger <- makeLogger(outputDir)
 
+  cdm <- initPregnancies(cdm, logger = logger)
+
   # Run HIP and PPS first to create required files
   cdm <- runHip(cdm = cdm, outputDir = outputDir, logger = logger)
   expect_equal(c("HIP_episodes.rds", "log.txt"), sort(list.files(outputDir)))

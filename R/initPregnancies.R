@@ -29,10 +29,10 @@
 #' @param ageBounds The upper and lower bounds for age at pregnancy end date
 #' represented using a length 2 integer vector. By default this will be
 #' c(15, 56) and will include anyone >= 15 and < 56.
+#' @param logger A log4r logger object that can be created with `makeLogger()`
 #'
-#' @returns The input CDM with a new table added called preg_initial_cohort with
-#' the following columns:"person_id" "concept_id" "visit_date" "value_as_number" "concept_name"
-#' "category" "gest_value" "date_of_birth" "date_diff" "age"
+#' @returns The input CDM with new tables added called preg_hip_records, preg_pps_records,
+#' preg_hip_concepts, preg_pps_concepts.
 #' @export
 #'
 #' @examples
@@ -40,7 +40,7 @@
 #' cdm <- mockPregnancyCdm()
 #' cdm <- initPregnancies(cdm)
 #' }
-initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 56L)) {
+initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 56L), logger = NULL) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertDate(startDate, any.missing = FALSE)
@@ -51,12 +51,13 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
   if (upperAgeBound < lowerAgeBound) {
     rlang::abort("The lower age bound (ageBounds[1]) must be less than the upper age bound (ageBounds[2])")
   }
+  checkmate::assertClass(logger, "logger", null.ok = TRUE)
 
-  message("Inserting HIP concepts into the CDM")
+  logInfo(logger, "Inserting HIP concepts into the CDM")
   hipConcepts <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "HIP_concepts.xlsx"))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "preg_hip_concepts", table = hipConcepts, overwrite = TRUE)
 
-  message("Inserting PPS concepts into the CDM")
+  logInfo(logger, "Inserting PPS concepts into the CDM")
   ppsConcepts <- readxl::read_excel(
     system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
   ) %>%
@@ -69,7 +70,7 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     table = ppsConcepts
   )
 
-  message("Inserting Matcho term durations into the CDM")
+  logInfo(logger, "Inserting Matcho term durations into the CDM")
   matchoTermDurations <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_term_durations.xlsx"))
   cdm <- CDMConnector::insertTable(
     cdm = cdm,
@@ -77,7 +78,7 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     table = matchoTermDurations,
   )
 
-  message("Getting all initial pregnancy records")
+  logInfo(logger, "Getting all initial pregnancy records")
   hip <- dplyr::select(cdm$preg_hip_concepts, concept_id, category)
 
   cdm$all_pregnancy_records <-
@@ -110,48 +111,60 @@ initPregnancies <- function(cdm, startDate = as.Date("1900-01-01"), endDate = Sy
     purrr::reduce(dplyr::union_all) %>%
     dplyr::compute()
 
-  # get unique person ids for women of reproductive age
-  cdm$person_df <- cdm$person %>%
-    dplyr::filter(
-      # 45878463: Female
-      # 46273637: Intersex
-      # 45880669: Male
-      # 1177221: I prefer not to answer
-      # 903096: Skip
-      # 4124462: None
-      # TODO: Add option to specify specific column and/or concept ID(s)
-      .data$gender_concept_id == 8532
-      # .data$sex_at_birth_concept_id != 45880669
-      # the majority of the people in the other non-Female or Male categories
-      # also report female gender
-    ) %>%
-    dplyr::mutate(
-      day_of_birth = as.integer(dplyr::if_else(is.na(.data$day_of_birth), 1L, .data$day_of_birth)),
-      month_of_birth = as.integer(dplyr::if_else(is.na(.data$month_of_birth), 1L, .data$month_of_birth)),
-      date_of_birth = as.Date(paste0(as.character(as.integer(.data$year_of_birth)), "-", as.character(as.integer(.data$month_of_birth)), "-", as.character(as.integer(.data$day_of_birth))))
-    ) %>%
-    dplyr::select("person_id", "date_of_birth") %>%
-    dplyr::compute()
-
   # keep only person_ids of women of reproductive age at some visit
-  cdm$preg_initial_cohort <- cdm$all_pregnancy_records %>%
-    dplyr::inner_join(cdm$person_df, by = "person_id") %>%
-    dplyr::mutate(
-      date_diff = !!CDMConnector::datediff("date_of_birth", "visit_date", interval = "day")
-    ) %>%
-    dplyr::mutate(
-      age = .data$date_diff / 365.25
-    ) %>%
-    dplyr::filter(.data$age >= lowerAgeBound) %>%
-    dplyr::filter(.data$age < upperAgeBound) %>%
+  cdm$preg_hip_records <- cdm$all_pregnancy_records %>%
+    addAgeSex("visit_date") %>%
+    dplyr::filter(.data$age >= lowerAgeBound, .data$age < upperAgeBound, .data$sex == "female") %>%
     dplyr::distinct() %>%
     dplyr::select("person_id", "visit_date", "category", "concept_id", "value_as_number") %>%
-    dplyr::compute(name = "preg_initial_cohort", temporary = FALSE, overwrite = TRUE)
+    dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
+
+  # ============================================================
+  # Pull PPS concepts from OMOP domain tables
+  # ============================================================
+
+  # Pulls concepts from a single OMOP table and normalizes column names so that
+  # all downstream logic can operate on a consistent schema.
+  # PPS concepts (in the PPS_concepts excel file) occur in the condition, measurement, and procedure domains
+  logInfo(logger, "Pulling PPS concept records")
+  domainSpecs <- tibble::tribble(
+    ~table_name,            ~date_column,            ~concept_id_column,
+    "condition_occurrence", "condition_start_date",  "condition_concept_id",
+    "procedure_occurrence", "procedure_date",        "procedure_concept_id",
+    "measurement",          "measurement_date",      "measurement_concept_id",
+  )
+
+  cdm$all_timing_records <- purrr::map(seq_len(nrow(domainSpecs)), \(i) {
+    spec <- domainSpecs[i, ]
+
+    tableName <- spec$table_name[[1]]
+    dateCol   <- spec$date_column[[1]]
+    cidCol    <- spec$concept_id_column[[1]]
+
+    logInfo(logger, sprintf("Pulling data from %s", tableName))
+
+    cdm[[tableName]] %>%
+      dplyr::filter(.data[[dateCol]] >= startDate, .data[[dateCol]] <= endDate) %>%
+      dplyr::transmute(
+        person_id,
+        pps_concept_start_date = .data[[dateCol]],
+        pps_concept_id         = .data[[cidCol]]
+      ) %>%
+      dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") %>%
+      dplyr::distinct()
+  }) %>% purrr::reduce(dplyr::union_all) %>%
+    dplyr::compute()
+
+  cdm$preg_pps_records <- cdm$all_timing_records %>%
+    dplyr::filter(!is.na(.data$pps_concept_start_date)) %>%
+    addAgeSex("pps_concept_start_date") %>%
+    dplyr::filter(.data$sex == "female", .data$age >= 15, .data$age < 56) %>%
+    dplyr::select(-"sex", -"age") %>%
+    dplyr::compute(name = "preg_pps_records")
 
   cdm <- omopgenerics::dropSourceTable(
     cdm,
-    c("condition_df", "measurement_df", "procedure_df",
-      "all_pregnancy_records", "person_df", "observation_df")
+    c("all_pregnancy_records", "all_timing_records")
   )
 
   return(cdm)

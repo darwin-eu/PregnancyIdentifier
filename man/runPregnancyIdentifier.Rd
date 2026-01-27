@@ -38,7 +38,7 @@ the outputDir for debugging? `TRUE` or `FALSE` (default)}
 }
 \value{
 Invisibly returns `NULL`. Side effects:
-  - Adds/updates tables inside `cdm` (e.g., `cdm$preg_initial_cohort`, concept
+  - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
     tables, and intermediate algorithm tables).
   - Writes intermediate RDS artifacts under `outputDir`.
   - Writes shareable exports under `file.path(outputDir, "export")`.

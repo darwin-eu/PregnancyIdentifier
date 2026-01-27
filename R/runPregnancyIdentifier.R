@@ -69,7 +69,7 @@ makeLogger <- function(outputDir) {
 #'   the outputDir for debugging? `TRUE` or `FALSE` (default)
 #'
 #' @return Invisibly returns `NULL`. Side effects:
-#'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_initial_cohort`, concept
+#'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
 #'   - Writes intermediate RDS artifacts under `outputDir`.
 #'   - Writes shareable exports under `file.path(outputDir, "export")`.
@@ -109,8 +109,10 @@ runPregnancyIdentifier <- function(cdm,
   #   - startDate/endDate (study window)
   # Outputs:
   #   - updated cdm with tables such as:
-  #       * cdm$preg_initial_cohort (person_id, visit_date, category)
-  #       * cdm$preg_hip_concepts (concept_id, concept_name, category, gest_value)
+  #       * cdm$preg_hip_records (person_id, visit_date, category)
+  #       * cdm$preg_hip_concepts
+  #       * cdm$preg_pps_records
+  #       * cdm$preg_pps_concepts
   log4r::info(logger, "Running `initPregnancies`")
   cdm <- initPregnancies(
     cdm,
