@@ -103,9 +103,9 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
     dplyr::inner_join(
       personIdList,
       by = dplyr::join_by(
-        .data$person_id,
-        .data$domain_concept_start_date >= .data$start_date,
-        .data$domain_concept_start_date <= .data$recorded_episode_end
+        person_id,
+        domain_concept_start_date >= start_date,
+        domain_concept_start_date <= recorded_episode_end
       )
     ) %>%
     dplyr::transmute(
