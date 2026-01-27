@@ -13,6 +13,7 @@ utils::globalVariables(
     "age_pregnancy_start",
     "category",
     "concept_id",
+    "domain_concept_start_date",
     "episode_max_date_minus_lookback_window",
     "episode_max_date_plus_lookahead_window",
     "episode_max_date_plus_two_months",
