@@ -22,42 +22,8 @@
 #' Incidence module that shows incidence results from the IncidencePrevalence package.
 #'
 #' @export
-#'
-#' @examples{
-#' \donttest{
-#'  library(DarwinShinyModules)
-#'
-#'  if (
-#'    require(
-#'      "IncidencePrevalence",
-#'      character.only = TRUE,
-#'      quietly = TRUE,
-#'      warn.conflicts = FALSE
-#'    )
-#'  ) {
-#'     inc <- omopgenerics::importSummarisedResult(system.file(
-#'       package = "DarwinShinyModules",
-#'       "dummyData/IncidencePrevalence/1.2.0/incidence.csv"
-#'     ))
-#'
-#'     incMod <- Incidence$new(data = inc)
-#'
-#'     ui <- shiny::fluidPage(
-#'       incMod$UI()
-#'     )
-#'
-#'     server <- function(input, output, session) {
-#'       incMod$server(input, output, session)
-#'     }
-#'
-#'     if (interactive()) {
-#'       shiny::shinyApp(ui = ui, server = server)
-#'     }
-#'   }
-#' }
-#' }
-Incidence <- R6::R6Class(
-  classname = "Incidence",
+IncidencePlot <- R6::R6Class(
+  classname = "IncidencePlot",
   inherit = DarwinShinyModules::ShinyModule,
 
   # Active ----
@@ -111,64 +77,41 @@ Incidence <- R6::R6Class(
       shiny::tagList(
         shinydashboard::tabItem(
           tabName = shiny::NS(private$.namespace, "incidence"),
-          shiny::h3("Incidence estimates"),
           private$.pickers[["cdm"]]$UI(),
           private$.pickers[["outcome"]]$UI(),
           private$.pickers[["denomAgeGroup"]]$UI(),
           private$.pickers[["startDate"]]$UI(),
-          shiny::tabsetPanel(
-            id = shiny::NS(private$.namespace, "tabsetPanel"),
-            type = "tabs",
-            shiny::tabPanel(
-              "Tidy table",
-              private$.pickers[["headerColumn"]]$UI(),
-              private$.pickers[["groupColumn"]]$UI(),
-              private$.pickers[["settingsColumn"]]$UI(),
-              private$.pickers[["hideColumn"]]$UI(),
-              p(),
-              shiny::downloadButton(shiny::NS(private$.namespace, "downloadTidyTable"), "Download table"),
-              p(),
-              gt::gt_output(shiny::NS(private$.namespace, "tidyTable")) %>% shinycssloaders::withSpinner()
-            ),
-            shiny::tabPanel(
-              "Plot",
-              p("Plotting options"),
-              private$.pickers[["xAxis"]]$UI(),
-              private$.pickers[["facet"]]$UI(),
-              private$.pickers[["color"]]$UI(),
-              private$.pickers[["ribbon"]]$UI(),
-              private$.pickers[["confInterval"]]$UI(),
-              plotly::plotlyOutput(
-                shiny::NS(private$.namespace, "plot"),
-                height = "800px"
-              ) %>%
-                shinycssloaders::withSpinner(),
-              shiny::h4("Download figure"),
-              shiny::div("height:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
-              shiny::div(
-                style = "display: inline-block;",
-                shiny::textInput(shiny::NS(private$.namespace, "download_height"), "", 10, width = "50px")
-              ),
-              shiny::div("cm", style = "display: inline-block; margin-right: 25px;"),
-              shiny::div("width:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
-              shiny::div(
-                style = "display: inline-block;",
-                shiny::textInput(shiny::NS(private$.namespace, "download_width"), "", 20, width = "50px")
-              ),
-              shiny::div("cm", style = "display: inline-block; margin-right: 25px;"),
-              shiny::div("dpi:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
-              shiny::div(
-                style = "display: inline-block; margin-right:",
-                shiny::textInput(shiny::NS(private$.namespace, "download_dpi"), "", 300, width = "50px")
-              ),
-              shiny::downloadButton(shiny::NS(private$.namespace, "download_plot"), "Download plot")
-            ),
-            shiny::tabPanel(
-              "Table",
-              shiny::downloadButton(shiny::NS(private$.namespace, "downloadTable"), "Download current estimates"),
-              DT::DTOutput(shiny::NS(private$.namespace, "table")) %>% shinycssloaders::withSpinner()
-            )
-          )
+          p("Plotting options"),
+          private$.pickers[["xAxis"]]$UI(),
+          private$.pickers[["facet"]]$UI(),
+          private$.pickers[["color"]]$UI(),
+          private$.pickers[["ribbon"]]$UI(),
+          private$.pickers[["confInterval"]]$UI(),
+          private$.pickers[["rotateXLabels"]]$UI(),
+          plotly::plotlyOutput(
+            shiny::NS(private$.namespace, "plot"),
+            height = "800px"
+          ) %>%
+            shinycssloaders::withSpinner(),
+          shiny::h4("Download figure"),
+          shiny::div("height:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
+          shiny::div(
+            style = "display: inline-block;",
+            shiny::textInput(shiny::NS(private$.namespace, "download_height"), "", 10, width = "50px")
+          ),
+          shiny::div("cm", style = "display: inline-block; margin-right: 25px;"),
+          shiny::div("width:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
+          shiny::div(
+            style = "display: inline-block;",
+            shiny::textInput(shiny::NS(private$.namespace, "download_width"), "", 20, width = "50px")
+          ),
+          shiny::div("cm", style = "display: inline-block; margin-right: 25px;"),
+          shiny::div("dpi:", style = "display: inline-block; font-weight: bold; margin-right: 5px;"),
+          shiny::div(
+            style = "display: inline-block; margin-right:",
+            shiny::textInput(shiny::NS(private$.namespace, "download_dpi"), "", 300, width = "50px")
+          ),
+          shiny::downloadButton(shiny::NS(private$.namespace, "download_plot"), "Download plot")
         )
       )
     },
@@ -188,77 +131,11 @@ Incidence <- R6::R6Class(
             person_years = round(suppressWarnings(as.numeric(person_years))),
             person_days = round(suppressWarnings(as.numeric(person_days))),
             n_events = round(suppressWarnings(as.numeric(n_events))),
-            incidence_100000_pys = round(suppressWarnings(as.numeric(incidence_100000_pys))),
-            incidence_100000_pys_95CI_lower = round(suppressWarnings(as.numeric(incidence_100000_pys_95CI_lower))),
-            incidence_100000_pys_95CI_upper = round(suppressWarnings(as.numeric(incidence_100000_pys_95CI_upper)))
+            incidence_1000_pys = round(suppressWarnings(as.numeric(incidence_1000_pys))),
+            incidence_1000_pys_95CI_lower = round(suppressWarnings(as.numeric(incidence_1000_pys_95CI_lower))),
+            incidence_1000_pys_95CI_upper = round(suppressWarnings(as.numeric(incidence_1000_pys_95CI_upper)))
           )
         return(result)
-      })
-
-      # Filtered data
-      summarised_result_data <- reactive({
-        private$.data %>%
-          dplyr::filter(cdm_name %in% private$.pickers[["cdm"]]$inputValues$cdm) %>%
-          omopgenerics::filterSettings(denominator_age_group %in% private$.pickers[["denomAgeGroup"]]$inputValues$age_group) %>%
-          omopgenerics::filterAdditional(incidence_start_date %in% private$.pickers[["startDate"]]$inputValues$year) %>%
-          omopgenerics::filterGroup(outcome_cohort_name %in% private$.pickers[["outcome"]]$inputValues$outcome)
-      })
-
-      # TABLE
-      summarised_gt_table <- reactive({
-        req(summarised_result_data())
-        IncidencePrevalence::tableIncidence(result = summarised_result_data(),
-                                            header = private$.pickers[["headerColumn"]]$inputValues$headerColumn,
-                                            groupColumn = private$.pickers[["groupColumn"]]$inputValues$groupColumn,
-                                            settingsColumn = private$.pickers[["settingColumn"]]$inputValues$settingColumn,
-                                            hide = private$.pickers[["hideColumn"]]$inputValues$hideColumn,
-                                            .options = list(style = "darwin"))
-      })
-
-      # Tidy table
-      output$tidyTable <- gt::render_gt({
-        req(summarised_gt_table())
-        summarised_gt_table()
-      })
-
-      # Download tidy table
-      output$downloadTidyTable <- downloadHandler(
-        filename = function() {
-          "Incidence-Table.docx"
-        },
-        content = function(file) {
-          gt::gtsave(summarised_gt_table(), file)
-        }
-      )
-
-      ### download table ----
-      output$downloadTable <- downloadHandler(
-        filename = function() {
-          "incidenceEstimatesTable.csv"
-        },
-        content = function(file) {
-          utils::write.csv(getIncidenceEstimates(), file)
-        }
-      )
-
-      ### table estimates ----
-      output$table <- DT::renderDT({
-        table <- getIncidenceEstimates()
-        shiny::validate(need(nrow(table) > 0, "No results for selected inputs"))
-
-        table <- table %>%
-          mutate(incidence_100000_pys = paste0(
-            incidence_100000_pys, " (", incidence_100000_pys_95CI_lower, " to ",
-            incidence_100000_pys_95CI_upper, " )"
-          )) %>%
-          select(database, outcome_cohort_name, strata, denominator_cohort_name, denominator_age_group, denominator_sex, denominator_days_prior_observation, denominator_start_date, denominator_end_date, denominator_time_at_risk, analysis_outcome_washout, analysis_repeated_events, analysis_complete_database_intervals, analysis_min_cell_count, analysis_interval, incidence_start_date, n_events, n_persons, person_years, incidence_100000_pys)
-
-        DT::datatable(
-          table,
-          rownames = FALSE,
-          extensions = "Buttons",
-          options = list(scrollX = TRUE, scrollCollapse = TRUE)
-        )
       })
 
       ### make plot ----
@@ -267,15 +144,22 @@ Incidence <- R6::R6Class(
         shiny::validate(need(nrow(table) > 0, "No results for selected inputs"))
         class(table) <- c("IncidenceResult", "IncidencePrevalenceResult", class(table))
 
-        plot <- IncidencePrevalence::plotIncidence(
+        showConfidenceInterval <- as.logical(private$.pickers[["confInterval"]]$inputValues$confInterval)
+        if (showConfidenceInterval) {
+          yMax <- "incidence_1000_pys_95CI_upper"
+        } else {
+          yMax <- "incidence_1000_pys"
+        }
+
+        plot <- plotIncidence(
           result = table,
           x = private$.pickers[["xAxis"]]$inputValues$xAxis,
-          y = "incidence_100000_pys",
+          y = "incidence_1000_pys",
           line = FALSE,
           point = TRUE,
           ribbon = as.logical(private$.pickers[["ribbon"]]$inputValues$ribbon),
-          ymin = "incidence_100000_pys_95CI_lower",
-          ymax = "incidence_100000_pys_95CI_upper",
+          ymin = "incidence_1000_pys_95CI_lower",
+          ymax = yMax,
           facet = private$.pickers[["facet"]]$inputValues$facet_by,
           colour = private$.pickers[["color"]]$inputValues$color_by
         )
@@ -285,6 +169,13 @@ Incidence <- R6::R6Class(
           if (as.logical(private$.pickers[["ribbon"]]$inputValues$ribbon)) {
             plot <- plot + ggplot2::geom_line()
           }
+        }
+        if (as.logical(private$.pickers[["rotateXLabels"]]$inputValues$rotateXLabels)) {
+          plot <- plot + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, size = 5),
+                                        axis.text.y = ggplot2::element_text(size = 8))
+        } else {
+          plot <- plot + ggplot2::theme(axis.text.x = ggplot2::element_text(size = 5),
+                                        axis.text.y = ggplot2::element_text(size = 8))
         }
         plot
       })
@@ -331,6 +222,9 @@ Incidence <- R6::R6Class(
       data <- IncidencePrevalence::asIncidenceResult(data) %>%
         { if (!"analysis_interval" %in% names(.)) dplyr::mutate(., analysis_interval = "overall") else .} %>%
         dplyr::mutate(analysis_min_cell_count = !!minCellCount) %>%
+        dplyr::mutate(incidence_1000_pys = as.numeric(incidence_100000_pys)/100,
+                      incidence_1000_pys_95CI_lower = incidence_100000_pys_95CI_lower/100,
+                      incidence_1000_pys_95CI_upper = incidence_100000_pys_95CI_upper/100) %>%
         dplyr::rename(
           database = cdm_name,
           n_events = outcome_count,
@@ -346,10 +240,12 @@ Incidence <- R6::R6Class(
     },
     initPickers = function() {
       # cdm
+      allDP <- unique(private$.tidyData$database)
+      allDP <- allDP[order(allDP)]
       private$.pickers[["cdm"]] <- InputPanel$new(
         funs = list(cdm = shinyWidgets::pickerInput),
         args = list(cdm = list(
-          inputId = "cdm", label = "Database", choices = unique(private$.tidyData$database), selected = unique(private$.tidyData$database)[1], multiple = TRUE,
+          inputId = "cdm", label = "Database", choices = allDP, selected = allDP, multiple = TRUE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"
@@ -371,7 +267,7 @@ Incidence <- R6::R6Class(
       private$.pickers[["denomAgeGroup"]] <- InputPanel$new(
         funs = list(age_group = shinyWidgets::pickerInput),
         args = list(age_group = list(
-          inputId = "age_group", label = "Age group", choices = unique(private$.tidyData$denominator_age_group), selected = unique(private$.tidyData$denominator_age_group), multiple = TRUE,
+          inputId = "age_group", label = "Age group", choices = unique(private$.tidyData$denominator_age_group), selected = unique(private$.tidyData$denominator_age_group)[3], multiple = TRUE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"
@@ -443,60 +339,22 @@ Incidence <- R6::R6Class(
       private$.pickers[["confInterval"]] <- InputPanel$new(
         funs = list(confInterval = shinyWidgets::pickerInput),
         args = list(confInterval = list(
-          inputId = "confInterval", choices = c(TRUE, FALSE), label = "Confidence interval", selected = TRUE, multiple = FALSE,
+          inputId = "confInterval", choices = c(TRUE, FALSE), label = "Confidence interval", selected = FALSE, multiple = FALSE,
           options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
         )),
         growDirection = "horizontal"
       )
       private$.pickers[["confInterval"]]$parentNamespace <- self$namespace
 
-      # headerColumn
-      headerColumnOptions <- c("cdm_name", "estimate_name")
-      private$.pickers[["headerColumn"]] <- InputPanel$new(
-        funs = list(headerColumn = shinyWidgets::pickerInput),
-        args = list(headerColumn = list(
-          inputId = "headerColumn", choices = headerColumnOptions, label = "Header", selected = headerColumnOptions, multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
+      # rotate x-axis labels
+      private$.pickers[["rotateXLabels"]] <- InputPanel$new(
+        funs = list(rotateXLabels = shinyWidgets::pickerInput),
+        args = list(rotateXLabels = list(
+          inputId = "rotateXLabels", choices = c(TRUE, FALSE), label = "Rotate x-axis labels", selected = TRUE
         )),
         growDirection = "horizontal"
       )
-      private$.pickers[["headerColumn"]]$parentNamespace <- self$namespace
-
-      # groupColumn
-      groupColumnOptions <- c("outcome_cohort_name", "cdm_name")
-      private$.pickers[["groupColumn"]] <- InputPanel$new(
-        funs = list(groupColumn = shinyWidgets::pickerInput),
-        args = list(groupColumn = list(
-          inputId = "groupColumn", choices = groupColumnOptions, label = "Group columns", selected = groupColumnOptions[1], multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.pickers[["groupColumn"]]$parentNamespace <- self$namespace
-
-      # settingsColumn
-      settingColumnOptions <- c("denominator_time_at_risk", "denominator_age_group", "denominator_sex")
-      private$.pickers[["settingsColumn"]] <- InputPanel$new(
-        funs = list(settingsColumn = shinyWidgets::pickerInput),
-        args = list(settingsColumn = list(
-          inputId = "settingsColumn", choices = settingColumnOptions, label = "Settings columns", selected = settingColumnOptions, multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.pickers[["settingsColumn"]]$parentNamespace <- self$namespace
-
-      # hideColumn
-      hideColumnOptions <- c("denominator_time_at_risk", "denominator_cohort_name", "denominator_age_group", "denominator_sex", "analysis_interval")
-      private$.pickers[["hideColumn"]] <- InputPanel$new(
-        funs = list(hideColumn = shinyWidgets::pickerInput),
-        args = list(hideColumn = list(
-          inputId = "hideColumn", choices = hideColumnOptions, label = "Hide columns", selected = hideColumnOptions, multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.pickers[["hideColumn"]]$parentNamespace <- self$namespace
+      private$.pickers[["rotateXLabels"]]$parentNamespace <- self$namespace
     }
   )
 )
