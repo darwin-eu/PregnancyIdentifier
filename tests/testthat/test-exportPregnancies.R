@@ -24,6 +24,7 @@ test_that("exportPregnancies runs without error", {
 
   unlink(outputDir, recursive = TRUE)
   unlink(exportDir, recursive = TRUE)
+  CDMConnector::cdmDisconnect(cdm)
 })
 
 test_that("exportPregnancies runs with custom minCellCount", {
@@ -76,5 +77,6 @@ test_that("exportPregnancies runs with custom minCellCount", {
 
   unlink(outputDir, recursive = TRUE)
   unlink(exportDir, recursive = TRUE)
+  CDMConnector::cdmDisconnect(cdm)
 })
 
