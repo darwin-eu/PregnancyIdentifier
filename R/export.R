@@ -251,7 +251,7 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
     write.csv(file.path(resPath, "gestational_age_days_counts.csv"), row.names = FALSE)
 }
 
-exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
+exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$gestational_age_days_calculated / 7)) %>%
     dplyr::group_by(.data$gestational_weeks) %>%
@@ -259,6 +259,7 @@ exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersio
     dplyr::mutate(
       pct = n / sum(n) * 100
     ) %>%
+    suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -509,7 +510,7 @@ export <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   exportEpisodeFrequencySummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalAgeSummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportGestationalAgeCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
-  exportGestationalWeeksCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportGestationalWeeksCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion, minCellCount = minCellCount)
   exportGestationalDurationCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportTimeTrends(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportObservationPeriodRange(res, cdm = cdm, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
