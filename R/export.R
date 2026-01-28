@@ -466,6 +466,25 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
   write.csv(outcomeCat, file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
 }
 
+exportDeliveryModeSummary <- function(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion) {
+  deliveryModeSummary <- res %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
+    summariseColumn("cesarean_m30_to_30") %>%
+    dplyr::bind_rows(
+      res %>%
+        dplyr::group_by(.data$final_outcome_category) %>%
+        summariseColumn("vaginal_m30_to_30")
+    ) %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    )
+
+  write.csv(deliveryModeSummary, file.path(resPath, "delivery_mode_summary.csv"), row.names = FALSE)
+}
+
 #' export
 #'
 #' Exports the patient level results to summarised share-able csv-files.
@@ -517,6 +536,7 @@ export <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   exportDateConsistancy(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportReversedDatesCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
   exportOutcomeCategoriesCounts(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
+  exportDeliveryModeSummary(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion)
 
   utils::zip(
     zipfile = file.path(exportDir, sprintf("%s-%s-%s-results.zip", snap$snapshot_date, pkgVersion, snap$cdm_name)),
