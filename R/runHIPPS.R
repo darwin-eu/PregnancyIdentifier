@@ -88,6 +88,7 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
   # Merge HIPPS ---------------------------------------------------------------
   log4r::info(logger, "START Merging HIP and PPS into HIPPS")
   # collect outcomes for PPS algorithm from lookahead window
+  browser()
   outcomes_per_episode_df <- outcomes_per_episode(PPS_episodes_df, get_PPS_episodes_df, cdm, logger = logger)
 
   # add outcomes to PPS episodes
@@ -128,6 +129,22 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
     logger = logger
   )
 
+  # add delivery mode
+  browser()
+  codelist <- CodelistGenerator::codesFromConceptSet(
+    path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode"),
+    cdm = cdm,
+    type = "codelist"
+  )
+  cdm <- omopgenerics::insertTable(cdm = cdm,
+                                   name = "merged_episodes_with_metadata_df",
+                                   table = merged_episodes_with_metadata_df)
+
+  merged_episodes_with_metadata_df <- cdm[["merged_episodes_with_metadata_df"]] %>%
+    PatientProfiles::addConceptIntersectFlag(conceptSet = codelist,
+                                             window = c(-30, 30),
+                                             nameStyle = '{concept_name}_{window_name}')
+
   # apply study period
   merged_episodes_with_metadata_df <- merged_episodes_with_metadata_df %>%
     filter((inferred_episode_start >= startDate | is.na(inferred_episode_start)) &
@@ -138,4 +155,20 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
   saveRDS(merged_episodes_with_metadata_df, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
   return(NULL)
+}
+
+addDeliveryMode <- function(cdm, df, tableName) {
+  codelist <- CodelistGenerator::codesFromConceptSet(
+    path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode"),
+    cdm = cdm,
+    type = "codelist"
+  )
+  cdm <- omopgenerics::insertTable(cdm = cdm,
+                                   name = "merged_episodes_with_metadata_df",
+                                   table = merged_episodes_with_metadata_df)
+
+  merged_episodes_with_metadata_df <- cdm[["merged_episodes_with_metadata_df"]] %>%
+    PatientProfiles::addConceptIntersectFlag(conceptSet = codelist,
+                                             window = c(-30, 30),
+                                             nameStyle = '{concept_name}_{window_name}')
 }
