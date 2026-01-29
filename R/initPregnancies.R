@@ -144,7 +144,7 @@ initPregnancies <- function(cdm,
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") |>
     dplyr::distinct() |>
-    dplyr::compute()
+    dplyr::compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_pps_records <- ppsEvents |>
     dplyr::filter(!is.na(.data$pps_concept_start_date)) |>
