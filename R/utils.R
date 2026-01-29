@@ -33,7 +33,7 @@ mockPregnancyCdm <- function() {
       pregnancy_start_date = as.Date(.data$pregnancy_start_date),
       pregnancy_end_date = as.Date(.data$pregnancy_end_date)
     ) %>%
-    dplyr::compute(name = "pregnancy_extension")
+    dplyr::compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
 
   return(cdm)
 }

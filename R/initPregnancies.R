@@ -113,7 +113,7 @@ initPregnancies <- function(cdm,
     dplyr::inner_join(hip, by = "concept_id") |>
     dplyr::left_join(dplyr::select(cdm$concept, concept_id, concept_name), by = "concept_id") |>
     dplyr::rename(visit_date = event_date) |>
-    dplyr::compute()
+    dplyr::compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
