@@ -344,6 +344,7 @@ addStillbirth <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_stillbirth_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
   return(cdm)
 }
 
@@ -395,7 +396,7 @@ addEctopic <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_ectopic_df", temporary = FALSE, overwrite = TRUE)
-
+  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
   return(cdm)
 }
 
@@ -471,6 +472,7 @@ addAbortion <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days", -"temp_category") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_abortion_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
   return(cdm)
 }
 
@@ -569,6 +571,7 @@ addDelivery <- function(cdm, logger) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days", -"temp_category") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_delivery_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_abortion_df_rev"))
 
   counts <- cdm$add_delivery_df %>%
     dplyr::group_by(.data$category) %>%
@@ -802,7 +805,10 @@ getMinMaxGestation <- function(cdm) {
     dplyr::inner_join(cdm$second_min_df, by = c("person_id", "episode")) %>%
     dplyr::inner_join(cdm$new_max_df, by = c("person_id", "episode")) %>%
     dplyr::compute(name = "get_min_max_gestation_df", temporary = FALSE, overwrite = TRUE)
-
+  cdm <- omopgenerics::dropSourceTable(
+    cdm,
+    c("new_first_df", "temp_min_df", "new_min_df", "second_min_df", "temp_end_df", "new_end_df", "temp_max_df", "new_max_df")
+  )
   return(cdm)
 }
 
@@ -973,7 +979,10 @@ addGestation <- function(cdm, bufferDays = 28, justGestation = TRUE, logger) {
     "Total number of episodes with both after merging: %s",
     counts %>% dplyr::filter(gestation_based, outcome_based) %>% dplyr::pull(.data$n)
   ))
-
+  cdm <- omopgenerics::dropSourceTable(
+    cdm,
+    c("both_df", "just_outcome_df", "just_gestation_df", "calculate_start_df", "get_min_max_gestation_df")
+  )
   return(cdm)
 }
 
@@ -1087,6 +1096,7 @@ cleanEpisodes <- function(cdm, bufferDays = 28, logger) {
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     dplyr::compute(name = "clean_episodes_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_df", "over_max_df", "under_min_df", "neg_days_df"))
 
   return(cdm)
 }
@@ -1243,6 +1253,7 @@ removeOverlaps <- function(cdm, logger) {
     dplyr::filter(!(!is.na(.data$max_gest_week) & !is.na(.data$concept_id) & .data$is_over_min == 0)) %>%
     dplyr::union_all(cdm$temp_df) %>%
     dplyr::compute(name = "remove_overlaps_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, c("df", "overlap_df", "final_df", "temp_df"))
 
   nRemovedOutcomes <- cdm$remove_overlaps_df %>%
     dplyr::filter(removed_outcome == 1) %>%
@@ -1312,6 +1323,7 @@ finalEpisodesWithLength <- function(cdm) {
         1
     )) %>%
     dplyr::compute(name = "final_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, c("df", "gest_df", "merged"))
 
   # if an episode length is 0, change to 1
   cdm$preg_hip_episodes <- cdm$final_df %>%
@@ -1320,5 +1332,6 @@ finalEpisodesWithLength <- function(cdm) {
     dplyr::select(-"gest_value") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, "final_df")
   return(cdm)
 }

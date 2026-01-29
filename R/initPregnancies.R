@@ -153,5 +153,6 @@ initPregnancies <- function(cdm,
     dplyr::select(-"sex", -"age") |>
     dplyr::compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
 
+  cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm
 }
