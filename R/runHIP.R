@@ -56,16 +56,13 @@
 runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger = NULL) {
 
   checkmate::assertClass(cdm, "cdm_reference")
-  checkmate::assertCharacter(outputDir, len = 1, null.ok = TRUE, any.missing = FALSE)
+  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
   checkmate::assertClass(logger, "logger", null.ok = TRUE)
-
-  if (!is.null(outputDir)) {
-    dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-    checkmate::assertDirectoryExists(outputDir)
-  }
+  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+  checkmate::assertDirectoryExists(outputDir)
 
   logInfo(logger, "START Running HIP")
 
@@ -75,6 +72,9 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 
   if (getTblRowCount(cdm$preg_hip_records) == 0) {
     logWarn(logger, "No records after initializing pregnancy cohort")
+    if (!is.null(outputDir)) {
+      saveRDS(emptyHipEpisodes(), file.path(outputDir, "HIP_episodes.rds"))
+    }
     return(cdm)
   }
 
@@ -166,13 +166,11 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # based on the date of the first gestation record and the visit date
   cdm <- finalEpisodesWithLength(cdm)
 
-  if (!is.null(outputDir)) {
-    hipDf <- cdm$preg_hip_episodes %>% dplyr::collect()
-    if (nrow(hipDf) == 0) {
-      hipDf <- emptyHipEpisodes()
-    }
-    saveRDS(hipDf, file.path(outputDir, "HIP_episodes.rds"))
+  hipDf <- cdm$preg_hip_episodes %>% dplyr::collect()
+  if (nrow(hipDf) == 0) {
+    hipDf <- emptyHipEpisodes()
   }
+  saveRDS(hipDf, file.path(outputDir, "HIP_episodes.rds"))
 
   cdm <- omopgenerics::dropSourceTable(
     cdm,
