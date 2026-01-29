@@ -1,6 +1,7 @@
 # mod_run_identifier.R
 # Run Pregnancy Identifier: export test data → CDM → runPregnancyIdentifier().
 # Zero-row safe: ensure_outputs_exist() guarantees expected RDS/CSV; Run log panel; HIP=0 messaging.
+# Run is async (future) so the log streams to the modal by polling outputDir/log.txt.
 
 #' Run Identifier UI (sidebar + main as one layout, for use in a single card/column)
 #'
@@ -91,10 +92,16 @@ mod_run_identifier_server <- function(id, test_data_r, current_person_id_r = NUL
     outcome_msg_r <- shiny::reactiveVal(NULL)
     run_log_lines_r <- shiny::reactiveVal(character(0))
     new_files_r <- shiny::reactiveVal(character(0))
+    run_log_modal_open_r <- shiny::reactiveVal(FALSE)
+    run_log_path_r <- shiny::reactiveVal(NULL)   # output dir for polling log.txt while run is active
+    run_future_r <- shiny::reactiveVal(NULL)     # future handle for async run
+    run_temp_excel_r <- shiny::reactiveVal(NULL) # temp file paths for cleanup when future completes
+    run_temp_json_dir_r <- shiny::reactiveVal(NULL)
+    run_files_before_r <- shiny::reactiveVal(character(0)) # file list before run for new_files diff
 
     append_log <- function(line) {
       prev <- shiny::isolate(run_log_lines_r())
-      run_log_lines_r(tail(c(prev, line), 200L))
+      run_log_lines_r(tail(c(prev, line), 500L))
     }
 
     shiny::observeEvent(input$use_temp_dir, {
@@ -111,7 +118,7 @@ mod_run_identifier_server <- function(id, test_data_r, current_person_id_r = NUL
         return()
       }
 
-      required <- c("PregnancyIdentifier", "TestGenerator", "CDMConnector", "readxl", "openxlsx")
+      required <- c("PregnancyIdentifier", "TestGenerator", "CDMConnector", "readxl", "openxlsx", "future")
       missing <- required[!vapply(required, function(p) requireNamespace(p, quietly = TRUE), logical(1))]
       if (length(missing) > 0) {
         err <- paste("Missing required packages:", paste(missing, collapse = ", "))
@@ -133,6 +140,50 @@ mod_run_identifier_server <- function(id, test_data_r, current_person_id_r = NUL
       }
 
       log_app("Run started.", outputDir = out_dir, append_cb = append_log)
+      run_log_modal_open_r(TRUE)
+      shiny::showModal(
+        shiny::modalDialog(
+          title = "Run log",
+          size = "xl",
+          easyClose = FALSE,
+          fade = TRUE,
+          footer = shiny::tagList(
+            shiny::actionButton(ns("close_run_log_modal"), "Close", class = "btn-secondary")
+          ),
+          shiny::tags$div(
+            id = ns("run_log_modal_body"),
+            class = "run-log-modal-body",
+            shiny::tags$div(
+              class = "run-log-modal-scroll",
+              shiny::uiOutput(ns("run_log_modal_content"))
+            )
+          ),
+          shiny::tags$head(shiny::tags$style(shiny::HTML("
+            .run-log-modal-body {
+              height: 60vh;
+              min-height: 320px;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+            }
+            .run-log-modal-scroll {
+              flex: 1;
+              min-height: 0;
+              overflow-y: auto;
+              font-family: monospace;
+              font-size: 0.8rem;
+              white-space: pre-wrap;
+              background: #ffffff;
+              color: #000000;
+              padding: 1rem;
+              border-radius: 4px;
+            }
+            .modal-xl .modal-dialog { max-width: 95vw; }
+            .modal-xl .modal-body { max-height: 85vh; overflow: hidden; }
+          ")))
+        )
+      )
+
       files_before <- character(0)
       if (dir.exists(out_dir)) {
         files_before <- list.files(out_dir, recursive = TRUE, full.names = FALSE)
@@ -146,108 +197,200 @@ mod_run_identifier_server <- function(id, test_data_r, current_person_id_r = NUL
       temp_excel <- tempfile(fileext = ".xlsx")
       temp_json_dir <- tempfile(pattern = "json_")
       dir.create(temp_json_dir, recursive = TRUE, showWarnings = FALSE)
+      state_to_excel(test_data, temp_excel)
 
-      result <- tryCatch(
+      start_date <- input$start_date
+      end_date <- input$end_date
+      just_gestation <- input$just_gestation
+      min_cell_count <- as.integer(input$min_cell_count)
+      debug_mode <- input$debug_mode
+      pid <- if (!is.null(current_person_id_r)) current_person_id_r() else NULL
+
+      run_temp_excel_r(temp_excel)
+      run_temp_json_dir_r(temp_json_dir)
+      run_files_before_r(files_before)
+      run_log_path_r(out_dir)
+      future::plan(future::multisession)
+      f <- future::future(
         {
-          state_to_excel(test_data, temp_excel)
-          TestGenerator::readPatients(
-            filePath = temp_excel,
-            testName = test_name,
-            outputPath = temp_json_dir,
-            extraTable = TRUE
-          )
-          cdm <- TestGenerator::patientsCDM(
-            pathJson = temp_json_dir,
-            testName = test_name
-          )
-          pid <- if (!is.null(current_person_id_r)) current_person_id_r() else NULL
-          if (!is.null(pid)) {
-            cdm <- CDMConnector::cdmSubset(cdm, personId = pid)
-          }
-          PregnancyIdentifier::runPregnancyIdentifier(
-            cdm = cdm,
-            outputDir = out_dir,
-            startDate = input$start_date,
-            endDate = input$end_date,
-            justGestation = input$just_gestation,
-            minCellCount = as.integer(input$min_cell_count),
-            debugMode = input$debug_mode
-          )
-          rds_files <- list.files(out_dir, pattern = "\\.rds$", full.names = FALSE)
-          export_dir <- file.path(out_dir, "export")
-          csv_files <- if (dir.exists(export_dir)) {
-            list.files(export_dir, pattern = "\\.csv$", full.names = FALSE)
-          } else {
-            character(0)
-          }
-          list(
-            output_dir = out_dir,
-            rds = rds_files,
-            csv = csv_files,
-            error = NULL
+          tryCatch(
+            {
+              TestGenerator::readPatients(
+                filePath = temp_excel,
+                testName = test_name,
+                outputPath = temp_json_dir,
+                extraTable = TRUE
+              )
+              cdm <- TestGenerator::patientsCDM(
+                pathJson = temp_json_dir,
+                testName = test_name
+              )
+              if (!is.null(pid)) {
+                cdm <- CDMConnector::cdmSubset(cdm, personId = pid)
+              }
+              PregnancyIdentifier::runPregnancyIdentifier(
+                cdm = cdm,
+                outputDir = out_dir,
+                startDate = start_date,
+                endDate = end_date,
+                justGestation = just_gestation,
+                minCellCount = min_cell_count,
+                debugMode = debug_mode
+              )
+              rds_files <- list.files(out_dir, pattern = "\\.rds$", full.names = FALSE)
+              export_dir <- file.path(out_dir, "export")
+              csv_files <- if (dir.exists(export_dir)) {
+                list.files(export_dir, pattern = "\\.csv$", full.names = FALSE)
+              } else {
+                character(0)
+              }
+              list(
+                output_dir = out_dir,
+                rds = rds_files,
+                csv = csv_files,
+                error = NULL
+              )
+            },
+            error = function(e) {
+              list(
+                output_dir = out_dir,
+                rds = character(0),
+                csv = character(0),
+                error = conditionMessage(e)
+              )
+            }
           )
         },
-        error = function(e) {
+        packages = c("PregnancyIdentifier", "TestGenerator", "CDMConnector"),
+        seed = TRUE
+      )
+      run_future_r(f)
+    })
+
+    # Poll log file while run is active; when future resolves, process result and cleanup
+    shiny::observe({
+      path <- run_log_path_r()
+      f <- run_future_r()
+      if (is.null(path) && is.null(f)) return()
+      shiny::invalidateLater(400)
+
+      if (!is.null(path)) {
+        log_file <- file.path(path, "log.txt")
+        if (file.exists(log_file)) {
+          lines <- tryCatch(
+            readLines(log_file, warn = FALSE),
+            error = function(e) character(0)
+          )
+          if (length(lines) > 0) {
+            run_log_lines_r(tail(lines, 500L))
+          }
+        }
+      }
+
+      if (!is.null(f) && future::resolved(f)) {
+        path_for_result <- path
+        run_log_path_r(NULL)
+        run_future_r(NULL)
+        result <- tryCatch(
+          future::value(f),
+          error = function(e) {
+            msg <- conditionMessage(e)
+            if (grepl("canceled|cancelled", msg, ignore.case = TRUE)) {
+              list(
+                output_dir = path_for_result,
+                rds = character(0),
+                csv = character(0),
+                error = "The run was interrupted (background process ended). Check the log above for progress."
+              )
+            } else {
+              list(output_dir = path_for_result, rds = character(0), csv = character(0), error = msg)
+            }
+          }
+        )
+        if (is.null(result$error) && !is.list(result)) {
+          result <- list(output_dir = path_for_result, rds = character(0), csv = character(0), error = "Unexpected result from run")
+        }
+        if (is.null(result$output_dir)) result$output_dir <- path_for_result
+        if (!is.null(result$error)) {
           log_app(
-            paste("Run error:", conditionMessage(e)),
-            outputDir = out_dir,
+            paste("Run error:", result$error),
+            outputDir = result$output_dir,
             level = "ERROR",
             append_cb = append_log
           )
-          list(
-            output_dir = out_dir,
-            rds = character(0),
-            csv = character(0),
-            error = conditionMessage(e)
+        }
+
+        run_failed <- !is.null(result$error)
+        if (!is.null(result$output_dir)) {
+          ensure_outputs_exist(
+            outputDir = result$output_dir,
+            debugMode = isTRUE(shiny::isolate(input$debug_mode)),
+            log_append_cb = append_log,
+            run_failed = run_failed
           )
         }
-      )
 
-      run_failed <- !is.null(result$error)
-      ensure_outputs_exist(
-        outputDir = result$output_dir,
-        debugMode = isTRUE(input$debug_mode),
-        log_append_cb = append_log,
-        run_failed = run_failed
-      )
-
-      hip_count <- detect_hip_zero(result$output_dir)
-      if (run_failed) {
-        error_msg_r(result$error)
-        shiny::showNotification(paste("Run failed:", result$error), type = "error", duration = 8)
-        outcome_msg_r("Run failed; placeholder outputs were created so browsers and exports do not error.")
-      } else {
-        output_dir_r(result$output_dir)
-        last_run_time_r(Sys.time())
-        all_files <- c(result$rds, file.path("export", result$csv))
-        produced_files_r(all_files)
-        if (!is.na(hip_count) && hip_count == 0) {
-          outcome_msg_r("Run completed: 0 HIP episodes found. Placeholder outputs written (0 rows).")
-          log_app("Run completed: 0 HIP episodes found.", outputDir = result$output_dir, append_cb = append_log)
-          shiny::showNotification("0 HIP episodes found. Outputs are 0-row placeholders.", type = "message", duration = 5)
-        } else if (!is.na(hip_count) && hip_count > 0) {
-          outcome_msg_r(sprintf("Run completed: %d HIP episodes found.", hip_count))
-          log_app(sprintf("Run completed: %d HIP episodes found.", hip_count), outputDir = result$output_dir, append_cb = append_log)
-          shiny::showNotification(sprintf("Run completed: %d HIP episodes found.", hip_count), type = "message")
+        hip_count <- detect_hip_zero(result$output_dir)
+        if (run_failed) {
+          error_msg_r(result$error)
+          shiny::showNotification(paste("Run failed:", result$error), type = "error", duration = 8)
+          outcome_msg_r("Run failed; placeholder outputs were created so browsers and exports do not error.")
         } else {
-          outcome_msg_r("Run completed; HIP episode count could not be determined. Outputs ensured.")
-          log_app("Run completed; HIP count could not be determined. Outputs ensured.", outputDir = result$output_dir, append_cb = append_log)
-          shiny::showNotification("Run completed. Outputs ensured.", type = "message")
+          output_dir_r(result$output_dir)
+          last_run_time_r(Sys.time())
+          all_files <- c(result$rds, file.path("export", result$csv))
+          produced_files_r(all_files)
+          if (!is.na(hip_count) && hip_count == 0) {
+            outcome_msg_r("Run completed: 0 HIP episodes found. Placeholder outputs written (0 rows).")
+            log_app("Run completed: 0 HIP episodes found.", outputDir = result$output_dir, append_cb = append_log)
+            shiny::showNotification("0 HIP episodes found. Outputs are 0-row placeholders.", type = "message", duration = 5)
+          } else if (!is.na(hip_count) && hip_count > 0) {
+            outcome_msg_r(sprintf("Run completed: %d HIP episodes found.", hip_count))
+            log_app(sprintf("Run completed: %d HIP episodes found.", hip_count), outputDir = result$output_dir, append_cb = append_log)
+            shiny::showNotification(sprintf("Run completed: %d HIP episodes found.", hip_count), type = "message")
+          } else {
+            outcome_msg_r("Run completed; HIP episode count could not be determined. Outputs ensured.")
+            log_app("Run completed; HIP count could not be determined. Outputs ensured.", outputDir = result$output_dir, append_cb = append_log)
+            shiny::showNotification("Run completed. Outputs ensured.", type = "message")
+          }
         }
-      }
 
-      files_after <- character(0)
-      if (dir.exists(result$output_dir)) {
-        files_after <- list.files(result$output_dir, recursive = TRUE, full.names = FALSE)
-        export_sub <- file.path(result$output_dir, "export")
-        if (dir.exists(export_sub)) {
-          files_after <- c(files_after, file.path("export", list.files(export_sub, recursive = FALSE)))
+        out_dir <- result$output_dir
+        files_after <- character(0)
+        if (!is.null(out_dir) && dir.exists(out_dir)) {
+          files_after <- list.files(out_dir, recursive = TRUE, full.names = FALSE)
+          export_sub <- file.path(out_dir, "export")
+          if (dir.exists(export_sub)) {
+            files_after <- c(files_after, file.path("export", list.files(export_sub, recursive = FALSE)))
+          }
         }
-      }
-      new_files_r(setdiff(files_after, files_before))
+        files_before <- run_files_before_r()
+        new_files_r(setdiff(files_after, files_before))
 
-      if (file.exists(temp_excel)) unlink(temp_excel, force = TRUE)
-      if (dir.exists(temp_json_dir)) unlink(temp_json_dir, recursive = TRUE, force = TRUE)
+        cleanup_excel <- run_temp_excel_r()
+        cleanup_json <- run_temp_json_dir_r()
+        run_temp_excel_r(NULL)
+        run_temp_json_dir_r(NULL)
+        if (length(cleanup_excel) > 0 && file.exists(cleanup_excel)) unlink(cleanup_excel, force = TRUE)
+        if (length(cleanup_json) > 0 && dir.exists(cleanup_json)) unlink(cleanup_json, recursive = TRUE, force = TRUE)
+      }
+    })
+
+    shiny::observeEvent(input$close_run_log_modal, {
+      shiny::removeModal()
+      run_log_modal_open_r(FALSE)
+    })
+
+    output$run_log_modal_content <- shiny::renderUI({
+      if (!run_log_modal_open_r()) return(NULL)
+      lines <- run_log_lines_r()
+      if (length(lines) == 0) {
+        return(shiny::tags$span("Running... (log will appear here.)"))
+      }
+      shiny::tags$pre(
+        paste(tail(lines, 500L), collapse = "\n"),
+        style = "margin: 0; white-space: pre-wrap; word-break: break-all;"
+      )
     })
 
     output$status <- shiny::renderText({

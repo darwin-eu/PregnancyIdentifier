@@ -18,6 +18,7 @@ edit_sidebar_inner <- function(ns) {
       dateInput(ns("global_end_date"), label = NULL, value = Sys.Date(), width = "100%")
     )
   ,
+  div(style = "height: 50px;"),
   mod_patient_nav_ui(ns("patient_nav")),
   div(
     style = "margin-top: 0.5rem; margin-bottom: 0.5rem;",
@@ -46,12 +47,10 @@ edit_sidebar_inner <- function(ns) {
       class = "btn-danger btn-sm", style = "width: 100%; font-size: 0.75rem;",
       icon = icon("trash", class = "fa-sm"))
   ),
+  div(style = "height: 50px;"),
   mod_import_export_ui(ns("import_export")),
   shiny::hr(),
-  shiny::tags$h4("Selected event"),
-  mod_event_editor_ui(ns("event_editor")),
-  shiny::hr(),
-  shiny::tags$small("Concept IDs are restricted to HIP / PPS / ESD (+ app hardcoded if any).")
+  mod_event_editor_ui(ns("event_editor"))
   )
 }
 
@@ -69,7 +68,6 @@ edit_ui <- function(id) {
     bslib::layout_sidebar(
       sidebar = bslib::sidebar(
         width = 280,
-        title = "Edit controls",
         edit_sidebar_inner(ns)
       ),
       mod_timeline_canvas_ui(ns("timeline"))

@@ -22,10 +22,6 @@ mod_import_export_ui <- function(id) {
       downloadButton(ns("download_excel"), "Download Excel",
         class = "btn-primary btn-sm",
         style = "width: 100%; font-size: 0.75rem;"
-      ),
-      downloadButton(ns("download_json"), "Download JSON",
-        class = "btn-secondary btn-sm",
-        style = "width: 100%; font-size: 0.75rem;"
       )
     )
   )
@@ -106,16 +102,6 @@ mod_import_export_server <- function(id, state, commit_state) {
       contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # Download JSON (internal state)
-    output$download_json <- downloadHandler(
-      filename = function() {
-        paste0("omop_patient_data_", Sys.Date(), ".json")
-      },
-      content = function(file) {
-        writeLines(state_to_json_string(state()), file)
-      },
-      contentType = "application/json"
-    )
   })
 }
 

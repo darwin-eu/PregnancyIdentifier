@@ -1,6 +1,6 @@
 # app.R
 # Pregnancy Identifier Debugger — multipage app; each page is a module with its own sidebar + main.
-#
+# 4092289
 # Pages: Edit input, Run Algorithm, Outputs (RDS), Exports (CSV).
 # Shared state: state_server() provides app_state; edit and run pages use it.
 
@@ -29,6 +29,7 @@ source("R/mod_event_editor.R")
 source("R/mod_import_export.R")
 source("R/mod_run_identifier.R")
 source("R/mod_outputs_browser.R")
+source("R/mod_concepts.R")
 
 theme <- bslib::bs_theme(
   version = 5,
@@ -69,7 +70,8 @@ ui <- shiny::tagList(
     edit_ui("edit"),
     run_ui("run"),
     outputs_rds_ui("outputs_rds"),
-    outputs_csv_ui("outputs_csv")
+    outputs_csv_ui("outputs_csv"),
+    concepts_ui("concepts")
   )
 )
 
@@ -89,6 +91,7 @@ server <- function(input, output, session) {
 
   outputs_rds_server("outputs_rds", folder_r = shiny::reactive(output_dir_rv()))
   outputs_csv_server("outputs_csv", folder_r = shiny::reactive(output_dir_rv()))
+  concepts_server("concepts")
 }
 
 shinyApp(ui = ui, server = server)
