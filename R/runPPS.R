@@ -66,11 +66,20 @@ runPps <- function(cdm,
   ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) %>%
     addOutcomes(ppsMinMax)
 
-  if (debugMode) {
-    saveRDS(ppsEpisodes, file.path(outputDir, "pps_gest_timing_episodes.rds"))
-    saveRDS(ppsMinMax,  file.path(outputDir, "pps_min_max_episodes.rds"))
+  if (nrow(ppsWithOutcomes) == 0) {
+    ppsWithOutcomes <- emptyPpsEpisodes()
   }
-  saveRDS(ppsWithOutcomes,  file.path(outputDir, "PPS_episodes.rds"))
+  if (debugMode) {
+    saveRDS(
+      if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes,
+      file.path(outputDir, "pps_gest_timing_episodes.rds")
+    )
+    saveRDS(
+      if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax,
+      file.path(outputDir, "pps_min_max_episodes.rds")
+    )
+  }
+  saveRDS(ppsWithOutcomes, file.path(outputDir, "PPS_episodes.rds"))
 
   cdm
 }

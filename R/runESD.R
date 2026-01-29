@@ -565,6 +565,10 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
                                        cdm,
                                        logger) {
   # Add other pregnancy and demographic related info for each episode.
+  if (nrow(hippsEpisodes) == 0) {
+    log4r::info(logger, "No HIPPS episodes; returning 0-row final schema.")
+    return(emptyFinalPregnancyEpisodes())
+  }
 
   timingDf <- episodes_with_gestational_timing_info_df %>%
     dplyr::select(-"GT_info_list")

@@ -55,6 +55,9 @@ mergeHipps <- function(outputDir, logger) {
     dedupeMergedEpisodes(logger) %>%
     addMergedEpisodeDetails()
 
+  if (nrow(mergedDf) == 0) {
+    mergedDf <- emptyHippsEpisodes()
+  }
   saveRDS(mergedDf, file.path(outputDir, "HIPPS_episodes.rds"))
   invisible(NULL)
 }

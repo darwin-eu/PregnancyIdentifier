@@ -174,7 +174,8 @@ runPregnancyIdentifier <- function(cdm,
     outputDir = outputDir,
     startDate = startDate,
     endDate = endDate,
-    logger = logger
+    logger = logger,
+    debugMode = debugMode
   )
 
   invisible(NULL)

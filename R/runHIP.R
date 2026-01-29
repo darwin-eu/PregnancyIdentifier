@@ -167,9 +167,11 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   cdm <- finalEpisodesWithLength(cdm)
 
   if (!is.null(outputDir)) {
-    cdm$preg_hip_episodes %>%
-      dplyr::collect() %>%
-      saveRDS(file.path(outputDir, "HIP_episodes.rds"))
+    hipDf <- cdm$preg_hip_episodes %>% dplyr::collect()
+    if (nrow(hipDf) == 0) {
+      hipDf <- emptyHipEpisodes()
+    }
+    saveRDS(hipDf, file.path(outputDir, "HIP_episodes.rds"))
   }
 
   cdm <- omopgenerics::dropSourceTable(
