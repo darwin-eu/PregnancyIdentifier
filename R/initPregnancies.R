@@ -111,14 +111,14 @@ initPregnancies <- function(cdm,
   }) |>
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(hip, by = "concept_id") |>
-    dplyr::left_join(dplyr::select(cdm$concept, concept_id, concept_name), by = "concept_id") |>
-    dplyr::rename(visit_date = event_date) |>
+    dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id") |>
+    dplyr::rename(visit_date = "event_date") |>
     dplyr::compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
-    dplyr::distinct(person_id, visit_date, category, concept_id, value_as_number) |>
+    dplyr::distinct(.data$person_id, .data$visit_date, .data$category, .data$concept_id, .data$value_as_number) |>
     dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
   # ============================================================
@@ -137,8 +137,8 @@ initPregnancies <- function(cdm,
     pullDomain(tbl, concept_col, date_col) |>
       dplyr::transmute(
         person_id,
-        pps_concept_start_date = event_date,
-        pps_concept_id         = concept_id
+        pps_concept_start_date = .data$event_date,
+        pps_concept_id         = .data$concept_id
       )
   }) |>
     purrr::reduce(dplyr::union_all) |>
