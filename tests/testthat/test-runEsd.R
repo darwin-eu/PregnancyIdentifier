@@ -19,7 +19,7 @@ test_that("runEsd runs without error", {
   final <- readr::read_rds(file.path(outputDir, "final_pregnancy_episodes.rds"))
   expect_true(is.data.frame(final))
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 
 test_that("runEsd runs with custom parameters", {
@@ -50,6 +50,6 @@ test_that("runEsd runs with custom parameters", {
   expect_true(is.data.frame(esd))
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

@@ -15,7 +15,7 @@ test_that("runPregnancyIdentifier runs without error", {
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 
 test_that("runPregnancyIdentifier runs with custom parameters", {
@@ -36,6 +36,6 @@ test_that("runPregnancyIdentifier runs with custom parameters", {
   expect_true(file.exists(file.path(outputDir, "HIP_episodes.rds")))
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

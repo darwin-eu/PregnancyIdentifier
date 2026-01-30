@@ -43,6 +43,6 @@ test_that("mergeHipps runs without error", {
   )
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

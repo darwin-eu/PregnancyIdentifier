@@ -16,7 +16,7 @@ test_that("runHip runs without error", {
   expect_true(file.exists(file.path(outputDir, "HIP_episodes.rds")))
   
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 
 test_that("runHip runs with custom parameters", {
@@ -39,6 +39,6 @@ test_that("runHip runs with custom parameters", {
   expect_s3_class(cdm, "cdm_reference")
   
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

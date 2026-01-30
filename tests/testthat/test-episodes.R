@@ -31,5 +31,5 @@ test_that("test gestational episodes", {
   testthat::expect_equal(length(unique(episodes$episode)), 3)
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })

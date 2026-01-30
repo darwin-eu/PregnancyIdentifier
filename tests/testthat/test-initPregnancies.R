@@ -10,7 +10,7 @@ test_that("initPregnancies runs without error", {
       %in%  names(cdm)
     )
   )
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 
 test_that("initPregnancies runs with custom parameters", {
@@ -28,6 +28,6 @@ test_that("initPregnancies runs with custom parameters", {
       %in%  names(cdm)
     )
   )
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

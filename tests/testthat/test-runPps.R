@@ -16,7 +16,7 @@ test_that("runPps runs without error", {
   expect_true(file.exists(file.path(outputDir, "PPS_episodes.rds")))
   
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 
 test_that("runPps runs with custom parameters", {
@@ -42,6 +42,6 @@ test_that("runPps runs with custom parameters", {
   expect_true(file.exists(file.path(outputDir, "pps_episodes.rds")))
 
   unlink(outputDir, recursive = TRUE)
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 })
 

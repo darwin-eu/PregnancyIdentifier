@@ -22,7 +22,7 @@ test_that("Outcome category is correct", {
 
   invisible(capture.output(runPregnancyIdentifier(cdm, outputFolder)))
 
-  CDMConnector::cdmDisconnect(cdm)
+  cleanupCdmDb(cdm)
 
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
     select(person_id, inferred_episode_start, inferred_episode_end, final_outcome_category)
