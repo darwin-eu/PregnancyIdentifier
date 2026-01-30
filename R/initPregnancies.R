@@ -77,6 +77,8 @@ initPregnancies <- function(cdm,
   cdm <- CDMConnector::insertTable(cdm, "preg_pps_concepts", ppsConcepts, overwrite = TRUE)
   cdm <- CDMConnector::insertTable(cdm, "preg_matcho_term_durations", matchoTermDurations, overwrite = TRUE)
 
+  logInfo(logger, "Added preg_hip_concepts, preg_pps_concepts, preg_matcho_term_durations to the CDM")
+
   # ---- helper: pull person_id + date + concept_id from an OMOP domain ----
   pullDomain <- function(tbl, concept_col, date_col, extra = list()) {
     tbl |>
@@ -121,6 +123,9 @@ initPregnancies <- function(cdm,
     dplyr::distinct(.data$person_id, .data$visit_date, .data$category, .data$concept_id, .data$value_as_number) |>
     dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
+  nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
+  logInfo(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
+
   # ============================================================
   # PPS records (condition/procedure/measurement)
   # ============================================================
@@ -152,6 +157,9 @@ initPregnancies <- function(cdm,
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
     dplyr::select(-"sex", -"age") |>
     dplyr::compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
+
+  nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
+  logInfo(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
 
   cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm
