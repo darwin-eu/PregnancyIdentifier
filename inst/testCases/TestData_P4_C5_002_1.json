@@ -565,6 +565,16 @@
       "condition_source_value": "Gestation period, 21 weeks"
     },
     {
+      "condition_occurrence_id": 12001,
+      "person_id": 12,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2017-12-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
       "condition_occurrence_id": 12,
       "person_id": 15,
       "condition_concept_id": 4244438,
@@ -1032,7 +1042,7 @@
       "observation_concept_id": 4192676,
       "observation_date": "2021-06-01",
       "observation_type_concept_id": 32817,
-      "Observation": "Born by cesarean section"
+      "observation": "Born by cesarean section"
     }
   ],
   "procedure_occurrence": [
@@ -1292,7 +1302,7 @@
       "drug_exposure_start_date": "2019-01-01",
       "drug_exposure_end_date": "2019-11-01",
       "drug_type_concept_id": 32838,
-      "...10": 304
+      "10": 304
     },
     {
       "drug_exposure_id": 2,
@@ -1303,7 +1313,7 @@
       "drug_exposure_start_date": "2020-01-01",
       "drug_exposure_end_date": "2020-03-14",
       "drug_type_concept_id": 32838,
-      "...10": 73
+      "10": 73
     },
     {
       "drug_exposure_id": 2,
@@ -1314,7 +1324,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -1325,7 +1335,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -1336,7 +1346,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
       "drug_exposure_id": 2,
