@@ -944,7 +944,6 @@ addGestation <- function(cdm, bufferDays = 28, justGestation = TRUE, logger) {
     dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
-    # recalculate since I overwrote
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "visit_date", "day")) %>%
     dplyr::compute(name = "add_gestation_df", temporary = FALSE, overwrite = TRUE)
 
