@@ -193,8 +193,6 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 
-  patientsDf %>% dplyr::filter(person_id == 26) %>% assignEpisodes()
-
   patientsDf %>%
     tidyr::nest(.by = person_id) %>%
     dplyr::mutate(data = purrr::map(.data$data, assignEpisodes)) %>%
