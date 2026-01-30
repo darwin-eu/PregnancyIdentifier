@@ -8,3 +8,6 @@ work/
 inst/doc
 /doc/
 /Meta/
+rsconnect
+renv/
+.Rprofile
