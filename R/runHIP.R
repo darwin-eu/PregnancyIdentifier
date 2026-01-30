@@ -55,6 +55,21 @@
 #' @export
 runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger = NULL) {
 
+
+  # Data flow and dependencies in runHip:
+  # Outcome pipeline
+  # preg_hip_records -> (final_*_visits_df -> add_stillbirth_df -> add_ectopic_df -> add_abortion_df -> add_delivery_df)
+  # -> calculate_start_df
+
+  # Gestation pipeline
+  # preg_hip_records -> gestation_visits_df -> gestation_episodes_df -> get_min_max_gestation_df
+
+  # Combining outcome based episodes and gestation based episodes
+  # calculate_start_df + get_min_max_gestation_df -> add_gestation_df -> clean_episodes_df -> remove_overlaps_df -> final_episodes_df
+
+  # Annotate final episodes with gestation evidence
+  # final_episodes_df + gestation_visits_df -> preg_hip_episodes
+
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
@@ -92,6 +107,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     "LB"
   )
 
+  # matcho_outcome_limits: Uses (none from CDM). Creates matcho_outcome_limits (reference table for min days between outcomes).
   logInfo(logger,"Inserting matcho_outcome_limits table into cdm")
   matchoOutcomeLimits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx"))
   cdm <- CDMConnector::insertTable(
@@ -102,6 +118,8 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     temporary = FALSE
   )
 
+  # finalVisits: Uses cdm$preg_hip_records, cdm$matcho_outcome_limits.
+  # Creates final_<category>_visits_df (e.g. final_lb_visits_df, final_sb_visits_df, final_ect_visits_df, final_ab_sa_visits_df, final_deliv_visits_df).
   for (i in seq_len(length(categories))) {
     logInfo(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cdm <- finalVisits(
@@ -112,23 +130,32 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     )
   }
 
+  # addStillbirth: Uses cdm$final_sb_visits_df, cdm$final_lb_visits_df, cdm$matcho_outcome_limits.
+  # Creates add_stillbirth_df.
   # add stillbirth episodes to livebirth episodes
   # after making sure they are sufficiently spaced
   logInfo(logger, "Adding Still Birth")
   cdm <- addStillbirth(cdm)
 
+  # addEctopic: Uses cdm$add_stillbirth_df, cdm$final_ect_visits_df, cdm$matcho_outcome_limits.
+  # Creates add_ectopic_df.
   # add ectopic episodes to previous
   logInfo(logger,"Adding Ectopic")
   cdm <- addEctopic(cdm)
 
+  # addAbortion: Uses cdm$add_ectopic_df, cdm$final_ab_sa_visits_df, cdm$matcho_outcome_limits.
+  # Creates add_abortion_df.
   # add abortion episodes to previous
   logInfo(logger,"Adding Abortion")
   cdm <- addAbortion(cdm)
 
+  # addDelivery: Uses cdm$add_abortion_df, cdm$final_deliv_visits_df, cdm$matcho_outcome_limits.
+  # Creates add_delivery_df.
   # add delivery-only episodes to previous
   logInfo(logger,"Adding Delivery")
   cdm <- addDelivery(cdm, logger = logger)
 
+  # calculateStart: Uses cdm$add_delivery_df, cdm$preg_matcho_term_durations. Creates calculate_start_df.
   # calculate start of pregnancies based on outcomes
   # min start date = latest possible start date if shortest term
   # max start date = earliest possible start date if max term
@@ -137,31 +164,46 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 
   ## Gestation-based episodes
 
+  # gestationVisits: Uses cdm$preg_hip_records.
+  # Creates gestation_visits_df.
   # now go back to the initial set of concepts and find ones with gestation weeks
   cdm <- gestationVisits(cdm)
 
+  # gestationEpisodes: Uses cdm$gestation_visits_df.
+  # Creates gestation_episodes_df.
   # Identify the start of episodes based on the difference in time between gestational age-related concepts
   # and the actual difference in days.
-  # Needs cdm$preg_hip_records
   cdm <- gestationEpisodes(cdm)
 
+  # getMinMaxGestation: Uses cdm$gestation_episodes_df.
+  # Creates get_min_max_gestation_df.
   # get various mins and maxes of gestational age and dates
   cdm <- getMinMaxGestation(cdm)
 
   ## Combine gestation-based and outcome-based episodes
 
+  # addGestation: Uses cdm$calculate_start_df, cdm$get_min_max_gestation_df.
+  # Creates add_gestation_df.
   # add gestation episodes to outcome episodes
   cdm <- addGestation(cdm, justGestation = justGestation, logger = logger)
 
+  # cleanEpisodes: Uses cdm$add_gestation_df.
+  # Creates clean_episodes_df.
   # clean episodes by removing duplicate episodes and reclassifying outcome-based episodes
   cdm <- cleanEpisodes(cdm, logger = logger)
 
+  # removeOverlaps: Uses cdm$clean_episodes_df.
+  # Creates remove_overlaps_df.
   # remove any episodes that overlap and keep only the latter episode if the previous episode is PREG
   cdm <- removeOverlaps(cdm, logger = logger)
 
+  # finalEpisodes: Uses cdm$remove_overlaps_df.
+  # Creates final_episodes_df.
   # keep subset of columns with episode start and end as well as category
   cdm <- finalEpisodes(cdm)
 
+  # finalEpisodesWithLength: Uses cdm$final_episodes_df, cdm$gestation_visits_df.
+  # Creates cdm$preg_hip_episodes.
   # find the first gestation record within an episode and calculate the episode length
   # based on the date of the first gestation record and the visit date
   cdm <- finalEpisodesWithLength(cdm)
@@ -344,7 +386,8 @@ addStillbirth <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_stillbirth_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
+  # cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "final_lb_visits_df", "final_sb_visits_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df"))
   return(cdm)
 }
 
@@ -396,7 +439,8 @@ addEctopic <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_ectopic_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
+  # cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_stillbirth_df", "final_ect_visits_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df"))
   return(cdm)
 }
 
@@ -472,7 +516,8 @@ addAbortion <- function(cdm) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days", -"temp_category") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_abortion_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, "final_temp_df")
+  # cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_ectopic_df", "final_ab_sa_visits_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df"))
   return(cdm)
 }
 
@@ -571,7 +616,8 @@ addDelivery <- function(cdm, logger) {
     dplyr::select(-"previous_category", -"next_category", -"before_days", -"after_days", -"temp_category") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "add_delivery_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_abortion_df_rev"))
+  # cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_abortion_df_rev", "add_abortion_df", "final_deliv_visits_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_temp_df", "add_abortion_df_rev", "final_deliv_visits_df"))
 
   counts <- cdm$add_delivery_df %>%
     dplyr::group_by(.data$category) %>%
@@ -603,6 +649,7 @@ calculateStart <- function(cdm) {
     ) %>%
     dplyr::compute(name = "calculate_start_df", temporary = FALSE, overwrite = TRUE)
 
+  # cdm <- omopgenerics::dropSourceTable(cdm, "add_delivery_df")
   return(cdm)
 }
 
@@ -807,7 +854,7 @@ getMinMaxGestation <- function(cdm) {
     dplyr::compute(name = "get_min_max_gestation_df", temporary = FALSE, overwrite = TRUE)
   cdm <- omopgenerics::dropSourceTable(
     cdm,
-    c("new_first_df", "temp_min_df", "new_min_df", "second_min_df", "temp_end_df", "new_end_df", "temp_max_df", "new_max_df")
+    c("new_first_df", "temp_min_df", "new_min_df", "second_min_df", "temp_end_df", "new_end_df", "temp_max_df", "new_max_df", "gestation_episodes_df")
   )
   return(cdm)
 }
@@ -1095,7 +1142,7 @@ cleanEpisodes <- function(cdm, bufferDays = 28, logger) {
     dplyr::mutate(episode = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     dplyr::compute(name = "clean_episodes_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, c("final_df", "over_max_df", "under_min_df", "neg_days_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_df", "over_max_df", "under_min_df", "neg_days_df", "add_gestation_df"))
 
   return(cdm)
 }
@@ -1252,7 +1299,7 @@ removeOverlaps <- function(cdm, logger) {
     dplyr::filter(!(!is.na(.data$max_gest_week) & !is.na(.data$concept_id) & .data$is_over_min == 0)) %>%
     dplyr::union_all(cdm$temp_df) %>%
     dplyr::compute(name = "remove_overlaps_df", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, c("df", "overlap_df", "final_df", "temp_df"))
+  cdm <- omopgenerics::dropSourceTable(cdm, c("df", "overlap_df", "final_df", "temp_df", "clean_episodes_df"))
 
   nRemovedOutcomes <- cdm$remove_overlaps_df %>%
     dplyr::filter(removed_outcome == 1) %>%
@@ -1277,6 +1324,7 @@ finalEpisodes <- function(cdm) {
     ) %>%
     dplyr::compute(name = "final_episodes_df", temporary = FALSE, overwrite = TRUE)
 
+  cdm <- omopgenerics::dropSourceTable(cdm, "remove_overlaps_df")
   return(cdm)
 }
 
@@ -1331,6 +1379,6 @@ finalEpisodesWithLength <- function(cdm) {
     dplyr::select(-"gest_value") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
-  cdm <- omopgenerics::dropSourceTable(cdm, "final_df")
+  cdm <- omopgenerics::dropSourceTable(cdm, c("final_df", "final_episodes_df", "gestation_visits_df"))
   return(cdm)
 }
