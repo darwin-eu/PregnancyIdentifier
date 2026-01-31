@@ -28,6 +28,9 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
 
   res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
+  if (!"pregnancy_start" %in% names(res) && "inferred_episode_start" %in% names(res)) {
+    res$pregnancy_start <- res$inferred_episode_start
+  }
 
   # Copy key raw artifacts (if present)
   for (f in c("PPS-concept_counts.csv", "log.txt")) {

@@ -579,11 +579,22 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::group_by(.data$gest_id) %>%
     dplyr::slice_min(order_by = abs(.data$days_diff), n = 1, with_ties = FALSE) %>%
     dplyr::ungroup()
+  # Workaround for dbplyr get_env() with filtering joins (tidyverse/dbplyr#1534, #1606, #1659):
+  # materialize bothTbl then use filter + collected IDs instead of anti_join(lazy y).
+  bothTbl <- dplyr::compute(bothTbl, name = "merge_both_tmp", temporary = TRUE)
+  bothVisitIds <- bothTbl %>%
+    dplyr::select("visit_id") %>%
+    dplyr::distinct() %>%
+    dplyr::pull("visit_id")
+  bothGestIds <- bothTbl %>%
+    dplyr::select("gest_id") %>%
+    dplyr::distinct() %>%
+    dplyr::pull("gest_id")
   justOutcomeTbl <- outcomeWithVisitId %>%
-    dplyr::anti_join(bothTbl %>% dplyr::select("visit_id"), by = "visit_id") %>%
+    dplyr::filter(!.data$visit_id %in% .env$bothVisitIds) %>%
     dplyr::mutate(gest_id = NA_character_)
   justGestationTbl <- gestWithId %>%
-    dplyr::anti_join(bothTbl %>% dplyr::select("gest_id"), by = "gest_id") %>%
+    dplyr::filter(!.data$gest_id %in% .env$bothGestIds) %>%
     dplyr::mutate(
       final_category = "PREG",
       final_visit_date = .data$max_gest_date,
