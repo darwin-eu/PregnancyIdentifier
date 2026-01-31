@@ -9,15 +9,15 @@
 expected_outputs <- function() {
   list(
     rds = c(
-      "HIP_episodes.rds",
-      "PPS_episodes.rds",
-      "HIPPS_episodes.rds",
+      "hip_episodes.rds",
+      "pps_episodes.rds",
+      "hipps_episodes.rds",
       "final_pregnancy_episodes.rds"
     ),
     rds_debug = c(
       "pps_gest_timing_episodes.rds",
       "pps_min_max_episodes.rds",
-      "ESD.rds"
+      "esd.rds"
     ),
     csv = c("runStart.csv"),
     csv_optional = c("pps_concept_counts.csv"),
@@ -40,7 +40,7 @@ expected_outputs <- function() {
 #' @noRd
 schema_registry <- function() {
   list(
-    HIP_episodes.rds = list(
+    hip_episodes.rds = list(
       person_id = "integer",
       episode = "integer",
       estimated_start_date = "Date",
@@ -48,7 +48,7 @@ schema_registry <- function() {
       gest_date = "Date",
       category = "character"
     ),
-    PPS_episodes.rds = list(
+    pps_episodes.rds = list(
       person_id = "integer",
       person_episode_number = "integer",
       episode_min_date = "Date",
@@ -57,7 +57,7 @@ schema_registry <- function() {
       algo2_category = "character",
       algo2_outcome_date = "Date"
     ),
-    HIPPS_episodes.rds = list(
+    hipps_episodes.rds = list(
       person_id = "integer",
       episode_number = "integer",
       pregnancy_start = "Date",
@@ -98,7 +98,7 @@ schema_registry <- function() {
       episode_min_date = "Date",
       episode_max_date = "Date"
     ),
-    ESD.rds = list(
+    esd.rds = list(
       person_id = "integer",
       episode_number = "integer",
       inferred_episode_start = "Date",
@@ -259,7 +259,7 @@ detect_hip_zero <- function(outputDir) {
   if (is.null(outputDir) || is.na(outputDir) || outputDir == "") {
     return(NA_integer_)
   }
-  path <- file.path(outputDir, "HIP_episodes.rds")
+  path <- file.path(outputDir, "hip_episodes.rds")
   if (!file.exists(path)) {
     return(NA_integer_)
   }

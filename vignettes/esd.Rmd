@@ -24,12 +24,12 @@ Episode construction (HIP, PPS, merge) yields plausible pregnancy intervals, but
 - **precision_days** and **precision_category** — Uncertainty (days) and a binned precision label (e.g. week, month, three-month)
 - Plausibility and concordance metrics (e.g. whether inferred duration matches expected term windows)
 
-ESD is run via `runEsd()`, which reads `HIPPS_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges back to HIPPS metadata, and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **ESD.rds** (episode-level start inference before merging back).
+ESD is run via `runEsd()`, which reads `hipps_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges back to HIPPS metadata, and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **esd.rds** (episode-level start inference before merging back).
 
 # Inputs
 
 - **cdm** — CDM reference (for concept and domain tables).
-- **outputDir** — Directory containing `HIPPS_episodes.rds` (produced by `mergeHipps()`).
+- **outputDir** — Directory containing `hipps_episodes.rds` (produced by `mergeHipps()`).
 - **startDate**, **endDate** — Study window for filtering concept dates.
 - **logger** — Optional log4r logger.
 
@@ -66,23 +66,23 @@ When **both** GW and GR3m evidence are present, ESD prefers GW evidence that is 
 
 4. **Study period filter** — Keeps rows where inferred_episode_start/inferred_episode_end fall within `startDate`–`endDate` (or missing dates are allowed as per implementation).
 
-5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **ESD.rds** is written after step 2 (episode-level start inference only).
+5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
 
 # Outputs
 
 | File | Description |
 |------|--------------|
 | **final_pregnancy_episodes.rds** | Final episode table: one row per episode, with inferred_episode_start, inferred_episode_end, final_outcome_category, precision_days, precision_category, hip_end_date, pps_end_date, and other QA/concordance columns. |
-| **ESD.rds** | (Only when `debugMode = TRUE`) Episode-level ESD output before merging back to HIPPS metadata. |
+| **esd.rds** | (Only when `debugMode = TRUE`) Episode-level ESD output before merging back to HIPPS metadata. |
 
 # Running ESD
 
-ESD is normally run as step 5 of `runPregnancyIdentifier()`. To run it alone (e.g. for debugging), ensure `outputDir` already contains `HIPPS_episodes.rds`:
+ESD is normally run as step 5 of `runPregnancyIdentifier()`. To run it alone (e.g. for debugging), ensure `outputDir` already contains `hipps_episodes.rds`:
 
 ```{r, eval=FALSE}
 library(PregnancyIdentifier)
 cdm <- mockPregnancyCdm()
-# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains HIPPS_episodes.rds ...
+# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
 
 runEsd(
   cdm       = cdm,

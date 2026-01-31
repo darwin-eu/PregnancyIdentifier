@@ -31,25 +31,25 @@
 #'   \item Load HIP episodes and PPS episodes from `outputDir`
 #'   \item Merge HIP + PPS episodes by overlap; flag episodes involved in many-to-many overlaps
 #'   \item Resolve many-to-many overlaps by selecting best-matching pairs (retain best matches by end-date proximity and episode plausibility)
-#'   \item Add standardized columns and per-person episode ordering; write `HIPPS_episodes.rds`
+#'   \item Add standardized columns and per-person episode ordering; write `hipps_episodes.rds`
 #' }
 #'
 #' @param outputDir (`character(1)`) Directory containing intermediate RDS artifacts:
-#'   `PPS_min_max_episodes.rds`, `PPS_gest_timing_episodes.rds`, `HIP_episodes.rds`.
+#'   `pps_episodes.rds`, `hip_episodes.rds` (and optionally `pps_min_max_episodes.rds`, `pps_gest_timing_episodes.rds` from PPS debug).
 #' @param logger (`logger`) log4r logger.
 #'
-#' @return Invisibly returns `NULL` and writes `HIPPS_episodes.rds` to `outputDir`.
+#' @return Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputDir`.
 #' @export
 mergeHipps <- function(outputDir, logger) {
   checkmate::assertDirectoryExists(outputDir)
-  checkmate::assertFileExists(file.path(outputDir, "PPS_episodes.rds"))
-  checkmate::assertFileExists(file.path(outputDir, "HIP_episodes.rds"))
+  checkmate::assertFileExists(file.path(outputDir, "pps_episodes.rds"))
+  checkmate::assertFileExists(file.path(outputDir, "hip_episodes.rds"))
   checkmate::assertClass(logger, "logger")
 
   log4r::info(logger, "Merging HIP and PPS into HIPPS")
 
-  ppsWithOutcomesDf <- readRDS(file.path(outputDir, "PPS_episodes.rds"))
-  hipDf <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
+  ppsWithOutcomesDf <- readRDS(file.path(outputDir, "pps_episodes.rds"))
+  hipDf <- readRDS(file.path(outputDir, "hip_episodes.rds"))
 
   mergedDf <- mergeEpisodes(hipDf, ppsWithOutcomesDf, logger) %>%
     dedupeMergedEpisodes(logger) %>%
@@ -58,7 +58,7 @@ mergeHipps <- function(outputDir, logger) {
   if (nrow(mergedDf) == 0) {
     mergedDf <- emptyHippsEpisodes()
   }
-  saveRDS(mergedDf, file.path(outputDir, "HIPPS_episodes.rds"))
+  saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
   invisible(NULL)
 }
 

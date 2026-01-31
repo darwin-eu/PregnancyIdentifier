@@ -79,7 +79,7 @@ runPps <- function(cdm,
       file.path(outputDir, "pps_min_max_episodes.rds")
     )
   }
-  saveRDS(ppsWithOutcomes, file.path(outputDir, "PPS_episodes.rds"))
+  saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
 
   cdm
 }

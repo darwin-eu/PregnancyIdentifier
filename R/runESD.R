@@ -53,7 +53,7 @@ runEsd <- function(cdm,
 
   log4r::info(logger, "Running ESD")
 
-  hippsEpisodes <- readRDS(file.path(outputDir, "HIPPS_episodes.rds"))
+  hippsEpisodes <- readRDS(file.path(outputDir, "hipps_episodes.rds"))
 
   # 1) Pull gestational timing concepts (GW / GR3m candidates) for HIP episodes
   timingConceptsDf <- getTimingConcepts(
@@ -67,7 +67,7 @@ runEsd <- function(cdm,
   esdDf <- episodesWithGestationalTimingInfo(timingConceptsDf, logger = logger)
 
   if (debugMode) {
-    saveRDS(esdDf, file.path(outputDir, "ESD.rds"))
+    saveRDS(esdDf, file.path(outputDir, "esd.rds"))
   }
 
   # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes

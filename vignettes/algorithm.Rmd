@@ -54,22 +54,22 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 |------|--------------|
 | `runStart.csv` | Run timestamp |
 | `log.txt` | Run log |
-| `HIP_episodes.rds` | HIP episodes (outcome and/or gestation-derived) |
+| `hip_episodes.rds` | HIP episodes (outcome and/or gestation-derived) |
 | `pps_gest_timing_episodes.rds` | PPS record-level episodes (concept rows with episode assignments) |
 | `pps_min_max_episodes.rds` | PPS episode summaries (min/max dates per episode) |
-| `PPS_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
-| `HIPPS_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
-| `ESD.rds` | (optional, `debugMode = TRUE`) ESD episode-level start inference |
+| `pps_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
+| `hipps_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
+| `esd.rds` | (optional, `debugMode = TRUE`) ESD episode-level start inference |
 | `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes |
 | `export/` | De-identified summary CSVs and ZIP archive (if export step is used) |
 
 ## Pipeline steps in order
 
 1. **initPregnancies** — Loads pregnancy concept sets into the CDM, builds `preg_hip_records` and `preg_pps_records` from condition, procedure, observation, and measurement tables within the study window.
-2. **runHip** — Builds outcome episodes, then gestation episodes, merges and cleans them, and writes `HIP_episodes.rds`.
-3. **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes via lookback/lookahead, and writes `pps_gest_timing_episodes.rds`, `pps_min_max_episodes.rds`, and `PPS_episodes.rds`.
-4. **mergeHipps** — Reads `HIP_episodes.rds` and `PPS_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `HIPPS_episodes.rds`.
-5. **runEsd** — Reads `HIPPS_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, merges back to HIPPS metadata, and writes `final_pregnancy_episodes.rds`.
+2. **runHip** — Builds outcome episodes, then gestation episodes, merges and cleans them, and writes `hip_episodes.rds`.
+3. **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes via lookback/lookahead, and writes `pps_gest_timing_episodes.rds`, `pps_min_max_episodes.rds`, and `pps_episodes.rds`.
+4. **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
+5. **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, merges back to HIPPS metadata, and writes `final_pregnancy_episodes.rds`.
 6. **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`.
 
 ## Interpreting the final episode table

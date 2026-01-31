@@ -33,9 +33,9 @@ test_that("runHip runs without error", {
   )
 
 
-  expect_true(file.exists(file.path(outputDir, "HIP_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
 
-  hip <- readRDS(file.path(outputDir, "HIP_episodes.rds"))
+  hip <- readRDS(file.path(outputDir, "hip_episodes.rds"))
   expect_true(is.data.frame(hip))
 
   unlink(outputDir, recursive = TRUE)

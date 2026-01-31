@@ -9,9 +9,9 @@ test_that("runPregnancyIdentifier runs without error", {
     outputDir = outputDir
   )
 
-  expect_true(file.exists(file.path(outputDir, "HIP_episodes.rds")))
-  expect_true(file.exists(file.path(outputDir, "PPS_episodes.rds")))
-  expect_true(file.exists(file.path(outputDir, "HIPPS_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "pps_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "hipps_episodes.rds")))
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
 
   unlink(outputDir, recursive = TRUE)
@@ -33,7 +33,7 @@ test_that("runPregnancyIdentifier runs with custom parameters", {
     minCellCount = 0L
   )
 
-  expect_true(file.exists(file.path(outputDir, "HIP_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
 
   unlink(outputDir, recursive = TRUE)
   cleanupCdmDb(cdm)

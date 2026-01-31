@@ -127,7 +127,7 @@ runPregnancyIdentifier <- function(cdm,
   #   - justGestation determines whether gestation-only episodes are allowed
   # Outputs:
   #   - updated cdm (algorithm tables created/updated)
-  #   - writes: outputDir/HIP_episodes.rds
+  #   - writes: outputDir/hip_episodes.rds
   log4r::info(logger, "Running `runHip`")
   cdm <- runHip(
     cdm,
@@ -159,7 +159,7 @@ runPregnancyIdentifier <- function(cdm,
   # Inputs:
   #   - RDS artifacts written by HIP and PPS steps in outputDir
   # Outputs:
-  #   - writes: outputDir/HIPPS_episodes.rds
+  #   - writes: outputDir/hipps_episodes.rds
   log4r::info(logger, "Running `mergeHipps`")
   mergeHipps(outputDir = outputDir, logger = logger)
 

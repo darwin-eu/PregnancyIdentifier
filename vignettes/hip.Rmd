@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 
 The **HIP** (outcome-anchored) algorithm identifies pregnancy episodes by combining **high-specificity pregnancy outcomes** (e.g., live birth, stillbirth, abortion) with **gestational-age evidence** (weeks of gestation) when available. It produces one record per inferred pregnancy, including an **episode end date** (visit_date), an **estimated start date**, and a **pregnancy category**.
 
-HIP is run via `runHip()`, which assumes `initPregnancies()` has already been run and that the CDM contains `preg_hip_records` and `preg_hip_concepts`. HIP writes `HIP_episodes.rds` to `outputDir` and adds the internal table `cdm$preg_hip_episodes` during execution.
+HIP is run via `runHip()`, which assumes `initPregnancies()` has already been run and that the CDM contains `preg_hip_records` and `preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputDir` and adds the internal table `cdm$preg_hip_episodes` during execution.
 
 # Two-pass structure
 
@@ -66,7 +66,7 @@ HIP addresses this by:
 
 7. **Clean and resolve overlaps** — Merged episodes are cleaned (e.g. reclassify implausible term durations to PREG, set removed_outcome), then overlapping PREG gestation episodes are resolved so each final episode has a single `final_start_date` and no duplicate overlap.
 
-8. **Attach gestation and length** — Final episodes are joined to gestation visit-level data to attach `gest_flag` and `episode_length`, producing `preg_hip_episodes`. This table is collected and saved as `HIP_episodes.rds`.
+8. **Attach gestation and length** — Final episodes are joined to gestation visit-level data to attach `gest_flag` and `episode_length`, producing `preg_hip_episodes`. This table is collected and saved as `hip_episodes.rds`.
 
 # HIP outputs and categories
 
@@ -105,7 +105,7 @@ cdm <- runHip(
   justGestation = TRUE,
   logger     = makeLogger("hip_output")
 )
-# HIP_episodes.rds is written to hip_output/
+# hip_episodes.rds is written to hip_output/
 ```
 
 For the full pipeline (HIP → PPS → merge → ESD), use `runPregnancyIdentifier()`; see the [pipeline overview](algorithm.html).

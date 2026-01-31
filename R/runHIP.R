@@ -73,7 +73,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   if (getTblRowCount(cdm$preg_hip_records) == 0) {
     logWarn(logger, "No records after initializing pregnancy cohort")
     if (!is.null(outputDir)) {
-      saveRDS(emptyHipEpisodes(), file.path(outputDir, "HIP_episodes.rds"))
+      saveRDS(emptyHipEpisodes(), file.path(outputDir, "hip_episodes.rds"))
     }
     return(cdm)
   }
@@ -117,7 +117,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   if (nrow(hipDf) == 0) {
     hipDf <- emptyHipEpisodes()
   }
-  saveRDS(hipDf, file.path(outputDir, "HIP_episodes.rds"))
+  saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
   # 6) Drop intermediate stage tables (nested functions do not drop their inputs; cleanup only here).
   cdm <- omopgenerics::dropSourceTable(

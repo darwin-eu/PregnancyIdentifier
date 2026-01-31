@@ -14,7 +14,7 @@ test_that("runEsd runs without error", {
   # Now test runEsd
   runEsd(cdm = cdm, outputDir = outputDir, logger = logger)
 
-  # expect_true(file.exists(file.path(outputDir, "ESD.rds")))
+  # expect_true(file.exists(file.path(outputDir, "esd.rds")))
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
   final <- readr::read_rds(file.path(outputDir, "final_pregnancy_episodes.rds"))
   expect_true(is.data.frame(final))
@@ -45,8 +45,8 @@ test_that("runEsd runs with custom parameters", {
     debugMode = TRUE
   )
 
-  expect_true(file.exists(file.path(outputDir, "ESD.rds")))
-  esd <- readr::read_rds(file.path(outputDir, "ESD.rds"))
+  expect_true(file.exists(file.path(outputDir, "esd.rds")))
+  esd <- readr::read_rds(file.path(outputDir, "esd.rds"))
   expect_true(is.data.frame(esd))
 
   unlink(outputDir, recursive = TRUE)

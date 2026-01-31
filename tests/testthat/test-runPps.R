@@ -13,7 +13,7 @@ test_that("runPps runs without error", {
   )
 
   expect_s3_class(cdm, "cdm_reference")
-  expect_true(file.exists(file.path(outputDir, "PPS_episodes.rds")))
+  expect_true(file.exists(file.path(outputDir, "pps_episodes.rds")))
   
   unlink(outputDir, recursive = TRUE)
   cleanupCdmDb(cdm)

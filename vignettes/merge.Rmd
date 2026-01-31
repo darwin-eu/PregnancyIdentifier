@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-The **merge** step combines pregnancy episodes from **HIP** (outcome-anchored) and **PPS** (timing-anchored) into a single HIPPS episode table. It is run via `mergeHipps()` and writes `HIPPS_episodes.rds`, which is the input to the ESD step. See the [pipeline overview](algorithm.html), [HIP](hip.html), [PPS](pps.html), and [ESD](esd.html) vignettes.
+The **merge** step combines pregnancy episodes from **HIP** (outcome-anchored) and **PPS** (timing-anchored) into a single HIPPS episode table. It is run via `mergeHipps()` and writes `hipps_episodes.rds`, which is the input to the ESD step. See the [pipeline overview](algorithm.html), [HIP](hip.html), [PPS](pps.html), and [ESD](esd.html) vignettes.
 
 ## Overview
 
@@ -37,8 +37,8 @@ The merge has three stages:
 
 `mergeHipps()` reads from `outputDir`:
 
-* **HIP_episodes.rds** — HIP episodes (from `runHip()`): `person_id`, `episode`, `estimated_start_date`, `visit_date`, `gest_date`, `category`, etc.
-* **PPS_episodes.rds** — PPS episodes with inferred outcomes (from `runPps()`): `person_id`, `person_episode_number`, `episode_min_date`, `episode_max_date`, `episode_max_date_plus_two_months`, outcome columns, etc.
+* **hip_episodes.rds** — HIP episodes (from `runHip()`): `person_id`, `episode`, `estimated_start_date`, `visit_date`, `gest_date`, `category`, etc.
+* **pps_episodes.rds** — PPS episodes with inferred outcomes (from `runPps()`): `person_id`, `person_episode_number`, `episode_min_date`, `episode_max_date`, `episode_max_date_plus_two_months`, outcome columns, etc.
 
 ## Standardized episode intervals
 
@@ -150,6 +150,6 @@ After deduplication, `addMergedEpisodeDetails()` standardizes columns and adds o
 
 The final artifact written to disk is:
 
-* **HIPPS_episodes.rds**
+* **hipps_episodes.rds**
 
 This file contains one row per merged episode per person and is the input to `runEsd()` for episode start date refinement. See the [ESD vignette](esd.html) and the [pipeline overview](algorithm.html).
