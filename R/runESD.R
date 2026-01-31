@@ -708,5 +708,24 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
   log4r::info(logger, sprintf("Min pregnancy start date: %s", min_preg_date))
   log4r::info(logger, sprintf("Max pregnancy end date: %s", max_preg_date))
 
+  # One row per distinct episode (same person, end date, outcome); collapse any duplicates from merge/join
+  finalDf <- finalDf %>%
+    dplyr::distinct(
+      .data$person_id,
+      .data$inferred_episode_end,
+      .data$final_outcome_category,
+      .data$recorded_episode_start,
+      .data$recorded_episode_end,
+      .data$inferred_episode_start,
+      .data$precision_days,
+      .data$precision_category,
+      .data$gestational_age_days_calculated,
+      .data$term_duration_flag,
+      .data$outcome_concordance_score,
+      .data$outcome_match,
+      .data$GW_flag,
+      .data$preterm_status_from_calculation
+    )
+
   finalDf
 }
