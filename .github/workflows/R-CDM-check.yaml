@@ -39,8 +39,12 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, any::remotes
           needs: check
+
+      - name: Install dbplyr 2.4.0
+        run: |
+          Rscript -e 'remotes::install_version("dbplyr", version = "2.4.0", repos = "https://cloud.r-project.org")'
 
       - name: R check
         uses: r-lib/actions/check-r-package@v2
