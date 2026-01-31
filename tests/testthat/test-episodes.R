@@ -29,11 +29,18 @@ test_that("gestational episodes from preg_hip_records", {
     overwrite = TRUE
   )
 
+  gestationalAgeConcepts <- utils::read.csv(
+    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+    colClasses = c(concept_id = "integer")
+  )
+  gestConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+
   cdm <- PregnancyIdentifier:::buildGestationEpisodes(
     cdm,
     logger = logger,
     minDays = 70,
-    bufferDays = 28
+    bufferDays = 28,
+    gestConceptIds = gestConceptIds
   )
 
   episodes <- dplyr::collect(cdm$gest_episodes_df)

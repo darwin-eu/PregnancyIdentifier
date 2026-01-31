@@ -130,77 +130,65 @@ collapseOverlappingEpisodesWithinPerson <- function(df,
                                                     logger = NULL) {
   if (nrow(df) == 0) return(df)
   if (!start_col %in% names(df) || !end_col %in% names(df)) return(df)
+  checkmate::assert_subset(
+    c("person_id", start_col, end_col),
+    colnames(df)
+  )
 
   nBefore <- nrow(df)
-  # Sort by person, start, end so we can merge consecutive overlapping intervals
-  df <- df %>%
-    dplyr::arrange(.data$person_id, .data[[start_col]], .data[[end_col]])
+  # Rows with NA start or end are not merged; keep aside and bind back later
+  rows_with_na <- df %>%
+    dplyr::filter(is.na(.data[[start_col]]) | is.na(.data[[end_col]]))
+  x <- df %>%
+    dplyr::filter(!is.na(.data[[start_col]]) & !is.na(.data[[end_col]])) %>%
+    dplyr::distinct()
 
-  # Per-person collapse: merge consecutive rows when current start <= previous max end
-  collapseOnePerson <- function(one) {
-    if (nrow(one) == 0) return(one)
-    one <- one %>% dplyr::arrange(.data[[start_col]], .data[[end_col]])
-    run_start <- NA
-    run_end   <- NA
-    keep_idx  <- NA_integer_
-    out_rows  <- list()
-
-    for (i in seq_len(nrow(one))) {
-      si <- one[[start_col]][i]
-      ei <- one[[end_col]][i]
-      has_dates <- !is.na(si) && !is.na(ei)
-
-      if (!has_dates) {
-        if (!is.na(keep_idx)) {
-          r <- one[keep_idx, , drop = FALSE]
-          r[[start_col]] <- run_start
-          r[[end_col]]   <- run_end
-          out_rows[[length(out_rows) + 1]] <- r
-        }
-        out_rows[[length(out_rows) + 1]] <- one[i, , drop = FALSE]
-        keep_idx <- NA_integer_
-        run_start <- NA
-        run_end <- NA
-        next
-      }
-
-      if (is.na(keep_idx)) {
-        run_start <- si
-        run_end   <- ei
-        keep_idx  <- i
-        next
-      }
-
-      if (si <= run_end) {
-        run_start <- as.Date(min(as.numeric(run_start), as.numeric(si), na.rm = TRUE), origin = "1970-01-01")
-        run_end   <- as.Date(max(as.numeric(run_end), as.numeric(ei), na.rm = TRUE), origin = "1970-01-01")
-        if (ei >= one[[end_col]][keep_idx]) keep_idx <- i
-      } else {
-        r <- one[keep_idx, , drop = FALSE]
-        r[[start_col]] <- run_start
-        r[[end_col]]   <- run_end
-        out_rows[[length(out_rows) + 1]] <- r
-        run_start <- si
-        run_end   <- ei
-        keep_idx  <- i
-      }
-    }
-
-    if (!is.na(keep_idx)) {
-      r <- one[keep_idx, , drop = FALSE]
-      r[[start_col]] <- run_start
-      r[[end_col]]   <- run_end
-      out_rows[[length(out_rows) + 1]] <- r
-    }
-    dplyr::bind_rows(out_rows)
+  if (nrow(x) == 0) {
+    return(df)
   }
 
-  merged <- df %>%
+  x <- x %>%
+    dplyr::mutate(
+      !!start_col := as.Date(.data[[start_col]]),
+      !!end_col   := as.Date(.data[[end_col]]),
+      dur = as.numeric(.data[[end_col]] - .data[[start_col]], units = "days")
+    ) %>%
     dplyr::group_by(.data$person_id, .add = FALSE) %>%
-    dplyr::group_modify(~ collapseOnePerson(.x), .keep = TRUE) %>%
+    dplyr::arrange(.data[[start_col]], .data$dur, .data[[end_col]], .by_group = TRUE) %>%
+    dplyr::mutate(
+      running_end = as.integer(cummax(as.integer(.data[[end_col]]))),
+      prev_end    = dplyr::lag(.data$running_end),
+      new_group   = dplyr::if_else(
+        is.na(.data$prev_end),
+        1L,
+        dplyr::if_else(as.integer(.data[[start_col]]) <= .data$prev_end, 0L, 1L)
+      ),
+      groups = cumsum(.data$new_group)
+    ) %>%
     dplyr::ungroup()
 
-  nAfter <- nrow(merged)
+  group_ranges <- x %>%
+    dplyr::group_by(.data$person_id, .data$groups) %>%
+    dplyr::summarise(
+      min_start = min(.data[[start_col]], na.rm = TRUE),
+      max_end   = max(.data[[end_col]], na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  merged <- x %>%
+    dplyr::group_by(.data$person_id, .data$groups) %>%
+    dplyr::slice_max(.data[[end_col]], n = 1, with_ties = FALSE) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-dplyr::all_of(c(start_col, end_col, "dur", "running_end", "prev_end", "new_group"))) %>%
+    dplyr::left_join(group_ranges, by = c("person_id", "groups")) %>%
+    dplyr::mutate(
+      !!start_col := .data$min_start,
+      !!end_col   := .data$max_end
+    ) %>%
+    dplyr::select(-"groups", -"min_start", -"max_end")
+
+  out <- dplyr::bind_rows(merged, rows_with_na)
+  nAfter <- nrow(out)
   if (nBefore > nAfter && !is.null(logger)) {
     log4r::info(logger, sprintf(
       "Collapsed overlapping episodes within person: %s -> %s rows (%s removed)",
@@ -208,7 +196,7 @@ collapseOverlappingEpisodesWithinPerson <- function(df,
     ))
   }
 
-  merged
+  out
 }
 
 # ============================================================
@@ -686,6 +674,10 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   summaryDf
 }
 
+# Maximum allowed pregnancy duration in days (42 weeks). Episodes longer than this
+# have inferred_episode_end capped to inferred_episode_start + this value.
+maxPregnancyDays <- 294L
+
 mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
                                        hippsEpisodes,
                                        cdm,
@@ -786,6 +778,25 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
         as.Date(as.Date(.data$inferred_episode_end) - as.numeric(.data$max_term)),
         as.Date(.data$inferred_episode_start)
       ),
+      # End date from HIP outcome (non-PREG) is treated as correct; otherwise end may be from gestation-only.
+      end_date_from_hip_outcome = !is.na(.data$hip_end_date) &
+        .data$inferred_episode_end == .data$hip_end_date &
+        .data$hip_outcome_category != "PREG" &
+        !is.na(.data$hip_outcome_category),
+      duration_days = as.numeric(difftime(.data$inferred_episode_end, .data$inferred_episode_start, units = "days")),
+      # When end comes from HIP outcome: cap start (move start later). When end from gestation-only/PPS: cap end.
+      inferred_episode_start = dplyr::if_else(
+        !is.na(.data$inferred_episode_start) & !is.na(.data$inferred_episode_end) &
+          .data$duration_days > maxPregnancyDays & .data$end_date_from_hip_outcome,
+        .data$inferred_episode_end - lubridate::days(maxPregnancyDays),
+        .data$inferred_episode_start
+      ),
+      inferred_episode_end = dplyr::if_else(
+        !is.na(.data$inferred_episode_start) & !is.na(.data$inferred_episode_end) &
+          .data$duration_days > maxPregnancyDays & !.data$end_date_from_hip_outcome,
+        .data$inferred_episode_start + lubridate::days(maxPregnancyDays),
+        .data$inferred_episode_end
+      ),
       # Convert precision_days to integer type (then fill missing)
       precision_days = as.integer(.data$precision_days),
       precision_days = dplyr::if_else(
@@ -822,6 +833,18 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       preterm_status_from_calculation = dplyr::if_else(.data$gestational_age_days_calculated < 259, 1, 0)
     ) %>%
     dplyr::select(-"min_term", -"max_term")
+
+  overMax <- finalDf$duration_days > maxPregnancyDays
+  nCapped <- sum(overMax, na.rm = TRUE)
+  if (nCapped > 0) {
+    nCapStart <- sum(overMax & finalDf$end_date_from_hip_outcome, na.rm = TRUE)
+    nCapEnd <- nCapped - nCapStart
+    log4r::info(logger, sprintf(
+      "Episodes with duration capped to %s days (42 weeks): %s (start moved: %s, end capped: %s)",
+      maxPregnancyDays, nCapped, nCapStart, nCapEnd
+    ))
+  }
+  finalDf <- finalDf %>% dplyr::select(-"duration_days", -"end_date_from_hip_outcome")
 
   # Print time period checks
   min_episode_date  <- min(finalDf$recorded_episode_start, na.rm = TRUE)
