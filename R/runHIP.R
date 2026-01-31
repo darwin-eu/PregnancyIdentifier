@@ -177,7 +177,7 @@ buildFinalOutcomeVisits <- function(cdm, logger) {
         outcome_date = .data$visit_date,
         outcome_category = .data$category
       ) %>%
-      dplyr::select(.data$person_id, .data$outcome_date, .data$outcome_category)
+      dplyr::select("person_id", "outcome_date", "outcome_category")
     out[[tableNames[i]]] <- allRows
     logInfo(logger, sprintf("  * Preliminary total number of episodes: %s", getTblRowCount(allRows)))
   }
@@ -230,7 +230,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
         (.data$nextCategory == "LB" & .data$beforeDays >= afterMinSbLb & .data$previousCategory == "LB" & .data$afterDays >= beforeMinLbSb)
     ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(.data$person_id, .data$outcome_category, .data$outcome_date)
+    dplyr::select("person_id", "outcome_category", "outcome_date")
   afterSb <- finalLbVisits %>%
     dplyr::union_all(sbCandidates) %>%
     dplyr::distinct()
@@ -274,7 +274,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
         (.data$nextCategory == "SB" & .data$beforeDays >= afterMinEctSb & .data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbEct)
     ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(.data$person_id, .data$outcome_category, .data$outcome_date)
+    dplyr::select("person_id", "outcome_category", "outcome_date")
   afterEct <- afterSb %>%
     dplyr::union_all(ectCandidates) %>%
     dplyr::distinct()
@@ -331,7 +331,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
         (.data$nextCategory == "SB" & .data$previousCategory == "ECT" & .data$beforeDays >= afterMinAbSb & .data$afterDays >= beforeMinEctAb)
     ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(.data$person_id, .data$outcome_category, .data$outcome_date)
+    dplyr::select("person_id", "outcome_category", "outcome_date")
   afterAb <- afterEct %>%
     dplyr::union_all(abCandidates) %>%
     dplyr::distinct()
@@ -382,7 +382,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
       )
     ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(.data$person_id, .data$outcome_category, .data$outcome_date)
+    dplyr::select("person_id", "outcome_category", "outcome_date")
   delivCandidates <- delivTbl %>%
     dplyr::filter(.data$outcome_category == "DELIV") %>%
     dplyr::filter(
@@ -403,15 +403,17 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
         (.data$nextCategory == "SB" & .data$previousCategory %in% c("ECT", "AB") & .data$beforeDays >= afterMinDelivSb & .data$afterDays >= beforeMinEctDeliv)
     ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(.data$person_id, .data$outcome_category, .data$outcome_date)
+    dplyr::select("person_id", "outcome_category", "outcome_date")
   allOutcomes <- nonDeliv %>%
     dplyr::union_all(delivCandidates) %>%
     dplyr::distinct() %>%
     dplyr::mutate(
       outcome_id = paste0(as.character(.data$person_id), "_O_", as.character(.data$outcome_date), "_", .data$outcome_category)
     )
-  cdm$outcome_episodes_df <- allOutcomes %>%
-    dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
+  suppressWarnings({ # sql is long but it should be ok.
+    cdm$outcome_episodes_df <- allOutcomes %>%
+      dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
+  })
   logInfo(logger, "Stage A: outcome episodes materialized")
   cdm
 }
@@ -538,7 +540,7 @@ buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays 
   suppressWarnings({
     # SQL it quite long but should be ok.
     cdm$gest_episodes_df <- joined %>%
-      dplyr::select(-.data$max_gest_start_date_further) %>%
+      dplyr::select(-"max_gest_start_date_further") %>%
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
 
@@ -555,11 +557,11 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
   outcomeWithVisitId <- outcomeEpisodesWithStartsTbl %>%
     dplyr::mutate(visit_id = paste0(as.character(.data$person_id), as.character(.data$outcome_date)))
   gestWithId <- cdm$gest_episodes_df
+  # Join on person_id then filter for overlapping intervals [max_start_date, outcome_date] and [max_gest_start_date, max_gest_date].
+  # Overlap <=> max_start_date <= max_gest_date AND max_gest_start_date <= outcome_date (avoids join_by(overlaps()) for SQL reliability).
   bothTbl <- outcomeWithVisitId %>%
-    dplyr::inner_join(
-      gestWithId,
-      by = dplyr::join_by(person_id, overlaps(max_start_date, outcome_date, max_gest_start_date, max_gest_date))
-    ) %>%
+    dplyr::inner_join(gestWithId, by = "person_id") %>%
+    dplyr::filter(.data$max_start_date <= .data$max_gest_date, .data$max_gest_start_date <= .data$outcome_date) %>%
     dplyr::mutate(
       gest_at_outcome = !!CDMConnector::datediff("max_gest_start_date", "outcome_date", "day")
     ) %>%
@@ -599,7 +601,10 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
       justOutcomeTbl %>% dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date)
     )
   }
-  mergedTbl <- purrr::reduce(tblList, dplyr::union_all) %>%
+  # Materialize union first to avoid very long SQL on some database platforms
+  unionTbl <- purrr::reduce(tblList, dplyr::union_all) %>%
+    dplyr::compute(name = "merged_episodes_tmp", temporary = TRUE)
+  mergedTbl <- unionTbl %>%
     dplyr::mutate(
       final_episode_id = dplyr::coalesce(.data$visit_id, .data$gest_id),
       has_outcome = !is.na(.data$visit_id),
@@ -715,7 +720,7 @@ resolveOverlaps <- function(cdm, logger = NULL) {
       has_overlap = dplyr::if_else(.data$prev_date_diff < 0, 1L, 0L),
       prev_retry = as.integer(.data$prev_retry)
     ) %>%
-    dplyr::select(-.data$prev_date_diff_gest_tmp, -.data$prev_date_diff_start_tmp) %>%
+    dplyr::select(-"prev_date_diff_gest_tmp", -"prev_date_diff_start_tmp") %>%
     dplyr::mutate(
       final_start_date = dplyr::case_when(
         .data$has_overlap == 1 & !is.na(.data$prev_retry) ~ !!CDMConnector::dateadd(date = "prev_date", number = "prev_retry", interval = "day"),
@@ -772,8 +777,8 @@ attachGestationAndLength <- function(cdm) {
     ) %>%
     dplyr::mutate(gest_value = as.integer(.data$value_as_number)) %>%
     dplyr::union_all(gestFromValue) %>%
-    dplyr::select(.data$person_id, .data$gest_value, .data$visit_date) %>%
-    dplyr::rename(gest_date = .data$visit_date)
+    dplyr::select("person_id", "gest_value", "visit_date") %>%
+    dplyr::rename(gest_date = "visit_date")
   # Start from finalWithOrder and left_join gestation so we never drop input rows.
   # Join on person_id only, then filter to episode window (keep NA = no matching visit).
   # Per episode: keep the earliest gestation visit (min gest_date); if ties, highest gest_value.
@@ -818,7 +823,7 @@ attachGestationAndLength <- function(cdm) {
       estimated_start_date = .data$final_start_date,
       episode = .data$episode_order
     ) %>%
-    dplyr::select(.data$person_id, .data$gest_date, .data$category, .data$visit_date, .data$estimated_start_date, .data$episode, .data$gest_flag, .data$episode_length) %>%
+    dplyr::select("person_id", "gest_date", "category", "visit_date", "estimated_start_date", "episode", "gest_flag", "episode_length") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
   cdm

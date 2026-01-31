@@ -25,6 +25,7 @@ utils::globalVariables(
     "max_gest_start_date",
     "max_start_date",
     "min_gest_start_date",
+    "outcome_date",
     "outcome_based",
     "overlapCountDict",
     "recorded_episode_end",

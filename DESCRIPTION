@@ -35,13 +35,13 @@ Imports:
     rlang,
     shiny,
     checkmate,
-    tibble,
-    DT,
-    readr
+    tibble
 Suggests: 
     testthat (>= 3.0.0),
     omopgenerics,
     knitr,
     rmarkdown,
-    rstudioapi
+    rstudioapi,
+    DT,
+    readr
 VignetteBuilder: knitr

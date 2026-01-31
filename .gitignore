@@ -12,3 +12,4 @@ rsconnect
 renv/
 .Rprofile
 *~$*
+.Renviron
