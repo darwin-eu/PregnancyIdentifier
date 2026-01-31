@@ -11,3 +11,4 @@
 ^Meta$
 work/*
 ^README\.Rmd$
+^STYLE\.md$
