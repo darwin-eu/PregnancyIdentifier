@@ -2,7 +2,7 @@
 title: "Merging HIP and PPS episodes into HIPPS"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{merge}
+  %\VignetteIndexEntry{Merging HIP and PPS into HIPPS}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -10,9 +10,13 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
 )
 ```
+
+The **merge** step combines pregnancy episodes from **HIP** (outcome-anchored) and **PPS** (timing-anchored) into a single HIPPS episode table. It is run via `mergeHipps()` and writes `HIPPS_episodes.rds`, which is the input to the ESD step. See the [pipeline overview](algorithm.html), [HIP](hip.html), [PPS](pps.html), and [ESD](esd.html) vignettes.
 
 ## Overview
 
@@ -29,14 +33,22 @@ The merge has three stages:
 2. Merge by temporal overlap within person.
 3. Resolve many-to-many overlaps by selecting a best match (deduplication), then compute final merged dates and flags.
 
-## Inputs and standardized episode intervals
+## Inputs
+
+`mergeHipps()` reads from `outputDir`:
+
+* **HIP_episodes.rds** — HIP episodes (from `runHip()`): `person_id`, `episode`, `estimated_start_date`, `visit_date`, `gest_date`, `category`, etc.
+* **PPS_episodes.rds** — PPS episodes with inferred outcomes (from `runPps()`): `person_id`, `person_episode_number`, `episode_min_date`, `episode_max_date`, `episode_max_date_plus_two_months`, outcome columns, etc.
+
+## Standardized episode intervals
 
 HIP episodes are standardized to the interval:
 
 * `pregnancy_start` = `estimated_start_date`
 * `pregnancy_end`   = `visit_date` (the date used as HIP episode end)
+* `first_gest_date` = `gest_date` (first gestation date in the episode)
 
-PPS episodes are standardized to the interval:
+PPS episodes use:
 
 * `episode_min_date` = start of PPS episode evidence
 * `episode_max_date_plus_two_months` = PPS episode end extended by two months
@@ -118,15 +130,15 @@ For HIP-based selection, candidates are additionally penalized when the PPS epis
 
 Episode plausibility is also considered using PPS episode duration:
 
-* `new_date_diff` is derived from `episode_max_date - episode_min_date`
-* PPS candidates with duration > 310 days are treated as implausible and deprioritized.
+* `pps_days` = |`episode_max_date` − `episode_min_date`| (PPS episode length in days)
+* PPS candidates with duration > 310 days are treated as implausible and deprioritized in tie-breaking.
 
 ### Selection rule
 
 For each duplicated episode identifier (HIP or PPS), the algorithm:
 
 1. selects the row(s) with minimal `date_diff`, and then
-2. breaks ties using `new_date_diff` (favoring plausible PPS episodes).
+2. breaks ties using `pps_days` (favoring plausible PPS episodes with reasonable duration).
 
 This selection is applied in rounds. After each round, duplication flags are recomputed because selecting one best match can eliminate duplicates downstream.
 
@@ -134,14 +146,10 @@ The net effect is to retain a consistent set of one-to-one merged rows while kee
 
 ## Output: standardized merged episode table
 
-After deduplication, `addMergedEpisodeDetails()` standardizes columns and adds indicators:
-
-* `HIP_flag` and `PPS_flag` indicate whether the merged episode is supported by HIP and/or PPS.
-* PPS episodes without an inferred outcome are assigned `PREG` and use `episode_max_date` as the outcome date proxy.
-* Episodes are ordered within person and assigned `episode_number` based on `recorded_episode_start`.
+After deduplication, `addMergedEpisodeDetails()` standardizes columns and adds outcome/date fields (e.g. `algo2_category` set to `PREG` when PPS has no inferred outcome; `algo2_outcome_date` set from `episode_max_date` when missing). Episodes are ordered within person and assigned `episode_number` based on `recorded_episode_start` (and related merged dates).
 
 The final artifact written to disk is:
 
-* `HIPPS_episodes.rds`
+* **HIPPS_episodes.rds**
 
-This file contains one row per merged episode per person, suitable for subsequent episode selection, reporting, and validation.
+This file contains one row per merged episode per person and is the input to `runEsd()` for episode start date refinement. See the [ESD vignette](esd.html) and the [pipeline overview](algorithm.html).

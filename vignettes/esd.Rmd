@@ -1,0 +1,98 @@
+---
+title: "ESD algorithm"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ESD algorithm}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+# Overview
+
+Episode construction (HIP, PPS, merge) yields plausible pregnancy intervals, but **start dates** can remain uncertain. The **ESD** (Episode Start Date) step refines episode starts by extracting **gestational timing evidence** recorded during each HIPPS episode and converting that evidence into:
+
+- **inferred_episode_start** — Inferred pregnancy start date
+- **precision_days** and **precision_category** — Uncertainty (days) and a binned precision label (e.g. week, month, three-month)
+- Plausibility and concordance metrics (e.g. whether inferred duration matches expected term windows)
+
+ESD is run via `runEsd()`, which reads `HIPPS_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges back to HIPPS metadata, and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **ESD.rds** (episode-level start inference before merging back).
+
+# Inputs
+
+- **cdm** — CDM reference (for concept and domain tables).
+- **outputDir** — Directory containing `HIPPS_episodes.rds` (produced by `mergeHipps()`).
+- **startDate**, **endDate** — Study window for filtering concept dates.
+- **logger** — Optional log4r logger.
+
+# Two types of gestational timing evidence
+
+ESD uses two evidence types:
+
+1. **GW (“gestation week”)** — Week-based gestational age values (e.g. “18 weeks”) from concepts such as “Gestation period, 18 weeks”. The algorithm extrapolates back to a single start date (concept_date − 7×weeks). When multiple GW values exist, outlier filtering is applied (e.g. distance from median) to reduce noise.
+
+2. **GR3m (“gestational range ≤ 3 months”)** — Concept-specific month ranges (`min_month`, `max_month`) from the ESD/PPS concept dictionary. These imply a *plausible start-date interval*: concept_date − max_days to concept_date − min_days. ESD computes the **intersection** of GR3m intervals when multiple exist and uses the midpoint or a narrowed interval for start inference.
+
+When **both** GW and GR3m evidence are present, ESD prefers GW evidence that is **consistent with the GR3m intersection** (e.g. GW date falls inside the GR3m interval or overlaps it). If most GW concepts overlap the GR3m intersection, ESD uses the overlapping GW dates (with outlier removal); otherwise it may fall back to GW-only or GR3m-only inference.
+
+# Main stages (internal logic)
+
+1. **getTimingConcepts** — For each HIPPS episode, builds a person-level list of (person_id, episode_number, date range). Pulls pregnancy-related concepts from condition_occurrence, observation, measurement, and procedure_occurrence that fall within each episode’s evidence window, normalized to a common schema (e.g. domain_concept_id, domain_concept_start_date, value_col). Joins to ESD/PPS concept tables to get `min_month`, `max_month` and to classify concepts as GW or GR3m.
+
+2. **episodesWithGestationalTimingInfo** — For each episode (person_id, episode_number), aggregates the concept evidence into:
+   - A single “all_gt_info” string (GW dates or GR3m “max_pregnancy_start min_pregnancy_start” ranges),
+   - Flags: `gw_flag`, `gr3m_flag`,
+   - Then calls **getGtTiming()** on the parsed date list to obtain:
+     - **inferred_start_date** (single best start date),
+     - **precision_days** (spread in days or -1 for single GW),
+     - **precision_category** (e.g. week, month, three-month),
+     - **intervals_count**, **majority_overlap_count** (for logging/QA).
+
+   getGtTiming implements the GW/GR3m combination logic: when GR3m intersection exists, it checks whether GW concepts overlap that intersection; when only GW or only GR3m exists, it uses the appropriate single source.
+
+3. **mergedEpisodesWithMetadata** — Joins the ESD timing output (inferred_episode_start, precision_days, precision_category, etc.) back onto the HIPPS episodes. Harmonizes **final_outcome_category** and **inferred_episode_end** from HIP vs PPS when they disagree (e.g. by prioritizing the outcome that occurs second or the one with better date concordance). Adds:
+   - **gestational_age_days_calculated** (inferred_episode_end − inferred_episode_start),
+   - **term_duration_flag** (whether duration falls in expected term range for that outcome),
+   - **outcome_concordance_score**, **preterm_status_from_calculation**, etc.
+   Then deduplicates to one row per (person_id, inferred_episode_end, final_outcome_category) with `.keep_all = TRUE` so all columns (e.g. hip_end_date, pps_end_date) are retained for export.
+
+4. **Study period filter** — Keeps rows where inferred_episode_start/inferred_episode_end fall within `startDate`–`endDate` (or missing dates are allowed as per implementation).
+
+5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **ESD.rds** is written after step 2 (episode-level start inference only).
+
+# Outputs
+
+| File | Description |
+|------|--------------|
+| **final_pregnancy_episodes.rds** | Final episode table: one row per episode, with inferred_episode_start, inferred_episode_end, final_outcome_category, precision_days, precision_category, hip_end_date, pps_end_date, and other QA/concordance columns. |
+| **ESD.rds** | (Only when `debugMode = TRUE`) Episode-level ESD output before merging back to HIPPS metadata. |
+
+# Running ESD
+
+ESD is normally run as step 5 of `runPregnancyIdentifier()`. To run it alone (e.g. for debugging), ensure `outputDir` already contains `HIPPS_episodes.rds`:
+
+```{r, eval=FALSE}
+library(PregnancyIdentifier)
+cdm <- mockPregnancyCdm()
+# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains HIPPS_episodes.rds ...
+
+runEsd(
+  cdm       = cdm,
+  outputDir = "pregnancy_output",
+  startDate = as.Date("2000-01-01"),
+  endDate   = Sys.Date(),
+  logger    = makeLogger("pregnancy_output"),
+  debugMode = FALSE
+)
+# final_pregnancy_episodes.rds is written to pregnancy_output/
+```
+
+For the full pipeline, use `runPregnancyIdentifier()`; see the [pipeline overview](algorithm.html).
