@@ -39,7 +39,7 @@
 #' @param startDate Earliest episode date to include (as.Date). Default: \code{as.Date("1900-01-01")}.
 #' @param endDate Latest episode date to include (as.Date). Default: \code{Sys.Date()}.
 #' @param logger A \code{log4r} logger object for info/debug messages.
-#' @param debugMode (`logical(1)`) Should the ESD algorithm write intermidation datasets to the outputDir? `TRUE` or `FALSE` (default)
+#' @param debugMode (`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)
 #'
 #' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
 #'         The output contains one row per inferred pregnancy episode, with all metadata and gestational timing fields required for downstream analysis.
@@ -54,6 +54,12 @@ runEsd <- function(cdm,
   log4r::info(logger, "Running ESD")
 
   hippsEpisodes <- readRDS(file.path(outputDir, "hipps_episodes.rds"))
+  requiredHippsCols <- c("person_id", "episode_number", "pregnancy_start", "recorded_episode_start", "recorded_episode_end")
+  checkmate::assertNames(
+    names(hippsEpisodes),
+    must.include = requiredHippsCols,
+    .var.name = "hipps_episodes.rds column names"
+  )
 
   # 1) Pull gestational timing concepts (GW / GR3m candidates) for HIP episodes
   timingConceptsDf <- getTimingConcepts(
@@ -78,18 +84,131 @@ runEsd <- function(cdm,
     logger = logger
   )
 
-  # 4) Apply study period (keeps rows with missing inferred dates)
+  # 4) Apply study period: retain episodes that end on or before endDate and start on or after startDate;
+  #    episodes with NA inferred_episode_start or inferred_episode_end are retained.
   mergedDf <- mergedDf %>%
     dplyr::filter(
       (.data$inferred_episode_start >= startDate | is.na(.data$inferred_episode_start)) &
         (.data$inferred_episode_end <= endDate | is.na(.data$inferred_episode_end))
     )
 
+  # 5) Collapse overlapping episodes within person so no two episodes overlap in time
+  mergedDf <- collapseOverlappingEpisodesWithinPerson(
+    mergedDf,
+    start_col = "inferred_episode_start",
+    end_col = "inferred_episode_end",
+    logger = logger
+  )
+
   outputPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
   invisible(NULL)
+}
+
+# ============================================================
+# Collapse overlapping episodes within person
+# ============================================================
+
+#' Collapse overlapping pregnancy episodes within person so no two episodes
+#' overlap in time. A person cannot be pregnant twice at the same time;
+#' overlapping [start, end] intervals are merged into a single episode
+#' (union of intervals; non-date fields taken from the episode with the
+#' latest end). Rows with NA start or end are not merged with others.
+#'
+#' @param df Data frame with person_id and start/end date columns.
+#' @param start_col Name of episode start date column.
+#' @param end_col Name of episode end date column.
+#' @param logger log4r logger.
+#' @return Data frame with overlapping episodes per person merged; one row per
+#'   non-overlapping episode.
+#' @noRd
+collapseOverlappingEpisodesWithinPerson <- function(df,
+                                                    start_col = "inferred_episode_start",
+                                                    end_col = "inferred_episode_end",
+                                                    logger = NULL) {
+  if (nrow(df) == 0) return(df)
+  if (!start_col %in% names(df) || !end_col %in% names(df)) return(df)
+
+  nBefore <- nrow(df)
+  # Sort by person, start, end so we can merge consecutive overlapping intervals
+  df <- df %>%
+    dplyr::arrange(.data$person_id, .data[[start_col]], .data[[end_col]])
+
+  # Per-person collapse: merge consecutive rows when current start <= previous max end
+  collapseOnePerson <- function(one) {
+    if (nrow(one) == 0) return(one)
+    one <- one %>% dplyr::arrange(.data[[start_col]], .data[[end_col]])
+    run_start <- NA
+    run_end   <- NA
+    keep_idx  <- NA_integer_
+    out_rows  <- list()
+
+    for (i in seq_len(nrow(one))) {
+      si <- one[[start_col]][i]
+      ei <- one[[end_col]][i]
+      has_dates <- !is.na(si) && !is.na(ei)
+
+      if (!has_dates) {
+        if (!is.na(keep_idx)) {
+          r <- one[keep_idx, , drop = FALSE]
+          r[[start_col]] <- run_start
+          r[[end_col]]   <- run_end
+          out_rows[[length(out_rows) + 1]] <- r
+        }
+        out_rows[[length(out_rows) + 1]] <- one[i, , drop = FALSE]
+        keep_idx <- NA_integer_
+        run_start <- NA
+        run_end <- NA
+        next
+      }
+
+      if (is.na(keep_idx)) {
+        run_start <- si
+        run_end   <- ei
+        keep_idx  <- i
+        next
+      }
+
+      if (si <= run_end) {
+        run_start <- as.Date(min(as.numeric(run_start), as.numeric(si), na.rm = TRUE), origin = "1970-01-01")
+        run_end   <- as.Date(max(as.numeric(run_end), as.numeric(ei), na.rm = TRUE), origin = "1970-01-01")
+        if (ei >= one[[end_col]][keep_idx]) keep_idx <- i
+      } else {
+        r <- one[keep_idx, , drop = FALSE]
+        r[[start_col]] <- run_start
+        r[[end_col]]   <- run_end
+        out_rows[[length(out_rows) + 1]] <- r
+        run_start <- si
+        run_end   <- ei
+        keep_idx  <- i
+      }
+    }
+
+    if (!is.na(keep_idx)) {
+      r <- one[keep_idx, , drop = FALSE]
+      r[[start_col]] <- run_start
+      r[[end_col]]   <- run_end
+      out_rows[[length(out_rows) + 1]] <- r
+    }
+    dplyr::bind_rows(out_rows)
+  }
+
+  merged <- df %>%
+    dplyr::group_by(.data$person_id, .add = FALSE) %>%
+    dplyr::group_modify(~ collapseOnePerson(.x), .keep = TRUE) %>%
+    dplyr::ungroup()
+
+  nAfter <- nrow(merged)
+  if (nBefore > nAfter && !is.null(logger)) {
+    log4r::info(logger, sprintf(
+      "Collapsed overlapping episodes within person: %s -> %s rows (%s removed)",
+      nBefore, nAfter, nBefore - nAfter
+    ))
+  }
+
+  merged
 }
 
 # ============================================================
@@ -134,6 +253,12 @@ getTimingConcepts <- function(cdm,
     system.file("concepts", "ESD_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
     readxl::read_xlsx()
 
+  gestationalAgeConcepts <- utils::read.csv(
+    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+    colClasses = c(concept_id = "integer")
+  )
+  gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+
   conceptIdsToSearch <- as.integer(c(ppsConcepts$pps_concept_id, esdConcepts$esd_concept_id))
 
   # need to find concept names that contain 'gestation period' as well as the specific concepts
@@ -173,7 +298,8 @@ getTimingConcepts <- function(cdm,
     pullDomain(cdm$procedure_occurrence, "procedure_concept_id", "procedure_date", .data$concept_name)
   ) %>% purrr::reduce(dplyr::union_all)
 
-  # Clean/parse gestational-week style values and compute extrapolated pregnancy starts
+  # Clean/parse gestational-week style values and compute extrapolated pregnancy starts.
+  # Non-numeric or invalid values coerce to NA; suppressWarnings hides "NAs introduced by coercion".
   suppressWarnings({
 
   pregRelatedConcepts %>%
@@ -187,7 +313,6 @@ getTimingConcepts <- function(cdm,
       domain_value = stringr::str_replace(.data$domain_value, "Gestation period, ", ""),
       domain_value = stringr::str_replace(.data$domain_value, "gestation period, ", ""),
       domain_value = stringr::str_replace(.data$domain_value, " weeks", ""),
-      # TODO NA introduced by coercion here
       domain_value = as.integer(as.numeric(.data$domain_value))
     ) %>%
     dplyr::mutate(
@@ -195,7 +320,7 @@ getTimingConcepts <- function(cdm,
         (
           stringr::str_detect(tolower(.data$domain_concept_name), "gestation period,") |
             stringr::str_detect(tolower(.data$domain_concept_name), "gestational age") |
-            .data$domain_concept_id %in% c(3048230, 3002209, 3012266)
+            .data$domain_concept_id %in% .env$gestationalAgeConceptIds
         ) &
           (.data$domain_value <= 44 & .data$domain_value > 0),
         1, 0
@@ -339,8 +464,8 @@ getGtTiming <- function(datesList) {
 
   # Iterate over the datesList
   timingArr <- purrr::map(datesList[purrr::map_lgl(datesList, validate)], sort)
-  gwList   <- datesList[sapply(datesList, function(x) length(x) == 1)]
-  gr3mList <- datesList[sapply(datesList, function(x) length(x) == 2)]
+  gwList   <- datesList[purrr::map_lgl(datesList, function(x) length(x) == 1)]
+  gr3mList <- datesList[purrr::map_lgl(datesList, function(x) length(x) == 2)]
 
   inferredStartDate  <- as.Date("2000-01-01", format = "%Y-%m-%d")
   precisionDays       <- 999

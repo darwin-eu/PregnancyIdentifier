@@ -10,7 +10,9 @@ emptyHipEpisodes <- function() {
     estimated_start_date = as.Date(character(0)),
     visit_date = as.Date(character(0)),
     gest_date = as.Date(character(0)),
-    category = character(0)
+    category = character(0),
+    gest_flag = character(0),
+    episode_length = integer(0)
   )
 }
 

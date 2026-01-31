@@ -1,17 +1,18 @@
 #' Export pregnancy results into shareable summary CSVs
 #'
-#' Reads the patient-level pregnancy episode results produced by `runHipps()` (from
-#' `outputDir`), generates a set of de-identified summary tables (counts, age
-#' summaries, timing distributions, outcome counts, and date completeness checks),
-#' writes them to `exportDir`, and creates a ZIP archive of all exported files.
+#' Reads the patient-level pregnancy episode results produced by the pipeline (from
+#' `outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
+#' summary tables (counts, age summaries, timing distributions, outcome counts,
+#' and date completeness checks), writes them to `exportDir`, and creates a ZIP
+#' archive of all exported files.
 #'
 #' The export is intended for lightweight QA and sharing across sites. Small cell
 #' counts can be suppressed via `minCellCount`.
 #'
 #' @param cdm (`cdm_reference`) CDM reference used to compute exports that require
 #'   database tables (e.g., `person`, `observation_period`).
-#' @param outputDir (`character(1)`) Directory containing `runHipps()` outputs
-#'   (e.g., `identified_pregancy_episodes.rds`, logs, PPS concept counts).
+#' @param outputDir (`character(1)`) Directory containing pipeline outputs
+#'   (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).
 #' @param exportDir (`character(1)`) Directory where shareable CSVs (and ZIP) will
 #'   be written.
 #' @param minCellCount (`integer(1)`) Minimum count threshold for suppression of
@@ -33,7 +34,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   }
 
   # Copy key raw artifacts (if present)
-  for (f in c("PPS-concept_counts.csv", "log.txt")) {
+  for (f in c("pps_concept_counts.csv", "log.txt")) {
     src <- file.path(outputDir, f)
     if (file.exists(src)) file.copy(src, file.path(exportDir, f), overwrite = TRUE)
   }

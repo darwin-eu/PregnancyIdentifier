@@ -28,7 +28,7 @@
 #' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
 #' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
 #' @param logger Optional `log4r` logger object for emitting information and debug messages.
-#' @param debugMode (`Logical`) Should intermediat datasets be written to the output folder for debugging? TRUE or FALSE (default)
+#' @param debugMode (`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)
 #'
 #' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
 #'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.

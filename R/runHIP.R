@@ -31,7 +31,7 @@
 #' - "SA": miscarriage,
 #' - "DELIV": unspecified delivery
 #' - "ECT": ectopic pregnancy
-#' - "PREG": unspecified delivery
+#' - "PREG": unspecified/ongoing pregnancy
 #'
 #'
 #' @param cdm (`cdm_reference`) A cdm reference object from CDMConnector.
@@ -78,6 +78,12 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     return(cdm)
   }
 
+  gestationalAgeConcepts <- utils::read.csv(
+    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+    colClasses = c(concept_id = "integer")
+  )
+  gestConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+
   logInfo(logger, "Inserting matcho_outcome_limits table into cdm")
   matchoOutcomeLimits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx", mustWork = TRUE))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "matcho_outcome_limits", table = matchoOutcomeLimits)
@@ -96,7 +102,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # Stage 1: gestation episodes.
   # Inputs: cdm$preg_hip_records.
   # Outputs: cdm with new table cdm$gest_episodes_df (person_id, gest_id, episode, max_gest_date, max_gest_week, min_gest_date, min_gest_week, max_gest_start_date, min_gest_start_date, end_gest_date, etc.).
-  cdm <- buildGestationEpisodes(cdm, logger = logger)
+  cdm <- buildGestationEpisodes(cdm, logger = logger, gestConceptIds = gestConceptIds)
 
   # Stage 3: merge, clean, resolve overlaps, finalize length.
   # Inputs: outcomeEpisodesWithStartsTbl, cdm$gest_episodes_df.
@@ -110,7 +116,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   cdm <- resolveOverlaps(cdm, logger = logger)
   # Inputs: cdm$final_episodes_df, cdm$preg_hip_records (gestation visit-level derived inside).
   # Outputs: cdm with new table cdm$preg_hip_episodes (final; person_id, gest_date, category, visit_date, estimated_start_date, episode, gest_flag, episode_length).
-  cdm <- attachGestationAndLength(cdm)
+  cdm <- attachGestationAndLength(cdm, gestConceptIds = gestConceptIds)
 
   # 5) Collect final table and save RDS.
   hipDf <- cdm$preg_hip_episodes %>% dplyr::collect()
@@ -134,6 +140,13 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   return(cdm)
 }
 
+# Return min_days from Matcho outcome limits for (first_preg_category, outcome_preg_category).
+getMatchoMinDays <- function(cdm, firstPregCategory, outcomePregCategory) {
+  cdm$matcho_outcome_limits %>%
+    dplyr::filter(.data$first_preg_category == .env$firstPregCategory & .data$outcome_preg_category == .env$outcomePregCategory) %>%
+    dplyr::pull(.data$min_days)
+}
+
 # buildFinalOutcomeVisits()
 # Inputs: cdm$preg_hip_records (person_id, visit_date, category), cdm$matcho_outcome_limits.
 # Outputs: list with finalAbSaVisits, finalDelivVisits, finalEctVisits, finalSbVisits, finalLbVisits (each: person_id, outcome_date, outcome_category).
@@ -152,9 +165,7 @@ buildFinalOutcomeVisits <- function(cdm, logger) {
     logInfo(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cat <- categories[[i]]
     firstCat <- cat[1]
-    minDay <- cdm$matcho_outcome_limits %>%
-      dplyr::filter(.data$first_preg_category == .env$firstCat & .data$outcome_preg_category == .env$firstCat) %>%
-      dplyr::pull(.data$min_days)
+    minDay <- getMatchoMinDays(cdm, firstCat, firstCat)
     tempTbl <- cdm$preg_hip_records %>%
       dplyr::filter(.data$category %in% cat) %>%
       dplyr::group_by(.data$person_id, .data$visit_date) %>%
@@ -196,12 +207,8 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
   finalAbSaVisits <- finalVisitsList$finalAbSaVisits
   finalDelivVisits <- finalVisitsList$finalDelivVisits
   # Pull Matcho limits used across steps
-  beforeMinLbSb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "SB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinSbLb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "SB" & .data$outcome_preg_category == "LB") %>%
-    dplyr::pull(.data$min_days)
+  beforeMinLbSb <- getMatchoMinDays(cdm, "LB", "SB")
+  afterMinSbLb <- getMatchoMinDays(cdm, "SB", "LB")
 
   # SB: add stillbirth to livebirth (same logic as addStillbirth)
   sbCandidates <- finalSbVisits %>%
@@ -236,15 +243,9 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::distinct()
 
   # ECT: add ectopic (same logic as addEctopic)
-  beforeMinLbEct <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "ECT") %>%
-    dplyr::pull(.data$min_days)
-  afterMinEctLb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "LB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinEctSb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "SB") %>%
-    dplyr::pull(.data$min_days)
+  beforeMinLbEct <- getMatchoMinDays(cdm, "LB", "ECT")
+  afterMinEctLb <- getMatchoMinDays(cdm, "ECT", "LB")
+  afterMinEctSb <- getMatchoMinDays(cdm, "ECT", "SB")
   ectCandidates <- afterSb %>%
     dplyr::union_all(
       finalEctVisits %>% dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
@@ -280,21 +281,11 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::distinct()
 
   # AB/SA: add abortion (same logic as addAbortion)
-  beforeMinLbAb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "AB") %>%
-    dplyr::pull(.data$min_days)
-  beforeMinEctAb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "AB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinAbLb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "LB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinAbSb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "SB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinAbEct <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "AB" & .data$outcome_preg_category == "ECT") %>%
-    dplyr::pull(.data$min_days)
+  beforeMinLbAb <- getMatchoMinDays(cdm, "LB", "AB")
+  beforeMinEctAb <- getMatchoMinDays(cdm, "ECT", "AB")
+  afterMinAbLb <- getMatchoMinDays(cdm, "AB", "LB")
+  afterMinAbSb <- getMatchoMinDays(cdm, "AB", "SB")
+  afterMinAbEct <- getMatchoMinDays(cdm, "AB", "ECT")
   abSaTbl <- finalAbSaVisits %>%
     dplyr::mutate(tempCategory = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category))
   abCandidates <- afterEct %>%
@@ -337,21 +328,11 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::distinct()
 
   # DELIV: add delivery + LB/SB date adjustment (same logic as addDelivery)
-  beforeMinLbDeliv <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "LB" & .data$outcome_preg_category == "DELIV") %>%
-    dplyr::pull(.data$min_days)
-  beforeMinEctDeliv <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "ECT" & .data$outcome_preg_category == "DELIV") %>%
-    dplyr::pull(.data$min_days)
-  afterMinDelivLb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "LB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinDelivSb <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "SB") %>%
-    dplyr::pull(.data$min_days)
-  afterMinDelivEct <- cdm$matcho_outcome_limits %>%
-    dplyr::filter(.data$first_preg_category == "DELIV" & .data$outcome_preg_category == "ECT") %>%
-    dplyr::pull(.data$min_days)
+  beforeMinLbDeliv <- getMatchoMinDays(cdm, "LB", "DELIV")
+  beforeMinEctDeliv <- getMatchoMinDays(cdm, "ECT", "DELIV")
+  afterMinDelivLb <- getMatchoMinDays(cdm, "DELIV", "LB")
+  afterMinDelivSb <- getMatchoMinDays(cdm, "DELIV", "SB")
+  afterMinDelivEct <- getMatchoMinDays(cdm, "DELIV", "ECT")
   delivTbl <- afterAb %>%
     dplyr::union_all(
       finalDelivVisits %>% dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
@@ -440,12 +421,12 @@ estimateOutcomeStarts <- function(cdm) {
 # Outputs: cdm$gest_episodes_df (materialized). Columns: person_id, gestId, episode, max_gest_date, max_gest_week, min_gest_date, min_gest_week,
 #   max_gest_start_date, min_gest_start_date, end_gest_date, min_gest_date_2, max_gest_day, min_gest_day, gest_start_date_diff, etc.
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
-buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays = 28) {
+buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays = 28, gestConceptIds) {
   gestFromValue <- cdm$preg_hip_records %>%
     dplyr::filter(!is.na(.data$gest_value))
   gestationVisitsTbl <- cdm$preg_hip_records %>%
     dplyr::filter(
-      .data$concept_id %in% c(3002209, 3048230, 3012266),
+      .data$concept_id %in% .env$gestConceptIds,
       !is.na(.data$value_as_number),
       .data$value_as_number > 0,
       .data$value_as_number <= 44
@@ -770,7 +751,7 @@ resolveOverlaps <- function(cdm, logger = NULL) {
 # Inputs: finalEpisodes (person_id, final_episode_id, final_category, final_visit_date, final_start_date); preg_hip_records for gestation visit-level.
 # Outputs: cdm$preg_hip_episodes (materialized). Columns: person_id, gest_date, category, visit_date, estimated_start_date, episode, gest_flag, episode_length.
 # Column mutations: maps final_category->category, final_visit_date->visit_date, final_start_date->estimated_start_date; adds episode_order->episode once; gest_flag, episode_length.
-attachGestationAndLength <- function(cdm) {
+attachGestationAndLength <- function(cdm, gestConceptIds) {
   finalWithOrder <- cdm$final_episodes_df %>%
     dplyr::distinct(.data$person_id, .data$final_category, .data$final_visit_date, .data$final_start_date) %>%
     dplyr::group_by(.data$person_id) %>%
@@ -781,7 +762,7 @@ attachGestationAndLength <- function(cdm) {
     dplyr::filter(!is.na(.data$gest_value))
   gestationVisitsTbl <- cdm$preg_hip_records %>%
     dplyr::filter(
-      .data$concept_id %in% c(3002209, 3048230, 3012266),
+      .data$concept_id %in% .env$gestConceptIds,
       !is.na(.data$value_as_number),
       .data$value_as_number > 0,
       .data$value_as_number <= 44

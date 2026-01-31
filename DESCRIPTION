@@ -1,6 +1,6 @@
 Package: PregnancyIdentifier
 Type: Package
-Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms Partnership) CDM (Commen Data Model)
+Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
 Version: 3.0.0
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
@@ -9,7 +9,7 @@ Authors@R: c(
     person("Adam", "Black", email = "black@ohdsi.org", role = "aut", comment = c(ORCID = "0000-0001-5576-8701"))
   )
 Description: Identify pregnancy episodes in the OMOP CDM, based on
-  the HIPPS algorithm described in Smith et. all (2024) <doi:10.1093/jamia/ocae195>.
+  the HIPPS algorithm described in Smith et al. (2024) <doi:10.1093/jamia/ocae195>.
 License: Apache License (>= 2)
 Encoding: UTF-8
 LazyData: true

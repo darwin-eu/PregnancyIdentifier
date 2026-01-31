@@ -36,7 +36,7 @@ makeLogger <- function(outputDir) {
   return(logger)
 }
 
-#' Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD + export)
+#' Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD, optionally export)
 #'
 #' Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
 #' implementation at https://github.com/louisahsmith/allofus-pregnancy/) on an
@@ -50,8 +50,8 @@ makeLogger <- function(outputDir) {
 #' 4) merge (`mergeHipps()`): merges HIP and PPS into combined HIPPS episodes,
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
-#' 6) export (`exportPregnancies()`): writes shareable summary outputs (with optional
-#'    small-cell suppression).
+#' 6) optionally, export (`exportPregnancies()`): writes shareable summary outputs
+#'    (with optional small-cell suppression) when `exportPregnancies = TRUE`.
 #'
 #' @param cdm (`cdm_reference`) A CDM reference created by `CDMConnector` pointing
 #'   to an OMOP CDM instance.
@@ -64,15 +64,19 @@ makeLogger <- function(outputDir) {
 #' @param justGestation (`logical(1)`) If `TRUE`, allow episodes consisting only of
 #'   gestational concepts (HIP behavior). Passed through to `runHip()`.
 #' @param minCellCount (`integer(1)`) Minimum cell count used for suppression in
-#'   exported summaries. Passed through to `exportPregnancies()`.
+#'   exported summaries. Passed through to `exportPregnancies()` when `runExport = TRUE`.
 #' @param debugMode (`logical(1)`) Should extra intermediate datasets be written to
 #'   the outputDir for debugging? `TRUE` or `FALSE` (default)
+#' @param runExport (`logical(1)`) If `TRUE`, run `exportPregnancies()` after
+#'   ESD and write shareable CSVs and ZIP to `file.path(outputDir, "export")`.
+#'   Default `FALSE`.
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
 #'   - Writes intermediate RDS artifacts under `outputDir`.
-#'   - Writes shareable exports under `file.path(outputDir, "export")`.
+#'   - If `runExport = TRUE`, writes shareable exports under
+#'     `file.path(outputDir, "export")`.
 #' @export
 runPregnancyIdentifier <- function(cdm,
                                    outputDir,
@@ -80,7 +84,8 @@ runPregnancyIdentifier <- function(cdm,
                                    endDate = Sys.Date(),
                                    justGestation = TRUE,
                                    minCellCount = 5L,
-                                   debugMode = FALSE) {
+                                   debugMode = FALSE,
+                                   runExport = FALSE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
@@ -88,6 +93,7 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
+  checkmate::assertLogical(runExport, len = 1, any.missing = FALSE)
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
 
@@ -177,6 +183,16 @@ runPregnancyIdentifier <- function(cdm,
     logger = logger,
     debugMode = debugMode
   )
+
+  if (runExport) {
+    log4r::info(logger, "Running `exportPregnancies`")
+    exportPregnancies(
+      cdm = cdm,
+      outputDir = outputDir,
+      exportDir = file.path(outputDir, "export"),
+      minCellCount = minCellCount
+    )
+  }
 
   invisible(NULL)
 }
