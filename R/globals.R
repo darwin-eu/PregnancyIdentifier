@@ -27,7 +27,7 @@ utils::globalVariables(
     "min_gest_start_date",
     "outcome_date",
     "outcome_based",
-    "overlapCountDict",
+    "overlap_count_dict",
     "recorded_episode_end",
     "removed_outcome",
     "start_date",

@@ -245,17 +245,17 @@ addMergedEpisodeDetails <- function(mergedDf) {
       )
     ) %>%
     dplyr::rename(
-      HIP_end_date = "pregnancy_end",
-      HIP_outcome_category = "category",
-      PPS_outcome_category = "algo2_category",
-      PPS_end_date = "algo2_outcome_date",
+      hip_end_date = "pregnancy_end",
+      hip_outcome_category = "category",
+      pps_outcome_category = "algo2_category",
+      pps_end_date = "algo2_outcome_date",
       recorded_episode_start = "merged_episode_start",
       recorded_episode_end   = "merged_episode_end",
       recorded_episode_length = "merged_episode_length"
     ) %>%
     dplyr::mutate(
-      HIP_flag = dplyr::if_else(!is.na(.data$algo1_id), 1L, 0L),
-      PPS_flag = dplyr::if_else(!is.na(.data$algo2_id), 1L, 0L)
+      hip_flag = dplyr::if_else(!is.na(.data$algo1_id), 1L, 0L),
+      pps_flag = dplyr::if_else(!is.na(.data$algo2_id), 1L, 0L)
     ) %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::arrange(.data$recorded_episode_start, .by_group = TRUE) %>%

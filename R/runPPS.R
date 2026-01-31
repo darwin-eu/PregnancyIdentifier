@@ -311,34 +311,34 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     dplyr::filter(purrr::map_lgl(.data$outcomes_list, ~ length(.x) > 0))
 
   # Matcho hierarchy (priority order) for PPS outcomes
-  outcomeOrder <- c("LB", "SB", "ECT", "SA", "AB", "DELIV")
-  dateCols <- paste0(outcomeOrder, "_delivery_date")
+  outcome_order <- c("LB", "SB", "ECT", "SA", "AB", "DELIV")
+  date_cols <- paste0(tolower(outcome_order), "_delivery_date")
 
   outcomesListDf %>%
     dplyr::mutate(
       # Extract first matching date per outcome category
       !!!rlang::set_names(
-        purrr::map(outcomeOrder, \(cat)
+        purrr::map(outcome_order, \(cat)
                    rlang::expr(purrr::map_chr(.data$outcomes_list, getOutcomeDate, !!cat))
         ),
-        dateCols
+        date_cols
       ),
       # Choose one category/date by hierarchy
       algo2_category = dplyr::case_when(
-        !is.na(.data$LB_delivery_date)    ~ "LB",
-        !is.na(.data$SB_delivery_date)    ~ "SB",
-        !is.na(.data$ECT_delivery_date)   ~ "ECT",
-        !is.na(.data$SA_delivery_date)    ~ "SA",
-        !is.na(.data$AB_delivery_date)    ~ "AB",
-        !is.na(.data$DELIV_delivery_date) ~ "DELIV"
+        !is.na(.data$lb_delivery_date)    ~ "LB",
+        !is.na(.data$sb_delivery_date)    ~ "SB",
+        !is.na(.data$ect_delivery_date)   ~ "ECT",
+        !is.na(.data$sa_delivery_date)    ~ "SA",
+        !is.na(.data$ab_delivery_date)    ~ "AB",
+        !is.na(.data$deliv_delivery_date) ~ "DELIV"
       ),
       algo2_outcome_date = lubridate::ymd(dplyr::case_when(
-        !is.na(.data$LB_delivery_date)    ~ .data$LB_delivery_date,
-        !is.na(.data$SB_delivery_date)    ~ .data$SB_delivery_date,
-        !is.na(.data$ECT_delivery_date)   ~ .data$ECT_delivery_date,
-        !is.na(.data$SA_delivery_date)    ~ .data$SA_delivery_date,
-        !is.na(.data$AB_delivery_date)    ~ .data$AB_delivery_date,
-        !is.na(.data$DELIV_delivery_date) ~ .data$DELIV_delivery_date
+        !is.na(.data$lb_delivery_date)    ~ .data$lb_delivery_date,
+        !is.na(.data$sb_delivery_date)    ~ .data$sb_delivery_date,
+        !is.na(.data$ect_delivery_date)   ~ .data$ect_delivery_date,
+        !is.na(.data$sa_delivery_date)    ~ .data$sa_delivery_date,
+        !is.na(.data$ab_delivery_date)    ~ .data$ab_delivery_date,
+        !is.na(.data$deliv_delivery_date) ~ .data$deliv_delivery_date
       ))
     )
 }

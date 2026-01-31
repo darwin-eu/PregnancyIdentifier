@@ -568,10 +568,9 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
   # Add other pregnancy and demographic related info for each episode.
   if (nrow(hippsEpisodes) == 0) {
     log4r::info(logger, "No HIPPS episodes; returning 0-row final schema.")
-    return(emptyFinalPregnancyEpisodes() %>% dplyr::rename_with(~ tolower(.)))
+    return(emptyFinalPregnancyEpisodes())
   }
 
-  hippsEpisodes <- hippsEpisodes %>% dplyr::rename_with(~ tolower(.))
   timingDf <- episodes_with_gestational_timing_info_df %>%
     dplyr::select(-"gt_info_list")
   termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
