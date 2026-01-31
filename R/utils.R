@@ -211,7 +211,7 @@ cdmCommentContents <- function(cdm, personIds = NULL) {
     stop("RStudio is required (rstudioapi is not available in this session).", call. = FALSE)
   }
 
-  if (!is.null(person_ids) && !is.numeric(person_ids)) {
+  if (!is.null(personIds) && !is.numeric(personIds)) {
     stop("`person_ids` must be a numeric vector (or NULL).", call. = FALSE)
   }
 
@@ -219,8 +219,8 @@ cdmCommentContents <- function(cdm, personIds = NULL) {
   flat <- CDMConnector::cdmFlatten(cdm) |>
     dplyr::collect()
 
-  if (!is.null(person_ids)) {
-    flat <- dplyr::filter(flat, .data$person_id %in% person_ids)
+  if (!is.null(personIds)) {
+    flat <- dplyr::filter(flat, .data$person_id %in% personIds)
   }
 
   flat <- dplyr::arrange(

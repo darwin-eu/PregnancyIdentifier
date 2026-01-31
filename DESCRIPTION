@@ -41,5 +41,6 @@ Suggests:
     testthat (>= 3.0.0),
     omopgenerics,
     knitr,
-    rmarkdown
+    rmarkdown,
+    rstudioapi
 VignetteBuilder: knitr
