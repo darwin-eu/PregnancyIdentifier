@@ -535,9 +535,13 @@ buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays 
     dplyr::mutate(
       gest_start_date_diff = !!CDMConnector::datediff("min_gest_start_date", "max_gest_start_date", "day")
     )
-  cdm$gest_episodes_df <- joined %>%
-    dplyr::select(-.data$max_gest_start_date_further) %>%
-    dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
+  suppressWarnings({
+    # SQL it quite long but should be ok.
+    cdm$gest_episodes_df <- joined %>%
+      dplyr::select(-.data$max_gest_start_date_further) %>%
+      dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
+  })
+
   if (!is.null(logger)) logInfo(logger, "Stage B: gestation episodes materialized")
   cdm
 }
