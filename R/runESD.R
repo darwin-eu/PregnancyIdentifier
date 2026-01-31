@@ -230,7 +230,8 @@ findIntersection <- function(intervals) {
 
   intervalsDf <- intervalsDf %>%
     dplyr::mutate(dplyr::across(dplyr::everything(), ~as.Date(., format = "%Y-%m-%d"))) %>%
-    dplyr::arrange(.data$V1)
+    dplyr::rename(v1 = "V1", v2 = "V2") %>%
+    dplyr::arrange(.data$v1)
 
   # First remove outlier ranges via the IQR*1.5 approach.
   # Outlier ranges are determined by the number of overlaps each range has with other ranges.
@@ -252,18 +253,18 @@ findIntersection <- function(intervals) {
   }
 
   intervalsDf <- intervalsDf %>%
-    dplyr::mutate(overlapCountDict = overlapCount)
+    dplyr::mutate(overlap_count_dict = overlapCount)
 
   countsQ1 <- stats::quantile(overlapCount, 0.25)
   countsQ3 <- stats::quantile(overlapCount, 0.75)
   outlierThreshold <- abs(countsQ1 - (countsQ3 - countsQ1) * 1.5)
 
   filteredIntervals <- if (outlierThreshold == 0) {
-    dplyr::filter(intervalsDf, .data$overlapCountDict > outlierThreshold)
+    dplyr::filter(intervalsDf, .data$overlap_count_dict > outlierThreshold)
   } else {
-    dplyr::filter(intervalsDf, .data$overlapCountDict >= outlierThreshold)
+    dplyr::filter(intervalsDf, .data$overlap_count_dict >= outlierThreshold)
   } %>%
-    dplyr::arrange(dplyr::desc(.data$overlapCountDict))
+    dplyr::arrange(dplyr::desc(.data$overlap_count_dict))
 
   # Now the outliers are removed, proceed with obtaining the overlaps
   N <- nrow(filteredIntervals)
@@ -281,7 +282,7 @@ findIntersection <- function(intervals) {
 
   if (N == 0) {
     # If everything is filtered out, take the interval with the most overlaps
-    top <- intervalsDf[order(intervalsDf$overlapCountDict, decreasing = TRUE), , drop = FALSE][1, ]
+    top <- intervalsDf[order(intervalsDf$overlap_count_dict, decreasing = TRUE), , drop = FALSE][1, ]
     return(makeResult(top[1, 2], top[1, 1], top[1, 2], top[1, 1]))
   }
 
@@ -420,8 +421,8 @@ getGtTiming <- function(dateslist) {
     inferred_start_date = inferred_start_date,
     precision_days = precision_days,
     precision_category = precision_category,
-    intervalsCount = intervalsCount,
-    majorityOverlapCount = majorityOverlapCount
+    intervals_count = intervalsCount,
+    majority_overlap_count = majorityOverlapCount
   )
 }
 
@@ -439,21 +440,21 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     return(dplyr::tibble(
       person_id = integer(0),
       episode_number = integer(0),
-      GT_info_list = character(0),
-      GW_flag = numeric(0),
-      GR3m_flag = numeric(0),
+      gt_info_list = character(0),
+      gw_flag = numeric(0),
+      gr3m_flag = numeric(0),
       inferred_episode_start = as.Date(character(0)),
       precision_days = numeric(0),
       precision_category = character(0),
-      intervalsCount = numeric(0),
-      majorityOverlapCount = numeric(0)
+      intervals_count = numeric(0),
+      majority_overlap_count = numeric(0)
     ))
   }
 
   timingDf <- get_timing_concepts_df %>%
     dplyr::mutate(
       domain_concept_id = as.integer(.data$domain_concept_id),
-      GT_type = dplyr::case_when(
+      gt_type = dplyr::case_when(
         stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period") |
           .data$domain_concept_id %in% local(esdConcepts2$concept_id) ~ "GW",
         !is.na(.data$min_month) ~ "GR3m",
@@ -464,15 +465,15 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
   # Add on the max and min pregnancy start dates predicted by each concept (GR3m only)
   timingDf <- timingDf %>%
     dplyr::mutate(
-      min_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$min_month * 30.4), NA_real_),
-      max_days_to_pregnancy_start = dplyr::if_else(.data$GT_type == "GR3m", round(.data$max_month * 30.4), NA_real_),
+      min_days_to_pregnancy_start = dplyr::if_else(.data$gt_type == "GR3m", round(.data$min_month * 30.4), NA_real_),
+      max_days_to_pregnancy_start = dplyr::if_else(.data$gt_type == "GR3m", round(.data$max_month * 30.4), NA_real_),
       min_pregnancy_start = dplyr::if_else(
-        .data$GT_type == "GR3m",
+        .data$gt_type == "GR3m",
         .data$domain_concept_start_date - as.integer(.data$min_days_to_pregnancy_start),
         lubridate::NA_Date_
       ),
       max_pregnancy_start = dplyr::if_else(
-        .data$GT_type == "GR3m",
+        .data$gt_type == "GR3m",
         .data$domain_concept_start_date - as.integer(.data$max_days_to_pregnancy_start),
         lubridate::NA_Date_
       )
@@ -482,12 +483,12 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
   # Remove type if GW values are null (preserves original logic)
   timingDf <- timingDf %>%
     dplyr::mutate(
-      GT_type = dplyr::case_when(
-        .data$GT_type == "GW" & (is.na(.data$domain_value) | is.na(.data$extrapolated_preg_start)) ~ NA_character_,
-        TRUE ~ .data$GT_type
+      gt_type = dplyr::case_when(
+        .data$gt_type == "GW" & (is.na(.data$domain_value) | is.na(.data$extrapolated_preg_start)) ~ NA_character_,
+        TRUE ~ .data$gt_type
       )
     ) %>%
-    dplyr::filter(.data$GT_type %in% c("GW", "GR3m"))
+    dplyr::filter(.data$gt_type %in% c("GW", "GR3m"))
 
   # Build the date ranges used downstream:
   # - GR3m uses "max_pregnancy_start min_pregnancy_start"
@@ -501,10 +502,10 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
         .data$extrapolated_preg_start
       ),
       extr = .data$extrapolated_preg_start,
-      all_GT_info = dplyr::if_else(is.na(.data$extr), .data$preg_start_range, .data$extr),
+      all_gt_info = dplyr::if_else(is.na(.data$extr), .data$preg_start_range, .data$extr),
       # ensure GW concepts are treated as a single entity (important for deduping)
       domain_concept_name_rollup = dplyr::if_else(
-        !is.na(.data$domain_value) & .data$GT_type == "GW",
+        !is.na(.data$domain_value) & .data$gt_type == "GW",
         "Gestation Week",
         .data$domain_concept_name
       )
@@ -516,7 +517,7 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     dplyr::arrange(.data$person_id, .data$episode_number, dplyr::desc(.data$domain_value)) %>%
     dplyr::group_by(
       .data$person_id, .data$episode_number,
-      .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$GT_type
+      .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$gt_type
     ) %>%
     dplyr::slice(1) %>%
     dplyr::ungroup()
@@ -525,36 +526,36 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
   summaryDf <- timingDf %>%
     dplyr::group_by(.data$person_id, .data$episode_number) %>%
     dplyr::summarise(
-      GT_info_list = purrr::map(list(.data$all_GT_info), ~ stringr::str_split(.x, " ")),
-      GW_flag  = as.numeric(any(.data$GT_type == "GW")),
-      GR3m_flag = as.numeric(any(.data$GT_type == "GR3m")),
+      gt_info_list = purrr::map(list(.data$all_gt_info), ~ stringr::str_split(.x, " ")),
+      gw_flag  = as.numeric(any(.data$gt_type == "GW")),
+      gr3m_flag = as.numeric(any(.data$gt_type == "GR3m")),
       .groups = "drop"
     ) %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
-      final_timing_info = list(getGtTiming(.data$GT_info_list)),
+      final_timing_info = list(getGtTiming(.data$gt_info_list)),
       inferred_episode_start = .data$final_timing_info$inferred_start_date,
       precision_days = .data$final_timing_info$precision_days,
       precision_category = .data$final_timing_info$precision_category,
-      intervalsCount = .data$final_timing_info$intervalsCount,
-      majorityOverlapCount = .data$final_timing_info$majorityOverlapCount
+      intervals_count = .data$final_timing_info$intervals_count,
+      majority_overlap_count = .data$final_timing_info$majority_overlap_count
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select(
-      "person_id", "episode_number", "GT_info_list", "GW_flag", "GR3m_flag",
+      "person_id", "episode_number", "gt_info_list", "gw_flag", "gr3m_flag",
       "inferred_episode_start", "precision_days", "precision_category",
-      "intervalsCount", "majorityOverlapCount"
+      "intervals_count", "majority_overlap_count"
     )
 
   # print the GW and GR3m concept overlap information to log
-  majorityOverlapCountTotal <- sum(summaryDf$majorityOverlapCount, na.rm = TRUE)
-  intervalsCountTotal <- sum(summaryDf$intervalsCount, na.rm = TRUE)
-  percMajority <- (majorityOverlapCountTotal / intervalsCountTotal) * 100
+  majority_overlap_count_total <- sum(summaryDf$majority_overlap_count, na.rm = TRUE)
+  intervals_count_total <- sum(summaryDf$intervals_count, na.rm = TRUE)
+  perc_majority <- if (intervals_count_total > 0) (majority_overlap_count_total / intervals_count_total) * 100 else 0
 
-  log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", intervalsCountTotal))
+  log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", intervals_count_total))
   log4r::info(logger, sprintf(
     "Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s",
-    percMajority
+    perc_majority
   ))
 
   summaryDf
@@ -567,85 +568,86 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
   # Add other pregnancy and demographic related info for each episode.
   if (nrow(hippsEpisodes) == 0) {
     log4r::info(logger, "No HIPPS episodes; returning 0-row final schema.")
-    return(emptyFinalPregnancyEpisodes())
+    return(emptyFinalPregnancyEpisodes() %>% dplyr::rename_with(~ tolower(.)))
   }
 
+  hippsEpisodes <- hippsEpisodes %>% dplyr::rename_with(~ tolower(.))
   timingDf <- episodes_with_gestational_timing_info_df %>%
-    dplyr::select(-"GT_info_list")
+    dplyr::select(-"gt_info_list")
   termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
 
   finalDf <- hippsEpisodes %>%
     dplyr::left_join(timingDf, by = c("person_id", "episode_number")) %>%
     dplyr::distinct() %>%
     dplyr::mutate(
-      # Add missing GW_flag and GR3m_flag
-      GW_flag  = dplyr::coalesce(.data$GW_flag,  0),
-      GR3m_flag = dplyr::coalesce(.data$GR3m_flag, 0)
+      # Add missing gw_flag and gr3m_flag
+      gw_flag  = dplyr::coalesce(.data$gw_flag,  0),
+      gr3m_flag = dplyr::coalesce(.data$gr3m_flag, 0)
     )
 
   # Check if categories match between algorithms and dates are within 14 days of each other for outcomes only
   finalDf <- finalDf %>%
     dplyr::mutate(
       outcome_match = dplyr::case_when(
-        .data$HIP_outcome_category == .data$PPS_outcome_category &
-        .data$HIP_outcome_category != "PREG" &
-        abs(as.numeric(difftime(.data$HIP_end_date, .data$PPS_end_date, units = "days"))) <= 14 ~ 1,
-        .data$HIP_outcome_category == "PREG" & .data$PPS_outcome_category == "PREG" ~ 1,
+        .data$hip_outcome_category == .data$pps_outcome_category &
+        .data$hip_outcome_category != "PREG" &
+        abs(as.numeric(difftime(.data$hip_end_date, .data$pps_end_date, units = "days"))) <= 14 ~ 1,
+        .data$hip_outcome_category == "PREG" & .data$pps_outcome_category == "PREG" ~ 1,
         TRUE ~ 0
       )
     ) %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::arrange(.data$episode_number, .by_group = TRUE) %>%
-    dplyr::mutate(next_HIP_outcome = dplyr::lead(.data$HIP_outcome_category)) %>%
+    dplyr::mutate(next_hip_outcome = dplyr::lead(.data$hip_outcome_category)) %>%
     dplyr::ungroup()
 
   # If categories don't match, take the category that occurs second (outcome category from HIP algorithm is prioritized)
   finalDf <- finalDf %>%
     dplyr::mutate(
       final_outcome_category = dplyr::case_when(
-        .data$outcome_match == 1 ~ .data$HIP_outcome_category,
+        .data$outcome_match == 1 ~ .data$hip_outcome_category,
 
-        .data$outcome_match == 0 & is.na(.data$PPS_outcome_category) ~ .data$HIP_outcome_category,
-        .data$outcome_match == 0 & is.na(.data$HIP_outcome_category) ~ .data$PPS_outcome_category,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_outcome_category,
+        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_outcome_category,
 
         # if they don't match, but the hip end date is not within 7 days before the PPS outcome
         # add: go with HIP if the PPS is the next one and there's sufficient separation
         .data$outcome_match == 0 &
-          .data$HIP_outcome_category != "PREG" &
-          .data$PPS_outcome_category != "PREG" &
-          !is.na(.data$next_HIP_outcome) &
-          .data$PPS_outcome_category == .data$next_HIP_outcome &
-          .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(14) ~ .data$HIP_outcome_category,
+          .data$hip_outcome_category != "PREG" &
+          .data$pps_outcome_category != "PREG" &
+          !is.na(.data$next_hip_outcome) &
+          .data$pps_outcome_category == .data$next_hip_outcome &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_outcome_category,
 
         # but otherwise go with PPS
         .data$outcome_match == 0 &
-          .data$HIP_outcome_category != "PREG" &
-          .data$PPS_outcome_category != "PREG" &
-          .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(7) ~ .data$PPS_outcome_category,
+          .data$hip_outcome_category != "PREG" &
+          .data$pps_outcome_category != "PREG" &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_outcome_category,
 
         # or if they're similar timing go with HIP
-        TRUE ~ .data$HIP_outcome_category
+        TRUE ~ .data$hip_outcome_category
       ),
       # If categories don't match, take the end date that occurs second (outcome date from HIP is prioritized)
       inferred_episode_end = dplyr::case_when(
-        .data$outcome_match == 1 ~ .data$HIP_end_date,
-        .data$outcome_match == 0 & is.na(.data$PPS_outcome_category) ~ .data$HIP_end_date,
-        .data$outcome_match == 0 & is.na(.data$HIP_outcome_category) ~ .data$PPS_end_date,
+        .data$outcome_match == 1 ~ .data$hip_end_date,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_end_date,
+        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_end_date,
 
         .data$outcome_match == 0 &
-          .data$HIP_outcome_category != "PREG" &
-          .data$PPS_outcome_category != "PREG" &
-          !is.na(.data$next_HIP_outcome) &
-          .data$PPS_outcome_category == .data$next_HIP_outcome &
-          .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(14) ~ .data$HIP_end_date,
+          .data$hip_outcome_category != "PREG" &
+          .data$pps_outcome_category != "PREG" &
+          !is.na(.data$next_hip_outcome) &
+          .data$pps_outcome_category == .data$next_hip_outcome &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_end_date,
 
         .data$outcome_match == 0 &
-          .data$HIP_outcome_category != "PREG" &
-          .data$PPS_outcome_category != "PREG" &
-          .data$HIP_end_date <= .data$PPS_end_date - lubridate::days(7) ~ .data$PPS_end_date,
+          .data$hip_outcome_category != "PREG" &
+          .data$pps_outcome_category != "PREG" &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_end_date,
 
-        !is.na(.data$HIP_end_date) ~ .data$HIP_end_date,
-        !is.na(.data$PPS_end_date) ~ .data$PPS_end_date
+        !is.na(.data$hip_end_date) ~ .data$hip_end_date,
+        !is.na(.data$pps_end_date) ~ .data$pps_end_date
       )
     )
 
@@ -688,8 +690,8 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
       ),
       # Add outcome concordance score - 2 highly concordant, 1 somewhat concordant, 0 not accurate/not enough info
       outcome_concordance_score = dplyr::case_when(
-        .data$outcome_match == 1 & .data$term_duration_flag == 1 & .data$GW_flag == 1 ~ 2,
-        .data$outcome_match == 0 & .data$term_duration_flag == 1 & .data$GW_flag == 1 ~ 1,
+        .data$outcome_match == 1 & .data$term_duration_flag == 1 & .data$gw_flag == 1 ~ 2,
+        .data$outcome_match == 0 & .data$term_duration_flag == 1 & .data$gw_flag == 1 ~ 1,
         TRUE ~ 0
       ),
       # Calculate preterm status from calculation
