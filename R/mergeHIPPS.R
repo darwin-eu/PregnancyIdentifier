@@ -154,11 +154,11 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
         (.data$algo2_id_dup == 1 & !is.na(.data$algo1_id))
     )
 
-  score <- function(df, penalize_missing_outcome = FALSE) {
+  score <- function(df, penalizeMissingOutcome = FALSE) {
     df %>%
       dplyr::mutate(
         date_diff = abs(as.numeric(difftime(.data$pregnancy_end, .data$episode_max_date, units = "days"))),
-        date_diff = if (penalize_missing_outcome)
+        date_diff = if (penalizeMissingOutcome)
           ifelse(is.na(.data$algo2_category), 10000, .data$date_diff) else .data$date_diff,
         pps_days = abs(as.numeric(difftime(.data$episode_max_date, .data$episode_min_date, units = "days"))),
         # mark implausible PPS episodes so they lose tie-breaks
@@ -166,12 +166,12 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
       )
   }
 
-  pickBest <- function(df, id, penalize_missing_outcome, with_ties_max) {
+  pickBest <- function(df, id, penalizeMissingOutcome, withTiesMax) {
     df %>%
-      score(penalize_missing_outcome) %>%
+      score(penalizeMissingOutcome) %>%
       dplyr::group_by(.data[[id]]) %>%
       dplyr::slice_min(.data$date_diff, n = 1, with_ties = TRUE) %>%
-      dplyr::slice_max(.data$pps_days,  n = 1, with_ties = with_ties_max) %>%
+      dplyr::slice_max(.data$pps_days,  n = 1, with_ties = withTiesMax) %>%
       dplyr::ungroup()
   }
 
@@ -189,8 +189,8 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
 
   # Resolve duplicates in rounds (keeps original "A..E" repeated tie-breaking idea)
   best <- dplyr::bind_rows(
-    pickBest(dupDf %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalize_missing_outcome = TRUE,  with_ties_max = TRUE),
-    pickBest(dupDf %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalize_missing_outcome = FALSE, with_ties_max = TRUE)
+    pickBest(dupDf %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalizeMissingOutcome = TRUE,  withTiesMax = TRUE),
+    pickBest(dupDf %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalizeMissingOutcome = FALSE, withTiesMax = TRUE)
   ) %>%
     recomputeDup()
 
@@ -199,8 +199,8 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
 
   for (i in 1:4) {
     best <- dplyr::bind_rows(
-      pickBest(best %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalize_missing_outcome = TRUE,  with_ties_max = FALSE),
-      pickBest(best %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalize_missing_outcome = FALSE, with_ties_max = FALSE)
+      pickBest(best %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalizeMissingOutcome = TRUE,  withTiesMax = FALSE),
+      pickBest(best %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalizeMissingOutcome = FALSE, withTiesMax = FALSE)
     ) %>%
       recomputeDup()
 

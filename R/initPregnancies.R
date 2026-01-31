@@ -80,13 +80,13 @@ initPregnancies <- function(cdm,
   logInfo(logger, "Added preg_hip_concepts, preg_pps_concepts, preg_matcho_term_durations to the CDM")
 
   # ---- helper: pull person_id + date + concept_id from an OMOP domain ----
-  pullDomain <- function(tbl, concept_col, date_col, extra = list()) {
+  pullDomain <- function(tbl, conceptCol, dateCol, extra = list()) {
     tbl |>
-      dplyr::filter(.data[[date_col]] >= startDate, .data[[date_col]] <= endDate) |>
+      dplyr::filter(.data[[dateCol]] >= startDate, .data[[dateCol]] <= endDate) |>
       dplyr::transmute(
         person_id   = .data$person_id,
-        concept_id  = .data[[concept_col]],
-        event_date  = .data[[date_col]],
+        concept_id  = .data[[conceptCol]],
+        event_date  = .data[[dateCol]],
         !!!extra
       )
   }
@@ -100,16 +100,16 @@ initPregnancies <- function(cdm,
     dplyr::select(concept_id, category)
 
   hipSpecs <- tibble::tribble(
-    ~tbl,                         ~concept_col,               ~date_col,               ~value_col,
+    ~tbl,                         ~conceptCol,               ~dateCol,               ~valueCol,
     cdm$condition_occurrence,     "condition_concept_id",     "condition_start_date",  NA_character_,
     cdm$procedure_occurrence,     "procedure_concept_id",     "procedure_date",        NA_character_,
     cdm$observation,              "observation_concept_id",   "observation_date",      NA_character_,
     cdm$measurement,              "measurement_concept_id",   "measurement_date",      "value_as_number"
   )
 
-  hipEvents <- purrr::pmap(hipSpecs, function(tbl, concept_col, date_col, value_col) {
-    extra <- if (!is.na(value_col)) list(value_as_number = rlang::sym(value_col)) else list(value_as_number = NA_real_)
-    pullDomain(tbl, concept_col, date_col, extra)
+  hipEvents <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
+    extra <- if (!is.na(valueCol)) list(value_as_number = rlang::sym(valueCol)) else list(value_as_number = NA_real_)
+    pullDomain(tbl, conceptCol, dateCol, extra)
   }) |>
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(hip, by = "concept_id") |>
@@ -132,14 +132,14 @@ initPregnancies <- function(cdm,
   logInfo(logger, "Pulling PPS concept records from OMOP domain tables")
 
   ppsSpecs <- tibble::tribble(
-    ~tbl,                     ~concept_col,              ~date_col,
+    ~tbl,                     ~conceptCol,              ~dateCol,
     cdm$condition_occurrence, "condition_concept_id",    "condition_start_date",
     cdm$procedure_occurrence, "procedure_concept_id",    "procedure_date",
     cdm$measurement,          "measurement_concept_id",  "measurement_date"
   )
 
-  ppsEvents <- purrr::pmap(ppsSpecs, function(tbl, concept_col, date_col) {
-    pullDomain(tbl, concept_col, date_col) |>
+  ppsEvents <- purrr::pmap(ppsSpecs, function(tbl, conceptCol, dateCol) {
+    pullDomain(tbl, conceptCol, dateCol) |>
       dplyr::transmute(
         person_id,
         pps_concept_start_date = .data$event_date,

@@ -132,18 +132,18 @@ dfToComment <- function(df) {
 #' Flatten a CDM, optionally filter by person_id, and print as an R comment block
 #'
 #' @param cdm A CDM reference object
-#' @param person_ids Optional numeric vector of person_id values to filter on (default NULL = no filter)
+#' @param personIds Optional numeric vector of person_id values to filter on (default NULL = no filter)
 #' @return Invisibly returns the collected data.frame (also printed as comments)
-cdmFlatPrint <- function(cdm, person_ids = NULL) {
+cdmFlatPrint <- function(cdm, personIds = NULL) {
 
   flat <- CDMConnector::cdmFlatten(cdm) %>%
     dplyr::collect(flat)
 
-  if (!is.null(person_ids)) {
-    if (!is.numeric(person_ids)) {
-      stop("`person_ids` must be a numeric vector (or NULL).")
+  if (!is.null(personIds)) {
+    if (!is.numeric(personIds)) {
+      stop("`personIds` must be a numeric vector (or NULL).")
     }
-    flat <- dplyr::filter(flat, .data$person_id %in% person_ids)
+    flat <- dplyr::filter(flat, .data$person_id %in% personIds)
   }
 
   flat <- dplyr::arrange(
@@ -212,7 +212,7 @@ cdmCommentContents <- function(cdm, personIds = NULL) {
   }
 
   if (!is.null(personIds) && !is.numeric(personIds)) {
-    stop("`person_ids` must be a numeric vector (or NULL).", call. = FALSE)
+    stop("`personIds` must be a numeric vector (or NULL).", call. = FALSE)
   }
 
   # 1) Run the pipeline (cdmFlatten -> collect -> optional filter -> arrange)

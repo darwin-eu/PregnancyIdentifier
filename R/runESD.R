@@ -72,7 +72,7 @@ runEsd <- function(cdm,
 
   # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes
   mergedDf <- mergedEpisodesWithMetadata(
-    episodes_with_gestational_timing_info_df = esdDf,
+    episodesWithGestationalTimingInfoDf = esdDf,
     hippsEpisodes = hippsEpisodes,
     cdm = cdm,
     logger = logger
@@ -303,8 +303,8 @@ findIntersection <- function(intervals) {
 }
 
 # check for GW concept overlap to the intervals
-removeGWOutliers <- function(lol_of_GW_concepts) {
-  dates <- as.Date(unlist(lol_of_GW_concepts))
+removeGWOutliers <- function(lolOfGwConcepts) {
+  dates <- as.Date(unlist(lolOfGwConcepts))
   medianStart <- sort(dates)[ceiling(length(dates) / 2)]
 
   # distance from median date (days)
@@ -320,73 +320,73 @@ removeGWOutliers <- function(lol_of_GW_concepts) {
 }
 
 # definition to get accuracy category
-assignPrecisionCategory <- function(precision_days) {
+assignPrecisionCategory <- function(precisionDays) {
   dplyr::case_when(
-    precision_days == -1 ~ "week_poor-support",
-    precision_days >= 0  & precision_days <= 7   ~ "week",
-    precision_days > 7   & precision_days <= 14  ~ "two-week",
-    precision_days > 14  & precision_days <= 21  ~ "three-week",
-    precision_days > 21  & precision_days <= 28  ~ "month",
-    precision_days > 28  & precision_days <= 56  ~ "two-month",
-    precision_days > 56  & precision_days <= 84  ~ "three-month",
+    precisionDays == -1 ~ "week_poor-support",
+    precisionDays >= 0  & precisionDays <= 7   ~ "week",
+    precisionDays > 7   & precisionDays <= 14  ~ "two-week",
+    precisionDays > 14  & precisionDays <= 21  ~ "three-week",
+    precisionDays > 21  & precisionDays <= 28  ~ "month",
+    precisionDays > 28  & precisionDays <= 56  ~ "two-month",
+    precisionDays > 56  & precisionDays <= 84  ~ "three-month",
     TRUE ~ "non-specific"
   )
 }
 
 # applying udf to the date array column to obtain the new column 'final_timing_info'
 # (a list of [inferred_episode_start, precision_days, precision_category]) for each row
-getGtTiming <- function(dateslist) {
+getGtTiming <- function(datesList) {
 
-  # Iterate over the dateslist
-  timingArr <- purrr::map(dateslist[purrr::map_lgl(dateslist, validate)], sort)
-  GW_list   <- dateslist[sapply(dateslist, function(x) length(x) == 1)]
-  GR3m_list <- dateslist[sapply(dateslist, function(x) length(x) == 2)]
+  # Iterate over the datesList
+  timingArr <- purrr::map(datesList[purrr::map_lgl(datesList, validate)], sort)
+  gwList   <- datesList[sapply(datesList, function(x) length(x) == 1)]
+  gr3mList <- datesList[sapply(datesList, function(x) length(x) == 2)]
 
-  inferred_start_date  <- as.Date("2000-01-01", format = "%Y-%m-%d")
-  precision_days       <- 999
-  precision_category   <- "-999"
+  inferredStartDate  <- as.Date("2000-01-01", format = "%Y-%m-%d")
+  precisionDays       <- 999
+  precisionCategory   <- "-999"
   intervalsCount       <- 0
   majorityOverlapCount <- 0
 
   # get length of list with GR3m ranges
-  N <- length(GR3m_list)
-  common_GR3m_interval <- if (N > 0) findIntersection(GR3m_list) else NULL
+  N <- length(gr3mList)
+  commonGr3mInterval <- if (N > 0) findIntersection(gr3mList) else NULL
 
   plausibleDays <- 0
   maxRangeDays  <- 0
-  range_s <- range_e <- interval_s <- interval_e <- daterangeMidpoint <- NULL
+  rangeS <- rangeE <- intervalS <- intervalE <- daterangeMidpoint <- NULL
 
-  if (!is.null(common_GR3m_interval)) {
-    range_e    <- as.Date(common_GR3m_interval[1], format = "%Y-%m-%d") # end date of range
-    range_s    <- as.Date(common_GR3m_interval[2], format = "%Y-%m-%d") # start date of range
-    interval_e <- as.Date(common_GR3m_interval[3], format = "%Y-%m-%d") # end date of intersection
-    interval_s <- as.Date(common_GR3m_interval[4], format = "%Y-%m-%d") # start date of intersection
+  if (!is.null(commonGr3mInterval)) {
+    rangeE    <- as.Date(commonGr3mInterval[1], format = "%Y-%m-%d") # end date of range
+    rangeS    <- as.Date(commonGr3mInterval[2], format = "%Y-%m-%d") # start date of range
+    intervalE <- as.Date(commonGr3mInterval[3], format = "%Y-%m-%d") # end date of intersection
+    intervalS <- as.Date(commonGr3mInterval[4], format = "%Y-%m-%d") # start date of intersection
 
-    plausibleDays <- as.numeric(difftime(interval_e, interval_s, units = "days"))
-    maxRangeDays  <- as.numeric(difftime(range_e, range_s, units = "days"))
-    daterangeMidpoint <- interval_s + lubridate::days(as.integer(plausibleDays / 2))
+    plausibleDays <- as.numeric(difftime(intervalE, intervalS, units = "days"))
+    maxRangeDays  <- as.numeric(difftime(rangeE, rangeS, units = "days"))
+    daterangeMidpoint <- intervalS + lubridate::days(as.integer(plausibleDays / 2))
 
     # Utilize the overlap more when it gets narrowed down to < 1 week by taking the midpoint
     # and adding 3 days either side (otherwise unlikely to overlap much with GW concepts and thus will be ignored)
     if (plausibleDays < 7) {
-      interval_s <- daterangeMidpoint - lubridate::days(3)
-      interval_e <- daterangeMidpoint + lubridate::days(3)
+      intervalS <- daterangeMidpoint - lubridate::days(3)
+      intervalE <- daterangeMidpoint + lubridate::days(3)
       plausibleDays <- 6
     }
   }
 
   # there are week-level estimates
-  if (length(GW_list) > 0) {
+  if (length(gwList) > 0) {
     # If GR3m interval exists, prefer GW concepts that overlap the GR3m intersection.
-    if (!is.null(interval_s)) {
+    if (!is.null(intervalS)) {
       intervalsCount <- intervalsCount + 1
 
-      gwConceptCount <- length(GW_list)
+      gwConceptCount <- length(gwList)
       overlappingGw <- list()
 
-      for (gwlist in GW_list) {
-        gwDate <- gwlist[[1]]
-        if (gwDate >= interval_s && gwDate <= interval_e) overlappingGw <- c(overlappingGw, gwDate)
+      for (gwItem in gwList) {
+        gwDate <- gwItem[[1]]
+        if (gwDate >= intervalS && gwDate <= intervalE) overlappingGw <- c(overlappingGw, gwDate)
       }
 
       percOverlapping <- (length(overlappingGw) / gwConceptCount) * 100
@@ -395,45 +395,45 @@ getGtTiming <- function(dateslist) {
         majorityOverlapCount <- majorityOverlapCount + 1
         filtDates <- removeGWOutliers(overlappingGw)
       } else {
-        filtDates <- removeGWOutliers(GW_list)
-        if (length(filtDates) == 1) precision_days <- -1 # only one GW concept and it doesn't overlap
+        filtDates <- removeGWOutliers(gwList)
+        if (length(filtDates) == 1) precisionDays <- -1 # only one GW concept and it doesn't overlap
       }
 
-      inferred_start_date <- filtDates[[1]] # latest date
-      precision_days <- if (precision_days == -1) -1 else as.numeric(max(filtDates) - min(filtDates))
+      inferredStartDate <- filtDates[[1]] # latest date
+      precisionDays <- if (precisionDays == -1) -1 else as.numeric(max(filtDates) - min(filtDates))
 
     } else {
       # GW only (no GR3m information)
-      filtDates <- removeGWOutliers(GW_list)
-      inferred_start_date <- filtDates[[1]]
-      precision_days <- as.numeric(max(filtDates) - min(filtDates))
-      if (length(filtDates) == 1) precision_days <- -1
+      filtDates <- removeGWOutliers(gwList)
+      inferredStartDate <- filtDates[[1]]
+      precisionDays <- as.numeric(max(filtDates) - min(filtDates))
+      if (length(filtDates) == 1) precisionDays <- -1
     }
   } else {
     # GR3m only (no GW concepts)
-    inferred_start_date <- daterangeMidpoint
-    precision_days <- maxRangeDays
+    inferredStartDate <- daterangeMidpoint
+    precisionDays <- maxRangeDays
   }
 
-  precision_category <- assignPrecisionCategory(precision_days)
+  precisionCategory <- assignPrecisionCategory(precisionDays)
 
   list(
-    inferred_start_date = inferred_start_date,
-    precision_days = precision_days,
-    precision_category = precision_category,
+    inferred_start_date = inferredStartDate,
+    precision_days = precisionDays,
+    precision_category = precisionCategory,
     intervals_count = intervalsCount,
     majority_overlap_count = majorityOverlapCount
   )
 }
 
-episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
+episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   # add on either GW or GR3m designation depending on whether the concept is present
 
   esdConcepts2 <-
     system.file("concepts", "ESD_concepts2.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
     readxl::read_xlsx()
 
-  if (nrow(get_timing_concepts_df) == 0) {
+  if (nrow(getTimingConceptsDf) == 0) {
     log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", 0))
     log4r::info(logger, sprintf("Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s", 0))
 
@@ -451,7 +451,7 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     ))
   }
 
-  timingDf <- get_timing_concepts_df %>%
+  timingDf <- getTimingConceptsDf %>%
     dplyr::mutate(
       domain_concept_id = as.integer(.data$domain_concept_id),
       gt_type = dplyr::case_when(
@@ -548,20 +548,20 @@ episodesWithGestationalTimingInfo <- function(get_timing_concepts_df, logger) {
     )
 
   # print the GW and GR3m concept overlap information to log
-  majority_overlap_count_total <- sum(summaryDf$majority_overlap_count, na.rm = TRUE)
-  intervals_count_total <- sum(summaryDf$intervals_count, na.rm = TRUE)
-  perc_majority <- if (intervals_count_total > 0) (majority_overlap_count_total / intervals_count_total) * 100 else 0
+  majorityOverlapCountTotal <- sum(summaryDf$majority_overlap_count, na.rm = TRUE)
+  intervalsCountTotal <- sum(summaryDf$intervals_count, na.rm = TRUE)
+  percMajority <- if (intervalsCountTotal > 0) (majorityOverlapCountTotal / intervalsCountTotal) * 100 else 0
 
-  log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", intervals_count_total))
+  log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", intervalsCountTotal))
   log4r::info(logger, sprintf(
     "Percent of cases that contain a GR3m intersection that ALSO have majority GW overlap:: %s",
-    perc_majority
+    percMajority
   ))
 
   summaryDf
 }
 
-mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
+mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
                                        hippsEpisodes,
                                        cdm,
                                        logger) {
@@ -571,7 +571,7 @@ mergedEpisodesWithMetadata <- function(episodes_with_gestational_timing_info_df,
     return(emptyFinalPregnancyEpisodes())
   }
 
-  timingDf <- episodes_with_gestational_timing_info_df %>%
+  timingDf <- episodesWithGestationalTimingInfoDf %>%
     dplyr::select(-"gt_info_list")
   termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
 

@@ -4,12 +4,12 @@
 \alias{cdmFlatPrint}
 \title{Flatten a CDM, optionally filter by person_id, and print as an R comment block}
 \usage{
-cdmFlatPrint(cdm, person_ids = NULL)
+cdmFlatPrint(cdm, personIds = NULL)
 }
 \arguments{
 \item{cdm}{A CDM reference object}
 
-\item{person_ids}{Optional numeric vector of person_id values to filter on (default NULL = no filter)}
+\item{personIds}{Optional numeric vector of person_id values to filter on (default NULL = no filter)}
 }
 \value{
 Invisibly returns the collected data.frame (also printed as comments)
