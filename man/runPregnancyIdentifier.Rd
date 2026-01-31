@@ -2,7 +2,7 @@
 % Please edit documentation in R/runPregnancyIdentifier.R
 \name{runPregnancyIdentifier}
 \alias{runPregnancyIdentifier}
-\title{Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD + export)}
+\title{Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD, optionally export)}
 \usage{
 runPregnancyIdentifier(
   cdm,
@@ -11,7 +11,8 @@ runPregnancyIdentifier(
   endDate = Sys.Date(),
   justGestation = TRUE,
   minCellCount = 5L,
-  debugMode = FALSE
+  debugMode = FALSE,
+  runExport = FALSE
 )
 }
 \arguments{
@@ -31,17 +32,22 @@ run. Default `Sys.Date()`.}
 gestational concepts (HIP behavior). Passed through to `runHip()`.}
 
 \item{minCellCount}{(`integer(1)`) Minimum cell count used for suppression in
-exported summaries. Passed through to `exportPregnancies()`.}
+exported summaries. Passed through to `exportPregnancies()` when `runExport = TRUE`.}
 
 \item{debugMode}{(`logical(1)`) Should extra intermediate datasets be written to
 the outputDir for debugging? `TRUE` or `FALSE` (default)}
+
+\item{runExport}{(`logical(1)`) If `TRUE`, run `exportPregnancies()` after
+ESD and write shareable CSVs and ZIP to `file.path(outputDir, "export")`.
+Default `FALSE`.}
 }
 \value{
 Invisibly returns `NULL`. Side effects:
   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
     tables, and intermediate algorithm tables).
   - Writes intermediate RDS artifacts under `outputDir`.
-  - Writes shareable exports under `file.path(outputDir, "export")`.
+  - If `runExport = TRUE`, writes shareable exports under
+    `file.path(outputDir, "export")`.
 }
 \description{
 Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
@@ -57,6 +63,6 @@ The pipeline performs:
 4) merge (`mergeHipps()`): merges HIP and PPS into combined HIPPS episodes,
 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
    enriches merged episodes,
-6) export (`exportPregnancies()`): writes shareable summary outputs (with optional
-   small-cell suppression).
+6) optionally, export (`exportPregnancies()`): writes shareable summary outputs
+   (with optional small-cell suppression) when `exportPregnancies = TRUE`.
 }

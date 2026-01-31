@@ -24,7 +24,7 @@ runPps(
 
 \item{logger}{Optional `log4r` logger object for emitting information and debug messages.}
 
-\item{debugMode}{(`Logical`) Should intermediat datasets be written to the output folder for debugging? TRUE or FALSE (default)}
+\item{debugMode}{(`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)}
 }
 \value{
 Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.

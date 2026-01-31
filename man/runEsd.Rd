@@ -24,7 +24,7 @@ runEsd(
 
 \item{logger}{A \code{log4r} logger object for info/debug messages.}
 
-\item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermidation datasets to the outputDir? `TRUE` or `FALSE` (default)}
+\item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)}
 }
 \value{
 Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.

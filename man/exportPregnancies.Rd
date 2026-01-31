@@ -10,8 +10,8 @@ exportPregnancies(cdm, outputDir, exportDir, minCellCount = 5)
 \item{cdm}{(`cdm_reference`) CDM reference used to compute exports that require
 database tables (e.g., `person`, `observation_period`).}
 
-\item{outputDir}{(`character(1)`) Directory containing `runHipps()` outputs
-(e.g., `identified_pregancy_episodes.rds`, logs, PPS concept counts).}
+\item{outputDir}{(`character(1)`) Directory containing pipeline outputs
+(e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).}
 
 \item{exportDir}{(`character(1)`) Directory where shareable CSVs (and ZIP) will
 be written.}
@@ -23,10 +23,11 @@ small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
 Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.
 }
 \description{
-Reads the patient-level pregnancy episode results produced by `runHipps()` (from
-`outputDir`), generates a set of de-identified summary tables (counts, age
-summaries, timing distributions, outcome counts, and date completeness checks),
-writes them to `exportDir`, and creates a ZIP archive of all exported files.
+Reads the patient-level pregnancy episode results produced by the pipeline (from
+`outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
+summary tables (counts, age summaries, timing distributions, outcome counts,
+and date completeness checks), writes them to `exportDir`, and creates a ZIP
+archive of all exported files.
 }
 \details{
 The export is intended for lightweight QA and sharing across sites. Small cell

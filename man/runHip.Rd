@@ -51,5 +51,5 @@ is classified into one of several categories.
 - "SA": miscarriage,
 - "DELIV": unspecified delivery
 - "ECT": ectopic pregnancy
-- "PREG": unspecified delivery
+- "PREG": unspecified/ongoing pregnancy
 }
