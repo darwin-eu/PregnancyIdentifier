@@ -530,7 +530,7 @@ export <- function(cdm, outputDir, exportDir, minCellCount = 5) {
 
 suppressCounts <- function(result, colNames, minCellCount) {
   suppressCountCol <- function (values) {
-    values[values > 0 & values < minCellCount] <- NA
+    values[values > 0 & values < minCellCount] <- paste0("<", minCellCount)
     return(values)
   }
   result %>%
