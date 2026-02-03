@@ -143,7 +143,7 @@ runHipps <- function(cdm, outputDir, startDate = as.Date("1900-01-01"), endDate 
   return(NULL)
 }
 
-addDeliveryMode <- function(cdm, df) {
+addDeliveryMode <- function(cdm, df, intersectWindow = c(-30, 30)) {
   dfColNames <- colnames(df)
   colnames(df) <- tolower(dfColNames)
 
@@ -163,8 +163,12 @@ addDeliveryMode <- function(cdm, df) {
   result <- cdm[[tableName]] %>%
     PatientProfiles::addConceptIntersectFlag(conceptSet = conceptSet,
                                              indexDate = "inferred_episode_end",
-                                             window = c(-30, 30),
+                                             window = intersectWindow,
                                              nameStyle = '{concept_name}_{window_name}') %>%
+    PatientProfiles::addConceptIntersectCount(conceptSet = conceptSet,
+                                              indexDate = "inferred_episode_end",
+                                              window = intersectWindow,
+                                              nameStyle = '{concept_name}_{window_name}_count') %>%
     dplyr::collect()
   colnames(result)[1:length(dfColNames)] <- dfColNames
   return(result)
