@@ -46,13 +46,13 @@ Invisibly returns `NULL`. Side effects:
   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
     tables, and intermediate algorithm tables).
   - Writes intermediate RDS artifacts under `outputDir`.
-  - If `runExport = TRUE`, writes shareable exports under
+  - If `runExport = TRUE`, writes shareable csv exports under
     `file.path(outputDir, "export")`.
 }
 \description{
 Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
 implementation at https://github.com/louisahsmith/allofus-pregnancy/) on an
-OMOP CDM via `CDMConnector`, without requiring the `allofus` R package.
+OMOP CDM with `CDMConnector`.
 }
 \details{
 The pipeline performs:

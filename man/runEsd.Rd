@@ -28,7 +28,7 @@ runEsd(
 }
 \value{
 Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
-        The output contains one row per inferred pregnancy episode, with all metadata and gestational timing fields required for downstream analysis.
+        The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
 }
 \description{
 Runs the Episode Start Date (ESD) algorithm to infer pregnancy episode start dates for merged HIP/PPS episodes.

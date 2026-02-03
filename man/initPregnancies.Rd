@@ -9,7 +9,7 @@ initPregnancies(
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   ageBounds = c(15L, 56L),
-  logger = NULL
+  logger
 )
 }
 \arguments{
@@ -35,7 +35,8 @@ at the time of pregnancy
 }
 \examples{
 \dontrun{
+logger <- makeLogger(tempdir())
 cdm <- mockPregnancyCdm()
-cdm <- initPregnancies(cdm)
+cdm <- initPregnancies(cdm, logger = logger)
 }
 }
