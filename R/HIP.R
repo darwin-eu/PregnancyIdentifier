@@ -749,7 +749,8 @@ resolveOverlaps <- function(cdm, logger) {
     ) %>%
     dplyr::ungroup()
   reclassPreg <- afterRemove %>%
-    dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0) %>%
+    # dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0) %>% # old logic
+    dplyr::filter(!is.na(.data$max_gest_week) & .data$is_over_min == 0) %>% # new logic (is this the same?)
     dplyr::mutate(
       removed_category = .data$final_category,
       final_category = "PREG",
