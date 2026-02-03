@@ -1294,7 +1294,7 @@
   ],
   "drug_exposure": [
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 1,
       "person_id": 1,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1316,7 +1316,7 @@
       "10": 73
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 3,
       "person_id": 1,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1327,7 +1327,7 @@
       "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 4,
       "person_id": 2,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1338,7 +1338,7 @@
       "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 5,
       "person_id": 8,
       "drug_concept_id": 715939,
       "quantity": 21,
@@ -1349,7 +1349,7 @@
       "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 6,
       "person_id": 9,
       "drug_concept_id": 723164,
       "quantity": 21,
@@ -1359,7 +1359,7 @@
       "drug_type_concept_id": 32838
     },
     {
-      "drug_exposure_id": 62,
+      "drug_exposure_id": 7,
       "person_id": 34,
       "drug_concept_id": 4147892,
       "quantity": 21,
@@ -1441,7 +1441,7 @@
       "drug_era_end_date": "2018-07-14"
     },
     {
-      "drug_era_id": 10,
+      "drug_era_id": 11,
       "person_id": 1,
       "drug_concept_id": 798874,
       "drug_era_start_date": "2018-02-28",
