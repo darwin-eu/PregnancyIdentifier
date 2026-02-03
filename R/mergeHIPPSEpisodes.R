@@ -208,6 +208,35 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
       dplyr::ungroup()
   }
 
+  # Helper: count unduplicated rows by type (both, HIP-only, PPS-only) and still-duplicate counts
+  countByType <- function(df) {
+    list(
+      n_both     = sum(!is.na(df$hip_episode_id) & !is.na(df$pps_episode_id)),
+      n_hip_only = sum(!is.na(df$hip_episode_id) &  is.na(df$pps_episode_id)),
+      n_pps_only = sum( is.na(df$hip_episode_id) & !is.na(df$pps_episode_id)),
+      n_total    = nrow(df)
+    )
+  }
+  logDedupRound <- function(roundLabel, bestDf, keptDf) {
+    nDupHip <- if (nrow(bestDf) > 0)
+      dplyr::n_distinct(bestDf$hip_episode_id[bestDf$duplicated_hip_episode_id == 1], na.rm = TRUE) else 0L
+    nDupPps <- if (nrow(bestDf) > 0)
+      dplyr::n_distinct(bestDf$pps_episode_id[bestDf$duplicated_pps_episode_id == 1], na.rm = TRUE) else 0L
+    log4r::info(logger, sprintf("  [%s] Still duplicated: HIP episodes=%s, PPS episodes=%s; rows=%s",
+                                roundLabel, nDupHip, nDupPps, nrow(bestDf)))
+    if (nrow(keptDf) > 0) {
+      cts <- countByType(keptDf)
+      log4r::info(logger, sprintf("  [%s] Unduplicated this round: both=%s, HIP-only=%s, PPS-only=%s; total=%s",
+                                  roundLabel, cts$n_both, cts$n_hip_only, cts$n_pps_only, cts$n_total))
+    }
+  }
+
+  log4r::info(logger, "Deduplication: base rows (one-to-one and one-sided) by type:")
+  baseCts <- countByType(baseKeep)
+  log4r::info(logger, sprintf("  base: both=%s, HIP-only=%s, PPS-only=%s; total=%s",
+                              baseCts$n_both, baseCts$n_hip_only, baseCts$n_pps_only, baseCts$n_total))
+  log4r::info(logger, sprintf("  duplicate candidates (many-to-many): %s rows", nrow(dupDf)))
+
   # Resolve duplicates in rounds (keeps original "A..E" repeated tie-breaking idea)
   best <- dplyr::bind_rows(
     pickBest(dupDf %>% dplyr::filter(.data$duplicated_hip_episode_id == 1), "hip_episode_id", penalizeMissingOutcome = TRUE,  withTiesMax = TRUE),
@@ -217,8 +246,16 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
 
   keeps <- list(best %>% dplyr::filter(!(.data$duplicated_hip_episode_id == 1 & !is.na(.data$pps_episode_id)) &
                                         !(.data$duplicated_pps_episode_id == 1 & !is.na(.data$hip_episode_id))))
+  logDedupRound("round 0 (initial pick)", best, keeps[[1]])
 
-  for (i in 1:4) {
+  maxRounds <- 10L
+  i <- 0L
+  while (i < maxRounds) {
+    nDupHip <- dplyr::n_distinct(best$hip_episode_id[best$duplicated_hip_episode_id == 1], na.rm = TRUE)
+    nDupPps <- dplyr::n_distinct(best$pps_episode_id[best$duplicated_pps_episode_id == 1], na.rm = TRUE)
+    if (nDupHip == 0L && nDupPps == 0L) break
+
+    i <- i + 1L
     best <- dplyr::bind_rows(
       pickBest(best %>% dplyr::filter(.data$duplicated_hip_episode_id == 1), "hip_episode_id", penalizeMissingOutcome = TRUE,  withTiesMax = FALSE),
       pickBest(best %>% dplyr::filter(.data$duplicated_pps_episode_id == 1), "pps_episode_id", penalizeMissingOutcome = FALSE, withTiesMax = FALSE)
@@ -228,12 +265,24 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
     keeps[[length(keeps) + 1]] <- best %>%
       dplyr::filter(!(.data$duplicated_hip_episode_id == 1 & !is.na(.data$pps_episode_id)) &
                       !(.data$duplicated_pps_episode_id == 1 & !is.na(.data$hip_episode_id)))
+    logDedupRound(sprintf("round %s", i), best, keeps[[length(keeps)]])
+  }
+
+  nRemainHip <- if (nrow(best) > 0) dplyr::n_distinct(best$hip_episode_id[best$duplicated_hip_episode_id == 1], na.rm = TRUE) else 0L
+  nRemainPps <- if (nrow(best) > 0) dplyr::n_distinct(best$pps_episode_id[best$duplicated_pps_episode_id == 1], na.rm = TRUE) else 0L
+  if (nRemainHip > 0L || nRemainPps > 0L) {
+    log4r::warn(logger, sprintf(
+      "Deduplication hit max rounds (%s) with duplicates still remaining: HIP episodes=%s, PPS episodes=%s, rows=%s (these rows are dropped from the merged output)",
+      maxRounds, nRemainHip, nRemainPps, nrow(best)
+    ))
   }
 
   allRows <- dplyr::bind_rows(baseKeep, keeps) %>%
     dplyr::distinct()
 
-  log4r::info(logger, sprintf("Total unduplicated merged rows: %s", nrow(allRows)))
+  finalCts <- countByType(allRows)
+  log4r::info(logger, sprintf("Total unduplicated merged rows: %s (both=%s, HIP-only=%s, PPS-only=%s)",
+                              finalCts$n_total, finalCts$n_both, finalCts$n_hip_only, finalCts$n_pps_only))
 
   # Recompute merged dates and order episodes within person
   allRows %>%
