@@ -11,15 +11,15 @@
 
 ## Citation
 
-Markus A, Politi J, van Kessel M (2025). *PregnancyIdentifier:
+Markus A, Politi J, van Kessel M (2026). *PregnancyIdentifier:
 Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms
-Partnership) CDM (Commen Data Model)*. R package version 2.0.0,
+Partnership) CDM (Commen Data Model)*. R package version 2.0.1,
 <https://darwin-eu.github.io/PregnancyIdentifier/>.
 
     @Manual{,
       title = {PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms Partnership) CDM (Commen Data Model)},
       author = {Aniek Markus and Julieta Politi and Maarten {van Kessel}},
-      year = {2025},
-      note = {R package version 2.0.0},
+      year = {2026},
+      note = {R package version 2.0.1},
       url = {https://darwin-eu.github.io/PregnancyIdentifier/},
     }
