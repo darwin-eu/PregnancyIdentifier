@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 # Overview
 
-The **HIP** (outcome-anchored) algorithm identifies pregnancy episodes by combining **high-specificity pregnancy outcomes** (e.g., live birth, stillbirth, abortion) with **gestational-age evidence** (weeks of gestation) when available. It produces one record per inferred pregnancy, including an **episode end date** (visit_date), an **estimated start date**, and a **pregnancy category**.
+The **HIP** (outcome-anchored) algorithm identifies pregnancy episodes by combining **high-specificity pregnancy outcomes** (e.g., live birth, stillbirth, abortion) with **gestational-age evidence** (weeks of gestation) when available. It produces one record per inferred pregnancy, including an **episode end date** (`hip_pregnancy_end`), an **estimated start date** (`hip_pregnancy_start`), and a **pregnancy category**.
 
 HIP is run via `runHip()`, which assumes `initPregnancies()` has already been run and that the CDM contains `preg_hip_records` and `preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputDir` and adds the internal table `cdm$preg_hip_episodes` during execution.
 
@@ -73,9 +73,9 @@ HIP addresses this by:
 HIP episodes include:
 
 - `person_id` — Unique person identifier.
-- `gest_date` — First gestation date in the episode (or NA if no gestational visit in the episode window).
-- `visit_date` — Episode end date (outcome date or max gest date).
-- `estimated_start_date` — Inferred pregnancy start date.
+- `hip_first_gest_date` — First gestation date in the episode (or NA if no gestational visit in the episode window).
+- `hip_pregnancy_end` — Episode end date (outcome date or max gest date).
+- `hip_pregnancy_start` — Inferred pregnancy start date.
 - `category` — One of: `LB`, `SB`, `AB`, `SA`, `DELIV`, `ECT`, `PREG`.
 - `gest_flag` — Whether gestational evidence supported the episode.
 - `episode_length` — Duration measure for the episode.

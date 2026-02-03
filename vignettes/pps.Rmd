@@ -293,7 +293,7 @@ Each episode represents a **reconstructed pregnancy**.
 
 - **pps_episodes.rds** — Always written. PPS episodes with inferred outcomes (used by `mergeHipps()` as the PPS input).
 - **pps_gest_timing_episodes.rds** — Only when `debugMode = TRUE`. Record-level dataset of pregnancy-related concept rows with an assigned `person_episode_number`.
-- **pps_min_max_episodes.rds** — Only when `debugMode = TRUE`. Episode-level summaries (`episode_min_date`, `episode_max_date`, `episode_max_date_plus_two_months`, `n_gt_concepts`).
+- **pps_min_max_episodes.rds** — Only when `debugMode = TRUE`. Episode-level summaries (`pps_episode_min_date`, `pps_episode_max_date`, `pps_episode_max_date_plus_two_months`, `n_gt_concepts`).
 
 For the full pipeline (HIP → PPS → merge → ESD), use `runPregnancyIdentifier()`; see the [pipeline overview](algorithm.html) and the [Merge vignette](merge.html).
 
