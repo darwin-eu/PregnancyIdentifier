@@ -2,7 +2,7 @@
 title: "Merging HIP and PPS episodes into HIPPS"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Merging HIP and PPS into HIPPS}
+  %\VignetteIndexEntry{Merging HIP and PPS episodes into HIPPS}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

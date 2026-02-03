@@ -1,14 +1,15 @@
 # Copyright (c) 2024 Louisa Smith
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -35,8 +36,8 @@
 #' }
 #'
 #' @param outputDir (`character(1)`) Directory containing intermediate RDS artifacts:
-#'   `pps_episodes.rds`, `hip_episodes.rds` (and optionally `pps_min_max_episodes.rds`, `pps_gest_timing_episodes.rds` from PPS debug).
-#' @param logger (`logger`) log4r logger (required).
+#'   `pps_episodes.rds`, `hip_episodes.rds`
+#' @param logger (`logger`) log4r logger created with `makeLogger()`.
 #'
 #' @return Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputDir`.
 #' @export
