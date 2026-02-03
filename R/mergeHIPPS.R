@@ -58,6 +58,25 @@ mergeHipps <- function(outputDir, logger) {
   if (nrow(mergedDf) == 0) {
     mergedDf <- emptyHippsEpisodes()
   }
+  mergedDf <- mergedDf %>%
+    dplyr::select(
+      "person_id",
+      "episode_number",
+      "recorded_episode_start",
+      "recorded_episode_end",
+      "hip_end_date",
+      "pps_end_date",
+      "hip_outcome_category",
+      "pps_outcome_category",
+      "hip_flag",
+      "pps_flag",
+      "recorded_episode_length",
+      dplyr::any_of(c(
+        "pregnancy_start", "first_gest_date", "episode_min_date", "episode_max_date",
+        "episode_max_date_plus_two_months", "episode", "person_episode_number",
+        "algo1_id", "algo2_id"
+      ))
+    )
   saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
   invisible(NULL)
 }

@@ -37,8 +37,9 @@
 #'
 #' @examples
 #' \dontrun{
+#' logger <- makeLogger(tempdir())
 #' cdm <- mockPregnancyCdm()
-#' cdm <- initPregnancies(cdm)
+#' cdm <- initPregnancies(cdm, logger = logger)
 #' }
 initPregnancies <- function(cdm,
                             startDate  = as.Date("1900-01-01"),
@@ -50,7 +51,9 @@ initPregnancies <- function(cdm,
   checkmate::assertDate(startDate, any.missing = FALSE)
   checkmate::assertDate(endDate, any.missing = FALSE)
   checkmate::assertIntegerish(ageBounds, len = 2, any.missing = FALSE)
-  checkmate::assertClass(logger, "logger", null.ok = TRUE)
+
+  # Require logger: must be a logger object, not NULL
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
   lowerAge <- as.integer(ageBounds[1])
   upperAge <- as.integer(ageBounds[2]) + 1L

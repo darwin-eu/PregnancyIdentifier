@@ -40,7 +40,7 @@ makeLogger <- function(outputDir) {
 #'
 #' Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
 #' implementation at https://github.com/louisahsmith/allofus-pregnancy/) on an
-#' OMOP CDM via `CDMConnector`, without requiring the `allofus` R package.
+#' OMOP CDM with `CDMConnector`.
 #'
 #' The pipeline performs:
 #' 1) cohort initialization (`initPregnancies()`): creates pregnancy-related concept
@@ -75,7 +75,7 @@ makeLogger <- function(outputDir) {
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
 #'   - Writes intermediate RDS artifacts under `outputDir`.
-#'   - If `runExport = TRUE`, writes shareable exports under
+#'   - If `runExport = TRUE`, writes shareable csv exports under
 #'     `file.path(outputDir, "export")`.
 #' @export
 runPregnancyIdentifier <- function(cdm,
@@ -124,7 +124,8 @@ runPregnancyIdentifier <- function(cdm,
     cdm,
     startDate = startDate,
     endDate = endDate,
-    ageBounds = c(15L, 56L)
+    ageBounds = c(15L, 56L),
+    logger = logger
   )
 
   # ---- Step 2: HIP episodes ---------------------------------------------------

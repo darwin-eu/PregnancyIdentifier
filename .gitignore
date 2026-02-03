@@ -13,3 +13,4 @@ renv/
 .Rprofile
 *~$*
 .Renviron
+vignettes/algorithm_cache

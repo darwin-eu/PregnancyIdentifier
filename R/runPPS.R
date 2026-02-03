@@ -69,16 +69,29 @@ runPps <- function(cdm,
   if (nrow(ppsWithOutcomes) == 0) {
     ppsWithOutcomes <- emptyPpsEpisodes()
   }
+  # Only write record-level and min/max summary RDS when debugging
   if (debugMode) {
-    saveRDS(
-      if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes,
-      file.path(outputDir, "pps_gest_timing_episodes.rds")
-    )
-    saveRDS(
-      if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax,
-      file.path(outputDir, "pps_min_max_episodes.rds")
-    )
+    ppsGestTimingOut <- if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes
+    ppsGestTimingOut <- ppsGestTimingOut %>%
+      dplyr::select(
+        "person_id", "person_episode_number", "pps_concept_start_date",
+        "pps_concept_id", "pps_concept_name", "pps_min_month", "pps_max_month"
+      )
+    saveRDS(ppsGestTimingOut, file.path(outputDir, "pps_gest_timing_episodes.rds"))
+    ppsMinMaxOut <- if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax
+    ppsMinMaxOut <- ppsMinMaxOut %>%
+      dplyr::select(
+        "person_id", "person_episode_number", "episode_min_date", "episode_max_date",
+        "episode_max_date_plus_two_months", "n_gt_concepts"
+      )
+    saveRDS(ppsMinMaxOut, file.path(outputDir, "pps_min_max_episodes.rds"))
   }
+  ppsWithOutcomes <- ppsWithOutcomes %>%
+    dplyr::select(
+      "person_id", "person_episode_number", "episode_min_date", "episode_max_date",
+      "episode_max_date_plus_two_months", "algo2_category", "algo2_outcome_date",
+      "n_gt_concepts"
+    )
   saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
 
   cdm

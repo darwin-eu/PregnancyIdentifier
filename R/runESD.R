@@ -73,7 +73,20 @@ runEsd <- function(cdm,
   esdDf <- episodesWithGestationalTimingInfo(timingConceptsDf, logger = logger)
 
   if (debugMode) {
-    saveRDS(esdDf, file.path(outputDir, "esd.rds"))
+    esdOut <- esdDf %>%
+      dplyr::select(
+        "person_id",
+        "episode_number",
+        "inferred_episode_start",
+        "precision_days",
+        "precision_category",
+        "gw_flag",
+        "gr3m_flag",
+        "intervals_count",
+        "majority_overlap_count",
+        "gt_info_list"
+      )
+    saveRDS(esdOut, file.path(outputDir, "esd.rds"))
   }
 
   # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes
@@ -101,6 +114,30 @@ runEsd <- function(cdm,
   )
 
   outputPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
+  mergedDf <- mergedDf %>%
+    dplyr::select(
+      "person_id",
+      "episode_number",
+      "inferred_episode_start",
+      "inferred_episode_end",
+      "final_outcome_category",
+      "recorded_episode_start",
+      "recorded_episode_end",
+      "hip_end_date",
+      "pps_end_date",
+      "hip_outcome_category",
+      "pps_outcome_category",
+      "precision_days",
+      "precision_category",
+      "gestational_age_days_calculated",
+      "gw_flag",
+      "gr3m_flag",
+      "outcome_match",
+      "term_duration_flag",
+      "outcome_concordance_score",
+      "preterm_status_from_calculation",
+      dplyr::everything()
+    )
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 

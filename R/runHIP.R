@@ -73,7 +73,12 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   if (getTblRowCount(cdm$preg_hip_records) == 0) {
     logWarn(logger, "No records after initializing pregnancy cohort")
     if (!is.null(outputDir)) {
-      saveRDS(emptyHipEpisodes(), file.path(outputDir, "hip_episodes.rds"))
+      hipEmpty <- emptyHipEpisodes() %>%
+        dplyr::select(
+          "person_id", "episode", "estimated_start_date", "visit_date",
+          "category", "gest_date", "gest_flag", "episode_length"
+        )
+      saveRDS(hipEmpty, file.path(outputDir, "hip_episodes.rds"))
     }
     return(cdm)
   }
@@ -118,11 +123,22 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # Outputs: cdm with new table cdm$preg_hip_episodes (final; person_id, gest_date, category, visit_date, estimated_start_date, episode, gest_flag, episode_length).
   cdm <- attachGestationAndLength(cdm, gestConceptIds = gestConceptIds)
 
-  # 5) Collect final table and save RDS.
+  # 5) Collect final table, order columns, and save RDS.
   hipDf <- cdm$preg_hip_episodes %>% dplyr::collect()
   if (nrow(hipDf) == 0) {
     hipDf <- emptyHipEpisodes()
   }
+  hipDf <- hipDf %>%
+    dplyr::select(
+      "person_id",
+      "episode",
+      "estimated_start_date",
+      "visit_date",
+      "category",
+      "gest_date",
+      "gest_flag",
+      "episode_length"
+    )
   saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
   # 6) Drop intermediate stage tables (nested functions do not drop their inputs; cleanup only here).
