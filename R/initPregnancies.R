@@ -45,7 +45,7 @@ initPregnancies <- function(cdm,
                             startDate  = as.Date("1900-01-01"),
                             endDate    = Sys.Date(),
                             ageBounds  = c(15L, 56L),
-                            logger     = NULL) {
+                            logger) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertDate(startDate, any.missing = FALSE)
@@ -61,7 +61,7 @@ initPregnancies <- function(cdm,
     rlang::abort("ageBounds[1] must be < ageBounds[2]")
   }
 
-  logInfo(logger, "Loading + inserting pregnancy concept tables into the CDM")
+  log4r::info(logger, "Loading + inserting pregnancy concept tables into the CDM")
 
   hipConcepts <- readxl::read_excel(
     system.file("concepts", "HIP_concepts.xlsx", package = "PregnancyIdentifier")
@@ -80,7 +80,7 @@ initPregnancies <- function(cdm,
   cdm <- CDMConnector::insertTable(cdm, "preg_pps_concepts", ppsConcepts, overwrite = TRUE)
   cdm <- CDMConnector::insertTable(cdm, "preg_matcho_term_durations", matchoTermDurations, overwrite = TRUE)
 
-  logInfo(logger, "Added preg_hip_concepts, preg_pps_concepts, preg_matcho_term_durations to the CDM")
+  log4r::info(logger, "Added preg_hip_concepts, preg_pps_concepts, preg_matcho_term_durations to the CDM")
 
   # ---- helper: pull person_id + date + concept_id from an OMOP domain ----
   pullDomain <- function(tbl, conceptCol, dateCol, extra = list()) {
@@ -97,7 +97,7 @@ initPregnancies <- function(cdm,
   # ============================================================
   # HIP records (condition/procedure/observation/measurement)
   # ============================================================
-  logInfo(logger, "Pulling HIP concept records from OMOP domain tables")
+  log4r::info(logger, "Pulling HIP concept records from OMOP domain tables")
 
   hip <- cdm$preg_hip_concepts |>
     dplyr::select(concept_id, category)
@@ -127,12 +127,12 @@ initPregnancies <- function(cdm,
     dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
-  logInfo(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
+  log4r::info(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
 
   # ============================================================
   # PPS records (condition/procedure/measurement)
   # ============================================================
-  logInfo(logger, "Pulling PPS concept records from OMOP domain tables")
+  log4r::info(logger, "Pulling PPS concept records from OMOP domain tables")
 
   ppsSpecs <- tibble::tribble(
     ~tbl,                     ~conceptCol,              ~dateCol,
@@ -162,7 +162,7 @@ initPregnancies <- function(cdm,
     dplyr::compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
 
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
-  logInfo(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
+  log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
 
   cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm

@@ -36,7 +36,7 @@
 #'
 #' @param outputDir (`character(1)`) Directory containing intermediate RDS artifacts:
 #'   `pps_episodes.rds`, `hip_episodes.rds` (and optionally `pps_min_max_episodes.rds`, `pps_gest_timing_episodes.rds` from PPS debug).
-#' @param logger (`logger`) log4r logger (optional; if `NULL`, messages are emitted via `rlang::inform`).
+#' @param logger (`logger`) log4r logger (required).
 #'
 #' @return Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputDir`.
 #' @export
@@ -44,9 +44,9 @@ mergeHipps <- function(outputDir, logger) {
   checkmate::assertDirectoryExists(outputDir)
   checkmate::assertFileExists(file.path(outputDir, "pps_episodes.rds"))
   checkmate::assertFileExists(file.path(outputDir, "hip_episodes.rds"))
-  checkmate::assertClass(logger, "logger", null.ok = TRUE)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
-  logInfo(logger, "Merging HIP and PPS into HIPPS")
+  log4r::info(logger, "Merging HIP and PPS into HIPPS")
 
   ppsWithOutcomesDf <- readRDS(file.path(outputDir, "pps_episodes.rds"))
   hipDf <- readRDS(file.path(outputDir, "hip_episodes.rds"))
@@ -138,11 +138,11 @@ mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
     addDupFlag("algo2_id")
 
   countDistinct <- function(df, ...) df %>% dplyr::distinct(...) %>% dplyr::tally() %>% dplyr::pull(.data$n)
-  logInfo(logger, sprintf("Total initial HIP episodes: %s", countDistinct(algo1Df, .data$person_id, .data$episode)))
-  logInfo(logger, sprintf("Total initial PPS episodes: %s", countDistinct(algo2Df, .data$person_id, .data$person_episode_number)))
-  logInfo(logger, sprintf("HIP episodes overlapping multiple PPS episodes: %s",
+  log4r::info(logger, sprintf("Total initial HIP episodes: %s", countDistinct(algo1Df, .data$person_id, .data$episode)))
+  log4r::info(logger, sprintf("Total initial PPS episodes: %s", countDistinct(algo2Df, .data$person_id, .data$person_episode_number)))
+  log4r::info(logger, sprintf("HIP episodes overlapping multiple PPS episodes: %s",
                               countDistinct(dplyr::filter(allEpisodes, .data$algo1_id_dup == 1), .data$algo1_id)))
-  logInfo(logger, sprintf("PPS episodes overlapping multiple HIP episodes: %s",
+  log4r::info(logger, sprintf("PPS episodes overlapping multiple HIP episodes: %s",
                               countDistinct(dplyr::filter(allEpisodes, .data$algo2_id_dup == 1), .data$algo2_id)))
 
   allEpisodes
@@ -231,7 +231,7 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
   allRows <- dplyr::bind_rows(baseKeep, keeps) %>%
     dplyr::distinct()
 
-  logInfo(logger, sprintf("Total unduplicated merged rows: %s", nrow(allRows)))
+  log4r::info(logger, sprintf("Total unduplicated merged rows: %s", nrow(allRows)))
 
   # Recompute merged dates and order episodes within person
   allRows %>%

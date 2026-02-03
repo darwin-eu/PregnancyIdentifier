@@ -50,6 +50,7 @@ runEsd <- function(cdm,
                    endDate = Sys.Date(),
                    logger,
                    debugMode = FALSE) {
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
   log4r::info(logger, "Running ESD")
 
@@ -164,7 +165,7 @@ runEsd <- function(cdm,
 collapseOverlappingEpisodesWithinPerson <- function(df,
                                                     start_col = "inferred_episode_start",
                                                     end_col = "inferred_episode_end",
-                                                    logger = NULL) {
+                                                    logger) {
   if (nrow(df) == 0) return(df)
   if (!start_col %in% names(df) || !end_col %in% names(df)) return(df)
   checkmate::assert_subset(
