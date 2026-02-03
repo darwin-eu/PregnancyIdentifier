@@ -38,40 +38,44 @@
 #' @param outputDir (`character(1)`) Output directory to write output to.
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
-#' @param logger (`logger`) A log4r logger object.
+#' @param logger (`logger`) A log4r logger object created with `makeLogger()`.
 #' @param justGestation (`logical(1)`: `TRUE`) Should episodes that only have gestational concepts be considered?
 #'
-#' @returns The input cdm object with cdm$preg_hip_episodes table added.
-#' Columns of this table are:
-#' - person_id: Unique person identifier
-#' - gest_date: ?
-#' - category: HIP pregnancy outcome category
-#' - visit_date: Date of the pregnancy outcome (i.e. pregnancy end date)
-#' - estimated_start_date
-#' - episode: number of the episode within person_id (1=first, 2=second, etc.)
-#' - gest_flag: Were gestational age concepts found in the episode? yes or no
-#' - episode_length: length of the episode in days
+#' @returns
+#' The input cdm object with the `cdm$preg_hip_episodes` table added. This table contains episode-level
+#' information about each identified pregnancy per individual. The columns are:
+#' - `person_id`: Unique identifier for the person.
+#' - `episode`: Sequential episode number for the person (1 = first episode, etc.).
+#' - `estimated_start_date`: Estimated start date of the pregnancy episode, based on outcome and available gestational age information.
+#' - `visit_date`: Date of the principal pregnancy outcome event (the pregnancy end date).
+#' - `category`: HIP-assigned pregnancy outcome type. One of "LB" (live birth), "SB" (stillbirth), "AB" (abortion), "SA" (miscarriage), "DELIV" (unspecified delivery), "ECT" (ectopic pregnancy), or "PREG" (ongoing/unspecified).
+#' - `gest_date`: Gestational age in days at the time of pregnancy outcome (if available). NA if not identified.
+#' - `gest_flag`: Indicates if gestational age concepts were found in the episode ("yes" or "no").
+#' - `episode_length`: Length of the pregnancy episode, in days (from `estimated_start_date` to `visit_date`).
+#'
+#' A file named `hip_episodes.rds` is saved in the `outputDir` directory. This file
+#' contains a dataframe with the same columns as listed above for the `cdm$preg_hip_episodes` table.
 #'
 #' @export
-runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger = NULL) {
+runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
-  checkmate::assertClass(logger, "logger", null.ok = TRUE)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
   dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
   checkmate::assertDirectoryExists(outputDir)
 
-  logInfo(logger, "START Running HIP")
+  log4r::info(logger, "START Running HIP")
 
   if (!("preg_hip_records" %in% names(cdm))) {
     rlang::abort("preg_hip_records is not in the cdm! Run `initPregnancies` function first.")
   }
 
   if (getTblRowCount(cdm$preg_hip_records) == 0) {
-    logWarn(logger, "No records after initializing pregnancy cohort")
+    log4r::warn(logger, "No records after initializing pregnancy cohort")
     if (!is.null(outputDir)) {
       hipEmpty <- emptyHipEpisodes() %>%
         dplyr::select(
@@ -89,7 +93,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   )
   gestConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
 
-  logInfo(logger, "Inserting matcho_outcome_limits table into cdm")
+  log4r::info(logger, "Inserting matcho_outcome_limits table into cdm")
   matchoOutcomeLimits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx", mustWork = TRUE))
   cdm <- CDMConnector::insertTable(cdm = cdm, name = "matcho_outcome_limits", table = matchoOutcomeLimits)
 
@@ -178,14 +182,16 @@ buildFinalOutcomeVisits <- function(cdm, logger) {
   tableNames <- c("finalAbSaVisits", "finalDelivVisits", "finalEctVisits", "finalSbVisits", "finalLbVisits")
   out <- list()
   for (i in seq_along(categories)) {
-    logInfo(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
+    log4r::info(logger, sprintf("Running Category: %s [%s/%s]", paste(categories[[i]], collapse = ", "), i, length(categories)))
     cat <- categories[[i]]
     firstCat <- cat[1]
     minDay <- getMatchoMinDays(cdm, firstCat, firstCat)
     tempTbl <- cdm$preg_hip_records %>%
       dplyr::filter(.data$category %in% cat) %>%
       dplyr::group_by(.data$person_id, .data$visit_date) %>%
-      dplyr::slice_min(order_by = .data$category, n = 1, with_ties = FALSE) %>%
+      # slicing by minimum concept id just a choice to make the code work
+      # could have also done something like filter(row_number() == 1) but doesn't work on databases
+      dplyr::slice_min(order_by = .data$concept_id, n = 1, with_ties = FALSE) %>%
       dplyr::ungroup() %>%
       dplyr::group_by(.data$person_id) %>%
       dbplyr::window_order(.data$visit_date) %>%
@@ -206,7 +212,7 @@ buildFinalOutcomeVisits <- function(cdm, logger) {
       ) %>%
       dplyr::select("person_id", "outcome_date", "outcome_category")
     out[[tableNames[i]]] <- allRows
-    logInfo(logger, sprintf("  * Preliminary total number of episodes: %s", getTblRowCount(allRows)))
+    log4r::info(logger, sprintf("  * Preliminary total number of episodes: %s", getTblRowCount(allRows)))
   }
   out
 }
@@ -411,7 +417,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     cdm$outcome_episodes_df <- allOutcomes %>%
       dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
-  logInfo(logger, "Stage A: outcome episodes materialized")
+  log4r::info(logger, "Stage A: outcome episodes materialized")
   cdm
 }
 
@@ -437,7 +443,7 @@ estimateOutcomeStarts <- function(cdm) {
 # Outputs: cdm$gest_episodes_df (materialized). Columns: person_id, gestId, episode, max_gest_date, max_gest_week, min_gest_date, min_gest_week,
 #   max_gest_start_date, min_gest_start_date, end_gest_date, min_gest_date_2, max_gest_day, min_gest_day, gest_start_date_diff, etc.
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
-buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays = 28, gestConceptIds) {
+buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, gestConceptIds) {
   gestFromValue <- cdm$preg_hip_records %>%
     dplyr::filter(!is.na(.data$gest_value))
   gestationVisitsTbl <- cdm$preg_hip_records %>%
@@ -541,7 +547,7 @@ buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays 
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
 
-  if (!is.null(logger)) logInfo(logger, "Stage B: gestation episodes materialized")
+  log4r::info(logger, "Stage B: gestation episodes materialized")
   cdm
 }
 
@@ -550,7 +556,7 @@ buildGestationEpisodes <- function(cdm, logger = NULL, minDays = 70, bufferDays 
 #   gestEpisodes (person_id, gestId, max_gest_date, max_gest_start_date, ...), justGestation.
 # Outputs: cdm$merged_episodes_df (materialized). Columns: final_episode_id, final_visit_date, final_category, has_outcome, has_gestation, is_under_max, is_over_min, days_diff, etc.
 # Column mutations: adds final_episode_id, final_visit_date, final_category; overlap logic; does not overwrite outcome_date/outcome_category.
-mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGestation = TRUE, logger = NULL, bufferDays = 28) {
+mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGestation = TRUE, logger, bufferDays = 28) {
   outcomeWithVisitId <- outcomeEpisodesWithStartsTbl %>%
     dplyr::mutate(visit_id = paste0(as.character(.data$person_id), as.character(.data$outcome_date)))
   gestWithId <- cdm$gest_episodes_df
@@ -621,7 +627,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "final_visit_date", "day"))
   cdm$merged_episodes_df <- mergedTbl %>%
     dplyr::compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
-  logInfo(logger, "Stage C: merged episodes materialized")
+  log4r::info(logger, "Stage C: merged episodes materialized")
   cdm
 }
 
@@ -629,7 +635,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
 # Inputs: mergedEpisodes (final_category, final_visit_date, is_under_max, is_over_min, days_diff, gest_id, visit_id, ...).
 # Outputs: cdm$cleanEpisodes (replaces mergedEpisodes in pipeline; materialized as mergedEpisodes then overwritten by clean result).
 # Column mutations: reclassifies to PREG when term rules violated; adds removed_outcome, removed_category; sets final_visit_date to max_gest_date when reclassifying.
-cleanMergedEpisodes <- function(cdm, logger = NULL, bufferDays = 28) {
+cleanMergedEpisodes <- function(cdm, logger, bufferDays = 28) {
   overMax <- cdm$merged_episodes_df %>%
     dplyr::filter(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_under_max == 0) %>%
     dplyr::mutate(
@@ -641,7 +647,7 @@ cleanMergedEpisodes <- function(cdm, logger = NULL, bufferDays = 28) {
   rest1 <- cdm$merged_episodes_df %>%
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_under_max == 0)) %>%
     dplyr::mutate(removed_outcome = 0L)
-  logInfo(logger, sprintf("Total number of episodes over maximum term duration: %s", getTblRowCount(overMax)))
+  log4r::info(logger, sprintf("Total number of episodes over maximum term duration: %s", getTblRowCount(overMax)))
   combined1 <- rest1 %>% dplyr::union_all(overMax)
   underMin <- combined1 %>%
     dplyr::filter(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_over_min == 0 & .data$days_diff < -bufferDays) %>%
@@ -653,7 +659,7 @@ cleanMergedEpisodes <- function(cdm, logger = NULL, bufferDays = 28) {
     )
   rest2 <- combined1 %>%
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$is_over_min == 0 & .data$days_diff < -bufferDays))
-  logInfo(logger, sprintf("Total number of episodes under minimum term duration: %s", getTblRowCount(underMin)))
+  log4r::info(logger, sprintf("Total number of episodes under minimum term duration: %s", getTblRowCount(underMin)))
   combined2 <- rest2 %>% dplyr::union_all(underMin)
   negDays <- combined2 %>%
     dplyr::filter(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$days_diff < -bufferDays) %>%
@@ -665,7 +671,7 @@ cleanMergedEpisodes <- function(cdm, logger = NULL, bufferDays = 28) {
     )
   rest3 <- combined2 %>%
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$days_diff < -bufferDays))
-  logInfo(logger, sprintf("Total number of episodes with negative days between outcome and max_gest_date: %s", getTblRowCount(negDays)))
+  log4r::info(logger, sprintf("Total number of episodes with negative days between outcome and max_gest_date: %s", getTblRowCount(negDays)))
   cdm$merged_episodes_df <- rest3 %>%
     dplyr::union_all(negDays) %>%
     dplyr::mutate(
@@ -681,7 +687,7 @@ cleanMergedEpisodes <- function(cdm, logger = NULL, bufferDays = 28) {
 # Inputs: mergedEpisodes (after clean): final_episode_id, final_visit_date, final_category, prev_date, prev_category, prev_retry, gest_id, max_gest_start_date, max_start_date, max_gest_week, concept_id, min_term, max_term.
 # Outputs: cdm$final_episodes_df (materialized). Columns: person_id, final_episode_id, final_category, final_visit_date, final_start_date (estimated_start_date), retry, etc.
 # Column mutations: removes overlapping PREG gestation episodes; adds final_start_date (retry-period or gestation/outcome start); reclassifies is_over_min==0 to PREG with removed_outcome.
-resolveOverlaps <- function(cdm, logger = NULL) {
+resolveOverlaps <- function(cdm, logger) {
   withPrev <- cdm$merged_episodes_df %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$final_visit_date) %>%
@@ -743,7 +749,7 @@ resolveOverlaps <- function(cdm, logger = NULL) {
     ) %>%
     dplyr::ungroup()
   reclassPreg <- afterRemove %>%
-    dplyr::filter(!is.na(.data$max_gest_week) & .data$is_over_min == 0) %>%
+    dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0) %>%
     dplyr::mutate(
       removed_category = .data$final_category,
       final_category = "PREG",
@@ -759,7 +765,7 @@ resolveOverlaps <- function(cdm, logger = NULL) {
     dplyr::filter(.data$removed_outcome == 1) %>%
     dplyr::tally() %>%
     dplyr::pull(.data$n)
-  logInfo(logger, sprintf("Total number of episodes with removed outcome: %s", nRemoved))
+  log4r::info(logger, sprintf("Total number of episodes with removed outcome: %s", nRemoved))
   cdm
 }
 
