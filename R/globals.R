@@ -33,7 +33,7 @@ utils::globalVariables(
     "min_gest_start_date",
     "outcome_date",
     "outcome_based",
-    "pps_outcome",
+    "pps_outcome_category",
     "pps_episode_number",
     "pps_n_gt_concepts",
     "overlap_count_dict",

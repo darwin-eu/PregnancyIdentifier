@@ -68,7 +68,7 @@ mergeHipps <- function(outputDir, logger) {
       "hip_end_date",
       "pps_end_date",
       "hip_outcome_category",
-      "pps_outcome",
+      "pps_outcome_category",
       "hip_flag",
       "pps_flag",
       "merge_episode_length",
@@ -180,7 +180,7 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
       dplyr::mutate(
         date_diff = abs(as.numeric(difftime(.data$pregnancy_end, .data$pps_episode_max_date, units = "days"))),
         date_diff = if (penalizeMissingOutcome)
-          ifelse(is.na(.data$pps_outcome), 10000, .data$date_diff) else .data$date_diff,
+          ifelse(is.na(.data$pps_outcome_category), 10000, .data$date_diff) else .data$date_diff,
         pps_days = abs(as.numeric(difftime(.data$pps_episode_max_date, .data$pps_episode_min_date, units = "days"))),
         # mark implausible PPS episodes so they lose tie-breaks
         pps_days = ifelse(.data$pps_days > 310, -1, .data$pps_days)
@@ -258,7 +258,7 @@ addMergedEpisodeDetails <- function(mergedDf) {
 
   mergedDf %>%
     dplyr::mutate(
-      pps_outcome = dplyr::if_else(!is.na(.data$pps_episode_id) & is.na(.data$pps_outcome), "PREG", .data$pps_outcome),
+      pps_outcome_category = dplyr::if_else(!is.na(.data$pps_episode_id) & is.na(.data$pps_outcome_category), "PREG", .data$pps_outcome_category),
       pps_outcome_date = dplyr::if_else(
         !is.na(.data$pps_episode_id) & is.na(.data$pps_outcome_date),
         .data$pps_episode_max_date,

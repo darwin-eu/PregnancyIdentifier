@@ -24,7 +24,7 @@ emptyPpsEpisodes <- function() {
     pps_episode_min_date = as.Date(character(0)),
     pps_episode_max_date = as.Date(character(0)),
     pps_episode_max_date_plus_two_months = as.Date(character(0)),
-    pps_outcome = character(0),
+    pps_outcome_category = character(0),
     pps_outcome_date = as.Date(character(0)),
     pps_n_gt_concepts = integer(0)
   )
@@ -40,7 +40,7 @@ emptyHippsEpisodes <- function() {
     hip_end_date = as.Date(character(0)),
     pps_end_date = as.Date(character(0)),
     hip_outcome_category = character(0),
-    pps_outcome = character(0),
+    pps_outcome_category = character(0),
     hip_flag = integer(0),
     pps_flag = integer(0),
     merge_episode_length = numeric(0),
@@ -69,7 +69,7 @@ emptyFinalPregnancyEpisodes <- function() {
     hip_end_date = as.Date(character(0)),
     pps_end_date = as.Date(character(0)),
     hip_outcome_category = character(0),
-    pps_outcome = character(0),
+    pps_outcome_category = character(0),
     esd_precision_days = integer(0),
     esd_precision_category = character(0),
     esd_gestational_age_days_calculated = integer(0),

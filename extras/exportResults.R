@@ -30,7 +30,7 @@ res %>%
   summariseColumn("esd_precision_days")
 
 res %>%
-  summariseColumn("pps_outcome")
+  summariseColumn("pps_outcome_category")
 
 res %>%
   dplyr::as_tibble() %>%
@@ -54,10 +54,10 @@ ggplot(data = df, mapping = aes(x = esd_precision_category, y = n)) +
   geom_bar(stat = "identity")
 
 df <- res %>%
-  dplyr::group_by(.data$pps_outcome) %>%
+  dplyr::group_by(.data$pps_outcome_category) %>%
   dplyr::summarise(n = dplyr::n())
 
-ggplot(data = df, mapping = aes(x = pps_outcome, y = n)) +
+ggplot(data = df, mapping = aes(x = pps_outcome_category, y = n)) +
   geom_bar(stat = "identity")
 
 ### Episode Frequency ###
@@ -350,10 +350,10 @@ outcomeCat <- res %>%
   dplyr::rename(outcome_category = "hip_outcome_category") %>%
   dplyr::bind_rows(
     res %>%
-      dplyr::group_by(.data$pps_outcome) %>%
+      dplyr::group_by(.data$pps_outcome_category) %>%
       dplyr::summarise(n = n()) %>%
       dplyr::mutate(algorithm = "pps") %>%
-      dplyr::rename(outcome_category = "pps_outcome")
+      dplyr::rename(outcome_category = "pps_outcome_category")
   ) %>%
   dplyr::bind_rows(
     res %>%

@@ -100,7 +100,7 @@ runPps <- function(cdm,
   ppsWithOutcomes <- ppsWithOutcomes %>%
     dplyr::select(
       "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
-      "pps_episode_max_date_plus_two_months", "pps_outcome", "pps_outcome_date",
+      "pps_episode_max_date_plus_two_months", "pps_outcome_category", "pps_outcome_date",
       "pps_n_gt_concepts"
     )
   saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
@@ -348,7 +348,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
         date_cols
       ),
       # Choose one category/date by hierarchy
-      pps_outcome = dplyr::case_when(
+      pps_outcome_category = dplyr::case_when(
         !is.na(.data$lb_delivery_date)    ~ "LB",
         !is.na(.data$sb_delivery_date)    ~ "SB",
         !is.na(.data$ect_delivery_date)   ~ "ECT",
@@ -374,7 +374,7 @@ addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
       outcomesDf %>%
         dplyr::select(
           "person_id", "person_episode_number", "pps_episode_min_date",
-          "pps_outcome", "pps_outcome_date", "n_gt_concepts"
+          "pps_outcome_category", "pps_outcome_date", "n_gt_concepts"
         ),
       by = c("person_id", "person_episode_number", "pps_episode_min_date", "n_gt_concepts")
     )

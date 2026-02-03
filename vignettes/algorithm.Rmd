@@ -56,7 +56,7 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 | `pps_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
 | `hipps_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
 | `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes |
-| `export/` | De-identified summary CSVs and ZIP archive (if export step is used) |
+| `export/` | De-identified summary CSVs and ZIP archive (if export step is used). See the [Export vignette](export.html) for file names, columns, and analysis use. |
 
 ## Pipeline steps in order
 
@@ -65,7 +65,7 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 3.  **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes, and writes `pps_episodes.rds`.
 4.  **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
 5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, harmonizes end and outcome from HIP vs PPS, and writes `final_pregnancy_episodes.rds`.
-6.  **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`.
+6.  **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`. See the [Export vignette](export.html).
 
 ## What each step contributes to final start, end, and outcome
 
@@ -83,9 +83,9 @@ The pipeline’s most important analysis variables are **final_episode_start_dat
 | | **Merge** | Puts HIP and PPS on one row per episode; produces **merge_episode_end** (used only as evidence window by ESD). Does *not* set the final end. |
 | | **ESD** | **Sets final end.** Chooses **final_episode_end_date** by picking between **hip_end_date** and **pps_end_date** using harmonization rules (e.g. outcome match, or “take the one that occurs second”). Does *not* use **merge_episode_end** for the reported end. See [ESD vignette](esd.html). |
 | **Final outcome** | **HIP** | Produces **hip_outcome_category**. |
-| | **PPS** | Produces **pps_outcome**. |
-| | **Merge** | Keeps both **hip_outcome_category** and **pps_outcome** on each row. Does *not* choose a single outcome. |
-| | **ESD** | **Sets final outcome.** Chooses **final_outcome_category** by picking between **hip_outcome_category** and **pps_outcome** using the same rules as for the end date. See [ESD vignette](esd.html). |
+| | **PPS** | Produces **pps_outcome_category**. |
+| | **Merge** | Keeps both **hip_outcome_category** and **pps_outcome_category** on each row. Does *not* choose a single outcome. |
+| | **ESD** | **Sets final outcome.** Chooses **final_outcome_category** by picking between **hip_outcome_category** and **pps_outcome_category** using the same rules as for the end date. See [ESD vignette](esd.html). |
 
 So: **final start** comes from ESD (GW/GR3m inference or end − max_term). **Final end** and **final outcome** come from ESD’s choice between HIP and PPS; the merge only puts both values on the same row so ESD can pick one.
 
@@ -95,7 +95,7 @@ The primary analysis dataset is `final_pregnancy_episodes.rds`, with one row per
 
 - **final_episode_start_date** — Best estimate of pregnancy start for this episode. Set by ESD: when ESD has gestational timing (GW and/or GR3m) within the merged evidence window, the start is inferred from that (e.g. concept_date − 7×weeks for GW, or GR3m midpoint). When ESD has no inferred start, it is set to **final_episode_end_date − max_term** (Matcho term for the chosen outcome, e.g. 301 days for live birth).
 - **final_episode_end_date** — Best estimate of pregnancy end for this episode. **Not** taken from the merged interval (**merge_episode_end**). Set by ESD by **picking one of** **hip_end_date** or **pps_end_date**: when HIP and PPS agree (same outcome and end within 14 days), ESD uses hip_end_date; when one side is missing, ESD uses the side present; when they disagree, ESD uses rules (e.g. take the one that occurs second, or HIP when timing is similar). See the [ESD vignette](esd.html) for the full logic.
-- **final_outcome_category** — Outcome category for this episode (e.g. LB, SB, PREG). Set by ESD by **picking one of** **hip_outcome_category** or **pps_outcome** using the same priority rules as for the end date.
+- **final_outcome_category** — Outcome category for this episode (e.g. LB, SB, PREG). Set by ESD by **picking one of** **hip_outcome_category** or **pps_outcome_category** using the same priority rules as for the end date.
 
 Together, **final_episode_start_date**, **final_episode_end_date**, and **final_outcome_category** are the primary analysis variables: the pipeline’s final inferred pregnancy interval and outcome.
 

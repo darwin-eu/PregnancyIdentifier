@@ -31,7 +31,7 @@ No rows are dropped except duplicate overlap candidates; one-sided episodes and 
 **Point of the merge.** The merge serves three purposes for the rest of the pipeline:
 
 1. **Define which episodes exist** — One row per episode after overlap and deduplication. The set of episodes (and their identity) is fixed here.
-2. **Put HIP and PPS on the same row** — Each row carries both **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome** (when present). The next step, ESD, does **not** do another overlap-merge of HIP and PPS; it takes this single row and **picks one** end date and one outcome from the two values already on the row using harmonization rules.
+2. **Put HIP and PPS on the same row** — Each row carries both **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome_category** (when present). The next step, ESD, does **not** do another overlap-merge of HIP and PPS; it takes this single row and **picks one** end date and one outcome from the two values already on the row using harmonization rules.
 3. **Supply the evidence window** — **merge_episode_start** and **merge_episode_end** define the interval ESD uses to pull gestational timing concepts (GW/GR3m) from the CDM for inferring pregnancy start. The **final** episode end date and outcome in the pipeline are **not** taken from this merged interval—they are chosen by ESD from **hip_end_date** and **pps_end_date** (and the two outcomes). See the [ESD vignette](esd.html) for how ESD chooses final start, end, and outcome.
 
 ---
@@ -123,7 +123,7 @@ For each candidate row in `dupDf`, the algorithm computes:
    Smaller values mean HIP and PPS agree on episode end; the best match minimizes this.
 
 2. **Missing PPS outcome (when choosing by HIP)**  
-   When selecting the best PPS match for a duplicated HIP episode, rows where `pps_outcome` is missing are penalized: `date_diff` is set to a large value (10000) so they are chosen only if no other match exists.
+   When selecting the best PPS match for a duplicated HIP episode, rows where `pps_outcome_category` is missing are penalized: `date_diff` is set to a large value (10000) so they are chosen only if no other match exists.
 
 3. **pps_days** = |`pps_episode_max_date` − `pps_episode_min_date`| (PPS episode length in days).  
    Used for tie-breaking: PPS episodes longer than 310 days are treated as implausible and get `pps_days = -1`, so they lose ties. Among plausible episodes, **longer** PPS duration is preferred (larger `pps_days` wins).
@@ -186,8 +186,8 @@ PPS 1 overlaps both HIP 1 and HIP 2. We have 2 rows; both have `duplicated_pps_e
 
 After deduplication, `addMergedEpisodeDetails()`:
 
-- Fills PPS outcome when missing: if a row has `pps_episode_id` but `pps_outcome` is NA, set `pps_outcome = "PREG"` and set `pps_outcome_date = pps_episode_max_date`.
-- Renames to the final names used in the output: `pregnancy_end` → `hip_end_date`, `pps_outcome_date` → `pps_end_date`, `merged_episode_start` → `merge_episode_start`, `merged_episode_end` → `merge_episode_end`, `merged_episode_length` → `merge_episode_length`, `pregnancy_start` → `merge_pregnancy_start`, `first_gest_date` → `merge_first_gest_date`. HIP supplies `hip_outcome_category`; PPS outcome column remains `pps_outcome`.
+- Fills PPS outcome when missing: if a row has `pps_episode_id` but `pps_outcome_category` is NA, set `pps_outcome_category = "PREG"` and set `pps_outcome_date = pps_episode_max_date`.
+- Renames to the final names used in the output: `pregnancy_end` → `hip_end_date`, `pps_outcome_date` → `pps_end_date`, `merged_episode_start` → `merge_episode_start`, `merged_episode_end` → `merge_episode_end`, `merged_episode_length` → `merge_episode_length`, `pregnancy_start` → `merge_pregnancy_start`, `first_gest_date` → `merge_first_gest_date`. HIP supplies `hip_outcome_category`; PPS outcome column remains `pps_outcome_category`.
 - Adds **hip_flag** (1 if the row has a HIP episode, 0 otherwise) and **pps_flag** (1 if it has a PPS episode, 0 otherwise).
 - Recomputes merged episode dates from the retained rows, then orders episodes within person by `merge_episode_start` and assigns **merge_episode_number** (1, 2, 3, … per person).
 
@@ -234,7 +234,7 @@ The saved data frame includes the following. Columns listed as “always present
 | Column | Type | Description |
 |--------|------|-------------|
 | `hip_outcome_category` | character | Outcome category from HIP (e.g. LB, SB, PREG). NA if PPS-only. |
-| `pps_outcome` | character | Outcome category from PPS; set to `"PREG"` when PPS has no inferred outcome. NA if HIP-only. |
+| `pps_outcome_category` | character | Outcome category from PPS; set to `"PREG"` when PPS has no inferred outcome. NA if HIP-only. |
 
 **Algorithm presence flags (always present)**
 

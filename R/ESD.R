@@ -138,7 +138,7 @@ runEsd <- function(cdm,
       "hip_end_date",
       "pps_end_date",
       "hip_outcome_category",
-      "pps_outcome",
+      "pps_outcome_category",
       "esd_precision_days",
       "esd_precision_category",
       "esd_gestational_age_days_calculated",
@@ -658,10 +658,10 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
   finalDf <- finalDf %>%
     dplyr::mutate(
       outcome_match = dplyr::case_when(
-        .data$hip_outcome_category == .data$pps_outcome &
+        .data$hip_outcome_category == .data$pps_outcome_category &
         .data$hip_outcome_category != "PREG" &
         abs(as.numeric(difftime(.data$hip_end_date, .data$pps_end_date, units = "days"))) <= 14 ~ 1,
-        .data$hip_outcome_category == "PREG" & .data$pps_outcome == "PREG" ~ 1,
+        .data$hip_outcome_category == "PREG" & .data$pps_outcome_category == "PREG" ~ 1,
         TRUE ~ 0
       )
     ) %>%
@@ -676,23 +676,23 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       final_outcome_category = dplyr::case_when(
         .data$outcome_match == 1 ~ .data$hip_outcome_category,
 
-        .data$outcome_match == 0 & is.na(.data$pps_outcome) ~ .data$hip_outcome_category,
-        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_outcome,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_outcome_category,
+        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_outcome_category,
 
         # if they don't match, but the hip end date is not within 7 days before the PPS outcome
         # add: go with HIP if the PPS is the next one and there's sufficient separation
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome != "PREG" &
+          .data$pps_outcome_category != "PREG" &
           !is.na(.data$next_hip_outcome) &
-          .data$pps_outcome == .data$next_hip_outcome &
+          .data$pps_outcome_category == .data$next_hip_outcome &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_outcome_category,
 
         # but otherwise go with PPS
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome != "PREG" &
-          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_outcome,
+          .data$pps_outcome_category != "PREG" &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_outcome_category,
 
         # or if they're similar timing go with HIP
         TRUE ~ .data$hip_outcome_category
@@ -700,19 +700,19 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       # If categories don't match, take the end date that occurs second (outcome date from HIP is prioritized)
       inferred_episode_end = dplyr::case_when(
         .data$outcome_match == 1 ~ .data$hip_end_date,
-        .data$outcome_match == 0 & is.na(.data$pps_outcome) ~ .data$hip_end_date,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_end_date,
         .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_end_date,
 
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome != "PREG" &
+          .data$pps_outcome_category != "PREG" &
           !is.na(.data$next_hip_outcome) &
-          .data$pps_outcome == .data$next_hip_outcome &
+          .data$pps_outcome_category == .data$next_hip_outcome &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_end_date,
 
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome != "PREG" &
+          .data$pps_outcome_category != "PREG" &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_end_date,
 
         !is.na(.data$hip_end_date) ~ .data$hip_end_date,

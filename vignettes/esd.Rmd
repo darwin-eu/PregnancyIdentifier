@@ -27,33 +27,33 @@ Episode construction (HIP, PPS, merge) yields plausible pregnancy intervals, but
 
 ESD is run via `runEsd()`, which reads `hipps_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges ESD results back onto HIPPS metadata (including resolving final outcome and end date when HIP and PPS disagree), and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **esd.rds** (episode-level start inference only, before merging back).
 
-**Important:** The **final episode end date** and **final outcome category** in the pipeline are **not** taken from the merged episode (e.g. `merge_episode_end`). They are **re-derived by ESD** by picking between HIP and PPS again: ESD compares `hip_end_date` and `pps_end_date` (and `hip_outcome_category` and `pps_outcome`) and applies harmonization rules to choose one end and one outcome per episode. The merged interval is used only to define the evidence window for start inference; the reported end and outcome come from this second pass over HIP and PPS.
+**Important:** The **final episode end date** and **final outcome category** in the pipeline are **not** taken from the merged episode (e.g. `merge_episode_end`). They are **re-derived by ESD** by picking between HIP and PPS again: ESD compares `hip_end_date` and `pps_end_date` (and `hip_outcome_category` and `pps_outcome_category`) and applies harmonization rules to choose one end and one outcome per episode. The merged interval is used only to define the evidence window for start inference; the reported end and outcome come from this second pass over HIP and PPS.
 
 # Relationship to HIP, PPS, and merge
 
 HIP and PPS already use gestational-age concepts, and the merge step combines their episodes into one table with **merge_episode_start** and **merge_episode_end**. So it is reasonable to ask why ESD exists and what it uses from the merged data versus from HIP and PPS directly.
 
-**What the earlier steps do.** HIP uses gestation to build outcome-anchored episodes and to estimate start from outcome + term ranges; it outputs **hip_pregnancy_start**, **hip_end_date** (e.g. delivery date), and **hip_outcome_category**. PPS uses pregnancy-related concepts and their gestational timing windows (min/month ranges) to define episode bounds; it outputs **pps_episode_min_date**, **pps_episode_max_date**, and **pps_outcome**. The merge step matches HIP and PPS episodes by temporal overlap and produces one row per merged episode, with **merge_episode_start** = min of the relevant HIP/PPS starts and **merge_episode_end** = max of the relevant HIP/PPS ends. So after merge we already have one interval per episode.
+**What the earlier steps do.** HIP uses gestation to build outcome-anchored episodes and to estimate start from outcome + term ranges; it outputs **hip_pregnancy_start**, **hip_end_date** (e.g. delivery date), and **hip_outcome_category**. PPS uses pregnancy-related concepts and their gestational timing windows (min/month ranges) to define episode bounds; it outputs **pps_episode_min_date**, **pps_episode_max_date**, and **pps_outcome_category**. The merge step matches HIP and PPS episodes by temporal overlap and produces one row per merged episode, with **merge_episode_start** = min of the relevant HIP/PPS starts and **merge_episode_end** = max of the relevant HIP/PPS ends. So after merge we already have one interval per episode.
 
 **What ESD adds.** ESD does two things:
 
 1. **Refine the start and add precision.** HIP and PPS (and merge) give you *bounds* or an *estimated* start. ESD goes back to the CDM and, for each merged episode, pulls gestational timing concepts (GW and GR3m) that fall *within that episode’s merged interval*. From those concepts it computes a single **inferred_episode_start** (e.g. concept_date − 7×weeks for “18 weeks”) and **precision_days** / **precision_category** (week vs month vs three-month). So ESD answers: “For this episode we already have, what is the best point estimate of pregnancy start and how precise is it?” That single start plus precision is not produced by HIP or PPS in this form.
 
-2. **Harmonize end and outcome when HIP and PPS disagree.** The merge keeps one row per episode but preserves both **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome** on that row. ESD does *not* use **merge_episode_end** for the *final* episode end. Instead it re-compares **hip_end_date** and **pps_end_date** (and the two outcomes) and applies rules (e.g. outcome match within 14 days, or “take the one that occurs second”) to set **final_episode_end_date** (internally `inferred_episode_end`) and **final_outcome_category**. So the reported end and outcome are chosen from the raw HIP and PPS values, not from the merged interval. That can seem redundant with merge, but it makes the final end and outcome explicit and consistent with the same rules used for concordance metrics.
+2. **Harmonize end and outcome when HIP and PPS disagree.** The merge keeps one row per episode but preserves both **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome_category** on that row. ESD does *not* use **merge_episode_end** for the *final* episode end. Instead it re-compares **hip_end_date** and **pps_end_date** (and the two outcomes) and applies rules (e.g. outcome match within 14 days, or “take the one that occurs second”) to set **final_episode_end_date** (internally `inferred_episode_end`) and **final_outcome_category**. So the reported end and outcome are chosen from the raw HIP and PPS values, not from the merged interval. That can seem redundant with merge, but it makes the final end and outcome explicit and consistent with the same rules used for concordance metrics.
 
 **What ESD uses from merged data vs from HIP/PPS.**
 
 | Purpose | What ESD uses |
 |--------|----------------|
 | **Evidence window** (which concept records belong to this episode) | **Merged** interval: **merge_episode_start**, **merge_episode_end**, **merge_pregnancy_start**. Concepts are pulled only if they fall within this window. |
-| **Final episode end and outcome** | **HIP and PPS directly**: **hip_end_date**, **pps_end_date**, **hip_outcome_category**, **pps_outcome**. ESD picks one end and one outcome per episode using its harmonization rules; it does not use **merge_episode_end** for the reported end. |
+| **Final episode end and outcome** | **HIP and PPS directly**: **hip_end_date**, **pps_end_date**, **hip_outcome_category**, **pps_outcome_category**. ESD picks one end and one outcome per episode using its harmonization rules; it does not use **merge_episode_end** for the reported end. |
 | **Start inference** | **GW/GR3m concepts** within the merged window; result is **inferred_episode_start** and precision. |
 
 So: the same gestational-style concepts are used in HIP, PPS, and again in ESD—but ESD uses them to produce a *single start date and precision* for an episode that already exists after merge. And the final end/outcome are resolved from HIP and PPS again so that one end and one outcome are chosen explicitly per episode.
 
 # How final start, end, and outcome are chosen
 
-ESD sets **final_episode_start_date** (inferred_episode_start), **final_episode_end_date** (inferred_episode_end), and **final_outcome_category** using the following logic. The end and outcome are always chosen from **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome** on the merged row; **merge_episode_end** is not used for the final end.
+ESD sets **final_episode_start_date** (inferred_episode_start), **final_episode_end_date** (inferred_episode_end), and **final_outcome_category** using the following logic. The end and outcome are always chosen from **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome_category** on the merged row; **merge_episode_end** is not used for the final end.
 
 ## Final start date
 
@@ -65,12 +65,12 @@ ESD sets **final_episode_start_date** (inferred_episode_start), **final_episode_
 ESD first computes **outcome_match**: 1 if HIP and PPS agree (same outcome category and end dates within 14 days, or both PREG), else 0. Then it chooses **final_outcome_category** and **inferred_episode_end** using the same priority order:
 
 1. **outcome_match == 1** — Use HIP: **final_outcome_category** = hip_outcome_category, **inferred_episode_end** = hip_end_date.
-2. **One-sided (only HIP or only PPS)** — Use the side that is present: if pps_outcome is NA, use HIP; if hip_outcome_category is NA, use PPS.
+2. **One-sided (only HIP or only PPS)** — Use the side that is present: if pps_outcome_category is NA, use HIP; if hip_outcome_category is NA, use PPS.
 3. **Both non-PREG but disagree** — Compare timing:
    - If PPS outcome equals the *next* HIP outcome (for this person) and hip_end_date ≤ pps_end_date − 14 days: use HIP (PPS is treated as the later episode).
    - Else if hip_end_date ≤ pps_end_date − 7 days: use PPS (HIP end is at least 7 days before PPS end).
    - Else: use HIP (same or similar timing).
-4. **Fallback** — If no rule above applied: use hip_end_date / hip_outcome_category when non-NA, else pps_end_date / pps_outcome.
+4. **Fallback** — If no rule above applied: use hip_end_date / hip_outcome_category when non-NA, else pps_end_date / pps_outcome_category.
 
 So the final end and outcome are always one of the two algorithm values on the row; ESD never uses **merge_episode_end** for the reported end.
 

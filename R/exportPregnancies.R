@@ -470,7 +470,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
 
   dplyr::bind_rows(
     bindCounts(res, "hip_outcome_category", "hip"),
-    bindCounts(res, "pps_outcome", "pps"),
+    bindCounts(res, "pps_outcome_category", "pps"),
     bindCounts(res, "final_outcome_category", "hipps")
   ) %>%
     dplyr::group_by(.data$algorithm) %>%
