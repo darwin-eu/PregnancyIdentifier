@@ -11,8 +11,6 @@ test_that("Outcome category is correct", {
 
   invisible(capture.output(runPregnancyIdentifier(cdm, outputFolder)))
 
-  cleanupCdmDb(cdm)
-
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
     select(person_id, inferred_episode_start, inferred_episode_end, final_outcome_category)
 
@@ -112,6 +110,11 @@ test_that("Outcome category is correct", {
 
 
   # 31: Two LB outcomes too close (<min_days). Merge may still output 2 rows; assert on one.
+  # cdmSubset(cdm, 32L) %>% PregnancyIdentifier::cdmCommentContents()
+# person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name   | type_concept_name
+# 32        | 4197245                | 2024-01-15 | NA       | 32817           | condition_occurrence | Gestation period, 12 weeks | EHR
+# 32        | 4094910                | 2023-10-29 | NA       | 32817           | condition_occurrence | Pregnancy test positive    | EHR
+# 32        | 4051642                | 2023-06-01 | NA       | 32817           | condition_occurrence | Gestation period, 20 weeks | EHR
   output <- df |>
     filter(.data$person_id == 31L) |>
     slice(1)
@@ -123,6 +126,13 @@ test_that("Outcome category is correct", {
 
 
   # 32:	Gestation week decrease triggers new episode	 We should see 2 episodes here ----
+  # cdmSubset(cdm, 32L) %>%
+  #   PregnancyIdentifier::cdmCommentContents()
+# person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name   | type_concept_name
+# 32        | 4197245                | 2024-01-15 | NA       | 32817           | condition_occurrence | Gestation period, 12 weeks | EHR
+# 32        | 4094910                | 2023-10-29 | NA       | 32817           | condition_occurrence | Pregnancy test positive    | EHR
+# 32        | 4051642                | 2023-06-01 | NA       | 32817           | condition_occurrence | Gestation period, 20 weeks | EHR
+
   output <- df |>
     filter(.data$person_id == 32L)
 
@@ -149,5 +159,6 @@ test_that("Outcome category is correct", {
   expect_equal(output$inferred_episode_end, as.Date(c("2023-12-20")))
   expect_false(is.na(output$inferred_episode_start))
 
+  cleanupCdmDb(cdm)
   unlink(outputFolder, recursive = TRUE)
 })

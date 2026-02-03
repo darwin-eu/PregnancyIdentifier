@@ -10,7 +10,7 @@ test_that("gestational episodes from preg_hip_records", {
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   logger <- PregnancyIdentifier:::makeLogger(outputDir)
 
-  cdm <- initPregnancies(cdm)
+  cdm <- initPregnancies(cdm, logger = logger)
 
   # Overwrite preg_hip_records with custom gestation visits (columns required by buildGestationEpisodes)
   gestation_visits <- utils::read.csv(

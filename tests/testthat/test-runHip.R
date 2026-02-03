@@ -19,8 +19,7 @@ test_that("runHip runs without error", {
  cdm <- CDMConnector::cdmSubset(cdm, 12L)
  #
  #  debugonce(initPregnancies)
- cdm <- initPregnancies(cdm)
-
+ cdm <- initPregnancies(cdm, logger = logger)
  #
  #  cdm$preg_hip_records
  #
@@ -44,11 +43,10 @@ test_that("runHip runs without error", {
 
 test_that("runHip runs with custom parameters", {
   cdm <- mockPregnancyCdm()
-  cdm <- initPregnancies(cdm)
-
   outputDir <- file.path(tempdir(), "test_runHip_custom")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  cdm <- initPregnancies(cdm, logger = logger)
 
   cdm <- runHip(
     cdm = cdm,
