@@ -2,7 +2,7 @@ test_that("runEsd runs without error", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_runEsd")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   # Run HIP, PPS, and merge first to create required files
@@ -25,7 +25,7 @@ test_that("runEsd runs with custom parameters", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_runEsd_custom")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   # Run HIP, PPS, and merge first

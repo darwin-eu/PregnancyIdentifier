@@ -4,12 +4,12 @@ test_that("runHip runs without error", {
 
   outputDir <- file.path(tempdir(), "test_runHip")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
 
 
 
   library(CDMConnector)
-  library(dplyr)
+  library(dplyr, warn.conflicts = FALSE)
 
 # cdmCommentContents(cdm, 12)
 # person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name | type_concept_name
@@ -45,7 +45,7 @@ test_that("runHip runs with custom parameters", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_runHip_custom")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   cdm <- runHip(

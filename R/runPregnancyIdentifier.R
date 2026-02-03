@@ -20,19 +20,23 @@
 #' Create a new logger
 #'
 #' @param outputDir The directory where the log should be created
+#' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
+#'   written to the console as well as the log file. If `FALSE`, only the file
+#'   appender is used (useful in tests to keep output clean).
 #'
 #' @returns A log4r logger object
 #' @export
-makeLogger <- function(outputDir) {
+makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
   checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
   checkmate::assertDirectoryExists(outputDir)
+  checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
   logFile <- file.path(outputDir, "log.txt")
   file.create(logFile)
-  logger <- log4r::create.logger(logfile = logFile)
-  logger <- log4r::logger(threshold = "INFO", appenders = list(
-    log4r::console_appender(),
-    log4r::file_appender(logFile)
-  ))
+  appenders <- list(log4r::file_appender(logFile))
+  if (outputLogToConsole) {
+    appenders <- c(log4r::console_appender(), appenders)
+  }
+  logger <- log4r::logger(threshold = "INFO", appenders = appenders)
   return(logger)
 }
 
@@ -70,6 +74,8 @@ makeLogger <- function(outputDir) {
 #' @param runExport (`logical(1)`) If `TRUE`, run `exportPregnancies()` after
 #'   ESD and write shareable CSVs and ZIP to `file.path(outputDir, "export")`.
 #'   Default `FALSE`.
+#' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
+#'   written to the console. If `FALSE`, only to the log file (e.g. for tests).
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
@@ -85,7 +91,8 @@ runPregnancyIdentifier <- function(cdm,
                                    justGestation = TRUE,
                                    minCellCount = 5L,
                                    debugMode = FALSE,
-                                   runExport = FALSE) {
+                                   runExport = FALSE,
+                                   outputLogToConsole = TRUE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
@@ -94,6 +101,7 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
   checkmate::assertLogical(runExport, len = 1, any.missing = FALSE)
+  checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
 
@@ -103,7 +111,7 @@ runPregnancyIdentifier <- function(cdm,
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   checkmate::assertDirectoryExists(outputDir)
 
-  logger <- makeLogger(outputDir)
+  logger <- makeLogger(outputDir, outputLogToConsole = outputLogToConsole)
   log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
 
   runStart <- data.frame(start = as.integer(Sys.time()))

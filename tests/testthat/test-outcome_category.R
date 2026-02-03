@@ -9,7 +9,7 @@ test_that("Outcome category is correct", {
     dir.create(outputFolder)
   }
 
-  invisible(capture.output(runPregnancyIdentifier(cdm, outputFolder)))
+  runPregnancyIdentifier(cdm, outputFolder, outputLogToConsole = FALSE)
 
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
     select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)

@@ -2,7 +2,7 @@ test_that("mergeHipps runs without error", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_mergeHipps")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- makeLogger(outputDir)
+  logger <- makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   # Run HIP and PPS first to create required files

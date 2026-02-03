@@ -9,7 +9,8 @@ test_that("exportPregnancies runs without error", {
   # Run full pipeline first to create required files
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir
+    outputDir = outputDir,
+    outputLogToConsole = FALSE
   )
 
   # Now test exportPregnancies
@@ -38,7 +39,8 @@ test_that("exportPregnancies runs with custom minCellCount", {
   # Run full pipeline first
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir
+    outputDir = outputDir,
+    outputLogToConsole = FALSE
   )
 
   # Test with custom minCellCount

@@ -1,6 +1,6 @@
 test_that("initPregnancies runs without error", {
   cdm <- mockPregnancyCdm()
-  logger <- makeLogger(tempdir())
+  logger <- makeLogger(tempdir(), outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
   expect_s3_class(cdm, "cdm_reference")
 
@@ -15,7 +15,7 @@ test_that("initPregnancies runs without error", {
 
 test_that("initPregnancies runs with custom parameters", {
   cdm <- mockPregnancyCdm()
-  logger <- makeLogger(tempdir())
+  logger <- makeLogger(tempdir(), outputLogToConsole = FALSE)
   cdm <- initPregnancies(
     cdm,
     startDate = as.Date("2000-01-01"),

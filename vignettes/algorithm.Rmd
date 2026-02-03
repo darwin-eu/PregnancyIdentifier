@@ -114,7 +114,7 @@ Together, **final_episode_start_date**, **final_episode_end_date**, and **final_
 ```{r}
 library(PregnancyIdentifier)
 library(CDMConnector)
-library(dplyr)
+library(dplyr, warn.conflicts = FALSE)
 
 cdm <- mockPregnancyCdm()
 

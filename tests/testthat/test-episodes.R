@@ -8,7 +8,7 @@ test_that("gestational episodes from preg_hip_records", {
 
   outputDir <- file.path(tempdir(), "test_episodes")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
 
   cdm <- initPregnancies(cdm, logger = logger)
 

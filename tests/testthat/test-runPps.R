@@ -2,7 +2,7 @@ test_that("runPps runs without error", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_runPps")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   cdm <- runPps(
@@ -22,7 +22,7 @@ test_that("runPps runs with custom parameters", {
   cdm <- mockPregnancyCdm()
   outputDir <- file.path(tempdir(), "test_runPps_custom")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir)
+  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   cdm <- runPps(

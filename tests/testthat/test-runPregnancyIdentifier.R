@@ -6,7 +6,8 @@ test_that("runPregnancyIdentifier runs without error", {
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir
+    outputDir = outputDir,
+    outputLogToConsole = FALSE
   )
 
   expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
@@ -30,7 +31,8 @@ test_that("runPregnancyIdentifier runs with custom parameters", {
     startDate = as.Date("2000-01-01"),
     endDate = as.Date("2020-12-31"),
     justGestation = FALSE,
-    minCellCount = 0L
+    minCellCount = 0L,
+    outputLogToConsole = FALSE
   )
 
   expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
