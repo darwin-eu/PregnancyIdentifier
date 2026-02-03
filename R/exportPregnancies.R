@@ -29,8 +29,8 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
 
   res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
-  if (!"pregnancy_start" %in% names(res) && "inferred_episode_start" %in% names(res)) {
-    res$pregnancy_start <- res$inferred_episode_start
+  if (!"merge_pregnancy_start" %in% names(res) && "final_episode_start_date" %in% names(res)) {
+    res$merge_pregnancy_start <- res$final_episode_start_date
   }
 
   # Copy key raw artifacts (if present)
@@ -112,21 +112,21 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
     dplyr::collect() %>%
     dplyr::left_join(concepts, by = "concept_id") %>%
     dplyr::transmute(
-      "person_id", episode_num = .data$episode_number, "pregnancy_start", "hip_end_date", "pps_end_date",
+      "person_id", episode_num = .data$merge_episode_number, "merge_pregnancy_start", "hip_end_date", "pps_end_date",
       "concept_id", "concept_name",
       "concept_start",
       concept_end = dplyr::coalesce(.data$concept_end, .data$concept_start),
       "min_month", "max_month", "span", "midpoint"
     ) %>%
     dplyr::mutate(
-      min_date = .data$pregnancy_start + (.data$min_month * 30),
-      max_date = .data$pregnancy_start + (.data$max_month * 30),
+      min_date = .data$merge_pregnancy_start + (.data$min_month * 30),
+      max_date = .data$merge_pregnancy_start + (.data$max_month * 30),
       after_min = .data$min_date >= .data$concept_start,
       prior_max = .data$max_date <= .data$concept_end,
       in_span = .data$concept_start >= .data$min_date & .data$concept_start <= .data$max_date,
       # NOTE: keeping original behavior (even though this condition looks suspicious)
-      at_midpoint = .data$concept_start >= (.data$pregnancy_start + .data$midpoint) &
-        .data$concept_start <= (.data$pregnancy_start - .data$midpoint * 30)
+      at_midpoint = .data$concept_start >= (.data$merge_pregnancy_start + .data$midpoint) &
+        .data$concept_start <= (.data$merge_pregnancy_start - .data$midpoint * 30)
     )
 
   conceptsPerEpisode %>%
@@ -168,7 +168,7 @@ addAge <- function(cdm, res) {
     dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
     dplyr::collect() %>%
     dplyr::mutate(
-      age_pregnancy_start = as.numeric(as.Date(.data$inferred_episode_start) - .data$birth_datetime)
+      age_pregnancy_start = as.numeric(as.Date(.data$final_episode_start_date) - .data$birth_datetime)
     )
 }
 
@@ -220,11 +220,11 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
 #' @noRd
 exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
   d <- res %>%
-    dplyr::filter(!is.na(.data$precision_days)) %>%
-    dplyr::pull(.data$precision_days) %>%
+    dplyr::filter(!is.na(.data$esd_precision_days)) %>%
+    dplyr::pull(.data$esd_precision_days) %>%
     stats::density()
 
-  data.frame(precision_days = d$x, density = d$y) %>%
+  data.frame(esd_precision_days = d$x, density = d$y) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -283,7 +283,7 @@ exportEpisodeFrequencySummary <- function(res, resPath, snap, runStart, pkgVersi
 #' @noRd
 exportGestationalAgeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
-    summariseColumn("gestational_age_days_calculated") %>%
+    summariseColumn("esd_gestational_age_days_calculated") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -297,8 +297,8 @@ exportGestationalAgeSummary <- function(res, resPath, snap, runStart, pkgVersion
 exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::summarise(
-      less_1day = sum(.data$gestational_age_days_calculated < 1, na.rm = TRUE),
-      over_308days = sum(.data$gestational_age_days_calculated > 308, na.rm = TRUE)
+      less_1day = sum(.data$esd_gestational_age_days_calculated < 1, na.rm = TRUE),
+      over_308days = sum(.data$esd_gestational_age_days_calculated > 308, na.rm = TRUE)
     ) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
@@ -312,7 +312,7 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
 #' @noRd
 exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
-    dplyr::mutate(gestational_weeks = floor(.data$gestational_age_days_calculated / 7)) %>%
+    dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
       pct = .data$n / sum(.data$n) * 100,
@@ -328,7 +328,7 @@ exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersio
 exportGestationalDurationCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::group_by(.data$final_outcome_category) %>%
-    summariseColumn("gestational_age_days_calculated") %>%
+    summariseColumn("esd_gestational_age_days_calculated") %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
@@ -345,8 +345,8 @@ exportGestationalDurationCounts <- function(res, resPath, snap, runStart, pkgVer
 #' @noRd
 exportTimeTrends <- function(res, resPath, snap, runStart, pkgVersion) {
   dateCols <- c(
-    "pregnancy_start", "hip_end_date", "pps_end_date", "episode_min_date", "episode_max_date",
-    "recorded_episode_start", "recorded_episode_end", "inferred_episode_start", "inferred_episode_end"
+    "merge_pregnancy_start", "hip_end_date", "pps_end_date", "pps_episode_min_date", "pps_episode_max_date",
+    "merge_episode_start", "merge_episode_end", "final_episode_start_date", "final_episode_end_date"
   )
 
   resLong <- res %>%
@@ -404,11 +404,11 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
   res %>%
     dplyr::add_count(.data$person_id) %>%
     dplyr::filter(.data$n > 1) %>%
-    dplyr::arrange(.data$person_id, .data$inferred_episode_start, .data$inferred_episode_end) %>%
+    dplyr::arrange(.data$person_id, .data$final_episode_start_date, .data$final_episode_end_date) %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::mutate(
-      prev_end = dplyr::lag(.data$inferred_episode_end),
-      overlap = as.Date(.data$inferred_episode_start) <= as.Date(.data$prev_end)
+      prev_end = dplyr::lag(.data$final_episode_end_date),
+      overlap = as.Date(.data$final_episode_start_date) <= as.Date(.data$prev_end)
     ) %>%
     dplyr::filter(!is.na(.data$prev_end)) %>%
     summariseColumn("overlap") %>%
@@ -424,8 +424,8 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
 #' @noRd
 exportDateConsistency <- function(res, resPath, snap, runStart, pkgVersion) {
   dateCols <- c(
-    "pregnancy_start", "hip_end_date", "pps_end_date", "episode_min_date", "episode_max_date",
-    "recorded_episode_start", "recorded_episode_end", "inferred_episode_start", "inferred_episode_end"
+    "merge_pregnancy_start", "hip_end_date", "pps_end_date", "pps_episode_min_date", "pps_episode_max_date",
+    "merge_episode_start", "merge_episode_end", "final_episode_start_date", "final_episode_end_date"
   )
 
   res %>%
@@ -443,8 +443,8 @@ exportDateConsistency <- function(res, resPath, snap, runStart, pkgVersion) {
 exportReversedDatesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   res %>%
     dplyr::mutate(
-      rev_hip = .data$pregnancy_start > .data$hip_end_date,
-      rev_pps = .data$pregnancy_start > .data$pps_end_date
+      rev_hip = .data$merge_pregnancy_start > .data$hip_end_date,
+      rev_pps = .data$merge_pregnancy_start > .data$pps_end_date
     ) %>%
     dplyr::summarise(
       n_rev_hip = sum(.data$rev_hip, na.rm = TRUE),
@@ -470,7 +470,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
 
   dplyr::bind_rows(
     bindCounts(res, "hip_outcome_category", "hip"),
-    bindCounts(res, "pps_outcome_category", "pps"),
+    bindCounts(res, "pps_outcome", "pps"),
     bindCounts(res, "final_outcome_category", "hipps")
   ) %>%
     dplyr::group_by(.data$algorithm) %>%

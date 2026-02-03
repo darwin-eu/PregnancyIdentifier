@@ -62,20 +62,20 @@ mergeHipps <- function(outputDir, logger) {
   mergedDf <- mergedDf %>%
     dplyr::select(
       "person_id",
-      "episode_number",
-      "recorded_episode_start",
-      "recorded_episode_end",
+      "merge_episode_number",
+      "merge_episode_start",
+      "merge_episode_end",
       "hip_end_date",
       "pps_end_date",
       "hip_outcome_category",
-      "pps_outcome_category",
+      "pps_outcome",
       "hip_flag",
       "pps_flag",
-      "recorded_episode_length",
+      "merge_episode_length",
       dplyr::any_of(c(
-        "pregnancy_start", "first_gest_date", "episode_min_date", "episode_max_date",
-        "episode_max_date_plus_two_months", "episode", "person_episode_number",
-        "algo1_id", "algo2_id"
+        "merge_pregnancy_start", "merge_first_gest_date", "pps_episode_min_date", "pps_episode_max_date",
+        "pps_episode_max_date_plus_two_months", "hip_episode", "pps_episode_number",
+        "hip_episode_id", "pps_episode_id"
       ))
     )
   saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
@@ -88,63 +88,64 @@ mergeHipps <- function(outputDir, logger) {
 mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
   # Join episodes within person if intervals overlap:
   # HIP: [pregnancy_start, pregnancy_end]
-  # PPS: [episode_min_date, episode_max_date_plus_two_months]  (extension aids matching)
+  # PPS: [pps_episode_min_date, pps_episode_max_date_plus_two_months]  (extension aids matching)
 
-  algo1Df <- hipDf %>%
+  hipEpisodesDf <- hipDf %>%
     dplyr::rename(
-      pregnancy_start = estimated_start_date,
-      pregnancy_end   = visit_date,
-      first_gest_date = gest_date
+      pregnancy_start = hip_pregnancy_start,
+      pregnancy_end   = hip_pregnancy_end,
+      first_gest_date = hip_first_gest_date
     ) %>%
     dplyr::mutate(
-      algo1_id = paste(.data$person_id, .data$episode, "1", sep = "_"),
+      hip_episode_id = paste(.data$person_id, .data$hip_episode, "hip", sep = "_"),
       pregnancy_start = as.Date(.data$pregnancy_start),
       pregnancy_end   = as.Date(.data$pregnancy_end)
     )
 
-  algo2Df <- ppsWithOutcomesDf %>%
+  ppsEpisodesDf <- ppsWithOutcomesDf %>%
     dplyr::mutate(
-      algo2_id = paste(.data$person_id, .data$person_episode_number, "2", sep = "_"),
-      episode_min_date = as.Date(.data$episode_min_date),
-      episode_max_date_plus_two_months = as.Date(.data$episode_max_date_plus_two_months)
+      pps_episode_id = paste(.data$person_id, .data$pps_episode_number, "pps", sep = "_"),
+      pps_episode_min_date = as.Date(.data$pps_episode_min_date),
+      pps_episode_max_date_plus_two_months = as.Date(.data$pps_episode_max_date_plus_two_months)
     )
 
-  allEpisodes <- algo1Df %>%
+  allEpisodes <- hipEpisodesDf %>%
     dplyr::full_join(
-      algo2Df,
+      ppsEpisodesDf,
       by = dplyr::join_by(
         person_id,
-        pregnancy_start <= episode_max_date_plus_two_months,
-        pregnancy_end   >= episode_min_date
+        pregnancy_start <= pps_episode_max_date_plus_two_months,
+        pregnancy_end   >= pps_episode_min_date
       )
     ) %>%
     dplyr::mutate(
       # conservative merged interval spanning evidence from both algorithms
-      merged_episode_start = as.Date(pmin(.data$first_gest_date, .data$episode_min_date, .data$pregnancy_start, na.rm = TRUE)),
-      merged_episode_end   = as.Date(pmax(.data$episode_max_date, .data$pregnancy_end, na.rm = TRUE)),
+      merged_episode_start = as.Date(pmin(.data$first_gest_date, .data$pps_episode_min_date, .data$pregnancy_start, na.rm = TRUE)),
+      merged_episode_end   = as.Date(pmax(.data$pps_episode_max_date, .data$pregnancy_end, na.rm = TRUE)),
       merged_episode_length =
         as.numeric(difftime(.data$merged_episode_end, .data$merged_episode_start, units = "days")) / 30.25
     )
 
   addDupFlag <- function(df, id) {
     # flag many-to-many matches so they can be resolved downstream
+    dupCol <- paste0("duplicated_", id)
     df %>%
       dplyr::group_by(.data[[id]]) %>%
-      dplyr::mutate("{id}_dup" := dplyr::if_else(is.na(.data[[id]])[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
+      dplyr::mutate("{dupCol}" := dplyr::if_else(is.na(.data[[id]])[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
       dplyr::ungroup()
   }
 
   allEpisodes <- allEpisodes %>%
-    addDupFlag("algo1_id") %>%
-    addDupFlag("algo2_id")
+    addDupFlag("hip_episode_id") %>%
+    addDupFlag("pps_episode_id")
 
   countDistinct <- function(df, ...) df %>% dplyr::distinct(...) %>% dplyr::tally() %>% dplyr::pull(.data$n)
-  log4r::info(logger, sprintf("Total initial HIP episodes: %s", countDistinct(algo1Df, .data$person_id, .data$episode)))
-  log4r::info(logger, sprintf("Total initial PPS episodes: %s", countDistinct(algo2Df, .data$person_id, .data$person_episode_number)))
+  log4r::info(logger, sprintf("Total initial HIP episodes: %s", countDistinct(hipEpisodesDf, .data$person_id, .data$hip_episode)))
+  log4r::info(logger, sprintf("Total initial PPS episodes: %s", countDistinct(ppsEpisodesDf, .data$person_id, .data$pps_episode_number)))
   log4r::info(logger, sprintf("HIP episodes overlapping multiple PPS episodes: %s",
-                              countDistinct(dplyr::filter(allEpisodes, .data$algo1_id_dup == 1), .data$algo1_id)))
+                              countDistinct(dplyr::filter(allEpisodes, .data$duplicated_hip_episode_id == 1), .data$hip_episode_id)))
   log4r::info(logger, sprintf("PPS episodes overlapping multiple HIP episodes: %s",
-                              countDistinct(dplyr::filter(allEpisodes, .data$algo2_id_dup == 1), .data$algo2_id)))
+                              countDistinct(dplyr::filter(allEpisodes, .data$duplicated_pps_episode_id == 1), .data$pps_episode_id)))
 
   allEpisodes
 }
@@ -163,24 +164,24 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
 
   baseKeep <- mergedDf %>%
     dplyr::filter(
-      (.data$algo1_id_dup == 0 & .data$algo2_id_dup == 0) |
-        (.data$algo1_id_dup == 0 & is.na(.data$algo2_id_dup)) |
-        (is.na(.data$algo1_id_dup) & .data$algo2_id_dup == 0)
+      (.data$duplicated_hip_episode_id == 0 & .data$duplicated_pps_episode_id == 0) |
+        (.data$duplicated_hip_episode_id == 0 & is.na(.data$duplicated_pps_episode_id)) |
+        (is.na(.data$duplicated_hip_episode_id) & .data$duplicated_pps_episode_id == 0)
     )
 
   dupDf <- mergedDf %>%
     dplyr::filter(
-      (.data$algo1_id_dup == 1 & !is.na(.data$algo2_id)) |
-        (.data$algo2_id_dup == 1 & !is.na(.data$algo1_id))
+      (.data$duplicated_hip_episode_id == 1 & !is.na(.data$pps_episode_id)) |
+        (.data$duplicated_pps_episode_id == 1 & !is.na(.data$hip_episode_id))
     )
 
   score <- function(df, penalizeMissingOutcome = FALSE) {
     df %>%
       dplyr::mutate(
-        date_diff = abs(as.numeric(difftime(.data$pregnancy_end, .data$episode_max_date, units = "days"))),
+        date_diff = abs(as.numeric(difftime(.data$pregnancy_end, .data$pps_episode_max_date, units = "days"))),
         date_diff = if (penalizeMissingOutcome)
-          ifelse(is.na(.data$algo2_category), 10000, .data$date_diff) else .data$date_diff,
-        pps_days = abs(as.numeric(difftime(.data$episode_max_date, .data$episode_min_date, units = "days"))),
+          ifelse(is.na(.data$pps_outcome), 10000, .data$date_diff) else .data$date_diff,
+        pps_days = abs(as.numeric(difftime(.data$pps_episode_max_date, .data$pps_episode_min_date, units = "days"))),
         # mark implausible PPS episodes so they lose tie-breaks
         pps_days = ifelse(.data$pps_days > 310, -1, .data$pps_days)
       )
@@ -197,36 +198,36 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
 
   recomputeDup <- function(df) {
     df %>%
-      dplyr::select(-dplyr::any_of(c("date_diff", "pps_days")), -dplyr::ends_with("_dup")) %>%
+      dplyr::select(-dplyr::any_of(c("date_diff", "pps_days", "duplicated_hip_episode_id", "duplicated_pps_episode_id"))) %>%
       dplyr::distinct() %>%
-      dplyr::group_by(.data$algo1_id) %>%
-      dplyr::mutate(algo1_id_dup = dplyr::if_else(is.na(.data$algo1_id)[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
+      dplyr::group_by(.data$hip_episode_id) %>%
+      dplyr::mutate(duplicated_hip_episode_id = dplyr::if_else(is.na(.data$hip_episode_id)[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
       dplyr::ungroup() %>%
-      dplyr::group_by(.data$algo2_id) %>%
-      dplyr::mutate(algo2_id_dup = dplyr::if_else(is.na(.data$algo2_id)[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
+      dplyr::group_by(.data$pps_episode_id) %>%
+      dplyr::mutate(duplicated_pps_episode_id = dplyr::if_else(is.na(.data$pps_episode_id)[1], NA_integer_, as.integer(dplyr::n() > 1))) %>%
       dplyr::ungroup()
   }
 
   # Resolve duplicates in rounds (keeps original "A..E" repeated tie-breaking idea)
   best <- dplyr::bind_rows(
-    pickBest(dupDf %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalizeMissingOutcome = TRUE,  withTiesMax = TRUE),
-    pickBest(dupDf %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalizeMissingOutcome = FALSE, withTiesMax = TRUE)
+    pickBest(dupDf %>% dplyr::filter(.data$duplicated_hip_episode_id == 1), "hip_episode_id", penalizeMissingOutcome = TRUE,  withTiesMax = TRUE),
+    pickBest(dupDf %>% dplyr::filter(.data$duplicated_pps_episode_id == 1), "pps_episode_id", penalizeMissingOutcome = FALSE, withTiesMax = TRUE)
   ) %>%
     recomputeDup()
 
-  keeps <- list(best %>% dplyr::filter(!(.data$algo1_id_dup == 1 & !is.na(.data$algo2_id)) &
-                                        !(.data$algo2_id_dup == 1 & !is.na(.data$algo1_id))))
+  keeps <- list(best %>% dplyr::filter(!(.data$duplicated_hip_episode_id == 1 & !is.na(.data$pps_episode_id)) &
+                                        !(.data$duplicated_pps_episode_id == 1 & !is.na(.data$hip_episode_id))))
 
   for (i in 1:4) {
     best <- dplyr::bind_rows(
-      pickBest(best %>% dplyr::filter(.data$algo1_id_dup == 1), "algo1_id", penalizeMissingOutcome = TRUE,  withTiesMax = FALSE),
-      pickBest(best %>% dplyr::filter(.data$algo2_id_dup == 1), "algo2_id", penalizeMissingOutcome = FALSE, withTiesMax = FALSE)
+      pickBest(best %>% dplyr::filter(.data$duplicated_hip_episode_id == 1), "hip_episode_id", penalizeMissingOutcome = TRUE,  withTiesMax = FALSE),
+      pickBest(best %>% dplyr::filter(.data$duplicated_pps_episode_id == 1), "pps_episode_id", penalizeMissingOutcome = FALSE, withTiesMax = FALSE)
     ) %>%
       recomputeDup()
 
     keeps[[length(keeps) + 1]] <- best %>%
-      dplyr::filter(!(.data$algo1_id_dup == 1 & !is.na(.data$algo2_id)) &
-                      !(.data$algo2_id_dup == 1 & !is.na(.data$algo1_id)))
+      dplyr::filter(!(.data$duplicated_hip_episode_id == 1 & !is.na(.data$pps_episode_id)) &
+                      !(.data$duplicated_pps_episode_id == 1 & !is.na(.data$hip_episode_id)))
   }
 
   allRows <- dplyr::bind_rows(baseKeep, keeps) %>%
@@ -237,8 +238,8 @@ dedupeMergedEpisodes <- function(mergedDf, logger) {
   # Recompute merged dates and order episodes within person
   allRows %>%
     dplyr::mutate(
-      merged_episode_start = as.Date(pmin(.data$first_gest_date, .data$episode_min_date, .data$pregnancy_start, na.rm = TRUE)),
-      merged_episode_end   = as.Date(pmax(.data$episode_max_date, .data$pregnancy_end, na.rm = TRUE))
+      merged_episode_start = as.Date(pmin(.data$first_gest_date, .data$pps_episode_min_date, .data$pregnancy_start, na.rm = TRUE)),
+      merged_episode_end   = as.Date(pmax(.data$pps_episode_max_date, .data$pregnancy_end, na.rm = TRUE))
     ) %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::arrange(.data$merged_episode_start, .by_group = TRUE) %>%
@@ -257,28 +258,28 @@ addMergedEpisodeDetails <- function(mergedDf) {
 
   mergedDf %>%
     dplyr::mutate(
-      algo2_category = dplyr::if_else(!is.na(.data$algo2_id) & is.na(.data$algo2_category), "PREG", .data$algo2_category),
-      algo2_outcome_date = dplyr::if_else(
-        !is.na(.data$algo2_id) & is.na(.data$algo2_outcome_date),
-        .data$episode_max_date,
-        .data$algo2_outcome_date
+      pps_outcome = dplyr::if_else(!is.na(.data$pps_episode_id) & is.na(.data$pps_outcome), "PREG", .data$pps_outcome),
+      pps_outcome_date = dplyr::if_else(
+        !is.na(.data$pps_episode_id) & is.na(.data$pps_outcome_date),
+        .data$pps_episode_max_date,
+        .data$pps_outcome_date
       )
     ) %>%
     dplyr::rename(
       hip_end_date = "pregnancy_end",
-      hip_outcome_category = "category",
-      pps_outcome_category = "algo2_category",
-      pps_end_date = "algo2_outcome_date",
-      recorded_episode_start = "merged_episode_start",
-      recorded_episode_end   = "merged_episode_end",
-      recorded_episode_length = "merged_episode_length"
+      pps_end_date = "pps_outcome_date",
+      merge_episode_start = "merged_episode_start",
+      merge_episode_end   = "merged_episode_end",
+      merge_episode_length = "merged_episode_length",
+      merge_pregnancy_start = "pregnancy_start",
+      merge_first_gest_date = "first_gest_date"
     ) %>%
     dplyr::mutate(
-      hip_flag = dplyr::if_else(!is.na(.data$algo1_id), 1L, 0L),
-      pps_flag = dplyr::if_else(!is.na(.data$algo2_id), 1L, 0L)
+      hip_flag = dplyr::if_else(!is.na(.data$hip_episode_id), 1L, 0L),
+      pps_flag = dplyr::if_else(!is.na(.data$pps_episode_id), 1L, 0L)
     ) %>%
     dplyr::group_by(.data$person_id) %>%
-    dplyr::arrange(.data$recorded_episode_start, .by_group = TRUE) %>%
-    dplyr::mutate(episode_number = dplyr::row_number()) %>%
+    dplyr::arrange(.data$merge_episode_start, .by_group = TRUE) %>%
+    dplyr::mutate(merge_episode_number = dplyr::row_number()) %>%
     dplyr::ungroup()
 }

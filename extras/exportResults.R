@@ -22,42 +22,42 @@ hipps <- readRDS(file.path(resPath, "..."))
 
 # TODO: check which start & end dates to use
 names(res) <- tolower(names(res))
-date_cols <- c("pregnancy_start", "HIP_end_date", "PPS_end_date", "episode_min_date" , "episode_max_date", "recorded_episode_start",  "recorded_episode_end", "inferred_episode_start", "inferred_episode_end")
+date_cols <- c("merge_pregnancy_start", "hip_end_date", "pps_end_date", "pps_episode_min_date", "pps_episode_max_date", "merge_episode_start", "merge_episode_end", "final_episode_start_date", "final_episode_end_date")
 date_cols <- tolower(date_cols)
 
 ### Temp checks
 res %>%
-  summariseColumn("precision_days")
+  summariseColumn("esd_precision_days")
 
 res %>%
-  summariseColumn("pps_outcome_category")
+  summariseColumn("pps_outcome")
 
 res %>%
   dplyr::as_tibble() %>%
-  dplyr::filter(.data$precision_days < 50)
+  dplyr::filter(.data$esd_precision_days < 50)
 
-d <- density(res$precision_days)
+d <- density(res$esd_precision_days)
 
 df <- data.frame(
-  precision_days = d$x,
+  esd_precision_days = d$x,
   density = d$y
 )
 
-ggplot(data = df, mapping = aes(x = precision_days, y = density)) +
+ggplot(data = df, mapping = aes(x = esd_precision_days, y = density)) +
   geom_line()
 
 df <- res %>%
-  dplyr::group_by(.data$precision_category) %>%
+  dplyr::group_by(.data$esd_precision_category) %>%
   dplyr::summarise(n = n())
 
-ggplot(data = df, mapping = aes(x = precision_category, y = n)) +
+ggplot(data = df, mapping = aes(x = esd_precision_category, y = n)) +
   geom_bar(stat = "identity")
 
 df <- res %>%
-  dplyr::group_by(.data$pps_outcome_category) %>%
+  dplyr::group_by(.data$pps_outcome) %>%
   dplyr::summarise(n = dplyr::n())
 
-ggplot(data = df, mapping = aes(x = pps_outcome_category, y = n)) +
+ggplot(data = df, mapping = aes(x = pps_outcome, y = n)) +
   geom_bar(stat = "identity")
 
 ### Episode Frequency ###
@@ -85,7 +85,7 @@ print("Maternal age distribution (in years)")
 res_age <- cdm$person %>%
   select("person_id", "gender_concept_id", "birth_datetime") %>%
   right_join(res, by = c("person_id" = "person_id"), copy = TRUE) %>%
-  mutate(age_pregnancy_start = as.Date(inferred_episode_start) - as.Date(birth_datetime)) %>%
+  mutate(age_pregnancy_start = as.Date(final_episode_start_date) - as.Date(birth_datetime)) %>%
   dplyr::mutate(
     age_pregnancy_start = as.numeric(.data$age_pregnancy_start)
   ) %>%
@@ -200,21 +200,21 @@ IncidencePrevalence::tableIncidence(
 ### Episode Construction ###
 print("Gestational duration distribution (in weeks)")
 gestAgeDaysSummary <- res %>%
-  summariseColumn("gestational_age_days_calculated") %>%
+  summariseColumn("esd_gestational_age_days_calculated") %>%
   mutate(across(where(is.numeric), ~ . / 7))
 
 write.csv(gestAgeDaysSummary, file.path(resPath, "gestational_age_days_summary.csv"))
 
 gestAgeCounts <- res %>%
-  summarise(less_1day = sum(gestational_age_days_calculated < 1),
-            over_308days = sum(gestational_age_days_calculated > 308))
+  summarise(less_1day = sum(esd_gestational_age_days_calculated < 1),
+            over_308days = sum(esd_gestational_age_days_calculated > 308))
 
 write.csv(gestAgeCounts, file.path(resPath, "gestational_age_days_counts.csv"))
 
 print("Gestational duration bins")
 
 gestWeeks <- res %>%
-  dplyr::mutate(gestational_weeks = floor(gestational_age_days_calculated / 7)) %>%
+  dplyr::mutate(gestational_weeks = floor(esd_gestational_age_days_calculated / 7)) %>%
   dplyr::group_by(.data$gestational_weeks) %>%
   dplyr::summarise(n = n()) %>%
   dplyr::mutate(
@@ -306,11 +306,11 @@ print("Overlapping pregnancy episodes")
 overlap <- res %>%
   add_count(person_id) %>%
   filter(n > 1) %>% # only keep individuals with multiple episodes
-  arrange(person_id, inferred_episode_start, inferred_episode_end) %>%
+  arrange(person_id, final_episode_start_date, final_episode_end_date) %>%
   # slice(1:100) %>%
   group_by(person_id) %>%
-  mutate(prev_end = dplyr::lag(inferred_episode_end),
-         overlap = as.Date(inferred_episode_start, format = "%Y-%m-%d")  <= as.Date(prev_end, format = "%Y-%m-%d")) %>%
+  mutate(prev_end = dplyr::lag(final_episode_end_date),
+         overlap = as.Date(final_episode_start_date, format = "%Y-%m-%d")  <= as.Date(prev_end, format = "%Y-%m-%d")) %>%
   summariseColumn("overlap")
 # [,c("person_id", "inferred_episode_start", "inferred_episode_end", "overlap")]
 
@@ -350,10 +350,10 @@ outcomeCat <- res %>%
   dplyr::rename(outcome_category = "hip_outcome_category") %>%
   dplyr::bind_rows(
     res %>%
-      dplyr::group_by(.data$pps_outcome_category) %>%
+      dplyr::group_by(.data$pps_outcome) %>%
       dplyr::summarise(n = n()) %>%
       dplyr::mutate(algorithm = "pps") %>%
-      dplyr::rename(outcome_category = "pps_outcome_category")
+      dplyr::rename(outcome_category = "pps_outcome")
   ) %>%
   dplyr::bind_rows(
     res %>%
@@ -375,7 +375,7 @@ ggsave(file.path(resPath, "outcome_categories_count.png"), gg)
 print("Gestational duration distribution (in weeks) for pregnancy outcome events")
 gestDuration <- res %>%
   group_by(final_outcome_category) %>%
-  summariseColumn("gestational_age_days_calculated") %>%
+  summariseColumn("esd_gestational_age_days_calculated") %>%
   mutate(across(where(is.numeric), ~ . / 7))
 
 write.csv(gestDuration, file.path(resPath, "gestational_age_days_per_category_summary.csv"))

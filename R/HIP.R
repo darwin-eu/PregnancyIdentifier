@@ -45,13 +45,13 @@
 #' The input cdm object with the `cdm$preg_hip_episodes` table added. This table contains episode-level
 #' information about each identified pregnancy per individual. The columns are:
 #' - `person_id`: Unique identifier for the person.
-#' - `episode`: Sequential episode number for the person (1 = first episode, etc.).
-#' - `estimated_start_date`: Estimated start date of the pregnancy episode, based on outcome and available gestational age information.
-#' - `visit_date`: Date of the principal pregnancy outcome event (the pregnancy end date).
-#' - `category`: HIP-assigned pregnancy outcome type. One of "LB" (live birth), "SB" (stillbirth), "AB" (abortion), "SA" (miscarriage), "DELIV" (unspecified delivery), "ECT" (ectopic pregnancy), or "PREG" (ongoing/unspecified).
-#' - `gest_date`: Gestational age in days at the time of pregnancy outcome (if available). NA if not identified.
-#' - `gest_flag`: Indicates if gestational age concepts were found in the episode ("yes" or "no").
-#' - `episode_length`: Length of the pregnancy episode, in days (from `estimated_start_date` to `visit_date`).
+#' - `hip_episode`: Sequential episode number for the person (1 = first episode, etc.).
+#' - `hip_pregnancy_start`: Estimated start date of the pregnancy episode, based on outcome and available gestational age information.
+#' - `hip_pregnancy_end`: Date of the principal pregnancy outcome event (the pregnancy end date).
+#' - `hip_outcome_category`: HIP-assigned pregnancy outcome type. One of "LB" (live birth), "SB" (stillbirth), "AB" (abortion), "SA" (miscarriage), "DELIV" (unspecified delivery), "ECT" (ectopic pregnancy), or "PREG" (ongoing/unspecified).
+#' - `hip_first_gest_date`: First gestation date in the episode (if available). NA if not identified.
+#' - `hip_gest_flag`: Indicates if gestational age concepts were found in the episode ("yes" or "no").
+#' - `hip_episode_length`: Length of the pregnancy episode, in days (from `hip_pregnancy_start` to `hip_pregnancy_end`).
 #'
 #' A file named `hip_episodes.rds` is saved in the `outputDir` directory. This file
 #' contains a dataframe with the same columns as listed above for the `cdm$preg_hip_episodes` table.
@@ -79,8 +79,8 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     if (!is.null(outputDir)) {
       hipEmpty <- emptyHipEpisodes() %>%
         dplyr::select(
-          "person_id", "episode", "estimated_start_date", "visit_date",
-          "category", "gest_date", "gest_flag", "episode_length"
+          "person_id", "hip_episode", "hip_pregnancy_start", "hip_pregnancy_end",
+          "hip_outcome_category", "hip_first_gest_date", "hip_gest_flag", "hip_episode_length"
         )
       saveRDS(hipEmpty, file.path(outputDir, "hip_episodes.rds"))
     }
@@ -124,7 +124,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # Outputs: cdm with new table cdm$final_episodes_df (one row per final_episode_id; adds final_start_date, overlap/retry logic).
   cdm <- resolveOverlaps(cdm, logger = logger)
   # Inputs: cdm$final_episodes_df, cdm$preg_hip_records (gestation visit-level derived inside).
-  # Outputs: cdm with new table cdm$preg_hip_episodes (final; person_id, gest_date, category, visit_date, estimated_start_date, episode, gest_flag, episode_length).
+  # Outputs: cdm with new table cdm$preg_hip_episodes (final; person_id, hip_first_gest_date, category, hip_pregnancy_end, hip_pregnancy_start, episode, gest_flag, episode_length).
   cdm <- attachGestationAndLength(cdm, gestConceptIds = gestConceptIds)
 
   # 5) Collect final table, order columns, and save RDS.
@@ -135,13 +135,13 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   hipDf <- hipDf %>%
     dplyr::select(
       "person_id",
-      "episode",
-      "estimated_start_date",
-      "visit_date",
-      "category",
-      "gest_date",
-      "gest_flag",
-      "episode_length"
+      "hip_episode",
+      "hip_pregnancy_start",
+      "hip_pregnancy_end",
+      "hip_outcome_category",
+      "hip_first_gest_date",
+      "hip_gest_flag",
+      "hip_episode_length"
     )
   saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
@@ -772,8 +772,8 @@ resolveOverlaps <- function(cdm, logger) {
 
 # attachGestationAndLength()
 # Inputs: finalEpisodes (person_id, final_episode_id, final_category, final_visit_date, final_start_date); preg_hip_records for gestation visit-level.
-# Outputs: cdm$preg_hip_episodes (materialized). Columns: person_id, gest_date, category, visit_date, estimated_start_date, episode, gest_flag, episode_length.
-# Column mutations: maps final_category->category, final_visit_date->visit_date, final_start_date->estimated_start_date; adds episode_order->episode once; gest_flag, episode_length.
+# Outputs: cdm$preg_hip_episodes (materialized). Columns: person_id, hip_first_gest_date, category, hip_pregnancy_end, hip_pregnancy_start, episode, gest_flag, episode_length.
+# Column mutations: maps final_category->category, final_visit_date->hip_pregnancy_end, final_start_date->hip_pregnancy_start, gest_date->hip_first_gest_date; adds episode_order->episode once; gest_flag, episode_length.
 attachGestationAndLength <- function(cdm, gestConceptIds) {
   finalWithOrder <- cdm$final_episodes_df %>%
     dplyr::distinct(.data$person_id, .data$final_category, .data$final_visit_date, .data$final_start_date) %>%
@@ -833,12 +833,15 @@ attachGestationAndLength <- function(cdm, gestConceptIds) {
     dplyr::mutate(episode_length = dplyr::if_else(.data$episode_length == 0, 1L, .data$episode_length))
   cdm$preg_hip_episodes <- withLength %>%
     dplyr::mutate(
-      category = .data$final_category,
-      visit_date = .data$final_visit_date,
-      estimated_start_date = .data$final_start_date,
-      episode = .data$episode_order
+      hip_outcome_category = .data$final_category,
+      hip_pregnancy_end = .data$final_visit_date,
+      hip_pregnancy_start = .data$final_start_date,
+      hip_first_gest_date = .data$gest_date,
+      hip_episode = .data$episode_order,
+      hip_gest_flag = .data$gest_flag,
+      hip_episode_length = .data$episode_length
     ) %>%
-    dplyr::select("person_id", "gest_date", "category", "visit_date", "estimated_start_date", "episode", "gest_flag", "episode_length") %>%
+    dplyr::select("person_id", "hip_first_gest_date", "hip_outcome_category", "hip_pregnancy_end", "hip_pregnancy_start", "hip_episode", "hip_gest_flag", "hip_episode_length") %>%
     dplyr::distinct() %>%
     dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
   cdm

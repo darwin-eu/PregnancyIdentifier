@@ -42,7 +42,7 @@
 #' @param debugMode (`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)
 #'
 #' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
-#'         The output contains one row per inferred pregnancy episode, with all metadata and gestational timing fields required for downstream analysis.
+#'         The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
 #' @export
 runEsd <- function(cdm,
                    outputDir,
@@ -55,7 +55,7 @@ runEsd <- function(cdm,
   log4r::info(logger, "Running ESD")
 
   hippsEpisodes <- readRDS(file.path(outputDir, "hipps_episodes.rds"))
-  requiredHippsCols <- c("person_id", "episode_number", "pregnancy_start", "recorded_episode_start", "recorded_episode_end")
+  requiredHippsCols <- c("person_id", "merge_episode_number", "merge_pregnancy_start", "merge_episode_start", "merge_episode_end")
   checkmate::assertNames(
     names(hippsEpisodes),
     must.include = requiredHippsCols,
@@ -75,14 +75,20 @@ runEsd <- function(cdm,
 
   if (debugMode) {
     esdOut <- esdDf %>%
+      dplyr::rename(
+        esd_precision_days = "precision_days",
+        esd_precision_category = "precision_category",
+        esd_gw_flag = "gw_flag",
+        esd_gr3m_flag = "gr3m_flag"
+      ) %>%
       dplyr::select(
         "person_id",
-        "episode_number",
+        "merge_episode_number",
         "inferred_episode_start",
-        "precision_days",
-        "precision_category",
-        "gw_flag",
-        "gr3m_flag",
+        "esd_precision_days",
+        "esd_precision_category",
+        "esd_gw_flag",
+        "esd_gr3m_flag",
         "intervals_count",
         "majority_overlap_count",
         "gt_info_list"
@@ -106,135 +112,48 @@ runEsd <- function(cdm,
         (.data$inferred_episode_end <= endDate | is.na(.data$inferred_episode_end))
     )
 
-  # 5) Collapse overlapping episodes within person so no two episodes overlap in time
-  mergedDf <- collapseOverlappingEpisodesWithinPerson(
-    mergedDf,
-    start_col = "inferred_episode_start",
-    end_col = "inferred_episode_end",
-    logger = logger
-  )
-
   outputPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
   mergedDf <- mergedDf %>%
+    dplyr::rename(
+      final_episode_start_date = "inferred_episode_start",
+      final_episode_end_date = "inferred_episode_end",
+      esd_precision_days = "precision_days",
+      esd_precision_category = "precision_category",
+      esd_gestational_age_days_calculated = "gestational_age_days_calculated",
+      esd_gw_flag = "gw_flag",
+      esd_gr3m_flag = "gr3m_flag",
+      esd_outcome_match = "outcome_match",
+      esd_term_duration_flag = "term_duration_flag",
+      esd_outcome_concordance_score = "outcome_concordance_score",
+      esd_preterm_status_from_calculation = "preterm_status_from_calculation"
+    ) %>%
     dplyr::select(
       "person_id",
-      "episode_number",
-      "inferred_episode_start",
-      "inferred_episode_end",
+      "merge_episode_number",
+      "final_episode_start_date",
+      "final_episode_end_date",
       "final_outcome_category",
-      "recorded_episode_start",
-      "recorded_episode_end",
+      "merge_episode_start",
+      "merge_episode_end",
       "hip_end_date",
       "pps_end_date",
       "hip_outcome_category",
-      "pps_outcome_category",
-      "precision_days",
-      "precision_category",
-      "gestational_age_days_calculated",
-      "gw_flag",
-      "gr3m_flag",
-      "outcome_match",
-      "term_duration_flag",
-      "outcome_concordance_score",
-      "preterm_status_from_calculation",
+      "pps_outcome",
+      "esd_precision_days",
+      "esd_precision_category",
+      "esd_gestational_age_days_calculated",
+      "esd_gw_flag",
+      "esd_gr3m_flag",
+      "esd_outcome_match",
+      "esd_term_duration_flag",
+      "esd_outcome_concordance_score",
+      "esd_preterm_status_from_calculation",
       dplyr::everything()
     )
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
   invisible(NULL)
-}
-
-# ============================================================
-# Collapse overlapping episodes within person
-# ============================================================
-
-#' Collapse overlapping pregnancy episodes within person so no two episodes
-#' overlap in time. A person cannot be pregnant twice at the same time;
-#' overlapping [start, end] intervals are merged into a single episode
-#' (union of intervals; non-date fields taken from the episode with the
-#' latest end). Rows with NA start or end are not merged with others.
-#'
-#' @param df Data frame with person_id and start/end date columns.
-#' @param start_col Name of episode start date column.
-#' @param end_col Name of episode end date column.
-#' @param logger log4r logger.
-#' @return Data frame with overlapping episodes per person merged; one row per
-#'   non-overlapping episode.
-#' @noRd
-collapseOverlappingEpisodesWithinPerson <- function(df,
-                                                    start_col = "inferred_episode_start",
-                                                    end_col = "inferred_episode_end",
-                                                    logger) {
-  if (nrow(df) == 0) return(df)
-  if (!start_col %in% names(df) || !end_col %in% names(df)) return(df)
-  checkmate::assert_subset(
-    c("person_id", start_col, end_col),
-    colnames(df)
-  )
-
-  nBefore <- nrow(df)
-  # Rows with NA start or end are not merged; keep aside and bind back later
-  rows_with_na <- df %>%
-    dplyr::filter(is.na(.data[[start_col]]) | is.na(.data[[end_col]]))
-  x <- df %>%
-    dplyr::filter(!is.na(.data[[start_col]]) & !is.na(.data[[end_col]])) %>%
-    dplyr::distinct()
-
-  if (nrow(x) == 0) {
-    return(df)
-  }
-
-  x <- x %>%
-    dplyr::mutate(
-      !!start_col := as.Date(.data[[start_col]]),
-      !!end_col   := as.Date(.data[[end_col]]),
-      dur = as.numeric(.data[[end_col]] - .data[[start_col]], units = "days")
-    ) %>%
-    dplyr::group_by(.data$person_id, .add = FALSE) %>%
-    dplyr::arrange(.data[[start_col]], .data$dur, .data[[end_col]], .by_group = TRUE) %>%
-    dplyr::mutate(
-      running_end = as.integer(cummax(as.integer(.data[[end_col]]))),
-      prev_end    = dplyr::lag(.data$running_end),
-      new_group   = dplyr::if_else(
-        is.na(.data$prev_end),
-        1L,
-        dplyr::if_else(as.integer(.data[[start_col]]) <= .data$prev_end, 0L, 1L)
-      ),
-      groups = cumsum(.data$new_group)
-    ) %>%
-    dplyr::ungroup()
-
-  group_ranges <- x %>%
-    dplyr::group_by(.data$person_id, .data$groups) %>%
-    dplyr::summarise(
-      min_start = min(.data[[start_col]], na.rm = TRUE),
-      max_end   = max(.data[[end_col]], na.rm = TRUE),
-      .groups = "drop"
-    )
-
-  merged <- x %>%
-    dplyr::group_by(.data$person_id, .data$groups) %>%
-    dplyr::slice_max(.data[[end_col]], n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(-dplyr::all_of(c(start_col, end_col, "dur", "running_end", "prev_end", "new_group"))) %>%
-    dplyr::left_join(group_ranges, by = c("person_id", "groups")) %>%
-    dplyr::mutate(
-      !!start_col := .data$min_start,
-      !!end_col   := .data$max_end
-    ) %>%
-    dplyr::select(-"groups", -"min_start", -"max_end")
-
-  out <- dplyr::bind_rows(merged, rows_with_na)
-  nAfter <- nrow(out)
-  if (nBefore > nAfter && !is.null(logger)) {
-    log4r::info(logger, sprintf(
-      "Collapsed overlapping episodes within person: %s -> %s rows (%s removed)",
-      nBefore, nAfter, nBefore - nAfter
-    ))
-  }
-
-  out
 }
 
 # ============================================================
@@ -250,7 +169,7 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
       by = dplyr::join_by(
         person_id,
         domain_concept_start_date >= start_date,
-        domain_concept_start_date <= recorded_episode_end
+        domain_concept_start_date <= merge_episode_end
       )
     ) %>%
     dplyr::transmute(
@@ -259,9 +178,9 @@ getPregRelatedConcepts <- function(df, personIdList, dateCol) {
       domain_concept_id   = .data$concept_id,
       domain_concept_name = .data$concept_name,
       .data$start_date,
-      .data$recorded_episode_end,
+      .data$merge_episode_end,
       value_col = .data$value_col,
-      episode_number = .data$episode_number
+      merge_episode_number = .data$merge_episode_number
     )
 }
 
@@ -297,8 +216,8 @@ getTimingConcepts <- function(cdm,
 
   # add: change to pregnancy start rather than recorded episode start
   personIdList <- hippsEpisodes %>%
-    dplyr::mutate(start_date = pmin(.data$pregnancy_start, .data$recorded_episode_start, na.rm = TRUE)) %>%
-    dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
+    dplyr::mutate(start_date = pmin(.data$merge_pregnancy_start, .data$merge_episode_start, na.rm = TRUE)) %>%
+    dplyr::select("person_id", "start_date", "merge_episode_end", "merge_episode_number")
 
   # Persist to DB so the non-equi join runs on the database backend
   cdm <- CDMConnector::insertTable(cdm, name = "person_id_list", table = personIdList, overwrite = TRUE)
@@ -590,7 +509,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
 
     return(dplyr::tibble(
       person_id = integer(0),
-      episode_number = integer(0),
+      merge_episode_number = integer(0),
       gt_info_list = character(0),
       gw_flag = numeric(0),
       gr3m_flag = numeric(0),
@@ -665,9 +584,9 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   # IMPORTANT: sort gest week concepts from highest (latest in pregnancy) to lowest (earliest)
   # so that later on the first element of the GW list can be taken for 'latest in pregnancy' concept
   timingDf <- timingDf %>%
-    dplyr::arrange(.data$person_id, .data$episode_number, dplyr::desc(.data$domain_value)) %>%
+    dplyr::arrange(.data$person_id, .data$merge_episode_number, dplyr::desc(.data$domain_value)) %>%
     dplyr::group_by(
-      .data$person_id, .data$episode_number,
+      .data$person_id, .data$merge_episode_number,
       .data$domain_concept_name_rollup, .data$domain_concept_start_date, .data$gt_type
     ) %>%
     dplyr::slice(1) %>%
@@ -675,7 +594,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
 
   # Group by patient + episode, then compute inferred start date and precision info
   summaryDf <- timingDf %>%
-    dplyr::group_by(.data$person_id, .data$episode_number) %>%
+    dplyr::group_by(.data$person_id, .data$merge_episode_number) %>%
     dplyr::summarise(
       gt_info_list = purrr::map(list(.data$all_gt_info), ~ stringr::str_split(.x, " ")),
       gw_flag  = as.numeric(any(.data$gt_type == "GW")),
@@ -693,7 +612,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select(
-      "person_id", "episode_number", "gt_info_list", "gw_flag", "gr3m_flag",
+      "person_id", "merge_episode_number", "gt_info_list", "gw_flag", "gr3m_flag",
       "inferred_episode_start", "precision_days", "precision_category",
       "intervals_count", "majority_overlap_count"
     )
@@ -712,10 +631,6 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   summaryDf
 }
 
-# Maximum allowed pregnancy duration in days (42 weeks). Episodes longer than this
-# have inferred_episode_end capped to inferred_episode_start + this value.
-maxPregnancyDays <- 294L
-
 mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
                                        hippsEpisodes,
                                        cdm,
@@ -731,7 +646,7 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
   termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
 
   finalDf <- hippsEpisodes %>%
-    dplyr::left_join(timingDf, by = c("person_id", "episode_number")) %>%
+    dplyr::left_join(timingDf, by = c("person_id", "merge_episode_number")) %>%
     dplyr::distinct() %>%
     dplyr::mutate(
       # Add missing gw_flag and gr3m_flag
@@ -743,15 +658,15 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
   finalDf <- finalDf %>%
     dplyr::mutate(
       outcome_match = dplyr::case_when(
-        .data$hip_outcome_category == .data$pps_outcome_category &
+        .data$hip_outcome_category == .data$pps_outcome &
         .data$hip_outcome_category != "PREG" &
         abs(as.numeric(difftime(.data$hip_end_date, .data$pps_end_date, units = "days"))) <= 14 ~ 1,
-        .data$hip_outcome_category == "PREG" & .data$pps_outcome_category == "PREG" ~ 1,
+        .data$hip_outcome_category == "PREG" & .data$pps_outcome == "PREG" ~ 1,
         TRUE ~ 0
       )
     ) %>%
     dplyr::group_by(.data$person_id) %>%
-    dplyr::arrange(.data$episode_number, .by_group = TRUE) %>%
+    dplyr::arrange(.data$merge_episode_number, .by_group = TRUE) %>%
     dplyr::mutate(next_hip_outcome = dplyr::lead(.data$hip_outcome_category)) %>%
     dplyr::ungroup()
 
@@ -761,23 +676,23 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       final_outcome_category = dplyr::case_when(
         .data$outcome_match == 1 ~ .data$hip_outcome_category,
 
-        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_outcome_category,
-        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_outcome_category,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome) ~ .data$hip_outcome_category,
+        .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_outcome,
 
         # if they don't match, but the hip end date is not within 7 days before the PPS outcome
         # add: go with HIP if the PPS is the next one and there's sufficient separation
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome_category != "PREG" &
+          .data$pps_outcome != "PREG" &
           !is.na(.data$next_hip_outcome) &
-          .data$pps_outcome_category == .data$next_hip_outcome &
+          .data$pps_outcome == .data$next_hip_outcome &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_outcome_category,
 
         # but otherwise go with PPS
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome_category != "PREG" &
-          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_outcome_category,
+          .data$pps_outcome != "PREG" &
+          .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_outcome,
 
         # or if they're similar timing go with HIP
         TRUE ~ .data$hip_outcome_category
@@ -785,19 +700,19 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       # If categories don't match, take the end date that occurs second (outcome date from HIP is prioritized)
       inferred_episode_end = dplyr::case_when(
         .data$outcome_match == 1 ~ .data$hip_end_date,
-        .data$outcome_match == 0 & is.na(.data$pps_outcome_category) ~ .data$hip_end_date,
+        .data$outcome_match == 0 & is.na(.data$pps_outcome) ~ .data$hip_end_date,
         .data$outcome_match == 0 & is.na(.data$hip_outcome_category) ~ .data$pps_end_date,
 
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome_category != "PREG" &
+          .data$pps_outcome != "PREG" &
           !is.na(.data$next_hip_outcome) &
-          .data$pps_outcome_category == .data$next_hip_outcome &
+          .data$pps_outcome == .data$next_hip_outcome &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(14) ~ .data$hip_end_date,
 
         .data$outcome_match == 0 &
           .data$hip_outcome_category != "PREG" &
-          .data$pps_outcome_category != "PREG" &
+          .data$pps_outcome != "PREG" &
           .data$hip_end_date <= .data$pps_end_date - lubridate::days(7) ~ .data$pps_end_date,
 
         !is.na(.data$hip_end_date) ~ .data$hip_end_date,
@@ -815,25 +730,6 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
         is.na(.data$inferred_episode_start),
         as.Date(as.Date(.data$inferred_episode_end) - as.numeric(.data$max_term)),
         as.Date(.data$inferred_episode_start)
-      ),
-      # End date from HIP outcome (non-PREG) is treated as correct; otherwise end may be from gestation-only.
-      end_date_from_hip_outcome = !is.na(.data$hip_end_date) &
-        .data$inferred_episode_end == .data$hip_end_date &
-        .data$hip_outcome_category != "PREG" &
-        !is.na(.data$hip_outcome_category),
-      duration_days = as.numeric(difftime(.data$inferred_episode_end, .data$inferred_episode_start, units = "days")),
-      # When end comes from HIP outcome: cap start (move start later). When end from gestation-only/PPS: cap end.
-      inferred_episode_start = dplyr::if_else(
-        !is.na(.data$inferred_episode_start) & !is.na(.data$inferred_episode_end) &
-          .data$duration_days > maxPregnancyDays & .data$end_date_from_hip_outcome,
-        .data$inferred_episode_end - lubridate::days(maxPregnancyDays),
-        .data$inferred_episode_start
-      ),
-      inferred_episode_end = dplyr::if_else(
-        !is.na(.data$inferred_episode_start) & !is.na(.data$inferred_episode_end) &
-          .data$duration_days > maxPregnancyDays & !.data$end_date_from_hip_outcome,
-        .data$inferred_episode_start + lubridate::days(maxPregnancyDays),
-        .data$inferred_episode_end
       ),
       # Convert precision_days to integer type (then fill missing)
       precision_days = as.integer(.data$precision_days),
@@ -872,21 +768,9 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
     ) %>%
     dplyr::select(-"min_term", -"max_term")
 
-  overMax <- finalDf$duration_days > maxPregnancyDays
-  nCapped <- sum(overMax, na.rm = TRUE)
-  if (nCapped > 0) {
-    nCapStart <- sum(overMax & finalDf$end_date_from_hip_outcome, na.rm = TRUE)
-    nCapEnd <- nCapped - nCapStart
-    log4r::info(logger, sprintf(
-      "Episodes with duration capped to %s days (42 weeks): %s (start moved: %s, end capped: %s)",
-      maxPregnancyDays, nCapped, nCapStart, nCapEnd
-    ))
-  }
-  finalDf <- finalDf %>% dplyr::select(-"duration_days", -"end_date_from_hip_outcome")
-
   # Print time period checks
-  min_episode_date  <- min(finalDf$recorded_episode_start, na.rm = TRUE)
-  max_episode_date  <- max(finalDf$recorded_episode_end, na.rm = TRUE)
+  min_episode_date  <- min(finalDf$merge_episode_start, na.rm = TRUE)
+  max_episode_date  <- max(finalDf$merge_episode_end, na.rm = TRUE)
   min_preg_date     <- min(finalDf$inferred_episode_start, na.rm = TRUE)
   max_preg_date     <- max(finalDf$inferred_episode_end, na.rm = TRUE)
 

@@ -72,25 +72,36 @@ runPps <- function(cdm,
   # Only write record-level and min/max summary RDS when debugging
   if (debugMode) {
     ppsGestTimingOut <- if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes
+    if ("person_episode_number" %in% names(ppsGestTimingOut)) {
+      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = person_episode_number)
+    }
     ppsGestTimingOut <- ppsGestTimingOut %>%
       dplyr::select(
-        "person_id", "person_episode_number", "pps_concept_start_date",
+        "person_id", "pps_episode_number", "pps_concept_start_date",
         "pps_concept_id", "pps_concept_name", "pps_min_month", "pps_max_month"
       )
     saveRDS(ppsGestTimingOut, file.path(outputDir, "pps_gest_timing_episodes.rds"))
     ppsMinMaxOut <- if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax
+    if ("person_episode_number" %in% names(ppsMinMaxOut)) {
+      ppsMinMaxOut <- ppsMinMaxOut %>%
+        dplyr::rename(pps_episode_number = person_episode_number, pps_n_gt_concepts = n_gt_concepts)
+    }
     ppsMinMaxOut <- ppsMinMaxOut %>%
       dplyr::select(
-        "person_id", "person_episode_number", "episode_min_date", "episode_max_date",
-        "episode_max_date_plus_two_months", "n_gt_concepts"
+        "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
+        "pps_episode_max_date_plus_two_months", "pps_n_gt_concepts"
       )
     saveRDS(ppsMinMaxOut, file.path(outputDir, "pps_min_max_episodes.rds"))
   }
+  if ("person_episode_number" %in% names(ppsWithOutcomes)) {
+    ppsWithOutcomes <- ppsWithOutcomes %>%
+      dplyr::rename(pps_episode_number = person_episode_number, pps_n_gt_concepts = n_gt_concepts)
+  }
   ppsWithOutcomes <- ppsWithOutcomes %>%
     dplyr::select(
-      "person_id", "person_episode_number", "episode_min_date", "episode_max_date",
-      "episode_max_date_plus_two_months", "algo2_category", "algo2_outcome_date",
-      "n_gt_concepts"
+      "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
+      "pps_episode_max_date_plus_two_months", "pps_outcome", "pps_outcome_date",
+      "pps_n_gt_concepts"
     )
   saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
 
@@ -224,9 +235,9 @@ getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
     dplyr::summarise(
-      episode_min_date = min(.data$pps_concept_start_date, na.rm = TRUE),
-      episode_max_date = max(.data$pps_concept_start_date, na.rm = TRUE),
-      episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$episode_max_date, lubridate::period(months = 2)),
+      pps_episode_min_date = min(.data$pps_concept_start_date, na.rm = TRUE),
+      pps_episode_max_date = max(.data$pps_concept_start_date, na.rm = TRUE),
+      pps_episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$pps_episode_max_date, lubridate::period(months = 2)),
       n_gt_concepts = dplyr::n_distinct(.data$pps_concept_id),
       .groups = "drop"
     )
@@ -243,7 +254,7 @@ getOutcomeDate <- function(x, outcome) {
 
 outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
   # Outcomes are inferred for PPS episodes within an episode-specific window:
-  # - lookback: 14 days before episode_max_date
+  # - lookback: 14 days before pps_episode_max_date
   # - lookahead: earliest of:
   #   (a) the day before the next episode starts, or
   #   (b) the latest plausible pregnancy outcome date based on the last concept
@@ -257,14 +268,14 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
 
   pregnantDates <- ppsMinMaxDf %>%
     dplyr::group_by(.data$person_id) %>%
-    dplyr::arrange(.data$person_episode_number, .data$episode_min_date, .by_group = TRUE) %>%
+    dplyr::arrange(.data$person_episode_number, .data$pps_episode_min_date, .by_group = TRUE) %>%
     dplyr::mutate(
       # next episode bounds the lookahead to avoid borrowing outcomes from later pregnancies
       next_closest_episode_date = dplyr::coalesce(
-        dplyr::lead(.data$episode_min_date) - lubridate::days(1),
+        dplyr::lead(.data$pps_episode_min_date) - lubridate::days(1),
         lubridate::ymd("2999-01-01")
       ),
-      episode_max_date_minus_lookback_window = .data$episode_max_date - lubridate::days(14)
+      pps_episode_max_date_minus_lookback_window = .data$pps_episode_max_date - lubridate::days(14)
     ) %>%
     dplyr::ungroup()
 
@@ -292,7 +303,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
     dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) %>%
     dplyr::mutate(
       # final lookahead is the earliest of (next episode) and (max plausible outcome date)
-      episode_max_date_plus_lookahead_window =
+      pps_episode_max_date_plus_lookahead_window =
         pmin(.data$next_closest_episode_date, .data$max_pregnancy_date, na.rm = TRUE)
     )
 
@@ -306,8 +317,8 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
         person_id,
         dplyr::between(
           visit_date,
-          episode_max_date_minus_lookback_window,
-          episode_max_date_plus_lookahead_window
+          pps_episode_max_date_minus_lookback_window,
+          pps_episode_max_date_plus_lookahead_window
         )
       ),
       relationship = "many-to-many"
@@ -316,8 +327,8 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
   outcomesListDf <- pregRelatedConcepts %>%
     dplyr::mutate(lst = paste(.data$visit_date, ",", .data$concept_id, ",", .data$category)) %>%
     dplyr::group_by(
-      .data$person_id, .data$person_episode_number, .data$episode_min_date, .data$episode_max_date,
-      .data$episode_max_date_minus_lookback_window, .data$episode_max_date_plus_lookahead_window,
+      .data$person_id, .data$person_episode_number, .data$pps_episode_min_date, .data$pps_episode_max_date,
+      .data$pps_episode_max_date_minus_lookback_window, .data$pps_episode_max_date_plus_lookahead_window,
       .data$n_gt_concepts
     ) %>%
     dplyr::summarise(outcomes_list = list(sort(unique(.data$lst))), .groups = "drop") %>%
@@ -337,7 +348,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
         date_cols
       ),
       # Choose one category/date by hierarchy
-      algo2_category = dplyr::case_when(
+      pps_outcome = dplyr::case_when(
         !is.na(.data$lb_delivery_date)    ~ "LB",
         !is.na(.data$sb_delivery_date)    ~ "SB",
         !is.na(.data$ect_delivery_date)   ~ "ECT",
@@ -345,7 +356,7 @@ outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
         !is.na(.data$ab_delivery_date)    ~ "AB",
         !is.na(.data$deliv_delivery_date) ~ "DELIV"
       ),
-      algo2_outcome_date = lubridate::ymd(dplyr::case_when(
+      pps_outcome_date = lubridate::ymd(dplyr::case_when(
         !is.na(.data$lb_delivery_date)    ~ .data$lb_delivery_date,
         !is.na(.data$sb_delivery_date)    ~ .data$sb_delivery_date,
         !is.na(.data$ect_delivery_date)   ~ .data$ect_delivery_date,
@@ -362,9 +373,9 @@ addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
     dplyr::left_join(
       outcomesDf %>%
         dplyr::select(
-          "person_id", "person_episode_number", "episode_min_date",
-          "algo2_category", "algo2_outcome_date", "n_gt_concepts"
+          "person_id", "person_episode_number", "pps_episode_min_date",
+          "pps_outcome", "pps_outcome_date", "n_gt_concepts"
         ),
-      by = c("person_id", "person_episode_number", "episode_min_date", "n_gt_concepts")
+      by = c("person_id", "person_episode_number", "pps_episode_min_date", "n_gt_concepts")
     )
 }

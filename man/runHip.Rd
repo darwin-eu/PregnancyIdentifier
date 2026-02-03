@@ -30,13 +30,13 @@ runHip(
 The input cdm object with cdm$preg_hip_episodes table added.
 Columns of this table are:
 - person_id: Unique person identifier
-- gest_date: ?
-- category: HIP pregnancy outcome category
-- visit_date: Date of the pregnancy outcome (i.e. pregnancy end date)
-- estimated_start_date
-- episode: number of the episode within person_id (1=first, 2=second, etc.)
-- gest_flag: Were gestational age concepts found in the episode? yes or no
-- episode_length: length of the episode in days
+- hip_episode: number of the episode within person_id (1=first, 2=second, etc.)
+- hip_pregnancy_start: Estimated start date of the pregnancy episode
+- hip_pregnancy_end: Date of the pregnancy outcome (i.e. pregnancy end date)
+- hip_outcome_category: HIP pregnancy outcome category
+- hip_first_gest_date: First gestation date in the episode (NA if not identified)
+- hip_gest_flag: Were gestational age concepts found in the episode? yes or no
+- hip_episode_length: length of the episode in days
 }
 \description{
 This function runs the HIP outcome based pregnancy identification algorithm.

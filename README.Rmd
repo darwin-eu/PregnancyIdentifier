@@ -54,7 +54,7 @@ runPregnancyIdentifier(
 ```
 
 **Use the result:**  
-`pregnancy_output/final_pregnancy_episodes.rds` is a data frame with one row per pregnancy episode: `person_id`, `inferred_episode_start`, `inferred_episode_end`, `final_outcome_category`, `precision_days`, and other QA/concordance columns. Load it for cohort definition, export, or further analysis.
+`pregnancy_output/final_pregnancy_episodes.rds` is a data frame with one row per pregnancy episode: `person_id`, `final_episode_start_date`, `final_episode_end_date`, `final_outcome_category`, `esd_precision_days`, and other esd_* QA/concordance columns. Load it for cohort definition, export, or further analysis.
 
 Optional: run **export** for de-identified summary CSVs and a ZIP:
 

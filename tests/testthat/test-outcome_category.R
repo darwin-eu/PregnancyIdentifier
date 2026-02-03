@@ -12,7 +12,7 @@ test_that("Outcome category is correct", {
   invisible(capture.output(runPregnancyIdentifier(cdm, outputFolder)))
 
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
-    select(person_id, inferred_episode_start, inferred_episode_end, final_outcome_category)
+    select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)
 
   # Test cases outlined in issue https://github.com/darwin-eu-dev/PregnancyIdentifier/issues/61
 
@@ -22,8 +22,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "LB") # Live Birth
-  expect_equal(output$inferred_episode_end, as.Date("2023-10-08"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2023-10-08"))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 22: Live birth w/ missing GW (fallback duration) ----
   output <- df |>
@@ -31,8 +31,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "LB") # Live Birth
-  expect_equal(output$inferred_episode_end, as.Date("2021-06-01"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2021-06-01"))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 23: Stillbirth w/ GW 32w ----
   output <- df |>
@@ -40,8 +40,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "SB") # Stillbirth
-  expect_equal(output$inferred_episode_end, as.Date("2023-08-20"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2023-08-20"))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 24: Ectopic pregnancy (8w)
   output <- df |>
@@ -49,8 +49,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "ECT") # Ectopic
-  expect_equal(output$inferred_episode_end, as.Date("2023-03-15"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2023-03-15"))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 25: Elective termination (12w) ----
   # output <- df |>
@@ -58,8 +58,8 @@ test_that("Outcome category is correct", {
   #
   # expect_equal(nrow(output), 1)
   # expect_equal(output$final_outcome_category, "AB") # Elective termination on Feb 10
-  # expect_equal(output$inferred_episode_end, as.Date("2021-02-10"))
-  # expect_false(is.na(output$inferred_episode_start))
+  # expect_equal(output$final_episode_end_date, as.Date("2021-02-10"))
+  # expect_false(is.na(output$final_episode_start_date))
 
 
   # 26: Miscarriage (8w) ----
@@ -68,8 +68,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "SA") # Miscarriage
-  expect_equal(output$inferred_episode_end, as.Date("2023-11-05"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2023-11-05"))
+  expect_false(is.na(output$final_episode_start_date))
 
 
   # 27: Gestation based episode (no recorded outcome) ----
@@ -78,8 +78,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, "PREG")
-  expect_equal(output$inferred_episode_end, as.Date("2021-05-30"))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date("2021-05-30"))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 28: Two distinct episodes (LB then miscarriage) ----
   # output <- df |>
@@ -87,8 +87,8 @@ test_that("Outcome category is correct", {
   #
   # expect_equal(nrow(output), 2)
   # expect_equal(output$final_outcome_category, c("LB", "SA"))
-  # expect_equal(output$inferred_episode_end, as.Date(c("2023-09-01", "2023-12-10")))
-  # expect_false(any(is.na(output$inferred_episode_start)))
+  # expect_equal(output$final_episode_end_date, as.Date(c("2023-09-01", "2023-12-10")))
+  # expect_false(any(is.na(output$final_episode_start_date)))
 
   # 29: Duplicate outcome codes (LB repeated) ----
   output <- df |>
@@ -96,8 +96,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, c("LB"))
-  expect_equal(output$inferred_episode_end, as.Date(c("2023-10-07")))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date(c("2023-10-07")))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 30: Conflicting outcomes within min_days (SA then LB)	 Which outcome is kept? LB ----
   output <- df |>
@@ -105,8 +105,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, c("LB"))
-  expect_equal(output$inferred_episode_end, as.Date(c("2018-12-01")))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date(c("2018-12-01")))
+  expect_false(is.na(output$final_episode_start_date))
 
 
   # 31: Two LB outcomes too close (<min_days). Merge may still output 2 rows; assert on one.
@@ -121,8 +121,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   # expect_equal(output$final_outcome_category, c("LB"))
-  # expect_equal(output$inferred_episode_end, as.Date(c("2018-11-01")))
-  expect_false(is.na(output$inferred_episode_start))
+  # expect_equal(output$final_episode_end_date, as.Date(c("2018-11-01")))
+  expect_false(is.na(output$final_episode_start_date))
 
 
   # 32:	Gestation week decrease triggers new episode	 We should see 2 episodes here ----
@@ -138,8 +138,8 @@ test_that("Outcome category is correct", {
 
   # expect_equal(nrow(output), 2)
   # expect_equal(output$final_outcome_category, c("PREG", "PREG"))
-  # expect_equal(output$inferred_episode_end, as.Date(c("2023-06-01", "2024-01-15")))
-  # expect_false(is.na(output$inferred_episode_start))
+  # expect_equal(output$final_episode_end_date, as.Date(c("2023-06-01", "2024-01-15")))
+  # expect_false(is.na(output$final_episode_start_date))
 
   # 33:	Outcome discordant with max gestation (LB + 12w)	I think this should be PREG - but do we want this or do we think LB is of greater value ----
   output <- df |>
@@ -147,8 +147,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   # expect_equal(output$final_outcome_category, c("PREG"))
-  expect_equal(output$inferred_episode_end, as.Date(c("2023-07-01")))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date(c("2023-07-01")))
+  expect_false(is.na(output$final_episode_start_date))
 
   # 34:	PPS gestational-timing concepts align with HIP outcome ----
   output <- df |>
@@ -156,8 +156,8 @@ test_that("Outcome category is correct", {
 
   expect_equal(nrow(output), 1)
   expect_equal(output$final_outcome_category, c("LB"))
-  expect_equal(output$inferred_episode_end, as.Date(c("2023-12-20")))
-  expect_false(is.na(output$inferred_episode_start))
+  expect_equal(output$final_episode_end_date, as.Date(c("2023-12-20")))
+  expect_false(is.na(output$final_episode_start_date))
 
   cleanupCdmDb(cdm)
   unlink(outputFolder, recursive = TRUE)
