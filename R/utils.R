@@ -1,5 +1,6 @@
 getTblRowCount <- function(tbl) {
   tbl %>%
+    dplyr::ungroup() %>%
     dplyr::count() %>%
     dplyr::pull(.data$n)
 }
@@ -7,7 +8,6 @@ getTblRowCount <- function(tbl) {
 cdmTableExists <- function(cdm, tableName) {
   DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = tableName)
 }
-
 
 #' Create a mock pregnancy cdm for examples and testing
 #'
@@ -36,24 +36,6 @@ mockPregnancyCdm <- function() {
     dplyr::compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
 
   return(cdm)
-}
-
-
-# Log helpers that make having a logger optional
-logInfo <- function(logger, x) {
-  if (!is.null(logger)) {
-    log4r::info(logger, x)
-  } else {
-    rlang::inform(x)
-  }
-}
-
-logWarn <- function(logger, x) {
-  if (!is.null(logger)) {
-    log4r::warn(logger, x)
-  } else {
-    rlang::warn(x)
-  }
 }
 
 # Add age and sex to a cdm table
@@ -102,59 +84,6 @@ printLong <- function(x) {
   )
   colnames(out)[-1] <- paste0("row", seq_len(ncol(out) - 1))
   print(dplyr::tibble(out), n = 1000)
-}
-#' Convert a data.frame to an aligned, copy-pasteable R comment block
-#'
-#' @param df A data.frame / tibble
-#' @return Invisibly returns df (printed as comments)
-dfToComment <- function(df) {
-  df_chr <- as.data.frame(lapply(df, as.character), stringsAsFactors = FALSE)
-
-  widths <- vapply(
-    names(df_chr),
-    function(col) max(nchar(c(col, df_chr[[col]])), na.rm = TRUE),
-    integer(1)
-  )
-
-  pad <- function(x, w) sprintf(paste0("%-", w, "s"), x)
-
-  header <- paste(mapply(pad, names(df_chr), widths), collapse = " | ")
-  cat("# ", header, "\n", sep = "")
-
-  for (i in seq_len(nrow(df_chr))) {
-    row <- paste(mapply(pad, df_chr[i, ], widths), collapse = " | ")
-    cat("# ", row, "\n", sep = "")
-  }
-
-  invisible(df)
-}
-
-#' Flatten a CDM, optionally filter by person_id, and print as an R comment block
-#'
-#' @param cdm A CDM reference object
-#' @param personIds Optional numeric vector of person_id values to filter on (default NULL = no filter)
-#' @return Invisibly returns the collected data.frame (also printed as comments)
-cdmFlatPrint <- function(cdm, personIds = NULL) {
-
-  flat <- CDMConnector::cdmFlatten(cdm) %>%
-    dplyr::collect(flat)
-
-  if (!is.null(personIds)) {
-    if (!is.numeric(personIds)) {
-      stop("`personIds` must be a numeric vector (or NULL).")
-    }
-    flat <- dplyr::filter(flat, .data$person_id %in% personIds)
-  }
-
-  flat <- dplyr::arrange(
-    flat,
-    .data$person_id,
-    dplyr::desc(.data$start_date),
-    dplyr::desc(.data$end_date)
-  )
-
-  dfToComment(flat)
-  invisible(flat)
 }
 
 #' Insert flattened CDM records as an aligned R comment in the active editor
