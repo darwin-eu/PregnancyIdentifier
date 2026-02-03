@@ -82,9 +82,12 @@ episodeFreqSummary <- res %>%
 write.csv(episodeFreqSummary, file.path(resPath, "episode_frequency_summary.csv"))
 
 print("Maternal age distribution (in years)")
+
+cdm <- omopgenerics::insertTable(cdm, "res", res)
+
 res_age <- cdm$person %>%
   select("person_id", "gender_concept_id", "birth_datetime") %>%
-  right_join(res, by = c("person_id" = "person_id"), copy = TRUE) %>%
+  right_join(cdm$res, by = c("person_id" = "person_id")) %>%
   mutate(age_pregnancy_start = as.Date(inferred_episode_start) - as.Date(birth_datetime)) %>%
   dplyr::mutate(
     age_pregnancy_start = as.numeric(.data$age_pregnancy_start)
