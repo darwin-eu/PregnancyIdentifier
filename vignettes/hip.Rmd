@@ -73,6 +73,7 @@ HIP addresses this by:
 HIP episodes include:
 
 - `person_id` — Unique person identifier.
+- `gest_date` — First gestation date in the episode (or NA if no gestational visit in the episode window).
 - `visit_date` — Episode end date (outcome date or max gest date).
 - `estimated_start_date` — Inferred pregnancy start date.
 - `category` — One of: `LB`, `SB`, `AB`, `SA`, `DELIV`, `ECT`, `PREG`.

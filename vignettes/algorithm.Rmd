@@ -18,12 +18,10 @@ knitr::opts_chunk$set(
 
 This vignette describes the **PregnancyIdentifier** pipeline, which implements the HIPPS approach to identify pregnancy episodes in OMOP CDM data. The pipeline has four main algorithm components, run in sequence:
 
-1. **HIP** — Outcome-anchored episode builder: identifies pregnancy episodes from high-specificity pregnancy outcomes and gestational-age evidence. See the [HIP vignette](hip.html).
-2. **PPS** — Gestational-timing concept episode builder: constructs episodes from pregnancy-related concepts and expected timing windows. See the [PPS vignette](pps.html).
-3. **Merge** — Combines HIP and PPS episodes into a unified per-person timeline (HIPPS) by temporal overlap and best-match deduplication. See the [Merge vignette](merge.html).
-4. **ESD** — Episode start date refinement: uses gestational timing evidence (GW and GR3m) to infer pregnancy start dates and precision. See the [ESD vignette](esd.html).
-
-At a high level, the pipeline (i) assembles pregnancy signals and outcomes from standard OMOP domains via `initPregnancies()`, (ii) builds outcome-anchored episodes (HIP) and timing-anchored episodes (PPS), (iii) merges them into HIPPS, (iv) refines episode start dates with ESD, and (v) optionally exports de-identified summary tables for QA and cross-site comparison.
+1.  **HIP** — Outcome-anchored episode builder: identifies pregnancy episodes from high-specificity pregnancy outcomes and gestational-age evidence. See the [HIP vignette](hip.html).
+2.  **PPS** — Gestational-timing concept episode builder: constructs episodes from pregnancy-related concepts and expected timing windows. See the [PPS vignette](pps.html).
+3.  **Merge** — Combines HIP and PPS episodes into a unified per-person timeline (HIPPS) by temporal overlap and best-match deduplication. See the [Merge vignette](merge.html).
+4.  **ESD** — Episode start date refinement: uses gestational timing evidence (GW and GR3m) to infer pregnancy start dates and precision. See the [ESD vignette](esd.html).
 
 ## Running the full pipeline
 
@@ -51,33 +49,77 @@ runPregnancyIdentifier(
 The pipeline writes intermediate RDS artifacts as it proceeds and finishes with a patient-level episode table plus optional shareable exports:
 
 | File | Description |
-|------|--------------|
-| `runStart.csv` | Run timestamp |
+|----------------------|--------------------------------------------------|
+| `runStart.csv` | Run timestamp used in exported csv files |
 | `log.txt` | Run log |
 | `hip_episodes.rds` | HIP episodes (outcome and/or gestation-derived) |
-| `pps_gest_timing_episodes.rds` | PPS record-level episodes (concept rows with episode assignments) |
-| `pps_min_max_episodes.rds` | PPS episode summaries (min/max dates per episode) |
 | `pps_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
 | `hipps_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
-| `esd.rds` | (optional, `debugMode = TRUE`) ESD episode-level start inference |
 | `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes |
 | `export/` | De-identified summary CSVs and ZIP archive (if export step is used) |
 
 ## Pipeline steps in order
 
-1. **initPregnancies** — Loads pregnancy concept sets into the CDM, builds `preg_hip_records` and `preg_pps_records` from condition, procedure, observation, and measurement tables within the study window.
-2. **runHip** — Builds outcome episodes, then gestation episodes, merges and cleans them, and writes `hip_episodes.rds`.
-3. **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes via lookback/lookahead, and writes `pps_gest_timing_episodes.rds`, `pps_min_max_episodes.rds`, and `pps_episodes.rds`.
-4. **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
-5. **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, merges back to HIPPS metadata, and writes `final_pregnancy_episodes.rds`.
-6. **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`.
+1.  **initPregnancies** — Loads pregnancy concept sets into the CDM, builds `preg_hip_records` and `preg_pps_records` from condition, procedure, observation, and measurement tables within the study window.
+2.  **runHip** — Builds outcome episodes, then gestation episodes, merges and cleans them, and writes `hip_episodes.rds`.
+3.  **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes, and writes `pps_episodes.rds`.
+4.  **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
+5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, merges back to HIPPS metadata, and writes `final_pregnancy_episodes.rds`.
+6.  **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`.
 
 ## Interpreting the final episode table
 
 The primary analysis dataset is `final_pregnancy_episodes.rds`, with one row per pregnancy episode. Key fields include:
 
-- **Dates:** `inferred_episode_start`, `inferred_episode_end` (final inferred interval); `recorded_episode_start`, `recorded_episode_end` (evidence window); `hip_end_date`, `pps_end_date` (algorithm-specific end dates when available).
-- **Outcome:** `final_outcome_category` (harmonized); `hip_outcome_category`, `pps_outcome_category` (component algorithm categories).
-- **Timing:** `precision_days`, `precision_category`; `gestational_age_days_calculated`; `term_duration_flag` and related QA/concordance fields.
+- **inferred_episode_start** — Best estimate of pregnancy start for this episode. When ESD has gestational timing (GW and/or GR3m), it is derived from that (e.g. GW back-calculation or GR3m midpoint). When ESD has no start, it is set to `inferred_episode_end − max_term` (Matcho term for the outcome). If the resulting duration exceeds 294 days and the end date is from HIP, start is moved later so duration is capped at 294 days.
+- **inferred_episode_end** — The best estimate of the pregnancy end date for this episode, determined by combining evidence from both HIP and PPS algorithms:
 
-For details on each algorithm step, see the dedicated vignettes: [HIP](hip.html), [PPS](pps.html), [Merge](merge.html), and [ESD](esd.html).
+    - **When both HIP and PPS algorithms find the same episode and agree on the outcome and timing:** The episode end is set to their shared date.
+    - **When both HIP and PPS identify the episode but their outcomes or end dates differ:** The episode end is chosen according to outcome concordance and predefined priority rules that decide which algorithm’s date should be trusted more, depending on the available information (e.g., if one has a specific outcome like delivery or if one result is clearly less precise).
+    - **When only HIP finds an episode (PPS is missing):** The end date comes from HIP.
+    - **When only PPS finds an episode (HIP is missing):** The end date comes from PPS.
+
+    If the calculated episode duration (from start to end) is longer than 294 days (the typical maximum pregnancy duration), and the end date did NOT come from a HIP outcome (i.e., it’s from PPS or gestation-only clues), the end date is capped to `inferred_episode_start + 294` days.
+
+Together, **inferred_episode_start** and **inferred_episode_end** are the primary analysis interval: the pipeline’s final inferred pregnancy window.
+
+- **recorded_episode_start** — Start of the evidence window for this episode from the merge step. It is the minimum of: HIP’s first gestation date in the episode, PPS episode min date, and HIP estimated start. So it is the earliest date implied by either algorithm for this merged episode.
+- **recorded_episode_end** — End of the evidence window for this episode from the merge step. It is the maximum of: PPS episode max date and HIP pregnancy end (visit/outcome date). So it is the latest date implied by either algorithm for this merged episode.
+
+**recorded_episode_start** and **recorded_episode_end** describe the span of raw evidence (HIP + PPS) that was merged for this episode, before ESD refines start/end into the inferred interval.
+
+- **hip_end_date** — Episode end date from the HIP algorithm: either the outcome date (e.g. delivery) or the latest gestation date when there is no outcome. **NA** when the episode was found only by PPS (no overlapping HIP episode).
+- **pps_end_date** — Episode end from the PPS algorithm: the inferred outcome date when PPS assigned an outcome (LB, SB, etc.), otherwise the PPS episode max date. **NA** when the episode was found only by HIP (no overlapping PPS episode).
+
+**hip_end_date** and **pps_end_date** are the end dates produced by each algorithm; at least one is non-NA when both algorithms contributed to the episode, and one is NA for one-sided (HIP-only or PPS-only) episodes.
+
+## An example case
+
+```{r}
+library(PregnancyIdentifier)
+library(CDMConnector)
+library(dplyr)
+
+cdm <- mockPregnancyCdm()
+
+cdm <- cdmSubset(cdm, personId = 24)
+
+cdm %>% 
+  cdmFlatten() %>% 
+  select(-"type_concept_id", -"domain") %>% 
+  arrange(start_date)
+
+```
+
+```{r, cache=TRUE}
+outputDir <- file.path(tempdir(), "pregnancy_output")
+
+invisible(capture.output(
+  runPregnancyIdentifier(cdm, outputDir = outputDir)
+))
+
+list.files(outputDir)
+readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+```
+
+

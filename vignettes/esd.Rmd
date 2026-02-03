@@ -64,9 +64,11 @@ When **both** GW and GR3m evidence are present, ESD prefers GW evidence that is 
    - **outcome_concordance_score**, **preterm_status_from_calculation**, etc.
    Then deduplicates to one row per (person_id, inferred_episode_end, final_outcome_category) with `.keep_all = TRUE` so all columns (e.g. hip_end_date, pps_end_date) are retained for export.
 
-4. **Study period filter** — Keeps rows where inferred_episode_start/inferred_episode_end fall within `startDate`–`endDate` (or missing dates are allowed as per implementation).
+4. **Study period filter** — Keeps rows where inferred_episode_start is on or after `startDate` and inferred_episode_end is on or before `endDate` (episodes with missing dates are retained).
 
-5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
+5. **Collapse overlapping episodes** — Within each person, overlapping inferred intervals are merged into a single episode (union of intervals; non-date fields taken from the episode with the latest end). Rows with NA start or end are not merged. This ensures no two episodes for the same person overlap in time.
+
+6. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
 
 # Outputs
 

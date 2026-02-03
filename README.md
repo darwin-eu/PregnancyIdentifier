@@ -9,26 +9,11 @@ algorithm (Smith et al. 2024,
 
 ------------------------------------------------------------------------
 
-## Who is this for?
-
-- **Researchers and epidemiologists** studying pregnancy outcomes,
-  maternal health, or drug safety in pregnancy using OMOP data.
-- **DARWIN EU / OHDSI network sites** that need a standardized,
-  reproducible way to define pregnancy episodes across different EHR
-  systems.
-- Anyone with an **OMOP CDM** (via
-  [CDMConnector](https://ohdsi.github.io/CDMConnector/)) who wants **one
-  row per pregnancy** with inferred start/end dates and outcome
-  categories instead of raw codes and visits.
-
-------------------------------------------------------------------------
-
-## Why use it?
-
-Electronic health records rarely have a single “pregnancy start” or
-“pregnancy end” variable. You get scattered events: live birth,
-gestational week 12, delivery procedure, miscarriage, etc.
-**PregnancyIdentifier** turns that into:
+Observational health data rarely has `pregnancy_start` or
+`pregnancy_end` variables. More often we get scattered pregnancy-related
+events such as live birth, gestational week 12, delivery procedure,
+miscarriage, etc. **PregnancyIdentifier** turns pregnancy-related codes
+into:
 
 - **One row per pregnancy episode**
 - **Inferred start and end dates** (and precision) from gestational
@@ -38,7 +23,7 @@ gestational week 12, delivery procedure, miscarriage, etc.
 
 The pipeline combines outcome-anchored episodes (HIP), timing-anchored
 episodes (PPS), merges them (HIPPS), then refines start dates (ESD)—so
-you get a consistent definition of “a pregnancy” across sites and data
+you get a consistent definition of a pregnancy across sites and data
 sources.
 
 ------------------------------------------------------------------------

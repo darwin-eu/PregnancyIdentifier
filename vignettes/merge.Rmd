@@ -81,7 +81,7 @@ Episodes that do not overlap remain in the merged table as one-sided episodes (H
 
 For each overlapping HIP–PPS pair (and for one-sided episodes where one algorithm is missing), the merged episode start and end are computed as:
 
-* `merged_episode_start` = min(`first_gest_date`, `episode_min_date`, `pregnancy_end`)
+* `merged_episode_start` = min(`first_gest_date`, `episode_min_date`, `pregnancy_start`)
 * `merged_episode_end`   = max(`episode_max_date`, `pregnancy_end`)
 
 and `merged_episode_length` is computed as the time between these dates (in months).
