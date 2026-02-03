@@ -27,7 +27,7 @@
 #' @param outputDir Character. Directory path where intermediate and output RDS files will be saved.
 #' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
 #' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
-#' @param logger Optional `log4r` logger object for emitting information and debug messages.
+#' @param logger `log4r` logger object (required) for emitting information and debug messages.
 #' @param debugMode (`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)
 #'
 #' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
@@ -37,7 +37,7 @@ runPps <- function(cdm,
                    outputDir,
                    startDate = as.Date("1900-01-01"),
                    endDate   = Sys.Date(),
-                   logger = NULL,
+                   logger,
                    debugMode = FALSE) {
 
   # ---- validation ----
@@ -45,22 +45,22 @@ runPps <- function(cdm,
   checkmate::assertCharacter(outputDir, len = 1)
   checkmate::assertDate(startDate)
   checkmate::assertDate(endDate)
-  checkmate::assertClass(logger, "logger", null.ok = TRUE)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 
-  logInfo(logger, "START Running PPS")
+  log4r::info(logger, "START Running PPS")
 
   # ----------------------------------------------------------
   # Get gestational timing information for each person
   # ----------------------------------------------------------
-  logInfo(logger, "Get gestational timing information")
+  log4r::info(logger, "Get gestational timing information")
   ppsEpisodes <- getPpsEpisodes(cdm, outputDir)
 
   # ----------------------------------------------------------
   # Get min and max dates and outcomes for each episode
   # ----------------------------------------------------------
-  logInfo(logger, "Get min and max dates for episodes")
+  log4r::info(logger, "Get min and max dates for episodes")
   ppsMinMax <- getEpisodeMaxMinDates(ppsEpisodes)
 
   ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) %>%

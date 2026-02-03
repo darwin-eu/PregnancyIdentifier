@@ -108,7 +108,7 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   # Outputs: outcomeEpisodesWithStartsTbl (lazy tbl; not stored in cdm). Adds min_term, max_term, retry, min_start_date, max_start_date.
   outcomeEpisodesWithStartsTbl <- estimateOutcomeStarts(cdm)
 
-  # Stage 1: gestation episodes.
+  # Stage 2: gestation episodes.
   # Inputs: cdm$preg_hip_records.
   # Outputs: cdm with new table cdm$gest_episodes_df (person_id, gest_id, episode, max_gest_date, max_gest_week, min_gest_date, min_gest_week, max_gest_start_date, min_gest_start_date, end_gest_date, etc.).
   cdm <- buildGestationEpisodes(cdm, logger = logger, gestConceptIds = gestConceptIds)
@@ -417,7 +417,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     cdm$outcome_episodes_df <- allOutcomes %>%
       dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
-  log4r::info(logger, "Stage A: outcome episodes materialized")
+  log4r::info(logger, "Stage 1: outcome episodes materialized")
   cdm
 }
 
@@ -547,7 +547,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
 
-  log4r::info(logger, "Stage B: gestation episodes materialized")
+  log4r::info(logger, "Stage 2: gestation episodes materialized")
   cdm
 }
 
@@ -627,7 +627,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "final_visit_date", "day"))
   cdm$merged_episodes_df <- mergedTbl %>%
     dplyr::compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
-  log4r::info(logger, "Stage C: merged episodes materialized")
+  log4r::info(logger, "Stage 3: merged episodes materialized")
   cdm
 }
 
