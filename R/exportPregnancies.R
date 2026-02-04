@@ -314,9 +314,11 @@ exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersio
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
+    dplyr::mutate(
+      pct = .data$n / sum(.data$n) * 100
+    ) %>%
     suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
     dplyr::mutate(
-      pct = .data$n / sum(.data$n) * 100,
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
