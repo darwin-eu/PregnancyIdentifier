@@ -1,0 +1,146 @@
+---
+title: "ESD algorithm"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ESD algorithm}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+# Overview
+
+Episode construction (HIP, PPS, merge) yields plausible pregnancy intervals, but **start dates** can remain uncertain. The **ESD** (Episode Start Date) step refines episode starts by extracting **gestational timing evidence** recorded during each HIPPS episode and converting that evidence into:
+
+- **final_episode_start_date** — Inferred pregnancy start date (written to output; internally `inferred_episode_start`)
+- **final_episode_end_date** — Resolved episode end: **not** taken from the merged episode interval; ESD re-derives it by picking between **hip_end_date** and **pps_end_date** (see below).
+- **esd_precision_days** and **esd_precision_category** — Uncertainty in days and a binned precision label (e.g. `week`, `month`, `three-month`)
+- Plausibility and concordance metrics: **esd_term_duration_flag**, **esd_outcome_concordance_score**, **esd_outcome_match**, **esd_preterm_status_from_calculation**, etc.
+
+ESD is run via `runEsd()`, which reads `hipps_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges ESD results back onto HIPPS metadata (including resolving final outcome and end date when HIP and PPS disagree), and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **esd.rds** (episode-level start inference only, before merging back).
+
+**Important:** The **final episode end date** and **final outcome category** in the pipeline are **not** taken from the merged episode (e.g. `merge_episode_end`). They are **re-derived by ESD** by picking between HIP and PPS again: ESD compares `hip_end_date` and `pps_end_date` (and `hip_outcome_category` and `pps_outcome_category`) and applies harmonization rules to choose one end and one outcome per episode. The merged interval is used only to define the evidence window for start inference; the reported end and outcome come from this second pass over HIP and PPS.
+
+# Relationship to HIP, PPS, and merge
+
+HIP and PPS already use gestational-age concepts, and the merge step combines their episodes into one table with **merge_episode_start** and **merge_episode_end**. So it is reasonable to ask why ESD exists and what it uses from the merged data versus from HIP and PPS directly.
+
+**What the earlier steps do.** HIP uses gestation to build outcome-anchored episodes and to estimate start from outcome + term ranges; it outputs **hip_pregnancy_start**, **hip_end_date** (e.g. delivery date), and **hip_outcome_category**. PPS uses pregnancy-related concepts and their gestational timing windows (min/month ranges) to define episode bounds; it outputs **pps_episode_min_date**, **pps_episode_max_date**, and **pps_outcome_category**. The merge step matches HIP and PPS episodes by temporal overlap and produces one row per merged episode, with **merge_episode_start** = min of the relevant HIP/PPS starts and **merge_episode_end** = max of the relevant HIP/PPS ends. So after merge we already have one interval per episode.
+
+**What ESD adds.** ESD does two things:
+
+1. **Refine the start and add precision.** HIP and PPS (and merge) give you *bounds* or an *estimated* start. ESD goes back to the CDM and, for each merged episode, pulls gestational timing concepts (GW and GR3m) that fall *within that episode’s merged interval*. From those concepts it computes a single **inferred_episode_start** (e.g. concept_date − 7×weeks for “18 weeks”) and **precision_days** / **precision_category** (week vs month vs three-month). So ESD answers: “For this episode we already have, what is the best point estimate of pregnancy start and how precise is it?” That single start plus precision is not produced by HIP or PPS in this form.
+
+2. **Harmonize end and outcome when HIP and PPS disagree.** The merge keeps one row per episode but preserves both **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome_category** on that row. ESD does *not* use **merge_episode_end** for the *final* episode end. Instead it re-compares **hip_end_date** and **pps_end_date** (and the two outcomes) and applies rules (e.g. outcome match within 14 days, or “take the one that occurs second”) to set **final_episode_end_date** (internally `inferred_episode_end`) and **final_outcome_category**. So the reported end and outcome are chosen from the raw HIP and PPS values, not from the merged interval. That can seem redundant with merge, but it makes the final end and outcome explicit and consistent with the same rules used for concordance metrics.
+
+**What ESD uses from merged data vs from HIP/PPS.**
+
+| Purpose | What ESD uses |
+|--------|----------------|
+| **Evidence window** (which concept records belong to this episode) | **Merged** interval: **merge_episode_start**, **merge_episode_end**, **merge_pregnancy_start**. Concepts are pulled only if they fall within this window. |
+| **Final episode end and outcome** | **HIP and PPS directly**: **hip_end_date**, **pps_end_date**, **hip_outcome_category**, **pps_outcome_category**. ESD picks one end and one outcome per episode using its harmonization rules; it does not use **merge_episode_end** for the reported end. |
+| **Start inference** | **GW/GR3m concepts** within the merged window; result is **inferred_episode_start** and precision. |
+
+So: the same gestational-style concepts are used in HIP, PPS, and again in ESD—but ESD uses them to produce a *single start date and precision* for an episode that already exists after merge. And the final end/outcome are resolved from HIP and PPS again so that one end and one outcome are chosen explicitly per episode.
+
+# How final start, end, and outcome are chosen
+
+ESD sets **final_episode_start_date** (inferred_episode_start), **final_episode_end_date** (inferred_episode_end), and **final_outcome_category** using the following logic. The end and outcome are always chosen from **hip_end_date** / **hip_outcome_category** and **pps_end_date** / **pps_outcome_category** on the merged row; **merge_episode_end** is not used for the final end.
+
+## Final start date
+
+- **When ESD has gestational timing evidence (GW and/or GR3m)** within the merged evidence window: The start is inferred from that evidence (see [Two types of gestational timing evidence](#two-types-of-gestational-timing-evidence)) — e.g. concept_date − 7×weeks for a “gestation 18 weeks” concept, or the midpoint of the GR3m intersection. One date is chosen per episode and stored as **inferred_episode_start**.
+- **When ESD has no inferred start**: The start is set to **inferred_episode_end − max_term**, where **max_term** is the maximum gestational days for the chosen outcome category from the Matcho term-duration table (e.g. 301 days for live birth). So the start is back-calculated from the final end and the outcome’s expected maximum duration.
+
+## Final end date and outcome category
+
+ESD first computes **outcome_match**: 1 if HIP and PPS agree (same outcome category and end dates within 14 days, or both PREG), else 0. Then it chooses **final_outcome_category** and **inferred_episode_end** using the same priority order:
+
+1. **outcome_match == 1** — Use HIP: **final_outcome_category** = hip_outcome_category, **inferred_episode_end** = hip_end_date.
+2. **One-sided (only HIP or only PPS)** — Use the side that is present: if pps_outcome_category is NA, use HIP; if hip_outcome_category is NA, use PPS.
+3. **Both non-PREG but disagree** — Compare timing:
+   - If PPS outcome equals the *next* HIP outcome (for this person) and hip_end_date ≤ pps_end_date − 14 days: use HIP (PPS is treated as the later episode).
+   - Else if hip_end_date ≤ pps_end_date − 7 days: use PPS (HIP end is at least 7 days before PPS end).
+   - Else: use HIP (same or similar timing).
+4. **Fallback** — If no rule above applied: use hip_end_date / hip_outcome_category when non-NA, else pps_end_date / pps_outcome_category.
+
+So the final end and outcome are always one of the two algorithm values on the row; ESD never uses **merge_episode_end** for the reported end.
+
+# Inputs
+
+- **cdm** — CDM reference (for concept and domain tables).
+- **outputDir** — Directory containing `hipps_episodes.rds` (produced by `mergeHipps()`).
+- **startDate**, **endDate** — Study window for filtering concept dates.
+- **logger** — Optional log4r logger.
+
+# Two types of gestational timing evidence
+
+ESD classifies evidence into two types:
+
+1. **GW (“gestation week”)** — Week-based gestational age from concepts whose name contains “gestation period” or “gestational age”, or whose concept ID is in `gestational_age_concepts.csv` or `ESD_concepts2.xlsx`. Values are parsed from the record (e.g. “Gestation period, 18 weeks” or numeric value); only values between 1 and 44 weeks are kept. The algorithm extrapolates to a single start date: **concept_date − 7×weeks**. When multiple GW values exist, **removeGWOutliers()** keeps only dates whose distance from the median (in days) lies within the IQR×1.5 range.
+
+2. **GR3m (“gestational range ≤ 3 months”)** — Concepts that have **min_month** and **max_month** in the PPS concept table (`preg_pps_concepts`, from `PPS_concepts.xlsx`). These imply a plausible start-date interval: **concept_date − max_days** to **concept_date − min_days**, with days = months×30.4. When multiple GR3m intervals exist, **findIntersection()** first drops outlier intervals (by overlap count, IQR×1.5), then computes the intersection of the remaining intervals. The inferred start for GR3m-only episodes is the **midpoint** of that intersection.
+
+When **both** GW and GR3m evidence exist, ESD checks whether each GW-extrapolated date falls inside the GR3m intersection (after optionally widening that interval if it is &lt; 7 days: midpoint ± 3 days). If **more than 50%** of GW concepts overlap the GR3m intersection, ESD uses only those overlapping GW dates (with outlier removal) for the start; otherwise it uses all GW dates (with outlier removal). The chosen inferred start is the **first** of the filtered GW list, which is ordered from highest gestational week to lowest (i.e. latest-in-pregnancy estimate). **precision_days** is the spread (max − min) of the filtered GW dates, or **−1** for a single GW (stored as category `week_poor-support`).
+
+# Main stages (internal logic)
+
+## 1. getTimingConcepts — For each HIPPS episode, builds a person-level list of (person_id, merge_episode_number, date range). Pulls pregnancy-related concepts from condition_occurrence, observation, measurement, and procedure_occurrence that fall within each episode’s evidence window, normalized to a common schema (e.g. domain_concept_id, domain_concept_start_date, value_col). Joins to ESD/PPS concept tables to get `min_month`, `max_month` and to classify concepts as GW or GR3m.
+
+2. **episodesWithGestationalTimingInfo** — For each episode (person_id, merge_episode_number), aggregates the concept evidence into:
+   - A single “all_gt_info” string (GW dates or GR3m “max_pregnancy_start min_pregnancy_start” ranges),
+   - Flags: `gw_flag`, `gr3m_flag`,
+   - Then calls **getGtTiming()** on the parsed date list to obtain:
+     - **inferred_start_date** (single best start date),
+     - **precision_days** (spread in days or -1 for single GW),
+     - **precision_category** (e.g. week, month, three-month),
+     - **intervals_count**, **majority_overlap_count** (for logging/QA).
+
+   getGtTiming implements the GW/GR3m combination logic: when GR3m intersection exists, it checks whether GW concepts overlap that intersection; when only GW or only GR3m exists, it uses the appropriate single source.
+
+3. **mergedEpisodesWithMetadata** — Joins the ESD timing output (inferred start, precision_days, precision_category, etc.; renamed to **final_episode_start_date**, **final_episode_end_date**, **esd_*** at write) back onto the HIPPS episodes. Harmonizes **final_outcome_category** and inferred episode end from HIP vs PPS when they disagree (e.g. by prioritizing the outcome that occurs second or the one with better date concordance). Adds:
+   - **esd_gestational_age_days_calculated** (inferred end − inferred start),
+   - **esd_term_duration_flag** (whether duration falls in expected term range for that outcome),
+   - **esd_outcome_concordance_score**, **esd_preterm_status_from_calculation**, etc.
+   Then deduplicates to one row per (person_id, inferred_episode_end, final_outcome_category) with `.keep_all = TRUE` so all columns (e.g. hip_end_date, pps_end_date) are retained for export.
+
+4. **Study period filter** — Keeps rows where inferred episode start is on or after `startDate` and inferred episode end is on or before `endDate` (episodes with missing dates are retained).
+
+5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
+
+# Outputs
+
+| File | Description |
+|------|--------------|
+| **final_pregnancy_episodes.rds** | Final episode table: one row per episode, with final_episode_start_date, final_episode_end_date, final_outcome_category, esd_precision_days, esd_precision_category, hip_end_date, pps_end_date, and other esd_* QA/concordance columns. |
+| **esd.rds** | (Only when `debugMode = TRUE`) Episode-level ESD output before merging back to HIPPS metadata. |
+
+# Running ESD
+
+ESD is normally run as step 5 of `runPregnancyIdentifier()`. To run it alone (e.g. for debugging), ensure `outputDir` already contains `hipps_episodes.rds`:
+
+```{r, eval=FALSE}
+library(PregnancyIdentifier)
+cdm <- mockPregnancyCdm()
+# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
+
+runEsd(
+  cdm       = cdm,
+  outputDir = "pregnancy_output",
+  startDate = as.Date("2000-01-01"),
+  endDate   = Sys.Date(),
+  logger    = makeLogger("pregnancy_output"),
+  debugMode = FALSE
+)
+# final_pregnancy_episodes.rds is written to pregnancy_output/
+```
+
+For the full pipeline, use `runPregnancyIdentifier()`; see the [pipeline overview](algorithm.html).

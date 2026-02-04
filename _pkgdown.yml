@@ -2,3 +2,12 @@ url: https://darwin-eu-dev.github.io/PregnancyIdentifier/
 template:
   bootstrap: 5
 
+articles:
+  - title: Articles
+    contents:
+      - algorithm
+      - hip
+      - pps
+      - merge
+      - esd
+      - export
