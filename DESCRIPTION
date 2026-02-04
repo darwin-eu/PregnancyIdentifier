@@ -30,6 +30,7 @@ Imports:
     purrr,
     stringr,
     TestGenerator,
+    CodelistGenerator,
     magrittr,
     tidyr,
     log4r,
