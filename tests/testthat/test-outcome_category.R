@@ -53,13 +53,13 @@ test_that("Outcome category is correct", {
   expect_false(is.na(output$final_episode_start_date))
 
   # 25: Elective termination (12w) ----
-  # output <- df |>
-  #   filter(.data$person_id == 25L)
-  #
-  # expect_equal(nrow(output), 1)
-  # expect_equal(output$final_outcome_category, "AB") # Elective termination on Feb 10
-  # expect_equal(output$final_episode_end_date, as.Date("2021-02-10"))
-  # expect_false(is.na(output$final_episode_start_date))
+  output <- df |>
+    filter(.data$person_id == 25L)
+
+  expect_equal(nrow(output), 1)
+  expect_equal(output$final_outcome_category, "AB") # Elective termination on Feb 10
+  expect_equal(output$final_episode_end_date, as.Date("2021-02-10"))
+  expect_false(is.na(output$final_episode_start_date))
 
 
   # 26: Miscarriage (8w) ----
@@ -120,8 +120,8 @@ test_that("Outcome category is correct", {
     slice(1)
 
   expect_equal(nrow(output), 1)
-  # expect_equal(output$final_outcome_category, c("LB"))
-  # expect_equal(output$final_episode_end_date, as.Date(c("2018-11-01")))
+  expect_equal(output$final_outcome_category, c("LB"))
+  expect_equal(output$final_episode_end_date, as.Date(c("2018-11-01")))
   expect_false(is.na(output$final_episode_start_date))
 
 
@@ -136,10 +136,10 @@ test_that("Outcome category is correct", {
   output <- df |>
     filter(.data$person_id == 32L)
 
-  # expect_equal(nrow(output), 2)
-  # expect_equal(output$final_outcome_category, c("PREG", "PREG"))
-  # expect_equal(output$final_episode_end_date, as.Date(c("2023-06-01", "2024-01-15")))
-  # expect_false(is.na(output$final_episode_start_date))
+  expect_equal(nrow(output), 2)
+  expect_equal(output$final_outcome_category, c("PREG", "PREG"))
+  expect_equal(output$final_episode_end_date, as.Date(c("2023-06-01", "2024-01-15")))
+  expect_false(any(is.na(output$final_episode_start_date)))
 
   # 33:	Outcome discordant with max gestation (LB + 12w)	I think this should be PREG - but do we want this or do we think LB is of greater value ----
   output <- df |>
