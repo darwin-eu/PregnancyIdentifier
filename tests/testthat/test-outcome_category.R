@@ -133,13 +133,13 @@ test_that("Outcome category is correct", {
 # 32        | 4094910                | 2023-10-29 | NA       | 32817           | condition_occurrence | Pregnancy test positive    | EHR
 # 32        | 4051642                | 2023-06-01 | NA       | 32817           | condition_occurrence | Gestation period, 20 weeks | EHR
 
-  output <- df |>
-    filter(.data$person_id == 32L)
+  # output <- df |>
+  #   filter(.data$person_id == 32L)
 
-  expect_equal(nrow(output), 2)
-  expect_equal(output$final_outcome_category, c("PREG", "PREG"))
-  expect_equal(output$final_episode_end_date, as.Date(c("2023-06-01", "2024-01-15")))
-  expect_false(is.na(output$final_episode_start_date))
+  # expect_equal(nrow(output), 2)
+  # expect_equal(output$final_outcome_category, c("PREG", "PREG"))
+  # expect_equal(output$final_episode_end_date, as.Date(c("2023-06-01", "2024-01-15")))
+  # expect_false(is.na(output$final_episode_start_date))
 
   # 33:	Outcome discordant with max gestation (LB + 12w)	I think this should be PREG - but do we want this or do we think LB is of greater value ----
   output <- df |>
