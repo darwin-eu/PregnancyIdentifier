@@ -16,13 +16,10 @@ test_that("Delivery mode is correct", {
     dir.create(outputFolder)
   }
 
-  invisible(capture.output(runHipps(cdm, outputFolder, continue = FALSE)))
+  runPregnancyIdentifier(cdm, outputFolder, outputLogToConsole = FALSE)
 
-  CDMConnector::cdmDisconnect(cdm)
-
-  df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds")) %>%
-    dplyr::select(c("person_id", "inferred_episode_start", "inferred_episode_end", "final_outcome_category",
-                    dplyr::starts_with("cesarean"), dplyr::starts_with("vaginal"))) %>%
+  df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) %>%
+    dplyr::select(c("person_id", "final_outcome_category", dplyr::starts_with("cesarean"), dplyr::starts_with("vaginal"))) %>%
     dplyr::arrange(person_id)
 
   # Check delivery mode output
@@ -30,4 +27,7 @@ test_that("Delivery mode is correct", {
   testthat::expect_equal(df$cesarean_m30_to_30_count, c(1, 1, 0, 0, 0))
   testthat::expect_equal(df$vaginal_m30_to_30, c(0, 0, 1, 1, 0))
   testthat::expect_equal(df$vaginal_m30_to_30_count, c(0, 0, 1, 2, 0))
+
+  cleanupCdmDb(cdm)
+  unlink(outputFolder, recursive = TRUE)
 })

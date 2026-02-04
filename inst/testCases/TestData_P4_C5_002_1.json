@@ -565,6 +565,16 @@
       "condition_source_value": "Gestation period, 21 weeks"
     },
     {
+      "condition_occurrence_id": 12001,
+      "person_id": 12,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2017-12-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
       "condition_occurrence_id": 12,
       "person_id": 15,
       "condition_concept_id": 4244438,
@@ -1032,7 +1042,7 @@
       "observation_concept_id": 4192676,
       "observation_date": "2021-06-01",
       "observation_type_concept_id": 32817,
-      "Observation": "Born by cesarean section"
+      "observation": "Born by cesarean section"
     }
   ],
   "procedure_occurrence": [
@@ -1284,7 +1294,7 @@
   ],
   "drug_exposure": [
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 1,
       "person_id": 1,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1292,7 +1302,7 @@
       "drug_exposure_start_date": "2019-01-01",
       "drug_exposure_end_date": "2019-11-01",
       "drug_type_concept_id": 32838,
-      "...10": 304
+      "10": 304
     },
     {
       "drug_exposure_id": 2,
@@ -1303,10 +1313,10 @@
       "drug_exposure_start_date": "2020-01-01",
       "drug_exposure_end_date": "2020-03-14",
       "drug_type_concept_id": 32838,
-      "...10": 73
+      "10": 73
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 3,
       "person_id": 1,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1314,10 +1324,10 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 4,
       "person_id": 2,
       "drug_concept_id": 798877,
       "quantity": 21,
@@ -1325,10 +1335,10 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 5,
       "person_id": 8,
       "drug_concept_id": 715939,
       "quantity": 21,
@@ -1336,10 +1346,10 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "...10": 70
+      "10": 70
     },
     {
-      "drug_exposure_id": 2,
+      "drug_exposure_id": 6,
       "person_id": 9,
       "drug_concept_id": 723164,
       "quantity": 21,
@@ -1349,7 +1359,7 @@
       "drug_type_concept_id": 32838
     },
     {
-      "drug_exposure_id": 62,
+      "drug_exposure_id": 7,
       "person_id": 34,
       "drug_concept_id": 4147892,
       "quantity": 21,
@@ -1431,7 +1441,7 @@
       "drug_era_end_date": "2018-07-14"
     },
     {
-      "drug_era_id": 10,
+      "drug_era_id": 11,
       "person_id": 1,
       "drug_concept_id": 798874,
       "drug_era_start_date": "2018-02-28",

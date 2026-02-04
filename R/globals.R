@@ -1,0 +1,57 @@
+#' @keywords internal
+NULL
+
+# Silence R CMD check "no visible binding for global variable" NOTES for
+# dplyr/dbplyr non-standard evaluation.
+utils::globalVariables(
+  unique(c(
+    "person_id",
+    "merge_pregnancy_start",
+    "pregnancy_end",
+    "pps_episode_max_date_plus_two_months",
+    "pps_episode_min_date",
+    "age_pregnancy_start",
+    "hip_outcome_category",
+    "concept_id",
+    "domain_concept_start_date",
+    "pps_episode_max_date_minus_lookback_window",
+    "pps_episode_max_date_plus_lookahead_window",
+    "pps_episode_max_date_plus_two_months",
+    "pps_episode_min_date",
+    "estimated_start_date",
+    "gest_date",
+    "hip_pregnancy_start",
+    "hip_pregnancy_end",
+    "hip_first_gest_date",
+    "hip_episode",
+    "merge_episode_end",
+    "merge_episode_number",
+    "gestation_based",
+    "max_gest_date",
+    "max_gest_start_date",
+    "max_start_date",
+    "min_gest_start_date",
+    "outcome_date",
+    "outcome_based",
+    "pps_outcome_category",
+    "pps_episode_number",
+    "pps_n_gt_concepts",
+    "overlap_count_dict",
+    "removed_outcome",
+    "start_date",
+    "visit_date",
+    "visit_id",
+    "overlaps",
+    "final_episode_start_date",
+    "final_episode_end_date",
+    "esd_precision_days",
+    "esd_precision_category",
+    "esd_gestational_age_days_calculated",
+    "esd_gw_flag",
+    "esd_gr3m_flag",
+    "esd_outcome_match",
+    "esd_term_duration_flag",
+    "esd_outcome_concordance_score",
+    "esd_preterm_status_from_calculation"
+  ))
+)

@@ -1032,12 +1032,12 @@
       "observation_concept_id": 4192676,
       "observation_date": "2021-06-01",
       "observation_type_concept_id": 32817,
-      "observation": "Born by cesarean section"
+      "Observation": "Born by cesarean section"
     }
   ],
   "procedure_occurrence": [
     {
-      "procedure_occurrence_id": 1,
+      "procedure_occurrence_id": 2,
       "person_id": 22,
       "procedure_concept_id": 2211751,
       "procedure_date": "2021-01-13",
@@ -1045,7 +1045,7 @@
       "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation plus detailed fetal anatomic examination, transabdominal approach; single or first gestation"
     },
     {
-      "procedure_occurrence_id": 2,
+      "procedure_occurrence_id": 3,
       "person_id": 23,
       "procedure_concept_id": 2211747,
       "procedure_date": "2023-02-22",
@@ -1053,7 +1053,7 @@
       "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation, first trimester (< 14 weeks 0 days), transabdominal approach; single or first gestation"
     },
     {
-      "procedure_occurrence_id": 3,
+      "procedure_occurrence_id": 4,
       "person_id": 27,
       "procedure_concept_id": 2211751,
       "procedure_date": "2021-05-30",
@@ -1061,7 +1061,7 @@
       "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
     },
     {
-      "procedure_occurrence_id": 4,
+      "procedure_occurrence_id": 5,
       "person_id": 34,
       "procedure_concept_id": 2211747,
       "procedure_date": "2023-05-24",
@@ -1069,92 +1069,12 @@
       "procedure_source_value": "Ultrasound, pregnant uterus, first trimester (<14w), transabdominal; single/first gestation"
     },
     {
-      "procedure_occurrence_id": 5,
+      "procedure_occurrence_id": 6,
       "person_id": 34,
       "procedure_concept_id": 2211751,
       "procedure_date": "2023-08-12",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
-    },
-    {
-      "procedure_occurrence_id": 6,
-      "person_id": 21,
-      "procedure_concept_id": 2004785,
-      "procedure_date": "2023-10-08",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Classical cesarean section"
-    },
-    {
-      "procedure_occurrence_id": 7,
-      "person_id": 22,
-      "procedure_concept_id": 2004785,
-      "procedure_date": "2021-06-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Classical cesarean section"
-    },
-    {
-      "procedure_occurrence_id": 8,
-      "person_id": 23,
-      "procedure_concept_id": 2004785,
-      "procedure_date": "2023-08-20",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Classical cesarean section"
-    },
-    {
-      "procedure_occurrence_id": 9,
-      "person_id": 28,
-      "procedure_concept_id": 2004785,
-      "procedure_date": "2023-09-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Classical cesarean section"
-    },
-    {
-      "procedure_occurrence_id": 10,
-      "person_id": 28,
-      "procedure_concept_id": 2004785,
-      "procedure_date": "2023-09-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Classical cesarean section"
-    },
-    {
-      "procedure_occurrence_id": 11,
-      "person_id": 29,
-      "procedure_concept_id": 45887987,
-      "procedure_date": "2023-10-08",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Vaginal delivery only"
-    },
-    {
-      "procedure_occurrence_id": 12,
-      "person_id": 29,
-      "procedure_concept_id": 45887987,
-      "procedure_date": "2023-10-09",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Vaginal delivery only"
-    },
-    {
-      "procedure_occurrence_id": 13,
-      "person_id": 30,
-      "procedure_concept_id": 45887987,
-      "procedure_date": "2018-12-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Vaginal delivery only"
-    },
-    {
-      "procedure_occurrence_id": 14,
-      "person_id": 31,
-      "procedure_concept_id": 45887987,
-      "procedure_date": "2018-11-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Vaginal delivery only"
-    },
-    {
-      "procedure_occurrence_id": 15,
-      "person_id": 33,
-      "procedure_concept_id": 45887987,
-      "procedure_date": "2023-07-01",
-      "procedure_type_concept_id": 32817,
-      "procedure_source_value": "Vaginal delivery only"
     }
   ],
   "measurement": [
@@ -1372,7 +1292,7 @@
       "drug_exposure_start_date": "2019-01-01",
       "drug_exposure_end_date": "2019-11-01",
       "drug_type_concept_id": 32838,
-      "10": 304
+      "...10": 304
     },
     {
       "drug_exposure_id": 2,
@@ -1383,7 +1303,7 @@
       "drug_exposure_start_date": "2020-01-01",
       "drug_exposure_end_date": "2020-03-14",
       "drug_type_concept_id": 32838,
-      "10": 73
+      "...10": 73
     },
     {
       "drug_exposure_id": 2,
@@ -1394,7 +1314,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -1405,7 +1325,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -1416,7 +1336,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,

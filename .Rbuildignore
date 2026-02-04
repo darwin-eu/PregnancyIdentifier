@@ -1,3 +1,5 @@
+^renv$
+^renv\.lock$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
@@ -7,3 +9,8 @@
 ^\.github$
 ^dev$
 ^extras$
+^doc$
+^Meta$
+work/*
+^README\.Rmd$
+^STYLE\.md$
