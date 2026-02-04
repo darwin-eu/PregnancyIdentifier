@@ -466,15 +466,17 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
   write.csv(outcomeCat, file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
 }
 
-exportDeliveryModeSummary <- function(res, exportDir, snap = snap, runStart = runStart, pkgVersion = pkgVersion) {
+exportDeliveryModeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
   deliveryModeSummary <- res %>%
+    dplyr::select(c("final_outcome_category", dplyr::starts_with("cesarean"), dplyr::starts_with("vaginal"))) %>%
     dplyr::group_by(.data$final_outcome_category) %>%
-    summariseColumn("cesarean_m30_to_30") %>%
-    dplyr::bind_rows(
-      res %>%
-        dplyr::group_by(.data$final_outcome_category) %>%
-        summariseColumn("vaginal_m30_to_30")
-    ) %>%
+    dplyr::summarise(n = dplyr::n(),
+                     cesarean = sum(cesarean_m30_to_30),
+                     cesarean_count = sum(cesarean_m30_to_30_count),
+                     vaginal = sum(vaginal_m30_to_30),
+                     vaginal_count = sum(vaginal_m30_to_30_count)) %>%
+    dplyr::mutate(cesarean_pct = 100 * cesarean / n,
+                  vaginal_pct = 100 * vaginal / n) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
