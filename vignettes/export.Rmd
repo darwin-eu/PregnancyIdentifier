@@ -1,0 +1,265 @@
+---
+title: "Export: shareable summary CSVs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Export shareable summary CSVs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+# Overview
+
+After the pipeline has produced **final_pregnancy_episodes.rds** (see the [ESD vignette](esd.html)), the **export** step turns those results and related artifacts into **shareable CSV files** for QA and cross-site comparison. Export is run via `exportPregnancies()` and writes all CSVs (and a ZIP archive) to an **export directory**. Small cell counts can be suppressed using `minCellCount`.
+
+This vignette lists every exported CSV: file name, columns, meaning of each column, and how each file is used in analysis.
+
+# How to run export
+
+Export is optional. Run it after the full pipeline (or ensure `outputDir` already contains `final_pregnancy_episodes.rds` and `runStart.csv`):
+
+```{r, eval=FALSE}
+library(PregnancyIdentifier)
+cdm <- mockPregnancyCdm()
+runPregnancyIdentifier(cdm, outputDir = "out", runExport = FALSE)
+# Then run export explicitly:
+exportPregnancies(
+  cdm       = cdm,
+  outputDir = "out",
+  exportDir = "out/export",
+  minCellCount = 5L
+)
+```
+
+Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatically after ESD.
+
+---
+
+# Exported files: metadata and copied artifacts
+
+## cdm_source.csv
+
+**Source:** `CDMConnector::snapshot(cdm)` — one row of CDM metadata.
+
+**Columns:** Depend on the CDMConnector version; typically include identifiers and timestamps for the CDM (e.g. `cdm_name`, `snapshot_date`, and other snapshot fields).
+
+**Purpose:** Documents which CDM and snapshot the export came from. Used when comparing or aggregating exports across sites or runs so you can track provenance and CDM version.
+
+---
+
+## pps_concept_counts.csv
+
+**Source:** Copied from `outputDir` (written by the PPS step in `runPps()`).
+
+**Content:** Counts of pregnancy-related concepts used by PPS per concept (e.g. concept_id, concept name, count of records).
+
+**Purpose:** Describes the PPS concept usage in this run. Used to compare concept coverage across sites and to check that expected pregnancy concepts are present.
+
+---
+
+## log.txt
+
+**Source:** Copied from `outputDir` (pipeline log from `makeLogger()`).
+
+**Content:** Plain-text log of pipeline steps (init, HIP, PPS, merge, ESD).
+
+**Purpose:** Audit trail for the run. Used for debugging and to verify which steps ran and when.
+
+---
+
+# Exported files: derived from final_pregnancy_episodes.rds
+
+All of the following are computed from `final_pregnancy_episodes.rds` and share common metadata columns when present: **cdm_name**, **date_run** (pipeline run timestamp), **date_export** (export/snapshot date), **pkg_version** (PregnancyIdentifier version). Counts in the range `(0, minCellCount)` may be replaced with `NA` for disclosure control.
+
+---
+
+## age_summary.csv
+
+**Columns:** Summary of **age_pregnancy_start** (age in years at pregnancy start): **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus **cdm_name**, **date_run**, **date_export**, **pkg_version**.
+
+**Purpose:** Describes the distribution of maternal age at pregnancy start. Used for cohort description, feasibility checks, and comparing age distributions across sites or time windows.
+
+---
+
+## age_summary_groups.csv
+
+**Columns:** **colName**, **age_pregnancy_start** (value or group: integer year or `"<12"`, `">55"`), **n**, **total**, **pct**, plus metadata. Counts may be suppressed by `minCellCount`.
+
+**Purpose:** Counts and percentages of pregnancies by age (by year and by boundary groups &lt;12 and &gt;55). Used for age-stratified summaries and checking extreme-age pregnancy counts.
+
+---
+
+## precision_days.csv
+
+**Columns:** **esd_precision_days** (x-axis values), **density** (kernel density estimate), plus **cdm_name**, **date_run**, **date_export**, **pkg_version**.
+
+**Purpose:** Distribution of ESD start-date precision (in days). Used to see how precise inferred start dates are (e.g. mostly week-level vs month-level) and to compare precision across sites.
+
+---
+
+## episode_frequency.csv
+
+**Columns:** **total_episodes**, **total_individuals** (distinct persons with at least one episode), plus metadata. **total_individuals** may be suppressed if &lt; minCellCount.
+
+**Purpose:** High-level counts: how many pregnancy episodes and how many people. Used as the main denominator for rates and for site-level summaries.
+
+---
+
+## pregnancy_frequency.csv
+
+**Columns:** **freq** (number of pregnancies per person: 1, 2, 3, …), **number_individuals** (count of persons with that frequency), plus metadata. **number_individuals** may be suppressed.
+
+**Purpose:** Distribution of pregnancy count per person (parity-like). Used to describe repeat pregnancies and to check for implausible multiplicity.
+
+---
+
+## episode_frequency_summary.csv
+
+**Columns:** Summary of **freq** (episodes per person): **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata.
+
+**Purpose:** Numeric summary of how many episodes per person (min/median/max, etc.). Used for cohort description and cross-site comparison of pregnancy frequency.
+
+---
+
+## gestational_age_days_summary.csv
+
+**Columns:** Summary of **esd_gestational_age_days_calculated** (gestational length in days): **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata.
+
+**Purpose:** Distribution of gestational duration. Used to describe pregnancy length, flag implausible durations, and compare sites.
+
+---
+
+## gestational_age_days_counts.csv
+
+**Columns:** **less_1day** (count of episodes with gestational age &lt; 1 day), **over_308days** (count &gt; 308 days), plus metadata.
+
+**Purpose:** Counts of out-of-range gestational ages. Used for data quality and to quantify implausible or missing duration.
+
+---
+
+## gestational_weeks.csv
+
+**Columns:** **gestational_weeks** (integer: floor of gestational age in days / 7), **n** (number of episodes), **pct** (percentage), plus metadata.
+
+**Purpose:** Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison.
+
+---
+
+## gestational_age_days_per_category_summary.csv
+
+**Columns:** One row per **final_outcome_category** (e.g. LB, SB, PREG). For each: summary of **esd_gestational_age_days_calculated** — **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus **final_outcome_category** and metadata.
+
+**Purpose:** Gestational duration by outcome type. Used to check that outcome-specific durations (e.g. live birth vs miscarriage) are plausible and to compare across sites.
+
+---
+
+## yearly_trend.csv
+
+**Columns:** **column** (name of the date field), **year** (integer), **count** (number of episodes with that date in that year), plus metadata.
+
+**Purpose:** Episode counts by year for each date type (e.g. final_episode_start_date, final_episode_end_date). Used for temporal trends and study window checks.
+
+---
+
+## yearly_trend_missing.csv
+
+**Columns:** Same as yearly_trend but rows where **year** is NA (missing date).
+
+**Purpose:** Count of episodes with missing dates by column. Used for completeness and missing-data reporting.
+
+---
+
+## monthly_trends.csv
+
+**Columns:** **column** (date field), **month** (month name), **count**, plus metadata.
+
+**Purpose:** Episode counts by month (seasonality). Used for seasonal patterns and data completeness by month.
+
+---
+
+## monthly_trend_missing.csv
+
+**Columns:** Same as monthly_trends but rows where **month** is NA.
+
+**Purpose:** Count of episodes with missing date by column, for completeness.
+
+---
+
+## observation_period_range.csv
+
+**Columns:** **min_obs** (minimum observation period start year), **max_obs** (maximum observation period end year), plus metadata. Derived from CDM `observation_period`.
+
+**Purpose:** Range of observation periods in the CDM. Used to interpret temporal coverage and to compare study windows across sites.
+
+---
+
+## pregnancy_overlap_counts.csv
+
+**Columns:** Summary of **overlap** (logical: whether an episode’s start is ≤ previous episode’s end for that person): **colName**, **overlap** (TRUE/FALSE), **n**, **total**, **pct**, plus metadata. Only persons with more than one episode are considered.
+
+**Purpose:** Count of persons with overlapping inferred pregnancy intervals. Used for data quality (overlaps may indicate algorithm or data issues).
+
+---
+
+## date_consistency.csv
+
+**Columns:** One column per date field (**merge_pregnancy_start**, **hip_end_date**, **pps_end_date**, **merge_episode_start**, **merge_episode_end**, **final_episode_start_date**, **final_episode_end_date**, etc.). Each value is the **proportion of episodes with NA** in that date (0–1). Plus metadata.
+
+**Purpose:** Proportion of missing dates by field. Used to assess completeness of key dates and to compare across sites.
+
+---
+
+## swapped_dates.csv
+
+**Columns:** **n_rev_hip** (count where merge_pregnancy_start &gt; hip_end_date), **n_rev_pps** (count where merge_pregnancy_start &gt; pps_end_date), plus metadata.
+
+**Purpose:** Count of episodes with reversed start/end (start after end). Used for data quality and algorithm validation.
+
+---
+
+## outcome_categories_count.csv
+
+**Columns:** **outcome_category** (e.g. LB, SB, PREG), **algorithm** (hip, pps, hipps), **n**, **pct** (within algorithm), plus metadata.
+
+**Purpose:** Outcome distribution by algorithm (HIP, PPS, final harmonized). Used to compare algorithm agreement and to describe outcome mix across sites.
+
+---
+
+# ZIP archive
+
+After writing all CSVs (and copying log.txt), `exportPregnancies()` creates a ZIP file in the same export directory. The name is of the form **`{snapshot_date}-{pkg_version}-{cdm_name}-results.zip`** and contains all files in that directory. Use this single archive to share or archive a full export.
+
+# Summary table
+
+| File | Main content | Main use in analysis |
+|------|--------------|----------------------|
+| cdm_source.csv | CDM/snapshot metadata | Provenance, site/CDM identification |
+| pps_concept_counts.csv | PPS concept counts | Concept coverage, PPS input description |
+| log.txt | Pipeline log | Audit, debugging |
+| age_summary.csv | Age-at-start distribution (summary stats) | Cohort description, feasibility |
+| age_summary_groups.csv | Age counts (by year and &lt;12, &gt;55) | Age stratification, boundary checks |
+| precision_days.csv | Density of ESD precision (days) | Start-date precision, site comparison |
+| episode_frequency.csv | Total episodes, total individuals | Denominators, site summaries |
+| pregnancy_frequency.csv | Episodes per person (1, 2, 3, …) | Parity-like distribution |
+| episode_frequency_summary.csv | Summary of episodes per person | Cohort description |
+| gestational_age_days_summary.csv | Summary of gestational length (days) | Duration distribution |
+| gestational_age_days_counts.csv | Counts &lt;1 day, &gt;308 days | Out-of-range duration QA |
+| gestational_weeks.csv | Counts by gestational week | GA distribution, preterm/term |
+| gestational_age_days_per_category_summary.csv | Gestational length by outcome | Outcome-specific duration |
+| yearly_trend.csv | Episode count by year and date column | Temporal trends |
+| yearly_trend_missing.csv | Missing-date count by column/year | Completeness |
+| monthly_trends.csv | Episode count by month | Seasonality, completeness |
+| monthly_trend_missing.csv | Missing-date count by column/month | Completeness |
+| observation_period_range.csv | Min/max observation period years | Study window, coverage |
+| pregnancy_overlap_counts.csv | Overlap TRUE/FALSE counts | Overlap QA |
+| date_consistency.csv | Proportion NA per date column | Completeness by field |
+| swapped_dates.csv | Count of start &gt; end (HIP/PPS) | Date logic QA |
+| outcome_categories_count.csv | Outcome counts by algorithm | Outcome mix, algorithm agreement |

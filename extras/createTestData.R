@@ -18,9 +18,9 @@ cdm <- TestGenerator::patientsCDM(
 
 library(CDMConnector)
 library(dplyr)
-cdm <- cdmSubset(cdm, personId = 28L)
+cdm <- cdmSubset(cdm, personId = 21L)
 
-cdm$condition_occurrence |>
+cdm$condition_occurrence %>%
   select(1:4, condition_source_value)
 
 outputFolder <- file.path(tempdir(), "testHipps")
@@ -30,12 +30,28 @@ runHipps(cdm, outputFolder, continue = FALSE)
 list.files(outputFolder)
 df <- readRDS(file.path(outputFolder, "identified_pregancy_episodes.rds"))
 
+printLong <- function(x) {
+  df <- x %>%
+    dplyr::collect() %>%
+    dplyr::mutate_all(as.character)
+
+  out <- cbind(
+    column = colnames(df),
+    as.data.frame(t(df), stringsAsFactors = FALSE)
+  )
+
+  colnames(out)[-1] <- paste0("row", seq_len(ncol(out) - 1))
+
+  print(dplyr::tibble(out), n = 1000)
+}
+
+
 library(dplyr)
-df |>
-  filter(person_id == 28) |>
-  mutate_all(as.character) |>
-  # slice(1) |>
-  tidyr::gather() |>
+df %>%
+  filter(person_id == 28) %>%
+  mutate_all(as.character) %>%
+  slice(2) %>%
+  tidyr::gather() %>%
   print(n=100)
 
 

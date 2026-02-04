@@ -1,3 +1,0 @@
-examineHIPPS <- function(cdm) {
-
-}

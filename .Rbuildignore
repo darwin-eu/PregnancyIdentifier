@@ -7,3 +7,8 @@
 ^\.github$
 ^dev$
 ^extras$
+^doc$
+^Meta$
+work/*
+^README\.Rmd$
+^STYLE\.md$

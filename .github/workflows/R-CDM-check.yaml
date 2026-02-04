@@ -23,6 +23,8 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # Use 1 core for tests on CI; locally parallel uses default (e.g. Ncpus or TESTTHAT_CPUS)
+      TESTTHAT_CPUS: 1
 
     steps:
       - uses: actions/checkout@v3
@@ -37,8 +39,12 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, any::remotes
           needs: check
+
+      # - name: Install dbplyr 2.4.0
+      #   run: |
+      #     Rscript -e 'remotes::install_version("dbplyr", version = "2.4.0", repos = "https://cloud.r-project.org")'
 
       - name: R check
         uses: r-lib/actions/check-r-package@v2
