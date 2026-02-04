@@ -100,7 +100,7 @@ initPregnancies <- function(cdm,
   log4r::info(logger, "Pulling HIP concept records from OMOP domain tables")
 
   hip <- cdm$preg_hip_concepts |>
-    dplyr::select(concept_id, category)
+    dplyr::select("concept_id", "category")
 
   hipSpecs <- tibble::tribble(
     ~tbl,                         ~conceptCol,               ~dateCol,               ~valueCol,
