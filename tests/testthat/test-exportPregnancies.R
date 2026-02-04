@@ -58,6 +58,7 @@ test_that("exportPregnancies runs with custom minCellCount", {
     "age_summary_groups.csv",
     "cdm_source.csv",
     "date_consistency.csv",
+    "delivery_mode_summary.csv",
     "episode_frequency.csv",
     "episode_frequency_summary.csv",
     "gestational_age_days_counts.csv",
