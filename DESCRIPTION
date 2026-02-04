@@ -1,14 +1,15 @@
 Package: PregnancyIdentifier
 Type: Package
-Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms Partnership) CDM (Commen Data Model)
-Version: 2.0.0
+Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
+Version: 3.0.0
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
     person("Julieta", "Politi", role = "aut", comment = c(ORCID = "0000-0001-7315-034X")),
-    person("Maarten", "van Kessel", email = "m.l.vankessel@erasmusmc.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0006-8832-6030"))
+    person("Maarten", "van Kessel", email = "m.l.vankessel@erasmusmc.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0006-8832-6030")),
+    person("Adam", "Black", email = "black@ohdsi.org", role = "aut", comment = c(ORCID = "0000-0001-5576-8701"))
   )
 Description: Identify pregnancy episodes in the OMOP CDM, based on
-  the HIPPS algorithm described in Smith et. all (2024) <doi:10.1093/jamia/ocae195>.
+  the HIPPS algorithm described in Smith et al. (2024) <doi:10.1093/jamia/ocae195>.
 License: Apache License (>= 2)
 Encoding: UTF-8
 LazyData: true
@@ -17,6 +18,8 @@ URL: https://darwin-eu.github.io/PregnancyIdentifier/
 BugReports: https://darwin-eu.github.io/PregnancyIdentifier/issues/
 Config/testthat/edition: 3
 Config/testthat/parallel: true
+Depends:
+    R (>= 4.1.0)
 Imports: 
     CDMConnector,
     dplyr,
@@ -31,7 +34,15 @@ Imports:
     tidyr,
     log4r,
     rlang,
-    shiny
+    shiny,
+    checkmate,
+    tibble
 Suggests: 
     testthat (>= 3.0.0),
-    omopgenerics
+    omopgenerics,
+    knitr,
+    rmarkdown,
+    rstudioapi,
+    DT,
+    readr
+VignetteBuilder: knitr

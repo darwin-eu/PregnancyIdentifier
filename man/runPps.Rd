@@ -2,36 +2,36 @@
 % Please edit documentation in R/PPS.R
 \name{runPps}
 \alias{runPps}
-\title{runPps}
+\title{Run the PPS Algorithm to Identify Pregnancy Episodes}
 \usage{
 runPps(
   cdm,
   outputDir,
-  uploadConceptSets = FALSE,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
-  ...
+  debugMode = FALSE
 )
 }
 \arguments{
-\item{cdm}{(`cdm_reference`)}
+\item{cdm}{A `cdm_reference` object; must include all OMOP tables and structure needed for pregnancy concept search.}
 
-\item{outputDir}{output directory}
+\item{outputDir}{Character. Directory path where intermediate and output RDS files will be saved.}
 
-\item{uploadConceptSets}{if concept sets should be uploaded}
+\item{startDate}{Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).}
 
-\item{startDate}{(`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01}
+\item{endDate}{Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).}
 
-\item{endDate}{(`Date(1)`: `Sys.Date()`) End date of data to use. By default today.}
+\item{logger}{`log4r` logger object (required) for emitting information and debug messages.}
 
-\item{logger}{(`logger`) Logger object.}
-
-\item{...}{optional parameters}
+\item{debugMode}{(`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)}
 }
 \value{
-cdm object
+Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
+        Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
 }
 \description{
-Runs PPS algorithm
+This function executes the Pregnancy Progression Signature (PPS) algorithm against a Common Data Model (CDM) instance.
+It inserts the required PPS concept lookup table, extracts gestational timing evidence (e.g., gestational weeks, trimesters) across OMOP clinical domains,
+assembles person-level gestational timing records, and writes intermediate episode and summary files to the specified output directory.
 }
