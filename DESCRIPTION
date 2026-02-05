@@ -31,6 +31,7 @@ Imports:
     stringr,
     TestGenerator,
     CodelistGenerator,
+    PatientProfiles,
     magrittr,
     tidyr,
     log4r,
