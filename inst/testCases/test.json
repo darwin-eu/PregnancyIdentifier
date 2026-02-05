@@ -1030,9 +1030,33 @@
       "observation_id": 1,
       "person_id": 22,
       "observation_concept_id": 4192676,
-      "observation_date": "2021-06-01",
+      "observation_date": "2021-02-01",
       "observation_type_concept_id": 32817,
       "Observation": "Born by cesarean section"
+    },
+    {
+      "observation_id": 2,
+      "person_id": 22,
+      "observation_concept_id": 74698,
+      "observation_date": "2021-01-01",
+      "observation_type_concept_id": 32817,
+      "Observation": "Breech presentation"
+    },
+    {
+      "observation_id": 3,
+      "person_id": 28,
+      "observation_concept_id": 74698,
+      "observation_date": "2023-04-01",
+      "observation_type_concept_id": 32817,
+      "Observation": "Breech presentation"
+    },
+    {
+      "observation_id": 4,
+      "person_id": 29,
+      "observation_concept_id": 4308655,
+      "observation_date": "2023-02-07",
+      "observation_type_concept_id": 32817,
+      "Observation": "Fetal non-stress test"
     }
   ],
   "procedure_occurrence": [
