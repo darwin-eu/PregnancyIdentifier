@@ -550,7 +550,10 @@ add_delivery <- function(cdm, logger) {
 
   # have the deliveries and all othe others
   # add this: want to move the LB or SB date earlier if there's an earlier delivery date
+  # Spark requires window functions (lag) to have ORDER BY; preserve partition/order for SQL translation
   cdm$add_abortion_df_rev <- cdm$final_temp_df %>%
+    dplyr::group_by(.data$person_id) %>%
+    dbplyr::window_order(.data$visit_date) %>%
     dplyr::mutate(
       visit_date = dplyr::if_else(
         !is.na(.data$previous_category)

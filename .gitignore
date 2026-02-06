@@ -4,3 +4,7 @@
 .Ruserdata
 dev
 docs
+.Renviron
+Meta/
+doc/
+work/
