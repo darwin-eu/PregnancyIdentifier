@@ -612,8 +612,13 @@ calculate_start <- function(cdm) {
   # Estimate start of pregnancies based on outcome type.
 
   # join tables
+  # Spark date_add requires integer type for the days parameter; cast term columns from matcho_term_durations
   cdm$calculate_start_df <- cdm$add_delivery_df %>%
     dplyr::left_join(cdm$matcho_term_durations, by = "category") %>%
+    dplyr::mutate(
+      min_term = as.integer(.data$min_term),
+      max_term = as.integer(.data$max_term)
+    ) %>%
     # based only on the outcome, when did pregnancy start
     # calculate latest start start date
     dplyr::mutate(
@@ -848,9 +853,9 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     dplyr::compute() %>%
     dplyr::mutate(
       # add column for gestation period in days for largest gestation week on record
-      max_gest_day = (.data$max_gest_week * 7),
-      # add column for gestation period in days for smallest gestation week on record
-      min_gest_day = (.data$min_gest_week * 7),
+      # Spark date_add requires integer; cast so SQL uses INT
+      max_gest_day = as.integer(.data$max_gest_week * 7),
+      min_gest_day = as.integer(.data$min_gest_week * 7),
     ) %>%
     dplyr::compute() %>%
     dplyr::mutate(
