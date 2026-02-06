@@ -73,7 +73,7 @@ runPps <- function(cdm,
   if (debugMode) {
     ppsGestTimingOut <- if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes
     if ("person_episode_number" %in% names(ppsGestTimingOut)) {
-      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = person_episode_number)
+      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = "person_episode_number")
     }
     ppsGestTimingOut <- ppsGestTimingOut %>%
       dplyr::select(
