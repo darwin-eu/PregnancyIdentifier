@@ -108,7 +108,7 @@ get_timing_concepts <- function(cdm, final_merged_episode_detailed_df) {
     ) %>%
     dplyr::select("person_id", "start_date", "recorded_episode_end", "episode_number")
 
-  cdm <- omopgenerics::insertTable(cdm, person_id_list, "person_id_list")
+  cdm <- omopgenerics::insertTable(cdm, "person_id_list", person_id_list)
 
   c_o <- concepts_to_search %>%
     dplyr::inner_join(cdm$condition_occurrence, by = c("concept_id" = "condition_concept_id")) %>%

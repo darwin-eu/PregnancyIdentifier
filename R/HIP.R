@@ -850,14 +850,12 @@ add_gestation <- function(cdm, buffer_days = 28, logger) {
     dplyr::mutate(
       gest_id = paste0(as.character(.data$person_id), as.character(.data$max_gest_date))
     ) %>%
-    dplyr::compute() %>%
     dplyr::mutate(
       # add column for gestation period in days for largest gestation week on record
       # Spark date_add requires integer; cast so SQL uses INT
       max_gest_day = as.integer(.data$max_gest_week * 7),
       min_gest_day = as.integer(.data$min_gest_week * 7),
     ) %>%
-    dplyr::compute() %>%
     dplyr::mutate(
       # get date of estimated start date based on max gestation week on record
       # max_gest_date is the first occurrence of the maximum gestational week
@@ -1133,6 +1131,7 @@ remove_overlaps <- function(cdm, logger) {
       # us gestation-based date if available
     ) %>%
     dplyr::mutate(
+      prev_retry = as.integer(prev_retry),
       prev_date_diff = ifelse(
         !is.na(.data$max_gest_start_date),
         !!CDMConnector::datediff("max_gest_start_date", "prev_date", "day"),
@@ -1196,6 +1195,7 @@ remove_overlaps <- function(cdm, logger) {
     ) %>%
     dplyr::mutate(
       # if the difference in days is negative, indicate overlap of episodes
+      prev_retry = as.integer(prev_retry),
       has_overlap = dplyr::case_when(
         .data$prev_date_diff < 0 ~ 1,
         .default = 0
