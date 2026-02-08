@@ -1,7 +1,7 @@
 Package: PregnancyIdentifier
 Type: Package
 Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms Partnership) CDM (Commen Data Model)
-Version: 0.1.1
+Version: 1.0.0
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
     person("Julieta", "Politi", role = "aut", comment = c(ORCID = "0000-0001-7315-034X")),

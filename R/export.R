@@ -1,5 +1,5 @@
 addAge <- function(cdm, res) {
-  cdm <- omopgenerics::insertTable(dplyr::select(res, "person_id"), "person_ids")
+  cdm <- omopgenerics::insertTable(cdm, "person_ids", dplyr::select(res, "person_id"))
 
   out <- cdm$person %>%
     dplyr::inner_join(cdm$person_ids, by = "person_id") %>%
@@ -30,21 +30,28 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart) {
 
 exportPrecisionDays <- function(res, resPath, snap, runStart) {
   d <- res |>
-    dplyr::filter(!is.na(.data$precision_days)) |>
-    dplyr::pull(.data$precision_days) |>
-    density()
+    dplyr::filter(!is.na(.data$precision_days))
 
-  precisionDaysRes <- data.frame(
-    precision_days = d$x,
-    density = d$y
-  ) %>%
-    dplyr::mutate(
-      cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date
-    )
+  if (nrow(d) == 0) {
+    return(invisible(NULL))
+  } else {
 
-  write.csv(precisionDaysRes, file.path(resPath, "precision_days.csv"), row.names = FALSE)
+    d <- d |>
+      dplyr::pull(.data$precision_days) |>
+      density()
+
+    precisionDaysRes <- data.frame(
+      precision_days = d$x,
+      density = d$y
+    ) %>%
+      dplyr::mutate(
+        cdm_name = snap$cdm_name,
+        date_run = runStart,
+        date_export = snap$snapshot_date
+      )
+
+    write.csv(precisionDaysRes, file.path(resPath, "precision_days.csv"), row.names = FALSE)
+  }
 }
 
 exportEpisodeFrequency <- function(res, resPath, snap, runStart) {
