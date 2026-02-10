@@ -293,7 +293,6 @@ overlapGroups <- function(start, end) {
 #' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
 #' @return Data frame with the same columns as \code{esdDf}, with overlapping
 #'   episodes removed (one episode retained per overlap group per person).
-#' @export
 removeOverlaps <- function(esdDf,
                            personIdCol = "person_id",
                            startDateCol = "final_episode_start_date",
