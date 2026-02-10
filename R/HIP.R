@@ -548,7 +548,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
       gest_start_date_diff = !!CDMConnector::datediff("min_gest_start_date", "max_gest_start_date", "day")
     )
   suppressWarnings({
-    # SQL it quite long but should be ok.
+    # SQL is quite long but should be ok.
     cdm$gest_episodes_df <- joined %>%
       dplyr::select(-"max_gest_start_date_further") %>%
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
