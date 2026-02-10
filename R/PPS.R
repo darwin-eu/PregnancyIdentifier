@@ -73,7 +73,7 @@ runPps <- function(cdm,
   if (debugMode) {
     ppsGestTimingOut <- if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes
     if ("person_episode_number" %in% names(ppsGestTimingOut)) {
-      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = person_episode_number)
+      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = "person_episode_number")
     }
     ppsGestTimingOut <- ppsGestTimingOut %>%
       dplyr::select(
@@ -84,7 +84,7 @@ runPps <- function(cdm,
     ppsMinMaxOut <- if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax
     if ("person_episode_number" %in% names(ppsMinMaxOut)) {
       ppsMinMaxOut <- ppsMinMaxOut %>%
-        dplyr::rename(pps_episode_number = person_episode_number, pps_n_gt_concepts = n_gt_concepts)
+        dplyr::rename(pps_episode_number = "person_episode_number", pps_n_gt_concepts = "n_gt_concepts")
     }
     ppsMinMaxOut <- ppsMinMaxOut %>%
       dplyr::select(
@@ -95,7 +95,7 @@ runPps <- function(cdm,
   }
   if ("person_episode_number" %in% names(ppsWithOutcomes)) {
     ppsWithOutcomes <- ppsWithOutcomes %>%
-      dplyr::rename(pps_episode_number = person_episode_number, pps_n_gt_concepts = n_gt_concepts)
+      dplyr::rename(pps_episode_number = "person_episode_number", pps_n_gt_concepts = "n_gt_concepts")
   }
   ppsWithOutcomes <- ppsWithOutcomes %>%
     dplyr::select(
@@ -200,7 +200,7 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
     valid <- sort(unique(ep[ep != 0L]))
     ep <- ifelse(ep == 0L, 0L, match(ep, valid))
 
-    dplyr::mutate(df, person_episode_number = ep)
+    dplyr::mutate(df, person_episode_number = .env$ep)
   }
 
   # ------------------------------------------------------------------
