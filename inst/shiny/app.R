@@ -17,7 +17,7 @@ sapply(list.files("utils", full.names = T), source)
 ############################ Load data ############################
 
 if (!exists("shinySettings")) {
-  dataFolder <- "data"
+  dataFolder <- "data-test"
   if (file.exists(dataFolder)) {
     shinySettings <- list(dataFolder = dataFolder)
   } else {
@@ -173,6 +173,23 @@ outcomeCategoriesCount <- outcomeCategoriesCount %>%
                 pct = round(as.numeric(pct), 4)) %>%
   dplyr::mutate(outcome_category = factor(outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
+# delivery mode
+deliveryModeSummary <- deliveryModeSummary %>%
+  dplyr::select(-c("cesarean_count", "vaginal_count")) %>%
+  dplyr::rename(total = n)
+
+deliveryModeSummary <- dplyr::left_join(
+  deliveryModeSummary %>%
+    tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
+  deliveryModeSummary %>%
+    dplyr::select(-c("cesarean", "vaginal")) %>%
+    dplyr::rename(vaginal = vaginal_pct,
+                  cesarean = cesarean_pct) %>%
+    tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")) %>%
+  dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), as.numeric) %>%
+  dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG"))) %>%
+  dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
+
 ######### Shiny app ########
 allDP <- unique(dbinfo$cdm_name)
 allDP <- allDP[order(allDP)]
@@ -218,6 +235,12 @@ appStructure <- list(
                                                                                   title =  "Date consistency"), result = dateConsistancy)
   ),
   "Episode outcomes" = list(
+    "Mode of delivery" = handleEmptyResult(object = DeliveryModeModule$new(data = deliveryModeSummary,
+                                                                           dp = allDP,
+                                                                           yVar = "pct",
+                                                                           label = "n",
+                                                                           fillVar = "mode",
+                                                                           title =  "Delivery mode rates"), result = deliveryModeSummary),
     "Outcome categories" = handleEmptyResult(object = OutcomeCategoriesModule$new(data = outcomeCategoriesCount, dp = allDP), result = outcomeCategoriesCount)
   ),
   "Cohort Characteristics" = list(handleEmptyResult(object = Characteristics$new(characteristics), result = characteristics)),
