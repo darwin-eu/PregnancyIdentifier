@@ -14,3 +14,4 @@ renv/
 *~$*
 .Renviron
 vignettes/algorithm_cache
+.vscode/

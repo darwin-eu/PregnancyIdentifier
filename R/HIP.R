@@ -143,6 +143,13 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
       "hip_gest_flag",
       "hip_episode_length"
     )
+  validateEpisodePeriods(
+    hipDf,
+    personIdCol = "person_id",
+    startDateCol = "hip_pregnancy_start",
+    endDateCol = "hip_pregnancy_end",
+    logger = logger
+  )
   saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
   # 6) Drop intermediate stage tables (nested functions do not drop their inputs; cleanup only here).

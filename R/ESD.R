@@ -150,10 +150,230 @@ runEsd <- function(cdm,
       "esd_preterm_status_from_calculation",
       dplyr::everything()
     )
+  mergedDf <- removeLongPregnancies(
+    mergedDf,
+    logger = logger,
+    startDateCol = "final_episode_start_date",
+    endDateCol = "final_episode_end_date"
+  )
+  validateEpisodePeriods(
+    mergedDf,
+    personIdCol = "person_id",
+    startDateCol = "final_episode_start_date",
+    endDateCol = "final_episode_end_date",
+    logger = logger
+  )
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
   invisible(NULL)
+}
+
+# ============================================================
+# Remove long pregnancies and overlapping episodes
+# ============================================================
+
+#' Remove pregnancies longer than a maximum duration
+#'
+#' Filters out episodes whose period (end date minus start date in days) exceeds
+#' \code{maxDays}. Episodes with missing start or end date are retained.
+#' Logs how many episodes were removed.
+#'
+#' @param df Data frame with at least start and end date columns.
+#' @param logger A \code{log4r} logger object.
+#' @param startDateCol Character. Name of the episode start date column (default \code{"final_episode_start_date"}).
+#' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
+#' @param maxDays Numeric. Maximum allowed duration in days (default 322).
+#' @return The data frame with long episodes removed.
+removeLongPregnancies <- function(df,
+                                  logger,
+                                  startDateCol = "final_episode_start_date",
+                                  endDateCol = "final_episode_end_date",
+                                  maxDays = 322) {
+  checkmate::assertDataFrame(df, min.rows = 0)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  checkmate::assertNumber(maxDays, lower = 0, finite = TRUE)
+  stopifnot(
+    startDateCol %in% names(df),
+    endDateCol %in% names(df)
+  )
+
+  nBefore <- nrow(df)
+  out <- df %>%
+    dplyr::mutate(
+      .days = as.numeric(as.Date(.data[[endDateCol]]) - as.Date(.data[[startDateCol]]))
+    ) %>%
+    dplyr::filter(is.na(.data$.days) | .data$.days <= .env$maxDays) %>%
+    dplyr::select(-".days")
+  nRemoved <- nBefore - nrow(out)
+
+  if (nRemoved > 0) {
+    log4r::info(
+      logger,
+      sprintf(
+        "removeLongPregnancies: removed %d episode(s) with period length greater than %d days.",
+        nRemoved,
+        maxDays
+      )
+    )
+  }
+
+  out
+}
+
+# ============================================================
+# Remove overlapping episodes from final ESD output
+# ============================================================
+
+#' Outcome category rank for prioritization (HIP hierarchy)
+#' Lower value = higher priority. LB (live birth) first, then SB, DELIV, ECT, AB, SA, PREG.
+#' @noRd
+outcomeRank <- function(cat) {
+  dplyr::case_when(
+    cat == "LB" ~ 1L,
+    cat == "SB" ~ 2L,
+    cat == "DELIV" ~ 3L,
+    cat == "ECT" ~ 4L,
+    cat == "AB" ~ 5L,
+    cat == "SA" ~ 6L,
+    cat == "PREG" ~ 7L,
+    TRUE ~ 99L
+  )
+}
+
+#' Find connected components of overlapping intervals within a set of (start, end) pairs.
+#' Returns integer vector of group id (1, 2, ...) per row.
+#' @noRd
+overlapGroups <- function(start, end) {
+  n <- length(start)
+  if (n == 0) return(integer(0))
+  # Union-find parent; parent[i] = index of parent (or self if root)
+  parent <- seq_len(n)
+  find <- function(i) {
+    if (parent[i] != i) parent[i] <<- find(parent[i])
+    parent[i]
+  }
+  union_ <- function(i, j) {
+    pi <- find(i)
+    pj <- find(j)
+    if (pi != pj) parent[pi] <<- pj
+  }
+  for (i in seq_len(n)) {
+    for (j in seq_len(n)) {
+      if (i >= j) next
+      # overlap: start_i < end_j && end_i > start_j
+      if (is.na(start[i]) || is.na(end[i]) || is.na(start[j]) || is.na(end[j])) next
+      if (start[i] < end[j] && end[i] > start[j]) union_(i, j)
+    }
+  }
+  # Normalize to 1-based group ids
+  roots <- vapply(seq_len(n), find, integer(1))
+  match(roots, unique(roots))
+}
+
+#' Remove overlapping episodes from final ESD output
+#'
+#' Within each person, groups episodes whose date ranges overlap and keeps a single
+#' episode per group. Prioritization: (1) \code{hip_flag == 1} over 0; (2) among HIP
+#' episodes, HIP outcome hierarchy (live birth > stillbirth > delivery > ectopic >
+#' abortion/miscarriage > ongoing); (3) \code{esd_outcome_match == 1} (concordant);
+#' (4) better ESD precision (lower \code{esd_precision_days}); (5) gestational week
+#' evidence (\code{esd_gw_flag}); (6) earliest \code{final_episode_end_date}; (7) first row.
+#'
+#' @param esdDf Data frame of final ESD output (e.g. from \code{runEsd} or
+#'   \code{final_pregnancy_episodes.rds}) with at least \code{person_id},
+#'   \code{final_episode_start_date}, \code{final_episode_end_date}. Optional
+#'   columns used for prioritization: \code{hip_flag}, \code{final_outcome_category},
+#'   \code{hip_outcome_category}, \code{esd_outcome_match}, \code{esd_precision_days},
+#'   \code{esd_gw_flag}. If \code{hip_flag} is missing it is treated as 0.
+#' @param personIdCol Character. Name of the person identifier column (default \code{"person_id"}).
+#' @param startDateCol Character. Name of the episode start date column (default \code{"final_episode_start_date"}).
+#' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
+#' @return Data frame with the same columns as \code{esdDf}, with overlapping
+#'   episodes removed (one episode retained per overlap group per person).
+#' @export
+removeOverlaps <- function(esdDf,
+                           personIdCol = "person_id",
+                           startDateCol = "final_episode_start_date",
+                           endDateCol = "final_episode_end_date") {
+  checkmate::assertDataFrame(esdDf, min.rows = 0)
+  checkmate::assertString(personIdCol)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  stopifnot(
+    personIdCol %in% names(esdDf),
+    startDateCol %in% names(esdDf),
+    endDateCol %in% names(esdDf)
+  )
+
+  if (nrow(esdDf) == 0) return(esdDf)
+
+  originalCols <- names(esdDf)
+  work <- esdDf
+  if (!"hip_flag" %in% originalCols) work$hip_flag <- 0L
+  if (!"final_outcome_category" %in% originalCols) work$final_outcome_category <- NA_character_
+  if (!"hip_outcome_category" %in% originalCols) work$hip_outcome_category <- NA_character_
+  if (!"esd_outcome_match" %in% originalCols) work$esd_outcome_match <- NA_integer_
+  if (!"esd_precision_days" %in% originalCols) work$esd_precision_days <- NA_integer_
+  if (!"esd_gw_flag" %in% originalCols) work$esd_gw_flag <- NA_real_
+
+  df <- work %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      .row = dplyr::row_number(),
+      .hip_flag = dplyr::coalesce(.data$hip_flag, 0L),
+      .outcome_rank = outcomeRank(.data$final_outcome_category),
+      .hip_outcome_rank = outcomeRank(.data$hip_outcome_category),
+      .esd_match = dplyr::coalesce(.data$esd_outcome_match, 0L),
+      .precision = dplyr::if_else(
+        is.na(.data$esd_precision_days),
+        Inf,
+        as.numeric(.data$esd_precision_days)
+      ),
+      .gw_flag = dplyr::coalesce(as.numeric(.data$esd_gw_flag), 0),
+      .end_date = as.Date(.data[[endDateCol]])
+    )
+
+  # Compute overlap group per person (use .row to assign back to correct rows)
+  by_person <- df %>%
+    dplyr::group_by(.data[[personIdCol]]) %>%
+    dplyr::group_split()
+
+  group_ids <- integer(nrow(df))
+  for (i in seq_along(by_person)) {
+    block <- by_person[[i]]
+    start <- as.Date(block[[startDateCol]])
+    end <- as.Date(block[[endDateCol]])
+    grp <- overlapGroups(start, end)
+    group_ids[block$.row] <- grp
+  }
+
+  df <- df %>%
+    dplyr::mutate(.overlap_group = .env$group_ids)
+
+  # Within each person and overlap group, keep best row (arrange by priority, then slice first)
+  kept <- df %>%
+    dplyr::arrange(
+      .data[[personIdCol]],
+      .data$.overlap_group,
+      dplyr::desc(.data$.hip_flag),
+      .data$.outcome_rank,
+      .data$.hip_outcome_rank,
+      dplyr::desc(.data$.esd_match),
+      .data$.precision,
+      dplyr::desc(.data$.gw_flag),
+      .data$.end_date,
+      .data$.row
+    ) %>%
+    dplyr::group_by(.data[[personIdCol]], .data$.overlap_group) %>%
+    dplyr::slice(1L) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-dplyr::starts_with(".")) %>%
+    dplyr::select(dplyr::all_of(originalCols))
+
+  dplyr::as_tibble(kept)
 }
 
 # ============================================================

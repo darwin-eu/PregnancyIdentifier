@@ -103,6 +103,13 @@ runPps <- function(cdm,
       "pps_episode_max_date_plus_two_months", "pps_outcome_category", "pps_outcome_date",
       "pps_n_gt_concepts"
     )
+  validateEpisodePeriods(
+    ppsWithOutcomes,
+    personIdCol = "person_id",
+    startDateCol = "pps_episode_min_date",
+    endDateCol = "pps_episode_max_date",
+    logger = logger
+  )
   saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
 
   cdm

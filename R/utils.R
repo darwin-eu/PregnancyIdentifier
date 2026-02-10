@@ -5,6 +5,101 @@ getTblRowCount <- function(tbl) {
     dplyr::pull(.data$n)
 }
 
+#' Validate episode periods: overlaps within person and max duration
+#'
+#' Checks a dataframe of episode periods (start/end dates per person) for two
+#' conditions and logs warnings: (1) number of records that overlap with another
+#' record within the same person; (2) number of records whose span (end - start
+#' in days) exceeds a maximum (default 322 days).
+#'
+#' @param df A dataframe with at least person id and start/end date columns.
+#' @param personIdCol Character. Name of the person identifier column.
+#' @param startDateCol Character. Name of the period start date column.
+#' @param endDateCol Character. Name of the period end date column.
+#' @param logger A log4r logger object (e.g. from `makeLogger()`).
+#' @param maxDays Numeric. Threshold in days for the second warning (default 322).
+#' @return Invisibly returns `df` unchanged.
+validateEpisodePeriods <- function(df,
+                                   personIdCol,
+                                   startDateCol,
+                                   endDateCol,
+                                   logger,
+                                   maxDays = 322) {
+  checkmate::assertDataFrame(df, min.rows = 0)
+  checkmate::assertString(personIdCol)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertNumber(maxDays, lower = 0, finite = TRUE)
+  stopifnot(
+    personIdCol %in% names(df),
+    startDateCol %in% names(df),
+    endDateCol %in% names(df)
+  )
+
+  df <- dplyr::ungroup(df)
+  complete <- df %>%
+    dplyr::filter(
+      !is.na(.data[[startDateCol]]) & !is.na(.data[[endDateCol]])
+    )
+  if (nrow(complete) == 0) {
+    return(invisible(df))
+  }
+
+  # 1) Overlaps within person: two periods overlap iff start_a < end_b and end_a > start_b
+  complete <- complete %>%
+    dplyr::mutate(.row = dplyr::row_number())
+  other <- complete %>%
+    dplyr::select(
+      dplyr::all_of(personIdCol),
+      ".row2" = ".row",
+      "start2" = dplyr::all_of(startDateCol),
+      "end2" = dplyr::all_of(endDateCol)
+    )
+  overlaps <- complete %>%
+    dplyr::inner_join(other, by = personIdCol, relationship = "many-to-many") %>%
+    dplyr::filter(
+      .data$.row != .data$.row2,
+      .data[[startDateCol]] < .data$end2,
+      .data[[endDateCol]] > .data$start2
+    )
+  nOverlapping <- dplyr::n_distinct(overlaps$.row)
+  if (nOverlapping > 0) {
+    log4r::warn(
+      logger,
+      sprintf(
+        "validateEpisodePeriods: %d record(s) overlap with another record within the same person.",
+        nOverlapping
+      )
+    )
+  } else {
+    log4r::info(logger, "validation: no overlapping episodes found")
+  }
+
+  # 2) Span > maxDays
+  daysSpan <- as.numeric(
+    as.Date(complete[[endDateCol]]) - as.Date(complete[[startDateCol]])
+  )
+  nOverMax <- sum(daysSpan > maxDays, na.rm = TRUE)
+  if (nOverMax > 0) {
+    log4r::warn(
+      logger,
+      sprintf(
+        "validateEpisodePeriods: %d record(s) have period length greater than %d days.",
+        nOverMax,
+        maxDays
+      )
+    )
+  } else {
+    log4r::info(
+      logger,
+      sprintf("validation: all episodes are less than %d days", maxDays)
+    )
+  }
+
+  invisible(df)
+}
+
 cdmTableExists <- function(cdm, tableName) {
   DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = tableName)
 }
