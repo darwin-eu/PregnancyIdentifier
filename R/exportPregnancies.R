@@ -56,7 +56,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   exportEpisodeFrequencySummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportGestationalAgeSummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportGestationalAgeCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalWeeksCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
+  exportGestationalWeeksCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
   exportGestationalDurationCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportTimeTrends(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportObservationPeriodRange(res, cdm, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
@@ -310,12 +310,15 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
 }
 
 #' @noRd
-exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
+exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
-      pct = .data$n / sum(.data$n) * 100,
+      pct = .data$n / sum(.data$n) * 100
+    ) %>%
+    suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
+    dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
@@ -490,7 +493,7 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
 #' @noRd
 suppressCounts <- function(df, colNames, minCellCount) {
   suppressOne <- function(x) {
-    x[x > 0 & x < minCellCount] <- NA
+    x[x > 0 & x < minCellCount] <- paste0("<", minCellCount)
     x
   }
   df %>%
