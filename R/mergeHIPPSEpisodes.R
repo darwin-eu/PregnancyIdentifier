@@ -92,9 +92,9 @@ mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
 
   hipEpisodesDf <- hipDf %>%
     dplyr::rename(
-      pregnancy_start = hip_pregnancy_start,
-      pregnancy_end   = hip_pregnancy_end,
-      first_gest_date = hip_first_gest_date
+      pregnancy_start = "hip_pregnancy_start",
+      pregnancy_end   = "hip_pregnancy_end",
+      first_gest_date = "hip_first_gest_date"
     ) %>%
     dplyr::mutate(
       hip_episode_id = paste(.data$person_id, .data$hip_episode, "hip", sep = "_"),
@@ -113,9 +113,9 @@ mergeEpisodes <- function(hipDf, ppsWithOutcomesDf, logger) {
     dplyr::full_join(
       ppsEpisodesDf,
       by = dplyr::join_by(
-        person_id,
-        pregnancy_start <= pps_episode_max_date_plus_two_months,
-        pregnancy_end   >= pps_episode_min_date
+        "person_id",
+        "pregnancy_start" <= "pps_episode_max_date_plus_two_months",
+        "pregnancy_end"   >= "pps_episode_min_date"
       )
     ) %>%
     dplyr::mutate(

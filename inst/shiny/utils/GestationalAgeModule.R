@@ -6,7 +6,7 @@ GestationalAgeModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, daysData = NULL, dp = unique(data$cdm_name), maxWeeksFilter = TRUE, height = "600px") {
+    initialize = function(data, daysData = NULL, dp = unique(data$cdm_name), maxWeeksFilter = TRUE, height = "900px") {
       super$initialize()
       private$.data <- data
       private$.daysData <- daysData
@@ -40,11 +40,10 @@ GestationalAgeModule <- R6::R6Class(
       private$.inputPanelOutput$parentNamespace <- self$namespace
 
       if (private$.maxWeeksFilter) {
-        private$.inputPanelMaxWeeks <- InputPanel$new(fun = list(max_weeks = shiny::sliderInput),
+        private$.inputPanelMaxWeeks <- InputPanel$new(fun = list(max_weeks = shiny::numericInput),
                                                  args = list(max_weeks = list(
-                                                   inputId = "max_weeks", label = "Max weeks",
-                                                   min = 2,
-                                                   max = max(data$gestational_weeks, na.rm = T),
+                                                   inputId = "max_weeks",
+                                                   label = "Max weeks",
                                                    value = 50)),
                                                  growDirection = "horizontal")
         private$.inputPanelMaxWeeks$parentNamespace <- self$namespace

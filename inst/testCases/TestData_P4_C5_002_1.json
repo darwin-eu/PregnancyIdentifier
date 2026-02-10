@@ -1051,6 +1051,7 @@
       "person_id": 22,
       "procedure_concept_id": 2211751,
       "procedure_date": "2021-01-13",
+      "procedure_end_date": "2021-01-13",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation plus detailed fetal anatomic examination, transabdominal approach; single or first gestation"
     },
@@ -1059,6 +1060,7 @@
       "person_id": 23,
       "procedure_concept_id": 2211747,
       "procedure_date": "2023-02-22",
+      "procedure_end_date": "2023-02-22",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation, first trimester (< 14 weeks 0 days), transabdominal approach; single or first gestation"
     },
@@ -1067,6 +1069,7 @@
       "person_id": 27,
       "procedure_concept_id": 2211751,
       "procedure_date": "2021-05-30",
+      "procedure_end_date": "2021-05-30",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
     },
@@ -1075,6 +1078,7 @@
       "person_id": 34,
       "procedure_concept_id": 2211747,
       "procedure_date": "2023-05-24",
+      "procedure_end_date": "2023-05-24",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, first trimester (<14w), transabdominal; single/first gestation"
     },
@@ -1083,6 +1087,7 @@
       "person_id": 34,
       "procedure_concept_id": 2211751,
       "procedure_date": "2023-08-12",
+      "procedure_end_date": "2023-08-13",
       "procedure_type_concept_id": 32817,
       "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
     }
