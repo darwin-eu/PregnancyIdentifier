@@ -1,0 +1,244 @@
+{
+  "person": [
+    {
+      "person_id": 1,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 2,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1992,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 3,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1970,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 4,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1970,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 5,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1970,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    }
+  ],
+  "observation_period": [
+    {
+      "observation_period_id": 1,
+      "person_id": 1,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 2,
+      "person_id": 2,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 3,
+      "person_id": 3,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 4,
+      "person_id": 4,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 5,
+      "person_id": 5,
+      "observation_period_start_date": "2015-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    }
+  ],
+  "condition_occurrence": [
+    {
+      "condition_occurrence_id": 1,
+      "person_id": 1,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2015-07-16",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 2,
+      "person_id": 2,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2019-07-16",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 3,
+      "person_id": 3,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2014-01-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 4,
+      "person_id": 4,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2018-01-13",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 5,
+      "person_id": 5,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2020-04-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 6,
+      "person_id": 1,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2015-12-08",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 7,
+      "person_id": 2,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2019-11-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 8,
+      "person_id": 3,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2014-05-08",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 9,
+      "person_id": 4,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2018-05-30",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    }
+  ],
+  "observation": [
+    {
+      "observation_id": 1,
+      "person_id": 1,
+      "observation_concept_id": 193277,
+      "observation_date": "2015-12-02",
+      "observation_type_concept_id": 32817,
+      "Observation": "Deliveries by cesarean"
+    }
+  ],
+  "procedure_occurrence": [
+    {
+      "procedure_occurrence_id": 1,
+      "person_id": 2,
+      "procedure_concept_id": 2004785,
+      "procedure_date": "2019-11-01",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Classical cesarean section"
+    },
+    {
+      "procedure_occurrence_id": 2,
+      "person_id": 3,
+      "procedure_concept_id": 45887987,
+      "procedure_date": "2014-05-01",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Vaginal delivery only"
+    },
+    {
+      "procedure_occurrence_id": 3,
+      "person_id": 4,
+      "procedure_concept_id": 45887987,
+      "procedure_date": "2018-05-30",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Vaginal delivery only"
+    },
+    {
+      "procedure_occurrence_id": 4,
+      "person_id": 4,
+      "procedure_concept_id": 2110308,
+      "procedure_date": "2018-05-30",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Vaginal delivery only"
+    }
+  ],
+  "measurement": [
+  ],
+  "drug_exposure": [
+  ],
+  "drug_era": [
+  ],
+  "drug_strength": [
+  ],
+  "pregnancy_extension": [
+    {
+      "person_id": 1,
+      "pregnancy_id": 1,
+      "pregnancy_start_date": "2015-02-20",
+      "pregnancy_end_date": "2015-12-01",
+      "pregnancy_outcome_id": "livebirth",
+      "mode_delivery": "c-section",
+      "gestational_length_in_day": 238,
+      "number_fetuses": 1,
+      "pregnancy_smok": "yes",
+      "pregnancy_alc": "yes",
+      "pregnancy_bmi": 20,
+      "pre_pregnancy_bmi": 20,
+      "prev_pregnancy_gravidity": 2
+    }
+  ],
+  "visit_occurrence": [
+  ]
+}

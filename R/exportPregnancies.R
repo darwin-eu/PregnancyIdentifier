@@ -56,7 +56,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   exportEpisodeFrequencySummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportGestationalAgeSummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportGestationalAgeCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalWeeksCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
+  exportGestationalWeeksCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
   exportGestationalDurationCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportTimeTrends(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportObservationPeriodRange(res, cdm, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
@@ -64,6 +64,8 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   exportDateConsistency(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportReversedDatesCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportOutcomeCategoriesCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
+  exportDeliveryModeSummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
+  exportConceptTimingCheck(cdm, res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
 
   zipName <- sprintf("%s-%s-%s-results.zip", snap$snapshot_date, pkgVersion, snap$cdm_name)
   utils::zip(
@@ -77,11 +79,11 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
 }
 
 #' @noRd
-exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
+exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersion) {
   concepts <- utils::read.csv(system.file("concepts/check_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE))
   totalEpisodes <- nrow(res)
 
-  # Standardize concepts from multiple OMOP domains into one schema
+  # Get concepts from multiple OMOP domains into one schema and combine with episodes
   conceptsPerEpisode <- dplyr::union_all(
     cdm$condition_occurrence %>%
       dplyr::select(
@@ -110,15 +112,18 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
     dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
     dplyr::filter(.data$concept_id %in% concepts$concept_id) %>%
     dplyr::collect() %>%
-    dplyr::left_join(concepts, by = "concept_id") %>%
-    dplyr::transmute(
-      "person_id", episode_num = .data$merge_episode_number, "merge_pregnancy_start", "hip_end_date", "pps_end_date",
-      "concept_id", "concept_name",
-      "concept_start",
-      concept_end = dplyr::coalesce(.data$concept_end, .data$concept_start),
+    dplyr::left_join(concepts, by = "concept_id")
+
+  # select and add columns
+  conceptsPerEpisode <- conceptsPerEpisode %>%
+    dplyr::rename(episode_num = .data$merge_episode_number) %>%
+    dplyr::select(
+      "person_id", "episode_num", "merge_pregnancy_start", "hip_end_date", "pps_end_date",
+      "concept_id", "concept_name", "concept_start", "concept_end",
       "min_month", "max_month", "span", "midpoint"
     ) %>%
     dplyr::mutate(
+      concept_end = dplyr::coalesce(.data$concept_end, .data$concept_start),
       min_date = .data$merge_pregnancy_start + (.data$min_month * 30),
       max_date = .data$merge_pregnancy_start + (.data$max_month * 30),
       after_min = .data$min_date >= .data$concept_start,
@@ -129,6 +134,7 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
         .data$concept_start <= (.data$merge_pregnancy_start - .data$midpoint * 30)
     )
 
+  # Group by concept and summarize counts
   conceptsPerEpisode %>%
     dplyr::group_by(.data$concept_id, .data$concept_name) %>%
     dplyr::summarise(
@@ -147,7 +153,8 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart) {
       p_concept = .data$total / totalEpisodes * 100,
       cdm_name = snap$cdm_name,
       date_run = runStart,
-      date_export = snap$snapshot_date
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
     ) %>%
     utils::write.csv(file.path(resPath, "concept_check.csv"), row.names = FALSE)
 }
@@ -176,6 +183,16 @@ addAge <- function(cdm, res) {
 exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minCellCount) {
   resAge <- addAge(cdm, res) %>%
     dplyr::mutate(age_pregnancy_start = age_pregnancy_start / 365.25)
+
+  resAge %>%
+    dplyr::select(age_pregnancy_start) %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    ) %>%
+    write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
   resAge %>%
     summariseColumn("age_pregnancy_start") %>%
@@ -310,12 +327,15 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
 }
 
 #' @noRd
-exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion) {
+exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
-      pct = .data$n / sum(.data$n) * 100,
+      pct = .data$n / sum(.data$n) * 100
+    ) %>%
+    suppressCounts(colNames = c("n"), minCellCount = minCellCount) %>%
+    dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
@@ -485,12 +505,33 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
     utils::write.csv(file.path(resPath, "outcome_categories_count.csv"), row.names = FALSE)
 }
 
+exportDeliveryModeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
+  deliveryModeSummary <- res %>%
+    dplyr::select(c("final_outcome_category", dplyr::starts_with("cesarean"), dplyr::starts_with("vaginal"))) %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
+    dplyr::summarise(n = dplyr::n(),
+                     cesarean = sum(cesarean_m30_to_30),
+                     cesarean_count = sum(cesarean_m30_to_30_count),
+                     vaginal = sum(vaginal_m30_to_30),
+                     vaginal_count = sum(vaginal_m30_to_30_count)) %>%
+    dplyr::mutate(cesarean_pct = 100 * cesarean / n,
+                  vaginal_pct = 100 * vaginal / n) %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    )
+
+  write.csv(deliveryModeSummary, file.path(resPath, "delivery_mode_summary.csv"), row.names = FALSE)
+}
+
 # ---- Small utility functions --------------------------------------------------
 
 #' @noRd
 suppressCounts <- function(df, colNames, minCellCount) {
   suppressOne <- function(x) {
-    x[x > 0 & x < minCellCount] <- NA
+    x[x > 0 & x < minCellCount] <- paste0("<", minCellCount)
     x
   }
   df %>%
@@ -543,3 +584,4 @@ summariseColumn <- function(df, colName) {
     )
   })
 }
+

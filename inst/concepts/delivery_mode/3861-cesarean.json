@@ -1,0 +1,878 @@
+{
+  "items": [
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "200144004",
+        "CONCEPT_ID": 193277,
+        "CONCEPT_NAME": "Deliveries by cesarean",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Disorder",
+        "CONCEPT_CODE": "396544001",
+        "CONCEPT_ID": 197344,
+        "CONCEPT_NAME": "Cesarean wound disruption",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2003-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "3-dig billing code",
+        "CONCEPT_CODE": "74.0",
+        "CONCEPT_ID": 2004785,
+        "CONCEPT_NAME": "Classical cesarean section",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "3-dig nonbill code",
+        "CONCEPT_CODE": "74.9",
+        "CONCEPT_ID": 2004790,
+        "CONCEPT_NAME": "Cesarean section of unspecified type",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "00850",
+        "CONCEPT_ID": 2101013,
+        "CONCEPT_NAME": "Anesthesia for intraperitoneal procedures in lower abdomen including laparoscopy; cesarean section (Deprecated)",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2013-05-08"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "00857",
+        "CONCEPT_ID": 2101016,
+        "CONCEPT_NAME": "Neuraxial analgesia/anesthesia for labor ending in a cesarean delivery (includes any repeat subarachnoid needle placement and drug injection and/or any necessary replacement of an epidural catheter during labor) (Deprecated)",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2013-05-08"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "01961",
+        "CONCEPT_ID": 2101807,
+        "CONCEPT_NAME": "Anesthesia for cesarean delivery only",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "01963",
+        "CONCEPT_ID": 2101809,
+        "CONCEPT_NAME": "Anesthesia for cesarean hysterectomy without any labor analgesia/anesthesia care",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "01968",
+        "CONCEPT_ID": 2101814,
+        "CONCEPT_NAME": "Anesthesia for cesarean delivery following neuraxial labor analgesia/anesthesia (List separately in addition to code for primary procedure performed)",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "59514",
+        "CONCEPT_ID": 2110316,
+        "CONCEPT_NAME": "Cesarean delivery only",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "CPT4",
+        "CONCEPT_CODE": "99360",
+        "CONCEPT_ID": 2514499,
+        "CONCEPT_NAME": "Standby service, requiring prolonged attendance, each 30 minutes (eg, operative standby, standby for frozen section, for cesarean/high risk delivery, for monitoring EEG)",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "CPT4",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "11466000",
+        "CONCEPT_ID": 4015701,
+        "CONCEPT_NAME": "Cesarean section",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "161805006",
+        "CONCEPT_ID": 4058565,
+        "CONCEPT_NAME": "Past pregnancy history of cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "199331008",
+        "CONCEPT_ID": 4063163,
+        "CONCEPT_NAME": "Multiple delivery, all by cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "2-dig nonbill code",
+        "CONCEPT_CODE": "74",
+        "CONCEPT_ID": 4192036,
+        "CONCEPT_NAME": "Cesarean section and removal of fetus",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "3-char billing code",
+        "CONCEPT_CODE": "O82",
+        "CONCEPT_ID": 35210363,
+        "CONCEPT_NAME": "Encounter for cesarean delivery without indication",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "2007-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "4-char billing code",
+        "CONCEPT_CODE": "P03.4",
+        "CONCEPT_ID": 35210426,
+        "CONCEPT_NAME": "Newborn affected by Cesarean delivery",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "2007-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "725951006",
+        "CONCEPT_ID": 37111274,
+        "CONCEPT_NAME": "Past pregnancy history of emergency cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2017-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Disorder",
+        "CONCEPT_CODE": "788728009",
+        "CONCEPT_ID": 37312073,
+        "CONCEPT_NAME": "Hematoma of surgical wound following cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2020-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "MS-DRG",
+        "CONCEPT_CODE": "765",
+        "CONCEPT_ID": 38001485,
+        "CONCEPT_NAME": "Cesarean section w CC/MCC",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "DRG",
+        "VALID_START_DATE": "2007-10-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "MS-DRG",
+        "CONCEPT_CODE": "766",
+        "CONCEPT_ID": 38001486,
+        "CONCEPT_NAME": "Cesarean section w/o CC/MCC",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "DRG",
+        "VALID_START_DATE": "2007-10-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "442342003",
+        "CONCEPT_ID": 40483101,
+        "CONCEPT_NAME": "Twin liveborn born in hospital by cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2009-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "442365008",
+        "CONCEPT_ID": 40483126,
+        "CONCEPT_NAME": "Liveborn born in hospital by cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2009-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "442423001",
+        "CONCEPT_ID": 40483521,
+        "CONCEPT_NAME": "Single liveborn born in hospital by cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2009-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing V code",
+        "CONCEPT_CODE": "V39.01",
+        "CONCEPT_ID": 44821540,
+        "CONCEPT_NAME": "Liveborn, unspecified whether single, twin or multiple, born in hospital, delivered by cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "649.82",
+        "CONCEPT_ID": 44824407,
+        "CONCEPT_NAME": "Onset (spontaneous) of labor after 37 completed weeks of gestation but before 39 completed weeks gestation, with delivery by (planned) cesarean section, delivered, with mention of postpartum complication",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "2013-10-10",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "669.70",
+        "CONCEPT_ID": 44824445,
+        "CONCEPT_NAME": "Cesarean delivery, without mention of indication, unspecified as to episode of care or not applicable",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing V code",
+        "CONCEPT_CODE": "V30.01",
+        "CONCEPT_ID": 44826183,
+        "CONCEPT_NAME": "Single liveborn, born in hospital, delivered by cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "669.71",
+        "CONCEPT_ID": 44826829,
+        "CONCEPT_NAME": "Cesarean delivery, without mention of indication, delivered, with or without mention of antepartum condition",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing V code",
+        "CONCEPT_CODE": "V31.01",
+        "CONCEPT_ID": 44827347,
+        "CONCEPT_NAME": "Twin birth, mate liveborn, born in hospital, delivered by cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing V code",
+        "CONCEPT_CODE": "V39.00",
+        "CONCEPT_ID": 44829629,
+        "CONCEPT_NAME": "Liveborn, unspecified whether single, twin or multiple, born in hospital, delivered without mention of cesarean section",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": true,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "654.20",
+        "CONCEPT_ID": 44830240,
+        "CONCEPT_NAME": "Previous cesarean delivery, unspecified as to episode of care or not applicable",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "654.23",
+        "CONCEPT_ID": 44830241,
+        "CONCEPT_NAME": "Previous cesarean delivery, antepartum condition or complication",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "4-dig nonbill code",
+        "CONCEPT_CODE": "654.2",
+        "CONCEPT_ID": 44831404,
+        "CONCEPT_NAME": "Previous cesarean section complicating pregnancy or childbirth",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "4-dig nonbill code",
+        "CONCEPT_CODE": "669.7",
+        "CONCEPT_ID": 44831438,
+        "CONCEPT_NAME": "Cesarean delivery, without mention of indication",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-dig billing code",
+        "CONCEPT_CODE": "649.81",
+        "CONCEPT_ID": 44834897,
+        "CONCEPT_NAME": "Onset (spontaneous) of labor after 37 completed weeks of gestation but before 39 completed weeks gestation, with delivery by (planned) cesarean section, delivered, with or without mention of antepartum condition",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "2013-10-10",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-char billing code",
+        "CONCEPT_CODE": "Z38.62",
+        "CONCEPT_ID": 45542424,
+        "CONCEPT_NAME": "Triplet liveborn infant, delivered by cesarean",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-char billing code",
+        "CONCEPT_CODE": "O75.82",
+        "CONCEPT_ID": 45544028,
+        "CONCEPT_NAME": "Onset (spontaneous) of labor after 37 completed weeks of gestation but before 39 completed weeks gestation, with delivery by (planned) cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "2006-12-30",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-char billing code",
+        "CONCEPT_CODE": "Z38.01",
+        "CONCEPT_ID": 45605122,
+        "CONCEPT_NAME": "Single liveborn infant, delivered by cesarean",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-char billing code",
+        "CONCEPT_CODE": "Z38.69",
+        "CONCEPT_ID": 45605124,
+        "CONCEPT_NAME": "Other multiple liveborn infant, delivered by cesarean",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "5-char billing code",
+        "CONCEPT_CODE": "Z38.31",
+        "CONCEPT_ID": 45609930,
+        "CONCEPT_NAME": "Twin liveborn infant, delivered by cesarean",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD10CM",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "10751701000119102",
+        "CONCEPT_ID": 45757118,
+        "CONCEPT_NAME": "Spontaneous onset of labor between 37 and 39 weeks gestation with planned cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2014-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Disorder",
+        "CONCEPT_CODE": "38451000119105",
+        "CONCEPT_ID": 45757775,
+        "CONCEPT_NAME": "Failed attempted vaginal birth after previous cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2014-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Context-dependent",
+        "CONCEPT_CODE": "706890009",
+        "CONCEPT_ID": 45768455,
+        "CONCEPT_NAME": "Vaginal birth after previous cesarean section declined",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2015-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": true,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "HCPCS",
+        "CONCEPT_CODE": "G9361",
+        "CONCEPT_ID": 45890732,
+        "CONCEPT_NAME": "Medical indication for delivery by cesarean birth or induction of labor (<39 weeks of gestation) [documentation of reason(s) for elective delivery (e.g., hemorrhage and placental complications, hypertension, preeclampsia and eclampsia, rupture of membr...",
+        "DOMAIN_ID": "Observation",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "HCPCS",
+        "VALID_START_DATE": "2014-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "4-dig nonbill code",
+        "CONCEPT_CODE": "649.8",
+        "CONCEPT_ID": 45890913,
+        "CONCEPT_NAME": "Onset (spontaneous) of labor after 37 completed weeks of gestation but before 39 completed weeks gestation, with delivery by (planned) cesarean section",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "N",
+        "STANDARD_CONCEPT_CAPTION": "Non-Standard",
+        "VOCABULARY_ID": "ICD9CM",
+        "VALID_START_DATE": "2014-10-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    }
+  ]
+}

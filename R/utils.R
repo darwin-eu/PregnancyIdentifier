@@ -118,7 +118,7 @@ mockPregnancyCdm <- function() {
     cdm <- TestGenerator::patientsCDM(
       pathJson = system.file("testCases", package = "PregnancyIdentifier"),
       testName = 'TestData_P4_C5_002_1',
-      cdmVersion = "5.3",
+      cdmVersion = "5.4",
       cdmName = "TestData_P4_C5_002_1"
     )
   })
