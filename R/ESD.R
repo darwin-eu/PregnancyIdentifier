@@ -169,6 +169,45 @@ runEsd <- function(cdm,
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
+  # Attrition: final_episodes overall and by outcome
+  prior <- getAttritionPrior(outputDir, "hipps_episodes")
+  if (!is.null(prior)) {
+    postR <- nrow(mergedDf)
+    postP <- dplyr::n_distinct(mergedDf$person_id)
+    appendAttrition(
+      outputDir,
+      step = "final_episodes",
+      table = "final_episodes",
+      outcome = NA_character_,
+      prior_records = prior$post_records,
+      prior_persons = prior$post_persons,
+      dropped_records = prior$post_records - postR,
+      dropped_persons = prior$post_persons - postP,
+      post_records = postR,
+      post_persons = postP
+    )
+  }
+  # By outcome (only when attrition file exists, e.g. pipeline run via runPregnancyIdentifier)
+  if (file.exists(attritionFileName(outputDir)) && "final_outcome_category" %in% names(mergedDf)) {
+    outcomeCol <- "final_outcome_category"
+    outcomes <- sort(unique(mergedDf[[outcomeCol]][!is.na(mergedDf[[outcomeCol]])]))
+    for (oc in outcomes) {
+      sub <- mergedDf %>% dplyr::filter(.data[[outcomeCol]] == .env$oc)
+      appendAttrition(
+        outputDir,
+        step = "final_episodes_by_outcome",
+        table = "final_episodes",
+        outcome = oc,
+        prior_records = NA_integer_,
+        prior_persons = NA_integer_,
+        dropped_records = NA_integer_,
+        dropped_persons = NA_integer_,
+        post_records = nrow(sub),
+        post_persons = dplyr::n_distinct(sub$person_id)
+      )
+    }
+  }
+
   invisible(NULL)
 }
 
@@ -942,11 +981,15 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       )
     )
 
-  # Join with term_max_min data frame and drop 'retry' column
+  # Join with term_max_min data frame and drop 'retry' column.
+  # When final_outcome_category is missing from Matcho (e.g. PREG), coalesce min_term/max_term
+  # so the start-date fallback and precision_days still work.
   finalDf <- finalDf %>%
     dplyr::left_join(termMaxMin, by = c("final_outcome_category" = "category")) %>%
     dplyr::select(-"retry") %>%
     dplyr::mutate(
+      min_term = dplyr::coalesce(.data$min_term, 140),
+      max_term = dplyr::coalesce(.data$max_term, 301),
       # If no start date, subtract max term from inferred end date
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),

@@ -152,6 +152,25 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   )
   saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
+  # Attrition: hip_episodes from preg_hip_records
+  prior <- getAttritionPrior(outputDir, "preg_hip_records")
+  if (!is.null(prior)) {
+    postR <- nrow(hipDf)
+    postP <- dplyr::n_distinct(hipDf$person_id)
+    appendAttrition(
+      outputDir,
+      step = "hip_episodes",
+      table = "hip_episodes",
+      outcome = NA_character_,
+      prior_records = prior$post_records,
+      prior_persons = prior$post_persons,
+      dropped_records = prior$post_records - postR,
+      dropped_persons = prior$post_persons - postP,
+      post_records = postR,
+      post_persons = postP
+    )
+  }
+
   # 6) Drop intermediate stage tables (nested functions do not drop their inputs; cleanup only here).
   cdm <- omopgenerics::dropSourceTable(
     cdm,
@@ -428,16 +447,23 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
   cdm
 }
 
+# Default term (days) when outcome category is missing from Matcho_term_durations (e.g. PREG).
+# Used so outcome-only episodes still get a non-NA start date (outcome_date - default_max_term).
+DEFAULT_MATCHO_MAX_TERM_DAYS <- 301L
+DEFAULT_MATCHO_MIN_TERM_DAYS <- 140L
+
 # estimateOutcomeStarts()
 # Inputs: outcomeEpisodes (person_id, outcome_category, outcome_date, outcome_id), preg_matcho_term_durations.
 # Outputs: cdm$outcome_episodes_with_starts_df (lazy chain; not materialized).
 # Column mutations: adds min_term, max_term, retry, min_start_date, max_start_date; changes: none.
+# When outcome_category is not in Matcho (e.g. PREG), min_term/max_term are NA from the join;
+# we coalesce to defaults so min_start_date/max_start_date are never NA.
 estimateOutcomeStarts <- function(cdm) {
   cdm$outcome_episodes_df %>%
     dplyr::left_join(cdm$preg_matcho_term_durations, by = c("outcome_category" = "category")) %>%
     dplyr::mutate(
-      min_term = as.integer(.data$min_term),
-      max_term = as.integer(.data$max_term)
+      min_term = as.integer(dplyr::coalesce(.data$min_term, DEFAULT_MATCHO_MIN_TERM_DAYS)),
+      max_term = as.integer(dplyr::coalesce(.data$max_term, DEFAULT_MATCHO_MAX_TERM_DAYS))
     ) %>%
     dplyr::mutate(
       min_start_date = as.Date(!!CDMConnector::dateadd(date = "outcome_date", number = "-min_term", interval = "day")),
@@ -451,6 +477,8 @@ estimateOutcomeStarts <- function(cdm) {
 #   max_gest_start_date, min_gest_start_date, end_gest_date, min_gest_date_2, max_gest_day, min_gest_day, gest_start_date_diff, etc.
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
 buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, gestConceptIds) {
+  # Source A: concepts in gestational_age_concepts.csv with value_as_number (e.g. from measurement).
+  # Source B: any record with gest_value (e.g. from HIP_concepts.xlsx for condition/procedure/observation).
   gestFromValue <- cdm$preg_hip_records %>%
     dplyr::filter(!is.na(.data$gest_value))
   gestationVisitsTbl <- cdm$preg_hip_records %>%
@@ -461,7 +489,8 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
       .data$value_as_number <= 44
     ) %>%
     dplyr::mutate(gest_value = as.integer(.data$value_as_number)) %>%
-    dplyr::union_all(gestFromValue)
+    dplyr::union_all(gestFromValue) %>%
+    dplyr::distinct(.data$person_id, .data$visit_date, .data$gest_value, .keep_all = TRUE)
   gestationEpisodesTbl <- gestationVisitsTbl %>%
     dplyr::filter(!is.na(.data$visit_date), .data$gest_value > 0, .data$gest_value <= 44) %>%
     dplyr::group_by(.data$person_id, .data$visit_date) %>%

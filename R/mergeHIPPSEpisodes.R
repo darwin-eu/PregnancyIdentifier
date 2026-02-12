@@ -79,6 +79,29 @@ mergeHipps <- function(outputDir, logger) {
       ))
     )
   saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
+
+  # Attrition: hipps_episodes from hip_episodes + pps_episodes
+  hipPrior <- getAttritionPrior(outputDir, "hip_episodes")
+  ppsPrior <- getAttritionPrior(outputDir, "pps_episodes")
+  if (!is.null(hipPrior) && !is.null(ppsPrior)) {
+    priorR <- hipPrior$post_records + ppsPrior$post_records
+    priorP <- dplyr::n_distinct(c(hipDf$person_id, ppsWithOutcomesDf$person_id))
+    postR <- nrow(mergedDf)
+    postP <- dplyr::n_distinct(mergedDf$person_id)
+    appendAttrition(
+      outputDir,
+      step = "hipps_episodes",
+      table = "hipps_episodes",
+      outcome = NA_character_,
+      prior_records = priorR,
+      prior_persons = priorP,
+      dropped_records = priorR - postR,
+      dropped_persons = priorP - postP,
+      post_records = postR,
+      post_persons = postP
+    )
+  }
+
   invisible(NULL)
 }
 

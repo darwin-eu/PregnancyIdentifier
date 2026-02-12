@@ -271,6 +271,22 @@
       "race_concept_id": 0,
       "ethnicity_concept_id": 0,
       "gender": "Female"
+    },
+    {
+      "person_id": 39,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 40,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
     }
   ],
   "observation_period": [
@@ -508,6 +524,20 @@
     {
       "observation_period_id": 38,
       "person_id": 38,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 39,
+      "person_id": 39,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 40,
+      "person_id": 40,
       "observation_period_start_date": "2012-01-01",
       "observation_period_end_date": "2024-12-31",
       "period_type_concept_id": "32880"
@@ -1163,6 +1193,26 @@
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
       "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 73,
+      "person_id": 39,
+      "condition_concept_id": 4299535,
+      "condition_start_date": "2020-02-18",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy"
+    },
+    {
+      "condition_occurrence_id": 74,
+      "person_id": 40,
+      "condition_concept_id": 440795,
+      "condition_start_date": "2020-01-27",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Complication occurring during labor and delivery"
     }
   ],
   "observation": [
@@ -1433,6 +1483,91 @@
       "person_id": 34,
       "measurement_concept_id": 3036000,
       "measurement_date": "2023-11-30"
+    },
+    {
+      "measurement_id": 13,
+      "person_id": 39,
+      "measurement_concept_id": 3012266,
+      "measurement_date": "2020-02-18",
+      "measurement_datetime": "2020-02-18 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "12",
+      "value_as_concept_id": 0,
+      "unit_concept_id": 8511,
+      "provider_id": "NA"
+    },
+    {
+      "measurement_id": 14,
+      "person_id": 39,
+      "measurement_concept_id": 3012266,
+      "measurement_date": "2020-10-12",
+      "measurement_datetime": "2020-10-12 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "42",
+      "value_as_concept_id": 0,
+      "unit_concept_id": 8511,
+      "provider_id": "NA"
+    },
+    {
+      "measurement_id": 15,
+      "person_id": 40,
+      "measurement_concept_id": 3012266,
+      "measurement_date": "2019-08-04",
+      "measurement_datetime": "2019-08-04 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "17",
+      "value_as_concept_id": 0,
+      "unit_concept_id": 8511,
+      "provider_id": "NA"
+    },
+    {
+      "measurement_id": 17,
+      "person_id": 40,
+      "measurement_concept_id": 3012266,
+      "measurement_date": "2019-11-28",
+      "measurement_datetime": "2019-11-28 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "35",
+      "value_as_concept_id": 0,
+      "unit_concept_id": 8511,
+      "provider_id": "NA"
+    },
+    {
+      "measurement_id": 11,
+      "person_id": 40,
+      "measurement_concept_id": 4091201,
+      "measurement_date": "2020-02-06",
+      "measurement_datetime": "2020-02-06 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "6",
+      "value_as_concept_id": 0,
+      "range_low": "7",
+      "range_high": "10",
+      "provider_id": "NA"
+    },
+    {
+      "measurement_id": 12,
+      "person_id": 40,
+      "measurement_concept_id": 3012266,
+      "measurement_date": "2020-02-21",
+      "measurement_datetime": "2020-02-21 20:00:00",
+      "measurement_time": "NA",
+      "measurement_type_concept_id": 32585,
+      "operator_concept_id": "NA",
+      "value_as_number": "42",
+      "value_as_concept_id": 0,
+      "unit_concept_id": 8511,
+      "provider_id": "NA"
     }
   ],
   "drug_exposure": [

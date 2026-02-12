@@ -133,7 +133,8 @@ runPregnancyIdentifier <- function(cdm,
     startDate = startDate,
     endDate = endDate,
     ageBounds = c(15L, 56L),
-    logger = logger
+    logger = logger,
+    outputDir = outputDir
   )
 
   # ---- Step 2: HIP episodes ---------------------------------------------------

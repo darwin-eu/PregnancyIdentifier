@@ -30,6 +30,9 @@
 #' represented using a length 2 integer vector. By default this will be
 #' c(15, 56) and will include anyone >= 15 and < 56.
 #' @param logger A log4r logger object that can be created with `makeLogger()`
+#' @param outputDir Optional directory path. When provided, an \code{attrition.csv}
+#'   file is created with initial record and person counts for \code{preg_hip_records}
+#'   and \code{preg_pps_records}.
 #'
 #' @returns The input CDM with new tables added called preg_hip_records, preg_pps_records,
 #' preg_hip_concepts, preg_pps_concepts.
@@ -45,7 +48,8 @@ initPregnancies <- function(cdm,
                             startDate  = as.Date("1900-01-01"),
                             endDate    = Sys.Date(),
                             ageBounds  = c(15L, 56L),
-                            logger) {
+                            logger,
+                            outputDir  = NULL) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertDate(startDate, any.missing = FALSE)
@@ -99,8 +103,13 @@ initPregnancies <- function(cdm,
   # ============================================================
   log4r::info(logger, "Pulling HIP concept records from OMOP domain tables")
 
+  # Include gest_value (gestational weeks from HIP_concepts.xlsx) so condition/procedure/observation
+  # rows without value_as_number can still contribute to gestation episodes in buildGestationEpisodes.
   hip <- cdm$preg_hip_concepts |>
-    dplyr::select("concept_id", "category")
+    dplyr::select("concept_id", "category", dplyr::any_of("gest_value"))
+  if (!"gest_value" %in% colnames(hip)) {
+    hip <- hip |> dplyr::mutate(gest_value = NA_real_)
+  }
 
   hipSpecs <- tibble::tribble(
     ~tbl,                         ~conceptCol,               ~dateCol,               ~valueCol,
@@ -123,7 +132,10 @@ initPregnancies <- function(cdm,
   cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
-    dplyr::distinct(.data$person_id, .data$visit_date, .data$category, .data$concept_id, .data$value_as_number) |>
+    dplyr::distinct(
+      .data$person_id, .data$visit_date, .data$category, .data$concept_id,
+      .data$value_as_number, .data$gest_value
+    ) |>
     dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
@@ -163,6 +175,11 @@ initPregnancies <- function(cdm,
 
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
+
+  if (!is.null(outputDir)) {
+    checkmate::assertCharacter(outputDir, len = 1)
+    initAttrition(outputDir, cdm)
+  }
 
   cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm
