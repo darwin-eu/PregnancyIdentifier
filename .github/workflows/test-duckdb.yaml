@@ -1,0 +1,35 @@
+# Run package tests using DuckDB (mock CDM backend). Uses pre-built image with deps.
+on:
+  push:
+    branches: [main, master, test, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+name: Tests (DuckDB)
+
+jobs:
+  test-duckdb:
+    runs-on: ubuntu-latest
+    container:
+      image: executionengine.azurecr.io/darwin-eu-dev/examplestudy-base:latest
+      env:
+        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    name: DuckDB test
+
+    strategy:
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages and prepare data
+        run: |
+          install.packages("devtools", repos = "https://cloud.r-project.org/")
+          install.packages("remotes", repos = "https://cloud.r-project.org/")
+          install.packages("testthat", repos = "https://cloud.r-project.org/")
+          CDMConnector::download_eunomia_data()
+        shell: Rscript {0}
+
+      - name: Run tests (DuckDB)
+        run: R -e 'devtools::install(); devtools::test(filter = "DuckDB")'

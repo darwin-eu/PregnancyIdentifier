@@ -3,6 +3,12 @@
 
 # PregnancyIdentifier
 
+[![Tests (DuckDB)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-duckdb.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-duckdb.yaml)
+[![Tests (PostgreSQL)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml)
+[![Tests (SQLite)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlite.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlite.yaml)
+[![Tests (Snowflake)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml)
+[![Tests (Spark)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml)
+
 Identify pregnancy episodes in OMOP CDM data using the **HIPPS**
 algorithm (Smith et al. 2024,
 [doi:10.1093/jamia/ocae195](https://doi.org/10.1093/jamia/ocae195)).

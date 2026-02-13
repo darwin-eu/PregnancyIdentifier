@@ -1,0 +1,43 @@
+# Run package tests using Snowflake. Requires SNOWFLAKE_* secrets. Uses pre-built image.
+on:
+  push:
+    branches: [main, master, test, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+name: Tests (Snowflake)
+
+jobs:
+  test-snowflake:
+    runs-on: ubuntu-latest
+    container:
+      image: executionengine.azurecr.io/darwin-eu-dev/examplestudy-base:latest
+      env:
+        GITHUB_PAT:           ${{ secrets.GITHUB_TOKEN }}
+        SNOWFLAKE_SERVER:     ${{ secrets.SNOWFLAKE_SERVER }}
+        SNOWFLAKE_USER:       ${{ secrets.SNOWFLAKE_USER }}
+        SNOWFLAKE_PASSWORD:   ${{ secrets.SNOWFLAKE_PASSWORD }}
+        SNOWFLAKE_DATABASE:   ${{ secrets.SNOWFLAKE_DATABASE }}
+        SNOWFLAKE_WAREHOUSE:  ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+        SNOWFLAKE_DRIVER:     ${{ secrets.SNOWFLAKE_DRIVER }}
+        SNOWFLAKE_SCHEMA:     ${{ secrets.SNOWFLAKE_SCHEMA }}
+
+    name: Snowflake test
+
+    strategy:
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages and prepare data
+        run: |
+          install.packages("devtools", repos = "https://cloud.r-project.org/")
+          install.packages("remotes", repos = "https://cloud.r-project.org/")
+          install.packages("testthat", repos = "https://cloud.r-project.org/")
+          CDMConnector::download_eunomia_data()
+        shell: Rscript {0}
+
+      - name: Run tests (Snowflake)
+        run: R -e 'devtools::install(); devtools::test(filter = "Snowflake")'
