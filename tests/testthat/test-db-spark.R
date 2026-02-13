@@ -1,45 +1,32 @@
-# Database test: Spark (Databricks). Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
-# Runs only when DATABRICKS_* env vars are set. Runs in parallel with other test-db-* files.
-# See CDMConnector vignette a04_DBI_connection_examples (odbc::databricks).
+# Database test: DATABRICKS/SPARK Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
 
-test_that("runPregnancyIdentifier on Spark/Databricks (copyCdmTo) produces result files", {
+test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
   skip_if_not_installed("odbc")
-  httpPath <- Sys.getenv("DATABRICKS_HTTPPATH", NA_character_)
-  if (is.na(httpPath) || !nzchar(httpPath)) {
-    skip("Spark/Databricks test skipped: set DATABRICKS_HTTPPATH, DATABRICKS_HOST, DATABRICKS_TOKEN to run")
-  }
-  host <- Sys.getenv("DATABRICKS_HOST", "")
-  token <- Sys.getenv("DATABRICKS_TOKEN", "")
-  schema <- Sys.getenv("DATABRICKS_SCHEMA", "scratch")
-  if (!nzchar(host) || !nzchar(token)) {
-    skip("Spark/Databricks test skipped: set DATABRICKS_HOST and DATABRICKS_TOKEN to run")
-  }
 
-  cdm_src <- mockPregnancyCdm()
+  con <- get_connection("spark")
+  writeSchema <- get_write_schema("spark", prefix = "preg_")
 
-  con <- DBI::dbConnect(
-    odbc::databricks(),
-    httpPath = httpPath,
-    useNativeQuery = FALSE
-  )
-  on.exit(
-    {
-      if (DBI::dbIsValid(con)) DBI::dbDisconnect(con)
-    },
-    add = TRUE
-  )
+  # only do this once
+  cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
 
   cdm <- CDMConnector::copyCdmTo(
     con = con,
     cdm = cdm_src,
-    schema = schema,
+    schema = writeSchema,
     overwrite = TRUE
   )
   cleanupCdmDb(cdm_src)
 
-  outputDir <- file.path(tempdir(), "test_db_spark")
+  cdm <- CDMConnector::cdmFromCon(
+    con,
+    cdmSchema = writeSchema,
+    writeSchema = writeSchema,
+    cdmName = "preg_postgres_test"
+  )
+
+
+  outputDir <- file.path(tempdir(), "test_db_postgres")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  on.exit(unlink(outputDir, recursive = TRUE), add = TRUE)
 
   runPregnancyIdentifier(
     cdm = cdm,
@@ -56,5 +43,11 @@ test_that("runPregnancyIdentifier on Spark/Databricks (copyCdmTo) produces resul
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")),
               label = "final_pregnancy_episodes.rds exists")
 
+  final <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+
+  expect_true(nrow(final) > 0)
+
+  unlink(outputDir, recursive = TRUE)
+  disconnect(con)
   CDMConnector::cdmDisconnect(cdm)
 })

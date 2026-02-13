@@ -2,51 +2,40 @@
 # Runs only when SNOWFLAKE_* env vars are set. Runs in parallel with other test-db-* files.
 # See CDMConnector vignette a04_DBI_connection_examples (odbc).
 
-test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files", {
+# Database test: PostgreSQL. Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
+# Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
+
+test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
   skip_if_not_installed("odbc")
-  server <- Sys.getenv("SNOWFLAKE_SERVER", NA_character_)
-  if (is.na(server) || !nzchar(server)) {
-    skip("Snowflake test skipped: set SNOWFLAKE_SERVER, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_DATABASE, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DRIVER to run")
-  }
-  user <- Sys.getenv("SNOWFLAKE_USER", "")
-  password <- Sys.getenv("SNOWFLAKE_PASSWORD", "")
-  database <- Sys.getenv("SNOWFLAKE_DATABASE", "")
-  warehouse <- Sys.getenv("SNOWFLAKE_WAREHOUSE", "")
-  driver <- Sys.getenv("SNOWFLAKE_DRIVER", "SnowflakeDSIIDriver")
-  schema <- Sys.getenv("SNOWFLAKE_SCHEMA", "PUBLIC")
-  if (!nzchar(user)) {
-    skip("Snowflake test skipped: set SNOWFLAKE_USER to run")
-  }
 
-  cdm_src <- mockPregnancyCdm()
+  con <- get_connection("snowflake")
 
-  con <- DBI::dbConnect(
-    odbc::odbc(),
-    SERVER = server,
-    UID = user,
-    PWD = password,
-    DATABASE = database,
-    WAREHOUSE = warehouse,
-    DRIVER = driver
-  )
-  on.exit(
-    {
-      if (DBI::dbIsValid(con)) DBI::dbDisconnect(con)
-    },
-    add = TRUE
-  )
+  # DBI::dbGetQuery(con, "select current_role() as role, current_database() as db, current_schema() as schema")
+  # DBI::dbGetQuery(con, "create database if not exists SCRATCH;")
+  # DBI::dbGetQuery(con, "grant ownership on database SCRATCH to role ACCOUNTADMIN;")
+  # DBI::dbExecute(con, "create schema preg;")
 
+  writeSchema <- get_write_schema("snowflake", prefix = "preg_")
+
+  cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
   cdm <- CDMConnector::copyCdmTo(
     con = con,
     cdm = cdm_src,
-    schema = schema,
+    schema = writeSchema,
     overwrite = TRUE
   )
   cleanupCdmDb(cdm_src)
 
-  outputDir <- file.path(tempdir(), "test_db_snowflake")
+  cdm <- CDMConnector::cdmFromCon(
+    con,
+    cdmSchema = writeSchema,
+    writeSchema = writeSchema,
+    cdmName = "preg_snowflake_test"
+  )
+
+
+  outputDir <- file.path(tempdir(), "test_db_postgres")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  on.exit(unlink(outputDir, recursive = TRUE), add = TRUE)
 
   runPregnancyIdentifier(
     cdm = cdm,
@@ -63,5 +52,12 @@ test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")),
               label = "final_pregnancy_episodes.rds exists")
 
+  final <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+
+  expect_true(nrow(final) > 0)
+
+  unlink(outputDir, recursive = TRUE)
+  cleanupCdmDb(cdm_src)
+  disconnect(con)
   CDMConnector::cdmDisconnect(cdm)
 })
