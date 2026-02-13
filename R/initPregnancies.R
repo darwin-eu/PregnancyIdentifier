@@ -119,8 +119,13 @@ initPregnancies <- function(cdm,
     cdm$measurement,              "measurement_concept_id",   "measurement_date",      "value_as_number"
   )
 
+  # Cast value_as_number so UNION has a single type (avoids "UNION types text and numeric cannot be matched")
   hipEvents <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
-    extra <- if (!is.na(valueCol)) list(value_as_number = rlang::sym(valueCol)) else list(value_as_number = NA_real_)
+    extra <- if (!is.na(valueCol)) {
+      list(value_as_number = rlang::expr(as.numeric(!!rlang::sym(valueCol))))
+    } else {
+      list(value_as_number = rlang::expr(as.numeric(NA)))
+    }
     pullDomain(tbl, conceptCol, dateCol, extra)
   }) |>
     purrr::reduce(dplyr::union_all) |>
