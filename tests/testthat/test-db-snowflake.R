@@ -7,6 +7,7 @@
 
 test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
   skip_if_not_installed("odbc")
+  skip_if(Sys.getenv("SNOWFLAKE_SERVER") == "")
 
   con <- get_connection("snowflake")
 
@@ -17,14 +18,15 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
 
   writeSchema <- get_write_schema("snowflake", prefix = "preg_")
 
-  cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
-  cdm <- CDMConnector::copyCdmTo(
-    con = con,
-    cdm = cdm_src,
-    schema = writeSchema,
-    overwrite = TRUE
-  )
-  cleanupCdmDb(cdm_src)
+  # only need to do this once
+  # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
+  # cdm <- CDMConnector::copyCdmTo(
+  #   con = con,
+  #   cdm = cdm_src,
+  #   schema = writeSchema,
+  #   overwrite = TRUE
+  # )
+  # cleanupCdmDb(cdm_src)
 
   cdm <- CDMConnector::cdmFromCon(
     con,
@@ -33,8 +35,7 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
     cdmName = "preg_snowflake_test"
   )
 
-
-  outputDir <- file.path(tempdir(), "test_db_postgres")
+  outputDir <- file.path(tempdir(), "test_db_snowflake")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 
   runPregnancyIdentifier(

@@ -3,7 +3,7 @@
 
 test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
   skip_if_not_installed("RPostgres")
-
+  skip_if(Sys.getenv("CDM5_POSTGRESQL_DBNAME") == "")
   con <- get_connection("postgres")
   writeSchema <- get_write_schema("postgres", prefix = "preg_")
 
