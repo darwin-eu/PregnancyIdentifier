@@ -17,18 +17,44 @@ sapply(list.files("utils", full.names = T), source)
 ############################ Load data ############################
 
 if (!exists("shinySettings")) {
-  dataFolder <- "data-test"
-  if (file.exists(dataFolder)) {
-    shinySettings <- list(dataFolder = dataFolder)
+  # Allow tests to force a data folder via option or env var (e.g. shinytest2)
+  opt_data <- getOption("shiny.data.folder", "")
+  env_data <- Sys.getenv("SHINY_DATA_FOLDER", "")
+  if (nzchar(opt_data)) {
+    shinySettings <- list(dataFolder = opt_data)
+  } else if (nzchar(env_data)) {
+    shinySettings <- list(dataFolder = env_data)
   } else {
-    shinySettings <- list(dataFolder = paste0("./", dataFolder))
+    dataFolder <- "data-test"
+    if (file.exists(dataFolder)) {
+      shinySettings <- list(dataFolder = dataFolder)
+    } else {
+      shinySettings <- list(dataFolder = paste0("./", dataFolder))
+    }
   }
 }
 
 dataFolder <- shinySettings$dataFolder
 
-zipFiles <- list.files(dataFolder, pattern = ".zip", full.names = TRUE)
+zipFiles <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
+# Only process existing non-NA paths (exclude missing paths or directories)
+zipFiles <- zipFiles[!is.na(zipFiles) & nzchar(zipFiles)]
+if (length(zipFiles) > 0) {
+  info <- file.info(zipFiles)
+  zipFiles <- zipFiles[file.exists(zipFiles) & !is.na(info$size) & info$size > 0]
+}
 
+if (length(zipFiles) == 0) {
+  # No export zip files: launch minimal app so shinytest can verify UI
+  ui <- fluidPage(
+    titlePanel("PregnancyIdentifier"),
+    mainPanel(
+      shiny::p("No data available. Add export zip files to the data folder to view results.")
+    )
+  )
+  server <- function(input, output, session) {}
+  shiny::shinyApp(ui = ui, server = server)
+} else {
 for (i in 1:length(zipFiles)) {
   writeLines(paste("Processing", zipFiles[i]))
   tempFolder <- tempfile()
@@ -253,5 +279,42 @@ appStructure <- list(
   )
 )
 
+# PET comparison tab (when comparePregnancyIdentifierWithPET outputs are loaded from zip)
+if (exists("petComparisonEpisodeCounts", envir = .GlobalEnv)) {
+  petComparisonEpisodeCounts <- get("petComparisonEpisodeCounts", envir = .GlobalEnv)
+  appStructure[["PET comparison"]] <- list(
+    "Episode counts" = handleEmptyResult(object = FilterTableModule$new(data = petComparisonEpisodeCounts), result = petComparisonEpisodeCounts)
+  )
+  if (exists("petComparisonVennCounts", envir = .GlobalEnv)) {
+    petComparisonVennCounts <- get("petComparisonVennCounts", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Venn counts"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonVennCounts), result = petComparisonVennCounts)
+  }
+  if (exists("petComparisonPpvSensitivity", envir = .GlobalEnv)) {
+    petComparisonPpvSensitivity <- get("petComparisonPpvSensitivity", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["PPV and sensitivity"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonPpvSensitivity), result = petComparisonPpvSensitivity)
+  }
+  if (exists("petComparisonDateDifferenceSummary", envir = .GlobalEnv)) {
+    petComparisonDateDifferenceSummary <- get("petComparisonDateDifferenceSummary", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Date difference summary"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonDateDifferenceSummary), result = petComparisonDateDifferenceSummary)
+  }
+  if (exists("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)) {
+    petComparisonOutcomeConfusionMatrix <- get("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Outcome confusion matrix"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeConfusionMatrix), result = petComparisonOutcomeConfusionMatrix)
+  }
+  if (exists("petComparisonOutcomeAccuracy", envir = .GlobalEnv)) {
+    petComparisonOutcomeAccuracy <- get("petComparisonOutcomeAccuracy", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Outcome accuracy"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeAccuracy), result = petComparisonOutcomeAccuracy)
+  }
+  if (exists("petComparisonDurationSummary", envir = .GlobalEnv)) {
+    petComparisonDurationSummary <- get("petComparisonDurationSummary", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Duration summary"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationSummary), result = petComparisonDurationSummary)
+  }
+  if (exists("petComparisonDurationDistribution", envir = .GlobalEnv)) {
+    petComparisonDurationDistribution <- get("petComparisonDurationDistribution", envir = .GlobalEnv)
+    appStructure[["PET comparison"]][["Duration distribution"]] <- handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationDistribution), result = petComparisonDurationDistribution)
+  }
+}
+
 app <- DarwinDashboardApp$new(appStructure, title = "PregnancyIdentifier")
 app$launch()
+}
