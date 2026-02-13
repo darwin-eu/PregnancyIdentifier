@@ -265,24 +265,24 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$outcome_date) %>%
     dplyr::mutate(
-      previousCategory = dplyr::lag(.data$outcome_category),
-      prevVisit = dplyr::lag(.data$outcome_date),
-      nextCategory = dplyr::lead(.data$outcome_category),
-      nextVisit = dplyr::lead(.data$outcome_date)
+      previous_category = dplyr::lag(.data$outcome_category),
+      prev_visit = dplyr::lag(.data$outcome_date),
+      next_category = dplyr::lead(.data$outcome_category),
+      next_visit = dplyr::lead(.data$outcome_date)
     ) %>%
     dplyr::mutate(
-      afterDays = !!CDMConnector::datediff("prevVisit", "outcome_date", "day"),
-      beforeDays = !!CDMConnector::datediff("outcome_date", "nextVisit", "day")
+      after_days = !!CDMConnector::datediff("prev_visit", "outcome_date", "day"),
+      before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     ) %>%
     dplyr::filter(.data$outcome_category == "SB") %>%
     dplyr::filter(
-      (is.na(.data$beforeDays) & is.na(.data$afterDays)) |
-        (.data$previousCategory != "LB" & is.na(.data$nextCategory)) |
-        (.data$nextCategory != "LB" & is.na(.data$previousCategory)) |
-        (.data$previousCategory != "LB" & .data$nextCategory != "LB") |
-        (.data$previousCategory == "LB" & .data$afterDays >= beforeMinLbSb & is.na(.data$nextCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinSbLb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinSbLb & .data$previousCategory == "LB" & .data$afterDays >= beforeMinLbSb)
+      (is.na(.data$before_days) & is.na(.data$after_days)) |
+        (.data$previous_category != "LB" & is.na(.data$next_category)) |
+        (.data$next_category != "LB" & is.na(.data$previous_category)) |
+        (.data$previous_category != "LB" & .data$next_category != "LB") |
+        (.data$previous_category == "LB" & .data$after_days >= beforeMinLbSb & is.na(.data$next_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinSbLb & is.na(.data$previous_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinSbLb & .data$previous_category == "LB" & .data$after_days >= beforeMinLbSb)
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select("person_id", "outcome_category", "outcome_date")
@@ -301,26 +301,26 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$outcome_date) %>%
     dplyr::mutate(
-      previousCategory = dplyr::lag(.data$outcome_category),
-      nextCategory = dplyr::lead(.data$outcome_category),
-      prevVisit = dplyr::lag(.data$outcome_date),
-      nextVisit = dplyr::lead(.data$outcome_date)
+      previous_category = dplyr::lag(.data$outcome_category),
+      next_category = dplyr::lead(.data$outcome_category),
+      prev_visit = dplyr::lag(.data$outcome_date),
+      next_visit = dplyr::lead(.data$outcome_date)
     ) %>%
     dplyr::mutate(
-      afterDays = !!CDMConnector::datediff("prevVisit", "outcome_date", "day"),
-      beforeDays = !!CDMConnector::datediff("outcome_date", "nextVisit", "day")
+      after_days = !!CDMConnector::datediff("prev_visit", "outcome_date", "day"),
+      before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     ) %>%
     dplyr::filter(.data$outcome_category == "ECT") %>%
     dplyr::filter(
-      (is.na(.data$beforeDays) & is.na(.data$afterDays)) |
-        (!.data$previousCategory %in% c("LB", "SB") & is.na(.data$nextCategory)) |
-        (!.data$nextCategory %in% c("LB", "SB") & is.na(.data$previousCategory)) |
-        (!.data$previousCategory %in% c("LB", "SB") & !.data$nextCategory %in% c("LB", "SB")) |
-        (.data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbEct & is.na(.data$nextCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinEctLb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "SB" & .data$beforeDays >= afterMinEctSb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinEctLb & .data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbEct) |
-        (.data$nextCategory == "SB" & .data$beforeDays >= afterMinEctSb & .data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbEct)
+      (is.na(.data$before_days) & is.na(.data$after_days)) |
+        (!.data$previous_category %in% c("LB", "SB") & is.na(.data$next_category)) |
+        (!.data$next_category %in% c("LB", "SB") & is.na(.data$previous_category)) |
+        (!.data$previous_category %in% c("LB", "SB") & !.data$next_category %in% c("LB", "SB")) |
+        (.data$previous_category %in% c("LB", "SB") & .data$after_days >= beforeMinLbEct & is.na(.data$next_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinEctLb & is.na(.data$previous_category)) |
+        (.data$next_category == "SB" & .data$before_days >= afterMinEctSb & is.na(.data$previous_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinEctLb & .data$previous_category %in% c("LB", "SB") & .data$after_days >= beforeMinLbEct) |
+        (.data$next_category == "SB" & .data$before_days >= afterMinEctSb & .data$previous_category %in% c("LB", "SB") & .data$after_days >= beforeMinLbEct)
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select("person_id", "outcome_category", "outcome_date")
@@ -335,39 +335,39 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
   afterMinAbSb <- getMatchoMinDays(cdm, "AB", "SB")
   afterMinAbEct <- getMatchoMinDays(cdm, "AB", "ECT")
   abSaTbl <- finalAbSaVisits %>%
-    dplyr::mutate(tempCategory = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category))
+    dplyr::mutate(temp_category = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category))
   abCandidates <- afterEct %>%
     dplyr::union_all(abSaTbl %>% dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))) %>%
-    dplyr::mutate(tempCategory = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category)) %>%
+    dplyr::mutate(temp_category = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category)) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$outcome_date) %>%
     dplyr::mutate(
-      previousCategory = dplyr::lag(.data$tempCategory),
-      nextCategory = dplyr::lead(.data$tempCategory),
-      prevVisit = dplyr::lag(.data$outcome_date),
-      nextVisit = dplyr::lead(.data$outcome_date)
+      previous_category = dplyr::lag(.data$temp_category),
+      next_category = dplyr::lead(.data$temp_category),
+      prev_visit = dplyr::lag(.data$outcome_date),
+      next_visit = dplyr::lead(.data$outcome_date)
     ) %>%
     dplyr::mutate(
-      afterDays = !!CDMConnector::datediff("prevVisit", "outcome_date", "day"),
-      beforeDays = !!CDMConnector::datediff("outcome_date", "nextVisit", "day")
+      after_days = !!CDMConnector::datediff("prev_visit", "outcome_date", "day"),
+      before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     ) %>%
-    dplyr::filter(.data$tempCategory == "AB") %>%
+    dplyr::filter(.data$temp_category == "AB") %>%
     dplyr::filter(
-      (is.na(.data$beforeDays) & is.na(.data$afterDays)) |
-        (!.data$previousCategory %in% c("LB", "SB", "ECT") & is.na(.data$nextCategory)) |
-        (!.data$nextCategory %in% c("LB", "SB", "ECT") & is.na(.data$previousCategory)) |
-        (!.data$previousCategory %in% c("LB", "SB", "ECT") & !.data$nextCategory %in% c("LB", "SB", "ECT")) |
-        (.data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbAb & is.na(.data$nextCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinAbLb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "SB" & .data$beforeDays >= afterMinAbSb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "LB" & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinAbLb & .data$afterDays >= beforeMinLbAb) |
-        (.data$nextCategory == "SB" & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinAbSb & .data$afterDays >= beforeMinLbAb) |
-        (.data$previousCategory == "ECT" & .data$afterDays >= beforeMinEctAb & is.na(.data$nextCategory)) |
-        (.data$nextCategory == "ECT" & .data$beforeDays >= afterMinAbEct & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "ECT" & .data$previousCategory == "ECT" & .data$beforeDays >= afterMinAbEct & .data$afterDays >= beforeMinEctAb) |
-        (.data$nextCategory == "ECT" & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinAbEct & .data$afterDays >= beforeMinLbAb) |
-        (.data$nextCategory == "LB" & .data$previousCategory == "ECT" & .data$beforeDays >= afterMinAbLb & .data$afterDays >= beforeMinEctAb) |
-        (.data$nextCategory == "SB" & .data$previousCategory == "ECT" & .data$beforeDays >= afterMinAbSb & .data$afterDays >= beforeMinEctAb)
+      (is.na(.data$before_days) & is.na(.data$after_days)) |
+        (!.data$previous_category %in% c("LB", "SB", "ECT") & is.na(.data$next_category)) |
+        (!.data$next_category %in% c("LB", "SB", "ECT") & is.na(.data$previous_category)) |
+        (!.data$previous_category %in% c("LB", "SB", "ECT") & !.data$next_category %in% c("LB", "SB", "ECT")) |
+        (.data$previous_category %in% c("LB", "SB") & .data$after_days >= beforeMinLbAb & is.na(.data$next_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinAbLb & is.na(.data$previous_category)) |
+        (.data$next_category == "SB" & .data$before_days >= afterMinAbSb & is.na(.data$previous_category)) |
+        (.data$next_category == "LB" & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinAbLb & .data$after_days >= beforeMinLbAb) |
+        (.data$next_category == "SB" & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinAbSb & .data$after_days >= beforeMinLbAb) |
+        (.data$previous_category == "ECT" & .data$after_days >= beforeMinEctAb & is.na(.data$next_category)) |
+        (.data$next_category == "ECT" & .data$before_days >= afterMinAbEct & is.na(.data$previous_category)) |
+        (.data$next_category == "ECT" & .data$previous_category == "ECT" & .data$before_days >= afterMinAbEct & .data$after_days >= beforeMinEctAb) |
+        (.data$next_category == "ECT" & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinAbEct & .data$after_days >= beforeMinLbAb) |
+        (.data$next_category == "LB" & .data$previous_category == "ECT" & .data$before_days >= afterMinAbLb & .data$after_days >= beforeMinEctAb) |
+        (.data$next_category == "SB" & .data$previous_category == "ECT" & .data$before_days >= afterMinAbSb & .data$after_days >= beforeMinEctAb)
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select("person_id", "outcome_category", "outcome_date")
@@ -385,28 +385,32 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::union_all(
       finalDelivVisits %>% dplyr::select(-dplyr::any_of(c("gest_value", "value_as_number")))
     ) %>%
-    dplyr::mutate(tempCategory = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category)) %>%
+    dplyr::mutate(temp_category = dplyr::if_else(.data$outcome_category == "SA", "AB", .data$outcome_category)) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$outcome_date) %>%
     dplyr::mutate(
-      previousCategory = dplyr::lag(.data$tempCategory),
-      prevVisit = dplyr::lag(.data$outcome_date),
-      nextCategory = dplyr::lead(.data$tempCategory),
-      nextVisit = dplyr::lead(.data$outcome_date)
+      previous_category = dplyr::lag(.data$temp_category),
+      prev_visit = dplyr::lag(.data$outcome_date),
+      next_category = dplyr::lead(.data$temp_category),
+      next_visit = dplyr::lead(.data$outcome_date)
     ) %>%
     dplyr::mutate(
-      afterDays = !!CDMConnector::datediff("prevVisit", "outcome_date", "day"),
-      beforeDays = !!CDMConnector::datediff("outcome_date", "nextVisit", "day")
+      after_days = !!CDMConnector::datediff("prev_visit", "outcome_date", "day"),
+      before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     )
+  # Materialize so later union/compute does not emit unqualified "prev_visit" in SQL (PostgreSQL)
+  cdm$deliv_tbl_staging <- delivTbl %>%
+    dplyr::compute(name = "deliv_tbl_staging", temporary = FALSE, overwrite = TRUE)
+  delivTbl <- cdm$deliv_tbl_staging
   # Non-DELIV rows: move LB/SB outcome_date earlier when DELIV precedes and spacing < afterMinDelivSb
   nonDeliv <- delivTbl %>%
     dplyr::filter(.data$outcome_category != "DELIV") %>%
     dplyr::mutate(
       outcome_date = dplyr::if_else(
-        !is.na(.data$previousCategory) &
-          .data$previousCategory == "DELIV" &
-          .data$outcome_category %in% c("LB", "SB") & .data$afterDays < afterMinDelivSb,
-        .data$prevVisit,
+        !is.na(.data$previous_category) &
+          .data$previous_category == "DELIV" &
+          .data$outcome_category %in% c("LB", "SB") & .data$after_days < afterMinDelivSb,
+        .data$prev_visit,
         .data$outcome_date
       )
     ) %>%
@@ -415,21 +419,21 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
   delivCandidates <- delivTbl %>%
     dplyr::filter(.data$outcome_category == "DELIV") %>%
     dplyr::filter(
-      (is.na(.data$beforeDays) & is.na(.data$afterDays)) |
-        (!.data$previousCategory %in% c("LB", "SB", "ECT", "AB") & is.na(.data$nextCategory)) |
-        (!.data$nextCategory %in% c("LB", "SB", "ECT", "AB") & is.na(.data$previousCategory)) |
-        (!.data$previousCategory %in% c("LB", "SB", "ECT", "AB") & !.data$nextCategory %in% c("LB", "SB", "ECT", "AB")) |
-        (.data$previousCategory %in% c("LB", "SB") & .data$afterDays >= beforeMinLbDeliv & is.na(.data$nextCategory)) |
-        (.data$nextCategory == "LB" & .data$beforeDays >= afterMinDelivLb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "SB" & .data$beforeDays >= afterMinDelivSb & is.na(.data$previousCategory)) |
-        (.data$nextCategory == "LB" & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinDelivLb & .data$afterDays >= beforeMinLbDeliv) |
-        (.data$nextCategory == "SB" & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinDelivSb & .data$afterDays >= beforeMinLbDeliv) |
-        (.data$previousCategory %in% c("ECT", "AB") & .data$afterDays >= beforeMinEctDeliv & is.na(.data$nextCategory)) |
-        (.data$nextCategory %in% c("ECT", "AB") & .data$beforeDays >= afterMinDelivEct & is.na(.data$previousCategory)) |
-        (.data$nextCategory %in% c("ECT", "AB") & .data$previousCategory %in% c("ECT", "AB") & .data$beforeDays >= afterMinDelivEct & .data$afterDays >= beforeMinEctDeliv) |
-        (.data$nextCategory %in% c("ECT", "AB") & .data$previousCategory %in% c("LB", "SB") & .data$beforeDays >= afterMinDelivEct & .data$afterDays >= beforeMinLbDeliv) |
-        (.data$nextCategory == "LB" & .data$previousCategory %in% c("ECT", "AB") & .data$beforeDays >= afterMinDelivLb & .data$afterDays >= beforeMinEctDeliv) |
-        (.data$nextCategory == "SB" & .data$previousCategory %in% c("ECT", "AB") & .data$beforeDays >= afterMinDelivSb & .data$afterDays >= beforeMinEctDeliv)
+      (is.na(.data$before_days) & is.na(.data$after_days)) |
+        (!.data$previous_category %in% c("LB", "SB", "ECT", "AB") & is.na(.data$next_category)) |
+        (!.data$next_category %in% c("LB", "SB", "ECT", "AB") & is.na(.data$previous_category)) |
+        (!.data$previous_category %in% c("LB", "SB", "ECT", "AB") & !.data$next_category %in% c("LB", "SB", "ECT", "AB")) |
+        (.data$previous_category %in% c("LB", "SB") & .data$after_days >= beforeMinLbDeliv & is.na(.data$next_category)) |
+        (.data$next_category == "LB" & .data$before_days >= afterMinDelivLb & is.na(.data$previous_category)) |
+        (.data$next_category == "SB" & .data$before_days >= afterMinDelivSb & is.na(.data$previous_category)) |
+        (.data$next_category == "LB" & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinDelivLb & .data$after_days >= beforeMinLbDeliv) |
+        (.data$next_category == "SB" & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinDelivSb & .data$after_days >= beforeMinLbDeliv) |
+        (.data$previous_category %in% c("ECT", "AB") & .data$after_days >= beforeMinEctDeliv & is.na(.data$next_category)) |
+        (.data$next_category %in% c("ECT", "AB") & .data$before_days >= afterMinDelivEct & is.na(.data$previous_category)) |
+        (.data$next_category %in% c("ECT", "AB") & .data$previous_category %in% c("ECT", "AB") & .data$before_days >= afterMinDelivEct & .data$after_days >= beforeMinEctDeliv) |
+        (.data$next_category %in% c("ECT", "AB") & .data$previous_category %in% c("LB", "SB") & .data$before_days >= afterMinDelivEct & .data$after_days >= beforeMinLbDeliv) |
+        (.data$next_category == "LB" & .data$previous_category %in% c("ECT", "AB") & .data$before_days >= afterMinDelivLb & .data$after_days >= beforeMinEctDeliv) |
+        (.data$next_category == "SB" & .data$previous_category %in% c("ECT", "AB") & .data$before_days >= afterMinDelivSb & .data$after_days >= beforeMinEctDeliv)
     ) %>%
     dplyr::ungroup() %>%
     dplyr::select("person_id", "outcome_category", "outcome_date")
@@ -443,6 +447,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     cdm$outcome_episodes_df <- allOutcomes %>%
       dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
+  cdm <- omopgenerics::dropSourceTable(cdm, "deliv_tbl_staging")
   log4r::info(logger, "Stage 1: outcome episodes materialized")
   cdm
 }
@@ -514,6 +519,10 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
       episode = as.integer(cumsum(ifelse(.data$new_diff2 <= 0 | .data$index == 1, 1, 0)))
     ) %>%
     dplyr::ungroup()
+  # Materialize so later join/compute does not reference gest_value from wrong scope (PostgreSQL)
+  cdm$gest_episodes_staging <- gestationEpisodesTbl %>%
+    dplyr::compute(name = "gest_episodes_staging", temporary = FALSE, overwrite = TRUE)
+  gestationEpisodesTbl <- cdm$gest_episodes_staging
   newFirst <- gestationEpisodesTbl %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%
     dplyr::slice_min(.data$visit_date, n = 1) %>%
@@ -582,6 +591,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
       dplyr::select(-"max_gest_start_date_further") %>%
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
+  cdm <- omopgenerics::dropSourceTable(cdm, "gest_episodes_staging")
 
   log4r::info(logger, "Stage 2: gestation episodes materialized")
   cdm
