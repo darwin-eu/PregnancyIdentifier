@@ -29,9 +29,9 @@ get_connection <- function(dbms) {
   if (dbms == "postgres") {
     dbname <- Sys.getenv("CDM5_POSTGRESQL_DBNAME")
     host <- Sys.getenv("CDM5_POSTGRESQL_HOST")
-    user <- Sys.getenv("CDM5_POSTGRESQL_USER", Sys.getenv("PG_USER", ""))
-    password <- Sys.getenv("CDM5_POSTGRESQL_PASSWORD", Sys.getenv("PG_PASSWORD", ""))
-    port <- as.integer(Sys.getenv("CDM5_POSTGRESQL_PORT", Sys.getenv("PG_PORT", "5432")))
+    user <- Sys.getenv("CDM5_POSTGRESQL_USER")
+    password <- Sys.getenv("CDM5_POSTGRESQL_PASSWORD")
+    port <- as.integer(Sys.getenv("CDM5_POSTGRESQL_PORT", "5432"))
     return(DBI::dbConnect(RPostgres::Postgres(),
                           dbname = dbname,
                           host = host,
