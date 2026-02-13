@@ -468,12 +468,15 @@ estimateOutcomeStarts <- function(cdm) {
     dplyr::left_join(cdm$preg_matcho_term_durations, by = c("outcome_category" = "category")) %>%
     dplyr::mutate(
       min_term = as.integer(dplyr::coalesce(.data$min_term, DEFAULT_MATCHO_MIN_TERM_DAYS)),
-      max_term = as.integer(dplyr::coalesce(.data$max_term, DEFAULT_MATCHO_MAX_TERM_DAYS))
+      max_term = as.integer(dplyr::coalesce(.data$max_term, DEFAULT_MATCHO_MAX_TERM_DAYS)),
+      neg_min_term = -!!rlang::sym("min_term"),
+      neg_max_term = -!!rlang::sym("max_term")
     ) %>%
     dplyr::mutate(
-      min_start_date = as.Date(!!CDMConnector::dateadd(date = "outcome_date", number = "-min_term", interval = "day")),
-      max_start_date = as.Date(!!CDMConnector::dateadd(date = "outcome_date", number = "-max_term", interval = "day"))
-    )
+      min_start_date = as.Date(!!CDMConnector::dateadd(date = "outcome_date", number = "neg_min_term", interval = "day")),
+      max_start_date = as.Date(!!CDMConnector::dateadd(date = "outcome_date", number = "neg_max_term", interval = "day"))
+    ) %>%
+    dplyr::select(-"neg_min_term", -"neg_max_term")
 }
 
 # buildGestationEpisodes()
@@ -563,11 +566,13 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
     ) %>%
     dplyr::mutate(
       max_gest_day = as.integer(.data$max_gest_week * 7),
-      min_gest_day = as.integer(.data$min_gest_week * 7)
+      min_gest_day = as.integer(.data$min_gest_week * 7),
+      neg_max_gest_day = -!!rlang::sym("max_gest_day"),
+      neg_min_gest_day = -!!rlang::sym("min_gest_day")
     ) %>%
     dplyr::mutate(
-      max_gest_start_date = !!CDMConnector::dateadd(date = "max_gest_date", number = "-max_gest_day", interval = "day"),
-      min_gest_start_date = !!CDMConnector::dateadd(date = "min_gest_date", number = "-min_gest_day", interval = "day")
+      max_gest_start_date = !!CDMConnector::dateadd(date = "max_gest_date", number = "neg_max_gest_day", interval = "day"),
+      min_gest_start_date = !!CDMConnector::dateadd(date = "min_gest_date", number = "neg_min_gest_day", interval = "day")
     ) %>%
     dplyr::mutate(
       max_gest_start_date_further = dplyr::if_else(
@@ -588,7 +593,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
   suppressWarnings({
     # SQL is quite long but should be ok.
     cdm$gest_episodes_df <- joined %>%
-      dplyr::select(-"max_gest_start_date_further") %>%
+      dplyr::select(-"max_gest_start_date_further", -"neg_max_gest_day", -"neg_min_gest_day") %>%
       dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   })
   cdm <- omopgenerics::dropSourceTable(cdm, "gest_episodes_staging")
