@@ -250,15 +250,20 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     utils::write.csv(date_diff, file.path(outputFolder, "pet_comparison_date_differences.csv"), row.names = FALSE)
     log4r::info(logger, sprintf("Date difference summary written to %s", dateSummaryPath))
 
-    # Histogram data for start_diff_days
-    br <- seq(
-      floor(min(date_diff$start_diff_days, na.rm = TRUE)) - 0.5,
-      ceiling(max(date_diff$start_diff_days, na.rm = TRUE)) + 0.5,
-      by = 1
-    )
-    hist_start <- as.data.frame(table(cut(date_diff$start_diff_days, breaks = br), use.na = "no"))
-    colnames(hist_start) <- c("bin", "count")
-    utils::write.csv(hist_start, file.path(outputFolder, "pet_comparison_start_diff_histogram.csv"), row.names = FALSE)
+    # Histogram data for start_diff_days (only when we have valid breaks)
+    x <- date_diff$start_diff_days[!is.na(date_diff$start_diff_days)]
+    if (length(x) > 0L) {
+      br <- seq(
+        floor(min(x)) - 0.5,
+        ceiling(max(x)) + 0.5,
+        by = 1
+      )
+      if (length(br) >= 2L) {
+        hist_start <- as.data.frame(table(cut(date_diff$start_diff_days, breaks = br), useNA = "no"))
+        colnames(hist_start) <- c("bin", "count")
+        utils::write.csv(hist_start, file.path(outputFolder, "pet_comparison_start_diff_histogram.csv"), row.names = FALSE)
+      }
+    }
   }
 
   # ---- 3) Outcome confusion matrix (matched pairs) ----
