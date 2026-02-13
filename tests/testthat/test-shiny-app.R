@@ -9,17 +9,16 @@ test_that("Shiny app loads and shows no-data message when data folder has no zip
   app_dir <- system.file("shiny", package = "PregnancyIdentifier")
   testthat::skip_if_not(dir.exists(app_dir), "Shiny app dir not found (package not installed?)")
 
-  # Force app to use an empty data folder (inherited by shinytest2's child R process)
+  # Force app to use an empty data folder via options (passed to shinytest2 child process)
   empty_data_dir <- tempfile("shiny_data_")
   dir.create(empty_data_dir, showWarnings = FALSE)
   on.exit(unlink(empty_data_dir, recursive = TRUE), add = TRUE)
-  Sys.setenv(SHINY_DATA_FOLDER = empty_data_dir)
-  on.exit(Sys.unsetenv("SHINY_DATA_FOLDER"), add = TRUE)
 
   app <- shinytest2::AppDriver$new(
     app_dir,
     name = "pregnancy_identifier",
-    load_timeout = 30000
+    load_timeout = 30000,
+    options = list(shiny.data.folder = empty_data_dir)
   )
   on.exit(app$stop(), add = TRUE)
 
