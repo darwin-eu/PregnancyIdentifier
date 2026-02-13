@@ -44,16 +44,19 @@ created via \code{makeLogger(outputFolder)}.}
 }
 \value{
 Invisibly returns a list with elements \code{episode_counts},
-  \code{date_differences}, \code{venn_counts}, \code{ppv_sensitivity},
-  \code{outcome_confusion}, \code{outcome_accuracy}, \code{duration_summary},
-  and \code{duration_distribution}. All comparison artifacts are also written
-  to \code{outputFolder} as CSVs (and optionally PNGs).
+  \code{venn_counts}, \code{confusion_2x2}, \code{ppv_sensitivity},
+  \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
+  \code{duration_summary}, and \code{duration_distribution}. \code{confusion_2x2}
+  is the 2x2 table (TP, FN, FP, TN; TN is \code{NA} at episode level).
+  \code{ppv_sensitivity} contains sensitivity, specificity, PPV, and NPV
+  (specificity and NPV are \code{NA} when TN is not defined). All comparison
+  artifacts are also written to \code{outputFolder} as CSVs (and optionally PNGs).
 }
 \description{
 Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
 table and writes comparison summaries to \code{outputFolder}. Comparisons include:
 pregnancy episode and person counts; pregnancy start/end date differences for
-linked episodes; Venn counts (both, PET only, algorithm only) with PPV and
-sensitivity; outcome confusion matrix and accuracy; and pregnancy duration
-distributions.
+linked episodes; Venn counts (both, PET only, algorithm only); a 2x2 confusion
+matrix (TP, FN, FP, TN) with sensitivity, specificity, PPV, and NPV; outcome
+confusion matrix and accuracy; and pregnancy duration distributions.
 }

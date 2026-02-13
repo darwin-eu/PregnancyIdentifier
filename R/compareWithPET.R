@@ -22,9 +22,9 @@
 #' Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
 #' table and writes comparison summaries to \code{outputFolder}. Comparisons include:
 #' pregnancy episode and person counts; pregnancy start/end date differences for
-#' linked episodes; Venn counts (both, PET only, algorithm only) with PPV and
-#' sensitivity; outcome confusion matrix and accuracy; and pregnancy duration
-#' distributions.
+#' linked episodes; Venn counts (both, PET only, algorithm only); a 2x2 confusion
+#' matrix (TP, FN, FP, TN) with sensitivity, specificity, PPV, and NPV; outcome
+#' confusion matrix and accuracy; and pregnancy duration distributions.
 #'
 #' @param cdm A \code{cdm_reference} (from CDMConnector) with a database connection.
 #'   The PET table is read via \code{petSchema} and \code{petTable}.
@@ -46,10 +46,13 @@
 #'   \code{NULL}. Whether to log to the console as well as to the log file.
 #'
 #' @return Invisibly returns a list with elements \code{episode_counts},
-#'   \code{date_differences}, \code{venn_counts}, \code{ppv_sensitivity},
-#'   \code{outcome_confusion}, \code{outcome_accuracy}, \code{duration_summary},
-#'   and \code{duration_distribution}. All comparison artifacts are also written
-#'   to \code{outputFolder} as CSVs (and optionally PNGs).
+#'   \code{venn_counts}, \code{confusion_2x2}, \code{ppv_sensitivity},
+#'   \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
+#'   \code{duration_summary}, and \code{duration_distribution}. \code{confusion_2x2}
+#'   is the 2x2 table (TP, FN, FP, TN; TN is \code{NA} at episode level).
+#'   \code{ppv_sensitivity} contains sensitivity, specificity, PPV, and NPV
+#'   (specificity and NPV are \code{NA} when TN is not defined). All comparison
+#'   artifacts are also written to \code{outputFolder} as CSVs (and optionally PNGs).
 #' @export
 comparePregnancyIdentifierWithPET <- function(cdm,
                                               outputDir,
@@ -204,20 +207,39 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   utils::write.csv(venn_counts, vennPath, row.names = FALSE)
   log4r::info(logger, sprintf("Venn counts written to %s", vennPath))
 
-  # PPV and sensitivity (PET as reference)
-  # Sensitivity = PET episodes that have a match / total PET episodes
-  # PPV = algorithm episodes that have a match / total algorithm episodes
-  sensitivity <- if (n_episodes_pet > 0) pet_matched / n_episodes_pet else NA_real_
-  ppv <- if (n_episodes_alg > 0) alg_matched / n_episodes_alg else NA_real_
+  # 2x2 confusion matrix (PET = reference, Algorithm = test)
+  # TP = PET episode has matching algorithm episode; FN = PET episode, no match; FP = algorithm episode, no match; TN = N/A (no negative population at episode level)
+  tp <- pet_matched
+  fn <- n_pet_only
+  fp <- n_alg_only
+  tn <- NA_integer_
+
+  confusion_2x2 <- tibble::tibble(
+    reference = c("PET_positive", "PET_positive", "PET_negative", "PET_negative"),
+    algorithm = c("positive", "negative", "positive", "negative"),
+    count = c(tp, fn, fp, tn),
+    cell = c("TP", "FN", "FP", "TN")
+  )
+  conf2x2Path <- file.path(outputFolder, "pet_comparison_confusion_2x2.csv")
+  utils::write.csv(confusion_2x2, conf2x2Path, row.names = FALSE)
+  log4r::info(logger, sprintf("2x2 confusion matrix written to %s", conf2x2Path))
+
+  # Sensitivity, specificity, PPV, NPV (PET as reference)
+  # Sensitivity = TP / (TP + FN); Specificity = TN / (TN + FP); PPV = TP / (TP + FP); NPV = TN / (TN + FN)
+  sensitivity <- if (tp + fn > 0) tp / (tp + fn) else NA_real_
+  specificity <- if (!is.na(tn) && (tn + fp) > 0) tn / (tn + fp) else NA_real_
+  ppv <- if (tp + fp > 0) tp / (tp + fp) else NA_real_
+  npv <- if (!is.na(tn) && (tn + fn) > 0) tn / (tn + fn) else NA_real_
+
   ppv_sensitivity <- tibble::tibble(
-    metric = c("sensitivity", "ppv"),
-    value = c(sensitivity, ppv),
-    denominator = c(n_episodes_pet, n_episodes_alg),
-    numerator = c(pet_matched, alg_matched)
+    metric = c("sensitivity", "specificity", "ppv", "npv"),
+    value = c(sensitivity, specificity, ppv, npv),
+    denominator = c(tp + fn, tn + fp, tp + fp, tn + fn),
+    numerator = c(tp, tn, tp, tn)
   )
   ppvPath <- file.path(outputFolder, "pet_comparison_ppv_sensitivity.csv")
   utils::write.csv(ppv_sensitivity, ppvPath, row.names = FALSE)
-  log4r::info(logger, sprintf("PPV/Sensitivity written to %s", ppvPath))
+  log4r::info(logger, sprintf("Sensitivity/Specificity/PPV/NPV written to %s", ppvPath))
 
   # Date differences for best-matched pairs (one row per best-match pair)
   if (nrow(best_match) > 0) {
@@ -396,6 +418,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   out <- list(
     episode_counts = episode_counts,
     venn_counts = venn_counts,
+    confusion_2x2 = confusion_2x2,
     ppv_sensitivity = ppv_sensitivity,
     duration_summary = duration_summary,
     date_differences = NULL,
