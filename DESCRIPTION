@@ -41,10 +41,14 @@ Imports:
     tibble
 Suggests: 
     testthat (>= 3.0.0),
+    shinytest2,
     omopgenerics,
     knitr,
     rmarkdown,
     rstudioapi,
     DT,
-    readr
+    readr,
+    RSQLite,
+    RPostgres,
+    odbc
 VignetteBuilder: knitr
