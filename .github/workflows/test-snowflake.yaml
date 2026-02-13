@@ -40,4 +40,4 @@ jobs:
         shell: Rscript {0}
 
       - name: Run tests (Snowflake)
-        run: R -e 'devtools::install(); devtools::test(filter = "Snowflake")'
+        run: R -e 'devtools::install(); devtools::test(filter = "snowflake")'
