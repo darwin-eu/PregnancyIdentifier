@@ -106,14 +106,20 @@ cdmTableExists <- function(cdm, tableName) {
 
 #' Create a mock pregnancy cdm for examples and testing
 #'
+#' @param fullVocab If `TRUE` (default), the CDM includes the full vocabulary
+#'   tables. If `FALSE`, concept, concept_relationship, concept_ancestor, and
+#'   concept_synonym are subset to only concept IDs that appear in the data
+#'   (from [CDMConnector::cdmFlatten()] \code{observation_concept_id}), for
+#'   lighter testing on different database systems.
 #' @returns A cdm reference with some example pregnancy data in it
 #' @export
 #'
 #' @examples
 #' \dontrun{
 #' cdm <- mockPregnancyCdm()
+#' cdm_small_vocab <- mockPregnancyCdm(fullVocab = FALSE)
 #' }
-mockPregnancyCdm <- function() {
+mockPregnancyCdm <- function(fullVocab = TRUE) {
   suppressMessages({
     cdm <- TestGenerator::patientsCDM(
       pathJson = system.file("testCases", package = "PregnancyIdentifier"),
@@ -129,6 +135,40 @@ mockPregnancyCdm <- function() {
       pregnancy_end_date = as.Date(.data$pregnancy_end_date)
     ) %>%
     dplyr::compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
+
+  if (!fullVocab) {
+    used_ids <- CDMConnector::cdmFlatten(cdm) %>%
+      dplyr::select("observation_concept_id") %>%
+      dplyr::distinct() %>%
+      dplyr::collect() %>%
+      dplyr::pull("observation_concept_id")
+    used_ids <- as.integer(used_ids[!is.na(used_ids)])
+
+    if (length(used_ids) > 0L) {
+      if ("concept" %in% names(cdm)) {
+        cdm$concept <- cdm$concept %>%
+          dplyr::filter(.data$concept_id %in% .env$used_ids)
+      }
+      if ("concept_relationship" %in% names(cdm)) {
+        cdm$concept_relationship <- cdm$concept_relationship %>%
+          dplyr::filter(
+            .data$concept_id_1 %in% .env$used_ids,
+            .data$concept_id_2 %in% .env$used_ids
+          )
+      }
+      if ("concept_ancestor" %in% names(cdm)) {
+        cdm$concept_ancestor <- cdm$concept_ancestor %>%
+          dplyr::filter(
+            .data$ancestor_concept_id %in% .env$used_ids,
+            .data$descendant_concept_id %in% .env$used_ids
+          )
+      }
+      if ("concept_synonym" %in% names(cdm)) {
+        cdm$concept_synonym <- cdm$concept_synonym %>%
+          dplyr::filter(.data$concept_id %in% .env$used_ids)
+      }
+    }
+  }
 
   return(cdm)
 }

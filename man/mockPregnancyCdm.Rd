@@ -4,7 +4,14 @@
 \alias{mockPregnancyCdm}
 \title{Create a mock pregnancy cdm for examples and testing}
 \usage{
-mockPregnancyCdm()
+mockPregnancyCdm(fullVocab = TRUE)
+}
+\arguments{
+\item{fullVocab}{If `TRUE` (default), the CDM includes the full vocabulary
+tables. If `FALSE`, concept, concept_relationship, concept_ancestor, and
+concept_synonym are subset to only concept IDs that appear in the data
+(from [CDMConnector::cdmFlatten()] \code{observation_concept_id}), for
+lighter testing on different database systems.}
 }
 \value{
 A cdm reference with some example pregnancy data in it
@@ -15,5 +22,6 @@ Create a mock pregnancy cdm for examples and testing
 \examples{
 \dontrun{
 cdm <- mockPregnancyCdm()
+cdm_small_vocab <- mockPregnancyCdm(fullVocab = FALSE)
 }
 }
