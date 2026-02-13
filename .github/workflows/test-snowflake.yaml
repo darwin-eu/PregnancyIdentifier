@@ -14,14 +14,14 @@ jobs:
     container:
       image: executionengine.azurecr.io/darwin-eu-dev/examplestudy-base:latest
       env:
-        GITHUB_PAT:           ${{ secrets.GITHUB_TOKEN }}
-        SNOWFLAKE_SERVER:     ${{ secrets.SNOWFLAKE_SERVER }}
         SNOWFLAKE_USER:       ${{ secrets.SNOWFLAKE_USER }}
+        SNOWFLAKE_SERVER:     ${{ secrets.SNOWFLAKE_SERVER }}
         SNOWFLAKE_PASSWORD:   ${{ secrets.SNOWFLAKE_PASSWORD }}
         SNOWFLAKE_DATABASE:   ${{ secrets.SNOWFLAKE_DATABASE }}
         SNOWFLAKE_WAREHOUSE:  ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         SNOWFLAKE_DRIVER:     ${{ secrets.SNOWFLAKE_DRIVER }}
-        SNOWFLAKE_SCHEMA:     ${{ secrets.SNOWFLAKE_SCHEMA }}
+        SNOWFLAKE_CDM_SCHEMA: ${{ secrets.SNOWFLAKE_CDM_SCHEMA }}
+        SNOWFLAKE_SCRATCH_SCHEMA: ${{ secrets.SNOWFLAKE_SCRATCH_SCHEMA }}
 
     name: Snowflake test
 
