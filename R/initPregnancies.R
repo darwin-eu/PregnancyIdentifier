@@ -112,7 +112,8 @@ initPregnancies <- function(cdm,
 
   hipEvents <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
     extra <- if (!is.na(valueCol)) list(value_as_number = rlang::sym(valueCol)) else list(value_as_number = NA_real_)
-    pullDomain(tbl, conceptCol, dateCol, extra)
+    pullDomain(tbl, conceptCol, dateCol, extra) |>
+      dplyr::mutate(value_as_number = as.numeric(.data$value_as_number))
   }) |>
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(hip, by = "concept_id") |>
