@@ -147,25 +147,29 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
     if (length(used_ids) > 0L) {
       if ("concept" %in% names(cdm)) {
         cdm$concept <- cdm$concept %>%
-          dplyr::filter(.data$concept_id %in% .env$used_ids)
+          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+          dplyr::compute(name = "concept")
       }
       if ("concept_relationship" %in% names(cdm)) {
         cdm$concept_relationship <- cdm$concept_relationship %>%
           dplyr::filter(
             .data$concept_id_1 %in% .env$used_ids,
             .data$concept_id_2 %in% .env$used_ids
-          )
+          ) %>%
+          dplyr::compute(name = "concept_relationship")
       }
       if ("concept_ancestor" %in% names(cdm)) {
         cdm$concept_ancestor <- cdm$concept_ancestor %>%
           dplyr::filter(
             .data$ancestor_concept_id %in% .env$used_ids,
             .data$descendant_concept_id %in% .env$used_ids
-          )
+          ) %>%
+          dplyr::compute(name = "concept_ancestor")
       }
       if ("concept_synonym" %in% names(cdm)) {
         cdm$concept_synonym <- cdm$concept_synonym %>%
-          dplyr::filter(.data$concept_id %in% .env$used_ids)
+          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+          dplyr::compute(name = "concept_synonym")
       }
     }
   }
