@@ -445,7 +445,9 @@ estimateOutcomeStarts <- function(cdm) {
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
 buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, gestConceptIds) {
   gestFromValue <- cdm$preg_hip_records %>%
-    dplyr::filter(!is.na(.data$gest_value))
+    dplyr::filter(!is.na(.data$value_as_number)) %>%
+    dplyr::mutate(gest_value = as.integer(.data$value_as_number))
+
   gestationVisitsTbl <- cdm$preg_hip_records %>%
     dplyr::filter(
       .data$concept_id %in% .env$gestConceptIds,
