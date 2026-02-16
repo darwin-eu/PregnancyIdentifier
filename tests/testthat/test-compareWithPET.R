@@ -73,7 +73,7 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Check return structure
   expect_type(res, "list")
   expect_named(res, c(
-    "episode_counts", "venn_counts", "ppv_sensitivity", "duration_summary",
+    "episode_counts", "venn_counts", "confusion_2x2", "ppv_sensitivity", "duration_summary",
     "date_differences", "outcome_confusion", "outcome_accuracy", "duration_distribution"
   ))
   expect_s3_class(res$episode_counts, "data.frame")

@@ -117,7 +117,7 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
 
   # select and add columns
   conceptsPerEpisode <- conceptsPerEpisode %>%
-    dplyr::rename(episode_num = .data$merge_episode_number) %>%
+    dplyr::rename(episode_num = "merge_episode_number") %>%
     dplyr::select(
       "person_id", "episode_num", "merge_pregnancy_start", "hip_end_date", "pps_end_date",
       "concept_id", "concept_name", "concept_start", "concept_end",
