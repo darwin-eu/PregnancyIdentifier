@@ -1,4 +1,4 @@
-# Unit tests for validateEpisodePeriods()
+# Unit tests for PregnancyIdentifier:::validateEpisodePeriods()
 
 test_that("validateEpisodePeriods returns df invisibly unchanged", {
   outputDir <- file.path(tempdir(), "test_validate_ep_invisible")
@@ -10,7 +10,7 @@ test_that("validateEpisodePeriods returns df invisibly unchanged", {
     start = as.Date("2020-01-01"),
     end = as.Date("2020-06-01")
   )
-  out <- validateEpisodePeriods(
+  out <- PregnancyIdentifier:::validateEpisodePeriods(
     df,
     personIdCol = "person_id",
     startDateCol = "start",
@@ -18,7 +18,7 @@ test_that("validateEpisodePeriods returns df invisibly unchanged", {
     logger = logger
   )
   expect_identical(out, df)
-  expect_invisible(validateEpisodePeriods(df, "person_id", "start", "end", logger))
+  expect_invisible(PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger))
 
   unlink(outputDir, recursive = TRUE)
 })
@@ -33,7 +33,7 @@ test_that("empty df produces no warnings", {
     start = as.Date(character()),
     end = as.Date(character())
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_false(any(grepl("overlap with another record", logLines)))
@@ -53,7 +53,7 @@ test_that("no overlaps and no long periods produces no warnings and logs validat
     start = as.Date(c("2020-01-01", "2021-01-01")),
     end = as.Date(c("2020-10-01", "2021-10-01"))
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_false(any(grepl("overlap with another record", logLines)))
@@ -75,7 +75,7 @@ test_that("overlapping periods within person produce overlap warning", {
     start = as.Date(c("2020-01-01", "2020-06-01", "2020-01-01")),
     end = as.Date(c("2020-12-01", "2020-12-01", "2020-11-01"))
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_true(any(grepl("overlap with another record", logLines)))
@@ -95,7 +95,7 @@ test_that("periods longer than maxDays produce long-period warning", {
     start = as.Date("2020-01-01"),
     end = as.Date("2021-02-05") # 400 days
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_true(any(grepl("period length greater than", logLines)))
@@ -116,7 +116,7 @@ test_that("custom maxDays is respected", {
     start = as.Date("2020-01-01"),
     end = as.Date("2020-04-10")
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger, maxDays = 50)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger, maxDays = 50)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_true(any(grepl("period length greater than 50 days", logLines)))
@@ -136,7 +136,7 @@ test_that("NA start or end are excluded from checks", {
     end = as.Date(c("2020-03-01", NA))
   )
   expect_silent(
-    validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+    PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
   )
 
   # Only the complete row is considered; no overlap with self
@@ -157,7 +157,7 @@ test_that("all NA start/end yields no warnings", {
     start = as.Date(c(NA, NA)),
     end = as.Date(c(NA, NA))
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_false(any(grepl("overlap with another record", logLines)))
@@ -177,11 +177,11 @@ test_that("missing column names error", {
     end = as.Date("2020-06-01")
   )
   expect_error(
-    validateEpisodePeriods(df, "person_id", "wrong_start", "end", logger = logger),
+    PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "wrong_start", "end", logger = logger),
     "names\\(df\\)"
   )
   expect_error(
-    validateEpisodePeriods(df, "person_id", "start", "wrong_end", logger = logger),
+    PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "wrong_end", logger = logger),
     "names\\(df\\)"
   )
 
@@ -199,7 +199,7 @@ test_that("non-overlapping periods within person do not trigger overlap warning"
     start = as.Date(c("2020-01-01", "2020-06-01")),
     end = as.Date(c("2020-03-01", "2020-09-01"))
   )
-  validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
+  PregnancyIdentifier:::validateEpisodePeriods(df, "person_id", "start", "end", logger = logger)
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_false(any(grepl("overlap with another record", logLines)))

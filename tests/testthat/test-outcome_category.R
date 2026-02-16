@@ -14,6 +14,11 @@ test_that("Outcome category is correct", {
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
     select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)
 
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
+  PregnancyIdentifier:::validateEpisodePeriods(
+    df, "person_id", "final_episode_start_date", "final_episode_end_date", logger
+  )
+
   # Test cases outlined in issue https://github.com/darwin-eu-dev/PregnancyIdentifier/issues/61
 
   # Live birth w/ full prenatal timeline (40w GW) ----
@@ -188,6 +193,11 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
 
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
     dplyr::select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)
+
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
+  PregnancyIdentifier:::validateEpisodePeriods(
+    df, "person_id", "final_episode_start_date", "final_episode_end_date", logger
+  )
 
   # cdm %>% cdmCommentContents(35)
   # person_id | observation_concept_id | start_date | end_date   | type_concept_id | domain               | observation_concept_name              | type_concept_name

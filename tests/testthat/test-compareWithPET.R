@@ -24,6 +24,10 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Load algorithm output and build a simulated PET table (subset with same structure)
   alg <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
   names(alg) <- tolower(names(alg))
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
+  PregnancyIdentifier:::validateEpisodePeriods(
+    alg, "person_id", "final_episode_start_date", "final_episode_end_date", logger
+  )
   # Map algorithm outcome to PET outcome concept_id (LB=4092289, SB=443213, AB=4081422, SA=4067106)
   outcome_to_concept <- function(x) {
     dplyr::case_when(
