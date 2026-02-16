@@ -35,7 +35,7 @@ jobs:
           install.packages("devtools", repos = "https://cloud.r-project.org/")
           install.packages("remotes", repos = "https://cloud.r-project.org/")
           install.packages("testthat", repos = "https://cloud.r-project.org/")
-          CDMConnector::download_eunomia_data()
+          CDMConnector::downloadEunomiaData()
         shell: Rscript {0}
 
       - name: Run tests (Spark)

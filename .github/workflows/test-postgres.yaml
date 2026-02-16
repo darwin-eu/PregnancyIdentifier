@@ -38,4 +38,4 @@ jobs:
         shell: Rscript {0}
 
       - name: Run tests (PostgreSQL)
-        run: R -e 'devtools::install(); devtools::test(filter = "PostgreSQL")'
+        run: R -e 'devtools::install(); devtools::test(filter = "postgres")'
