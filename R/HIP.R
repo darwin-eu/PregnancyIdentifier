@@ -399,8 +399,10 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
       before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     )
   # Materialize so later union/compute does not emit unqualified "prev_visit" in SQL (PostgreSQL)
-  cdm$deliv_tbl_staging <- delivTbl %>%
-    dplyr::compute(name = "deliv_tbl_staging", temporary = FALSE, overwrite = TRUE)
+  suppressWarnings({ # long sql warning
+    cdm$deliv_tbl_staging <- delivTbl %>%
+      dplyr::compute(name = "deliv_tbl_staging", temporary = FALSE, overwrite = TRUE)
+  })
   delivTbl <- cdm$deliv_tbl_staging
   # Non-DELIV rows: move LB/SB outcome_date earlier when DELIV precedes and spacing < afterMinDelivSb
   nonDeliv <- delivTbl %>%

@@ -50,6 +50,5 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
   expect_true(nrow(final) > 0)
 
   unlink(outputDir, recursive = TRUE)
-  disconnect(con)
   CDMConnector::cdmDisconnect(cdm)
 })

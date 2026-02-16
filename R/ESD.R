@@ -1070,6 +1070,7 @@ addDeliveryMode <- function(cdm, df, intersectWindow = c(-30, 30)) {
   conceptSet <- CodelistGenerator::codesFromConceptSet(
     path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode"),
     cdm = cdm)
+  # remove digits
   names(conceptSet) <- unlist(lapply(names(conceptSet), FUN = function(name) {
     unlist(strsplit(name, "^\\d+-"))[2]
   }))
