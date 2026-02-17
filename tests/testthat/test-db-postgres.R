@@ -2,6 +2,7 @@
 # Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
 
 test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
+  skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("RPostgres")
   skip_if(Sys.getenv("CDM5_POSTGRESQL_DBNAME") == "")
   con <- get_connection("postgres")

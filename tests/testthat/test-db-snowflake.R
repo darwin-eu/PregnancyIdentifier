@@ -3,6 +3,7 @@
 # See CDMConnector vignette a04_DBI_connection_examples (odbc).
 
 test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files", {
+  skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
   skip_if(Sys.getenv("SNOWFLAKE_SERVER") == "")
 

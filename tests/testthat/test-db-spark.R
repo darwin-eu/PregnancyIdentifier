@@ -1,6 +1,7 @@
 # Database test: DATABRICKS/SPARK Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
 
 test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
+  skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
 
   con <- get_connection("spark")
