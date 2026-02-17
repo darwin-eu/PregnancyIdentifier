@@ -1,6 +1,6 @@
 test_that("Outcome category is correct", {
 
-  library(dplyr, warn.conflicts = FALSE)
+  suppressWarnings(library(dplyr, warn.conflicts = FALSE))
 
   cdm <- mockPregnancyCdm()
 

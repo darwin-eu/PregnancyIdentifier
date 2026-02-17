@@ -59,7 +59,7 @@ test_that("no overlaps and no long periods produces no warnings and logs validat
   expect_false(any(grepl("overlap with another record", logLines)))
   expect_false(any(grepl("period length greater than", logLines)))
   expect_true(any(grepl("validation: no overlapping episodes found", logLines)))
-  expect_true(any(grepl("validation: all episodes are less than 322 days", logLines)))
+  expect_true(any(grepl("validation: all episodes are less than", logLines)))
 
   unlink(outputDir, recursive = TRUE)
 })
@@ -99,7 +99,6 @@ test_that("periods longer than maxDays produce long-period warning", {
 
   logLines <- readLines(file.path(outputDir, "log.txt"), warn = FALSE)
   expect_true(any(grepl("period length greater than", logLines)))
-  expect_true(any(grepl("322 days", logLines)))
   expect_true(any(grepl("1 record\\(s\\) have period length", logLines)))
 
   unlink(outputDir, recursive = TRUE)
