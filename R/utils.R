@@ -153,7 +153,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
       if ("concept_relationship" %in% names(cdm)) {
         cdm$concept_relationship <- cdm$concept_relationship %>%
           dplyr::filter(
-            .data$concept_id_1 %in% .env$used_ids,
+            .data$concept_id_1 %in% .env$used_ids |
             .data$concept_id_2 %in% .env$used_ids
           ) %>%
           dplyr::compute(name = "concept_relationship")
@@ -161,7 +161,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
       if ("concept_ancestor" %in% names(cdm)) {
         cdm$concept_ancestor <- cdm$concept_ancestor %>%
           dplyr::filter(
-            .data$ancestor_concept_id %in% .env$used_ids,
+            .data$ancestor_concept_id %in% .env$used_ids |
             .data$descendant_concept_id %in% .env$used_ids
           ) %>%
           dplyr::compute(name = "concept_ancestor")
@@ -171,6 +171,18 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
           dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
           dplyr::compute(name = "concept_synonym")
       }
+      if ("drug_strength" %in% names(cdm)) {
+        cdm$drug_strength <- cdm$drug_strength %>%
+          dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
+          dplyr::compute(name = "drug_strength")
+      }
+      if ("relationship" %in% names(cdm)) {
+        cdm$relationship <- cdm$relationship %>%
+          dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
+          dplyr::compute(name = "relationship")
+      }
+
+      cdm_src$relationship
     }
   }
 
