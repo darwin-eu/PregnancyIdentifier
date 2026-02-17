@@ -234,6 +234,7 @@ runEsd <- function(cdm,
 #' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
 #' @param maxDays Numeric. Maximum allowed duration in days (default 322).
 #' @return The data frame with long episodes removed.
+#' @noRd
 removeLongPregnancies <- function(df,
                                   logger,
                                   startDateCol = "final_episode_start_date",
@@ -358,6 +359,7 @@ overlapGroups <- function(start, end) {
 #' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
 #' @return Data frame with the same columns as \code{esdDf}, with overlapping
 #'   episodes removed (one episode retained per overlap group per person).
+#' @noRd
 removeOverlaps <- function(esdDf,
                            personIdCol = "person_id",
                            startDateCol = "final_episode_start_date",
