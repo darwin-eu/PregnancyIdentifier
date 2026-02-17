@@ -194,6 +194,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
+  # summarise age at pregnancy start across all pregnancies
   resAge %>%
     summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
@@ -203,6 +204,21 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
       pkg_version = pkgVersion
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
+
+  # summarise age at pregnancy start at first pregnancy
+  resAge %>%
+    dplyr::group_by(person_id) %>%
+    dplyr::arrange(person_id, final_episode_start_date) %>%
+    dplyr::filter(row_number() == 1) %>%
+    dplyr::ungroup() %>%
+    summariseColumn("age_pregnancy_start") %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    ) %>%
+    utils::write.csv(file.path(resPath, "age_summary_first_pregnancy.csv"), row.names = FALSE)
 
   resAgeRound <- resAge %>%
     dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%
