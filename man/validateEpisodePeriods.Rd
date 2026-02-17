@@ -10,7 +10,7 @@ validateEpisodePeriods(
   startDateCol,
   endDateCol,
   logger,
-  maxDays = 322
+  maxDays = 308
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ validateEpisodePeriods(
 
 \item{logger}{A log4r logger object (e.g. from `makeLogger()`).}
 
-\item{maxDays}{Numeric. Threshold in days for the second warning (default 322).}
+\item{maxDays}{Numeric. Threshold in days for the second warning (default 308).}
 }
 \value{
 Invisibly returns `df` unchanged.
@@ -33,5 +33,5 @@ Invisibly returns `df` unchanged.
 Checks a dataframe of episode periods (start/end dates per person) for two
 conditions and logs warnings: (1) number of records that overlap with another
 record within the same person; (2) number of records whose span (end - start
-in days) exceeds a maximum (default 322 days).
+in days) exceeds a maximum (default 308 days).
 }

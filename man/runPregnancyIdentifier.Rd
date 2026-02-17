@@ -13,7 +13,8 @@ runPregnancyIdentifier(
   minCellCount = 5L,
   debugMode = FALSE,
   runExport = FALSE,
-  outputLogToConsole = TRUE
+  outputLogToConsole = TRUE,
+  conformToValidation = FALSE
 )
 }
 \arguments{
@@ -44,6 +45,11 @@ Default `FALSE`.}
 
 \item{outputLogToConsole}{(`logical(1)`) If `TRUE` (default), log messages are
 written to the console. If `FALSE`, only to the log file (e.g. for tests).}
+
+\item{conformToValidation}{(`logical(1)`) If `TRUE`, after validation modify episode
+output to conform: remove overlapping episodes and episodes longer than 308 days.
+If `FALSE` (default), only validate and log issues; do not modify the result.
+Validation and logging always run regardless of this parameter.}
 }
 \value{
 Invisibly returns `NULL`. Side effects:

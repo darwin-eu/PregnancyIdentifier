@@ -10,7 +10,8 @@ runEsd(
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
-  debugMode = FALSE
+  debugMode = FALSE,
+  conformToValidation = FALSE
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ runEsd(
 \item{logger}{A \code{log4r} logger object for info/debug messages.}
 
 \item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)}
+
+\item{conformToValidation}{(`logical(1)`: `FALSE`) If `TRUE`, modify episodes to conform (remove overlaps and length > 308 days). Validation and logging always run.}
 }
 \value{
 Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
