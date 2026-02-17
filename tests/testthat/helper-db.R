@@ -62,7 +62,7 @@ get_connection <- function(dbms) {
     return(con)
   }
 
-  if (dbms == "sqlserver" && Sys.getenv("DATABRICKS_HTTPPATH") != "") {
+  if (dbms == "sqlserver" && Sys.getenv("CDM5_SQL_SERVER_SERVER") != "") {
     message("connecting to sql server")
 
     con <- DBI::dbConnect(odbc::odbc(),
