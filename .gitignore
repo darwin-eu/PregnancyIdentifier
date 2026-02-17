@@ -16,3 +16,4 @@ renv/
 vignettes/algorithm_cache
 .vscode/
 .claude/
+..Rcheck/

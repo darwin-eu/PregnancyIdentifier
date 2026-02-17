@@ -290,13 +290,13 @@ addAgeSex <- function(tbl, dateColumn) {
       date_of_birth = paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth))
     ) %>%
     dplyr::mutate(
-      date_of_birth  = as.Date(date_of_birth)
+      date_of_birth  = as.Date(.data$date_of_birth)
     ) %>%
     dplyr::mutate(
       age = !!CDMConnector::datediff("date_of_birth", dateColumn) / 365.25,
       sex = dplyr::case_when(
-        gender_concept_id == 8532L ~ "female",
-        gender_concept_id == 8507L ~ "male",
+        .data$gender_concept_id == 8532L ~ "female",
+        .data$gender_concept_id == 8507L ~ "male",
         TRUE ~ "unknown")
     ) %>%
     dplyr::select(-c("day_of_birth", "month_of_birth", "year_of_birth", "gender_concept_id", "date_of_birth"))
