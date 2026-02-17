@@ -70,6 +70,33 @@ initPregnancies <- function(cdm,
   hipConcepts <- readxl::read_excel(
     system.file("concepts", "HIP_concepts.xlsx", package = "PregnancyIdentifier")
   )
+  if (!"gest_value" %in% names(hipConcepts)) {
+    hipConcepts <- hipConcepts |> dplyr::mutate(gest_value = NA_real_)
+  }
+  # Only include concepts that are used for episode definition: outcome categories (LB, SB, DELIV, ECT, AB, SA),
+  # concepts with gest_value set (gestation weeks from condition/procedure/observation), or concepts in
+  # gestational_age_concepts.csv (used with value_as_number for gestation episodes).
+  hipOutcomeCategories <- c("LB", "SB", "DELIV", "ECT", "AB", "SA")
+  gestationalAgeConcepts <- utils::read.csv(
+    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+    colClasses = c(concept_id = "integer")
+  )
+  gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+  hipConceptsUsed <- hipConcepts |>
+    dplyr::filter(
+      .data$category %in% .env$hipOutcomeCategories |
+        !is.na(.data$gest_value) |
+        .data$concept_id %in% .env$gestationalAgeConceptIds
+    )
+  nHipDropped <- nrow(hipConcepts) - nrow(hipConceptsUsed)
+  if (nHipDropped > 0) {
+    log4r::info(logger, sprintf(
+      "HIP concepts: using %d of %d (dropped %d PREG-only concepts not used for episode definition)",
+      nrow(hipConceptsUsed), nrow(hipConcepts), nHipDropped
+    ))
+  }
+  hipConcepts <- hipConceptsUsed
+
   ppsConcepts <- readxl::read_excel(
     system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
   ) |>

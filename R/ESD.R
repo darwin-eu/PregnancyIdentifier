@@ -489,6 +489,11 @@ getTimingConcepts <- function(cdm,
     colClasses = c(concept_id = "integer")
   )
   gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+  # Gestation-at-birth concepts (length of gestation at birth): use value 1-44 as GA weeks like GW concepts
+  gestationAtBirthConceptIds <- c(4260747L, 46234792L)
+  # LMP/EDD concepts: value_col is a date; use as direct pregnancy start (LMP) or EDD - 280 days (EDD)
+  lmpConceptIds <- as.integer(esdConcepts$esd_concept_id[esdConcepts$esd_category == "estConceptionConceptIds"])
+  eddConceptIds <- as.integer(esdConcepts$esd_concept_id[esdConcepts$esd_category == "estDeliveryConceptIds"])
 
   conceptIdsToSearch <- as.integer(c(ppsConcepts$pps_concept_id, esdConcepts$esd_concept_id))
 
@@ -551,7 +556,8 @@ getTimingConcepts <- function(cdm,
         (
           stringr::str_detect(tolower(.data$domain_concept_name), "gestation period,") |
             stringr::str_detect(tolower(.data$domain_concept_name), "gestational age") |
-            .data$domain_concept_id %in% .env$gestationalAgeConceptIds
+            .data$domain_concept_id %in% .env$gestationalAgeConceptIds |
+            .data$domain_concept_id %in% .env$gestationAtBirthConceptIds
         ) &
           (.data$domain_value <= 44 & .data$domain_value > 0),
         1, 0
@@ -561,7 +567,40 @@ getTimingConcepts <- function(cdm,
         .data$domain_concept_start_date - (.data$domain_value * 7),
         lubridate::NA_Date_
       )
-    )
+    ) %>%
+    # Parse LMP/EDD date values: use as pregnancy start (LMP) or EDD - 280 days (EDD)
+    dplyr::mutate(
+      value_col_clean = stringr::str_replace(.data$value_col, "\\|text_result_val:", ""),
+      value_col_clean = stringr::str_replace(.data$value_col_clean, "\\|mapped_text_result_val:", ""),
+      parsed_date = suppressWarnings(as.Date(.data$value_col_clean, "%Y-%m-%d")),
+      parsed_date = dplyr::if_else(
+        is.na(.data$parsed_date),
+        suppressWarnings(as.Date(.data$value_col_clean, "%Y/%m/%d")),
+        .data$parsed_date
+      ),
+      extrapolated_preg_start = dplyr::if_else(
+        .data$domain_concept_id %in% .env$lmpConceptIds & !is.na(.data$parsed_date),
+        .data$parsed_date,
+        .data$extrapolated_preg_start
+      ),
+      extrapolated_preg_start = dplyr::if_else(
+        .data$domain_concept_id %in% .env$eddConceptIds & !is.na(.data$parsed_date),
+        .data$parsed_date - 280L,
+        .data$extrapolated_preg_start
+      ),
+      keep_value = dplyr::if_else(
+        (.data$domain_concept_id %in% .env$lmpConceptIds | .data$domain_concept_id %in% .env$eddConceptIds) &
+          !is.na(.data$parsed_date),
+        1L,
+        .data$keep_value
+      ),
+      date_type = dplyr::case_when(
+        .data$domain_concept_id %in% .env$lmpConceptIds & !is.na(.data$parsed_date) ~ "LMP",
+        .data$domain_concept_id %in% .env$eddConceptIds & !is.na(.data$parsed_date) ~ "EDD",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    dplyr::select(-"value_col_clean", -"parsed_date")
   })
 }
 
@@ -807,12 +846,21 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
     ))
   }
 
+  # Backward compatibility: date_type added when LMP/EDD parsing was implemented
+  if (!"date_type" %in% names(getTimingConceptsDf)) {
+    getTimingConceptsDf <- getTimingConceptsDf %>%
+      dplyr::mutate(date_type = NA_character_)
+  }
+  # Gestation-at-birth concepts (4260747, 46234792): treat as GW when they have extrapolated_preg_start
+  gestationAtBirthConceptIds <- c(4260747L, 46234792L)
   timingDf <- getTimingConceptsDf %>%
     dplyr::mutate(
       domain_concept_id = as.integer(.data$domain_concept_id),
       gt_type = dplyr::case_when(
+        .data$date_type %in% c("LMP", "EDD") ~ .data$date_type,
         stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period") |
-          .data$domain_concept_id %in% local(esdConcepts2$concept_id) ~ "GW",
+          .data$domain_concept_id %in% local(esdConcepts2$concept_id) |
+          .data$domain_concept_id %in% .env$gestationAtBirthConceptIds ~ "GW",
         !is.na(.data$min_month) ~ "GR3m",
         TRUE ~ NA_character_
       )
@@ -836,7 +884,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
     ) %>%
     dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
-  # Remove type if GW values are null (preserves original logic)
+  # Remove type if GW values are null (preserves original logic). LMP/EDD are kept (they use extrapolated_preg_start only).
   timingDf <- timingDf %>%
     dplyr::mutate(
       gt_type = dplyr::case_when(
@@ -844,7 +892,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
         TRUE ~ .data$gt_type
       )
     ) %>%
-    dplyr::filter(.data$gt_type %in% c("GW", "GR3m"))
+    dplyr::filter(.data$gt_type %in% c("GW", "GR3m", "LMP", "EDD"))
 
   # Build the date ranges used downstream:
   # - GR3m uses "max_pregnancy_start min_pregnancy_start"
