@@ -180,20 +180,31 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     ) %>%
     dplyr::filter(.data$.overlap >= minOverlapDays)
 
-  # For each PET episode keep the algorithm match with maximum overlap (best match)
-  best_match <- joined %>%
-    dplyr::group_by(.data$.pet_idx) %>%
-    dplyr::slice_max(.data$.overlap, n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup()
-  # For each algorithm episode keep the PET match with maximum overlap
-  best_match_alg <- joined %>%
-    dplyr::group_by(.data$.alg_idx) %>%
-    dplyr::slice_max(.data$.overlap, n = 1, with_ties = FALSE) %>%
+  # One-to-one matching: greedily choose pairs with largest overlap per person so
+  # Venn/confusion counts are consistent (no double-counting across PET vs algorithm).
+  one_to_one_matches <- joined %>%
+    dplyr::arrange(.data$person_id, dplyr::desc(.data$.overlap)) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::group_modify(function(.x, .y) {
+      df <- .x
+      used_pet <- integer(0)
+      used_alg <- integer(0)
+      keep <- logical(nrow(df))
+      for (i in seq_len(nrow(df))) {
+        if (!(df$.pet_idx[i] %in% used_pet) && !(df$.alg_idx[i] %in% used_alg)) {
+          keep[i] <- TRUE
+          used_pet <- c(used_pet, df$.pet_idx[i])
+          used_alg <- c(used_alg, df$.alg_idx[i])
+        }
+      }
+      df[keep, , drop = FALSE]
+    }) %>%
     dplyr::ungroup()
 
-  pet_matched <- dplyr::n_distinct(best_match$.pet_idx)
-  alg_matched <- dplyr::n_distinct(best_match_alg$.alg_idx)
-  n_both <- min(pet_matched, alg_matched)
+  best_match <- one_to_one_matches
+  pet_matched <- dplyr::n_distinct(one_to_one_matches$.pet_idx)
+  alg_matched <- dplyr::n_distinct(one_to_one_matches$.alg_idx)
+  n_both <- nrow(one_to_one_matches)
   n_pet_only <- n_episodes_pet - pet_matched
   n_alg_only <- n_episodes_alg - alg_matched
 
