@@ -1,25 +1,28 @@
-# Database test: DATABRICKS/SPARK Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
+# Database test: PostgreSQL. Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
+# Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
 
-test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
+test_that("runPregnancyIdentifier runs on SQL Server", {
   skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
+  skip_if(Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE") == "")
+  con <- get_connection("sqlserver")
+  writeSchema <- get_write_schema("sqlserver", prefix = "preg_")
 
-  con <- get_connection("spark")
-  writeSchema <- get_write_schema("spark", prefix = "preg_")
+  existingTables <- CDMConnector::listTables(con, writeSchema)
 
-  # only do this once
-  # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
+  if (!any(grepl("pregnancy_extension", existingTables, ignore.case = TRUE))) {
+    # only do this once. on sqlserver tempdb is cleaned up on restart so we may need to copy
+    # the pregnancy tables if they are not there. Luckily on sql server this is fast.
+    cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
 
-  # cdm_src %>%
-  #   purrr::map_dbl(~dplyr::tally(.) %>% dplyr::pull(n))
-  #
-  # cdm <- CDMConnector::copyCdmTo(
-  #   con = con,
-  #   cdm = cdm_src,
-  #   schema = writeSchema,
-  #   overwrite = TRUE
-  # )
-  # cleanupCdmDb(cdm_src)
+    cdm <- CDMConnector::copyCdmTo(
+      con = con,
+      cdm = cdm_src,
+      schema = writeSchema,
+      overwrite = TRUE
+    )
+    cleanupCdmDb(cdm_src)
+  }
 
   cdm <- CDMConnector::cdmFromCon(
     con,
@@ -28,8 +31,7 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
     cdmName = "preg_postgres_test"
   )
 
-
-  outputDir <- file.path(tempdir(), "test_db_spark")
+  outputDir <- file.path(tempdir(), "test_db_sqlserver")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 
   runPregnancyIdentifier(

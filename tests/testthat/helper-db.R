@@ -62,6 +62,22 @@ get_connection <- function(dbms) {
     return(con)
   }
 
+  if (dbms == "sqlserver" && Sys.getenv("DATABRICKS_HTTPPATH") != "") {
+    message("connecting to sql server")
+
+    con <- DBI::dbConnect(odbc::odbc(),
+                          Driver   = Sys.getenv("SQL_SERVER_DRIVER"),
+                          Server   = Sys.getenv("CDM5_SQL_SERVER_SERVER"),
+                          Database = Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE"),
+                          UID      = Sys.getenv("CDM5_SQL_SERVER_USER"),
+                          PWD      = Sys.getenv("CDM5_SQL_SERVER_PASSWORD"),
+                          TrustServerCertificate="yes",
+                          Port     = Sys.getenv("CDM5_SQL_SERVER_PORT"))
+
+    return(con)
+  }
+
+
   rlang::abort("Could not create connection. Are some environment variables missing?")
 }
 
@@ -70,6 +86,7 @@ get_cdm_schema <- function(dbms) {
          "postgres" = Sys.getenv("CDM5_POSTGRESQL_CDM_SCHEMA"),
          "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_CDM_SCHEMA"), "\\.")[[1]],
          "spark" = Sys.getenv("DATABRICKS_CDM_SCHEMA"),
+         "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_CDM_SCHEMA"), "\\.")[[1]],
          ""
   )
 }
@@ -79,6 +96,7 @@ get_write_schema <- function(dbms, prefix = paste0("temp", (floor(as.numeric(Sys
               "postgres" = Sys.getenv("CDM5_POSTGRESQL_SCRATCH_SCHEMA"),
               "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_SCRATCH_SCHEMA"), "\\.")[[1]],
               "spark" = Sys.getenv("DATABRICKS_SCRATCH_SCHEMA"),
+              "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_SCRATCH_SCHEMA"), "\\.")[[1]],
               ""
   )
 

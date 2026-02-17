@@ -18,7 +18,7 @@ getTblRowCount <- function(tbl) {
 #' @param ... Passed to \code{dplyr::compute()}.
 #' @return Result of \code{dplyr::compute(x, name = name, ...)}.
 #' @noRd
-.compute <- function(x, name = NULL, temporary = TRUE, overwrite = FALSE, ...) {
+.compute <- function(x, name = NULL, temporary = FALSE, overwrite = TRUE, ...) {
   suppressWarnings(suppressMessages(
     dplyr::compute(x, name = name, temporary = temporary, overwrite = overwrite, ...)
   ))
@@ -226,7 +226,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
       if ("concept" %in% names(cdm)) {
         cdm$concept <- cdm$concept %>%
           dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          .compute(name = "concept")
+          .compute(name = "concept", temporary = FALSE, overwrite = TRUE)
       }
       if ("concept_relationship" %in% names(cdm)) {
         cdm$concept_relationship <- cdm$concept_relationship %>%
@@ -234,7 +234,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
             .data$concept_id_1 %in% .env$used_ids |
               .data$concept_id_2 %in% .env$used_ids
           ) %>%
-          .compute(name = "concept_relationship")
+          .compute(name = "concept_relationship", temporary = FALSE, overwrite = TRUE)
       }
       if ("concept_ancestor" %in% names(cdm)) {
         cdm$concept_ancestor <- cdm$concept_ancestor %>%
@@ -242,22 +242,22 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
             .data$ancestor_concept_id %in% .env$used_ids |
               .data$descendant_concept_id %in% .env$used_ids
           ) %>%
-          .compute(name = "concept_ancestor")
+          .compute(name = "concept_ancestor", temporary = FALSE, overwrite = TRUE)
       }
       if ("concept_synonym" %in% names(cdm)) {
         cdm$concept_synonym <- cdm$concept_synonym %>%
           dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          .compute(name = "concept_synonym")
+          .compute(name = "concept_synonym", temporary = FALSE, overwrite = TRUE)
       }
       if ("drug_strength" %in% names(cdm)) {
         cdm$drug_strength <- cdm$drug_strength %>%
           dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
-          .compute(name = "drug_strength")
+          .compute(name = "drug_strength", temporary = FALSE, overwrite = TRUE)
       }
       if ("relationship" %in% names(cdm)) {
         cdm$relationship <- cdm$relationship %>%
           dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
-          .compute(name = "relationship")
+          .compute(name = "relationship", temporary = FALSE, overwrite = TRUE)
       }
     }
   }
@@ -286,7 +286,11 @@ addAgeSex <- function(tbl, dateColumn) {
       month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L)
     ) %>%
     dplyr::mutate(
-      date_of_birth  = as.Date(paste0(.data$year_of_birth, "-", .data$month_of_birth, "-", .data$day_of_birth))
+      # need to first coerce to character strings for Sql server
+      date_of_birth = paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth))
+    ) %>%
+    dplyr::mutate(
+      date_of_birth  = as.Date(date_of_birth)
     ) %>%
     dplyr::mutate(
       age = !!CDMConnector::datediff("date_of_birth", dateColumn) / 365.25,

@@ -3,9 +3,14 @@
 
 # PregnancyIdentifier
 
-[![Tests (PostgreSQL)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml)
-[![Tests (Snowflake)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml)
-[![Tests (Spark)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml)
+[![Tests
+(PostgreSQL)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml)
+[![Tests
+(Snowflake)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml)
+[![Tests
+(Spark)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml)
+[![Tests
+(SQLServer)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml)
 
 Identify pregnancy episodes in OMOP CDM data using the **HIPPS**
 algorithm (Smith et al. 2024,
@@ -61,9 +66,9 @@ runPregnancyIdentifier(
 **Use the result:**  
 `pregnancy_output/final_pregnancy_episodes.rds` is a data frame with one
 row per pregnancy episode: `person_id`, `final_episode_start_date`,
-`final_episode_end_date`, `final_outcome_category`, `esd_precision_days`, and
-other esd_* QA/concordance columns. Load it for cohort definition, export, or
-further analysis.
+`final_episode_end_date`, `final_outcome_category`,
+`esd_precision_days`, and other esd\_\* QA/concordance columns. Load it
+for cohort definition, export, or further analysis.
 
 Optional: run **export** for de-identified summary CSVs and a ZIP:
 
