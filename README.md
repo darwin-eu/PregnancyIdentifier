@@ -3,9 +3,7 @@
 
 # PregnancyIdentifier
 
-[![Tests (DuckDB)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-duckdb.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-duckdb.yaml)
 [![Tests (PostgreSQL)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml)
-[![Tests (SQLite)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlite.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlite.yaml)
 [![Tests (Snowflake)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml)
 [![Tests (Spark)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml)
 

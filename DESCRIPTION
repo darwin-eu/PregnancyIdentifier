@@ -38,11 +38,11 @@ Imports:
     rlang,
     shiny,
     checkmate,
-    tibble
+    tibble,
+    omopgenerics
 Suggests: 
     testthat (>= 3.0.0),
     shinytest2,
-    omopgenerics,
     knitr,
     rmarkdown,
     rstudioapi,
