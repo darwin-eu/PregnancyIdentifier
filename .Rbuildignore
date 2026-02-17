@@ -15,3 +15,4 @@ work/*
 ^README\.Rmd$
 ^STYLE\.md$
 .vscode/
+^inst/shiny$

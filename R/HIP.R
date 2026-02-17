@@ -486,7 +486,9 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
   # Source A: concepts in gestational_age_concepts.csv with value_as_number (e.g. from measurement).
   # Source B: any record with gest_value (e.g. from HIP_concepts.xlsx for condition/procedure/observation).
   gestFromValue <- cdm$preg_hip_records %>%
-    dplyr::filter(!is.na(.data$gest_value))
+    dplyr::filter(!is.na(.data$value_as_number)) %>%
+    dplyr::mutate(gest_value = as.integer(.data$value_as_number))
+
   gestationVisitsTbl <- cdm$preg_hip_records %>%
     dplyr::filter(
       .data$concept_id %in% .env$gestConceptIds,
