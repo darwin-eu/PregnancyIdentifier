@@ -1094,7 +1094,8 @@ addDeliveryMode <- function(cdm, df, intersectWindow = c(-30, 30)) {
 
   conceptSet <- omopgenerics::importConceptSetExpression(
     path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
-  ) |> CodelistGenerator::asCodelist(cdm = cdm)
+  )
+  conceptSet <- omopgenerics::validateConceptSetArgument(conceptSet, cdm = cdm)
   # remove leading id prefix from names (e.g. "3861-cesarean" -> "cesarean")
   names(conceptSet) <- unlist(lapply(names(conceptSet), FUN = function(name) {
     unlist(strsplit(name, "^\\d+-"))[2]

@@ -30,7 +30,6 @@ Imports:
     purrr,
     stringr,
     TestGenerator,
-    CodelistGenerator,
     PatientProfiles,
     magrittr,
     tidyr,
