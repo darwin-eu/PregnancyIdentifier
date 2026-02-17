@@ -2,10 +2,7 @@
 # Runs only when SNOWFLAKE_* env vars are set. Runs in parallel with other test-db-* files.
 # See CDMConnector vignette a04_DBI_connection_examples (odbc).
 
-# Database test: PostgreSQL. Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
-# Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
-
-test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
+test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files", {
   skip_if_not_installed("odbc")
   skip_if(Sys.getenv("SNOWFLAKE_SERVER") == "")
 
