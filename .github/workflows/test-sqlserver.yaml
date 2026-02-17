@@ -46,4 +46,4 @@ jobs:
         shell: Rscript {0}
 
       - name: Run tests (SQL Server)
-        run: R -e 'devtools::install(); devtools::test(filter = "sqlserver")'
+        run: R -e 'devtools::install(); devtools::test(filter = "sqlserver", stop_on_failure = TRUE)'

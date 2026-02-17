@@ -39,4 +39,4 @@ jobs:
         shell: Rscript {0}
 
       - name: Run tests (Spark)
-        run: R -e 'devtools::install(); devtools::test(filter = "spark")'
+        run: R -e 'devtools::install(); devtools::test(filter = "spark", stop_on_failure = TRUE)'
