@@ -294,32 +294,48 @@ outcomeRank <- function(cat) {
 
 #' Find connected components of overlapping intervals within a set of (start, end) pairs.
 #' Returns integer vector of group id (1, 2, ...) per row.
+#' Uses O(n log n) sweep by start date instead of O(n^2) pairwise union-find.
 #' @noRd
 overlapGroups <- function(start, end) {
   n <- length(start)
   if (n == 0) return(integer(0))
-  # Union-find parent; parent[i] = index of parent (or self if root)
-  parent <- seq_len(n)
-  find <- function(i) {
-    if (parent[i] != i) parent[i] <<- find(parent[i])
-    parent[i]
-  }
-  union_ <- function(i, j) {
-    pi <- find(i)
-    pj <- find(j)
-    if (pi != pj) parent[pi] <<- pj
-  }
-  for (i in seq_len(n)) {
-    for (j in seq_len(n)) {
-      if (i >= j) next
-      # overlap: start_i < end_j && end_i > start_j
-      if (is.na(start[i]) || is.na(end[i]) || is.na(start[j]) || is.na(end[j])) next
-      if (start[i] < end[j] && end[i] > start[j]) union_(i, j)
+  groups <- integer(n)
+  valid <- !is.na(start) & !is.na(end)
+  if (any(valid)) {
+    idx <- seq_len(n)
+    valid_idx <- idx[valid]
+    o <- order(start[valid_idx], end[valid_idx])
+    ordered_idx <- valid_idx[o]
+    current_group_id <- 1L
+    first_i <- ordered_idx[1L]
+    groups[first_i] <- current_group_id
+    current_group_max_end <- end[first_i]
+    if (length(ordered_idx) > 1L) {
+      for (k in 2:length(ordered_idx)) {
+        i <- ordered_idx[k]
+        s_i <- start[i]
+        e_i <- end[i]
+        if (s_i < current_group_max_end) {
+          groups[i] <- current_group_id
+          if (e_i > current_group_max_end) {
+            current_group_max_end <- e_i
+          }
+        } else {
+          current_group_id <- current_group_id + 1L
+          groups[i] <- current_group_id
+          current_group_max_end <- e_i
+        }
+      }
     }
+    max_valid_group <- current_group_id
+  } else {
+    max_valid_group <- 0L
   }
-  # Normalize to 1-based group ids
-  roots <- vapply(seq_len(n), find, integer(1))
-  match(roots, unique(roots))
+  if (any(!valid)) {
+    na_idx <- which(!valid)
+    groups[na_idx] <- max_valid_group + seq_along(na_idx)
+  }
+  groups
 }
 
 #' Remove overlapping episodes from final ESD output
