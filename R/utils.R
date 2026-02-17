@@ -46,24 +46,22 @@ validateEpisodePeriods <- function(df,
     return(invisible(df))
   }
 
-  # 1) Overlaps within person: two periods overlap iff start_a < end_b and end_a > start_b
+  # 1) Overlaps within person: sweep-line O(k) per person instead of O(k^2) self-join
+  # Sort by person, start, end; track prior max end and min start after to detect overlaps
   complete <- complete %>%
-    dplyr::mutate(.row = dplyr::row_number())
-  other <- complete %>%
-    dplyr::select(
-      dplyr::all_of(personIdCol),
-      ".row2" = ".row",
-      "start2" = dplyr::all_of(startDateCol),
-      "end2" = dplyr::all_of(endDateCol)
-    )
-  overlaps <- complete %>%
-    dplyr::inner_join(other, by = personIdCol, relationship = "many-to-many") %>%
-    dplyr::filter(
-      .data$.row != .data$.row2,
-      .data[[startDateCol]] < .data$end2,
-      .data[[endDateCol]] > .data$start2
-    )
-  nOverlapping <- dplyr::n_distinct(overlaps$.row)
+    dplyr::arrange(.data[[personIdCol]], .data[[startDateCol]], .data[[endDateCol]]) %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(personIdCol))) %>%
+    dplyr::mutate(
+      .end_num = as.numeric(as.Date(.data[[endDateCol]])),
+      .start_num = as.numeric(as.Date(.data[[startDateCol]])),
+      .prior_max_end = dplyr::lag(cummax(.data$.end_num), default = NA_real_),
+      .min_start_after = dplyr::lead(rev(cummin(rev(.data$.start_num))), default = NA_real_)
+    ) %>%
+    dplyr::ungroup()
+  # Row overlaps a previous interval iff start < prior_max_end; overlapped by a later iff min_start_after < end
+  overlapping <- (!is.na(complete$.prior_max_end) & complete$.start_num < complete$.prior_max_end) |
+    (!is.na(complete$.min_start_after) & complete$.min_start_after < complete$.end_num)
+  nOverlapping <- sum(overlapping, na.rm = TRUE)
   if (nOverlapping > 0) {
     log4r::warn(
       logger,

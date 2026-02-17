@@ -249,7 +249,7 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
 
   # ---- Person 37: GA 38/39 weeks, LB +1 week (GA before outcome) ----
   # Data: GA 39w on 2023-12-13, LB on 2023-12-20. Start from GA: 39 weeks before 2023-12-13; end = LB.
-  cdmCommentContents(cdm, 37)
+  # cdmCommentContents(cdm, 37)
   # person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name   | type_concept_name
   # 37        | 4014295                | 2023-12-20 | NA       | 32817           | condition_occurrence | Single live birth          | EHR
   # 37        | 435655                 | 2023-12-13 | NA       | 32817           | condition_occurrence | Gestation period, 39 weeks | EHR
