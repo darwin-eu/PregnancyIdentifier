@@ -215,6 +215,7 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   out35 <- dplyr::filter(df, .data$person_id == 35L)
   if (nrow(out35) >= 1L) {
     # TODO: check this test again. 
+    
     # Order of episodes can differ by platform (e.g. SQL/backend); assert at least one PREG/LB episode
     expect_true(
       any(out35$final_outcome_category %in% c("PREG", "LB")),
