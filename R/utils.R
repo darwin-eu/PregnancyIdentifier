@@ -10,21 +10,21 @@ getTblRowCount <- function(tbl) {
 #' Checks a dataframe of episode periods (start/end dates per person) for two
 #' conditions and logs warnings: (1) number of records that overlap with another
 #' record within the same person; (2) number of records whose span (end - start
-#' in days) exceeds a maximum (default 322 days).
+#' in days) exceeds a maximum (default 308 days).
 #'
 #' @param df A dataframe with at least person id and start/end date columns.
 #' @param personIdCol Character. Name of the person identifier column.
 #' @param startDateCol Character. Name of the period start date column.
 #' @param endDateCol Character. Name of the period end date column.
 #' @param logger A log4r logger object (e.g. from `makeLogger()`).
-#' @param maxDays Numeric. Threshold in days for the second warning (default 322).
+#' @param maxDays Numeric. Threshold in days for the second warning (default 308).
 #' @return Invisibly returns `df` unchanged.
 validateEpisodePeriods <- function(df,
                                    personIdCol,
                                    startDateCol,
                                    endDateCol,
                                    logger,
-                                   maxDays = 322) {
+                                   maxDays = 308) {
   checkmate::assertDataFrame(df, min.rows = 0)
   checkmate::assertString(personIdCol)
   checkmate::assertString(startDateCol)
