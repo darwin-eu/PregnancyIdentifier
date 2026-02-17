@@ -76,6 +76,10 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #'   Default `FALSE`.
 #' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
 #'   written to the console. If `FALSE`, only to the log file (e.g. for tests).
+#' @param conformToValidation (`logical(1)`) If `TRUE`, after validation modify episode
+#'   output to conform: remove overlapping episodes and episodes longer than 308 days.
+#'   If `FALSE` (default), only validate and log issues; do not modify the result.
+#'   Validation and logging always run regardless of this parameter.
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
@@ -92,7 +96,8 @@ runPregnancyIdentifier <- function(cdm,
                                    minCellCount = 5L,
                                    debugMode = FALSE,
                                    runExport = FALSE,
-                                   outputLogToConsole = TRUE) {
+                                   outputLogToConsole = TRUE,
+                                   conformToValidation = FALSE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
@@ -102,6 +107,7 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
   checkmate::assertLogical(runExport, len = 1, any.missing = FALSE)
   checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
+  checkmate::assertLogical(conformToValidation, len = 1, any.missing = FALSE)
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
 
@@ -191,7 +197,8 @@ runPregnancyIdentifier <- function(cdm,
     startDate = startDate,
     endDate = endDate,
     logger = logger,
-    debugMode = debugMode
+    debugMode = debugMode,
+    conformToValidation = conformToValidation
   )
 
   if (runExport) {

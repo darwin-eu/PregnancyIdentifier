@@ -100,6 +100,67 @@ validateEpisodePeriods <- function(df,
   invisible(df)
 }
 
+#' Conform episode periods: remove overlaps and too-long episodes
+#'
+#' Optionally applied after \code{validateEpisodePeriods}. Within each person,
+#' drops records that overlap an earlier episode (keeps earliest-start-first
+#' non-overlapping set) and drops records whose span exceeds \code{maxDays}.
+#' Used when the caller wants to modify output to satisfy validation rules
+#' rather than only log issues.
+#'
+#' @param df A dataframe with at least person id and start/end date columns.
+#' @param personIdCol Character. Name of the person identifier column.
+#' @param startDateCol Character. Name of the period start date column.
+#' @param endDateCol Character. Name of the period end date column.
+#' @param maxDays Numeric. Maximum allowed span in days (default 308). Records with span > maxDays are dropped.
+#' @return Data frame with overlapping and too-long records removed. Rows with NA in start or end are retained unchanged.
+#' @noRd
+conformEpisodePeriods <- function(df,
+                                  personIdCol,
+                                  startDateCol,
+                                  endDateCol,
+                                  maxDays = 308) {
+  checkmate::assertDataFrame(df, min.rows = 0)
+  checkmate::assertString(personIdCol)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  checkmate::assertNumber(maxDays, lower = 0, finite = TRUE)
+  stopifnot(
+    personIdCol %in% names(df),
+    startDateCol %in% names(df),
+    endDateCol %in% names(df)
+  )
+  df <- dplyr::ungroup(df)
+  incomplete <- df %>%
+    dplyr::filter(
+      is.na(.data[[startDateCol]]) | is.na(.data[[endDateCol]])
+    )
+  complete <- df %>%
+    dplyr::filter(
+      !is.na(.data[[startDateCol]]) & !is.na(.data[[endDateCol]])
+    )
+  if (nrow(complete) == 0) {
+    return(dplyr::bind_rows(complete, incomplete))
+  }
+  # Within person: sort by start; keep row i iff start_i >= last_kept_end (greedy non-overlapping)
+  complete <- complete %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(personIdCol))) %>%
+    dplyr::arrange(.data[[startDateCol]], .by_group = TRUE) %>%
+    dplyr::mutate(
+      .prev_end = dplyr::lag(.data[[endDateCol]], default = as.Date("1900-01-01") - 1L),
+      .cum_prev_end = cummax(as.numeric(.data$.prev_end))
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(as.numeric(.data[[startDateCol]]) >= .data$.cum_prev_end) %>%
+    dplyr::select(-dplyr::any_of(c(".prev_end", ".cum_prev_end")))
+  # Drop records with span > maxDays
+  complete <- complete %>%
+    dplyr::filter(
+      as.numeric(as.Date(.data[[endDateCol]]) - as.Date(.data[[startDateCol]])) <= maxDays
+    )
+  dplyr::bind_rows(complete, incomplete)
+}
+
 cdmTableExists <- function(cdm, tableName) {
   DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = tableName)
 }

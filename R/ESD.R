@@ -40,6 +40,7 @@
 #' @param endDate Latest episode date to include (as.Date). Default: \code{Sys.Date()}.
 #' @param logger A \code{log4r} logger object for info/debug messages.
 #' @param debugMode (`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)
+#' @param conformToValidation (`logical(1)`: `FALSE`) If `TRUE`, modify episodes to conform (remove overlaps and length > 308 days). Validation and logging always run.
 #'
 #' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
 #'         The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
@@ -49,8 +50,10 @@ runEsd <- function(cdm,
                    startDate = as.Date("1900-01-01"),
                    endDate = Sys.Date(),
                    logger,
-                   debugMode = FALSE) {
+                   debugMode = FALSE,
+                   conformToValidation = FALSE) {
   checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertLogical(conformToValidation, len = 1, any.missing = FALSE)
 
   log4r::info(logger, "Running ESD")
 
@@ -166,6 +169,14 @@ runEsd <- function(cdm,
     endDateCol = "final_episode_end_date",
     logger = logger
   )
+  if (conformToValidation) {
+    mergedDf <- conformEpisodePeriods(
+      mergedDf,
+      personIdCol = "person_id",
+      startDateCol = "final_episode_start_date",
+      endDateCol = "final_episode_end_date"
+    )
+  }
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
