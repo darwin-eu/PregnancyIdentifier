@@ -156,12 +156,8 @@ runEsd <- function(cdm,
       "esd_preterm_status_from_calculation",
       dplyr::everything()
     )
-  mergedDf <- removeLongPregnancies(
-    mergedDf,
-    logger = logger,
-    startDateCol = "final_episode_start_date",
-    endDateCol = "final_episode_end_date"
-  )
+  # Long episodes and overlaps: only modify when conformToValidation is TRUE (conformEpisodePeriods below).
+  # Validation and logging always run (validateEpisodePeriods).
   validateEpisodePeriods(
     mergedDf,
     personIdCol = "person_id",
