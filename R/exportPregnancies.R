@@ -72,7 +72,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   utils::zip(
     zipfile = file.path(exportDir, zipName),
     files = list.files(path = exportDir, full.names = TRUE),
-    flags = "-j"
+    flags = "-j -q"
   )
 
   message(sprintf("Files have been written to: %s", exportDir))
@@ -193,7 +193,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
     ) %>%
-    write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
+    utils::write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
   resAge %>%
     summariseColumn("age_pregnancy_start") %>%

@@ -132,7 +132,7 @@ initPregnancies <- function(cdm,
     dplyr::inner_join(hip, by = "concept_id") |>
     dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id") |>
     dplyr::rename(visit_date = "event_date") |>
-    dplyr::compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
@@ -141,7 +141,7 @@ initPregnancies <- function(cdm,
       .data$person_id, .data$visit_date, .data$category, .data$concept_id,
       .data$value_as_number, .data$gest_value
     ) |>
-    dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
@@ -169,14 +169,14 @@ initPregnancies <- function(cdm,
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") |>
     dplyr::distinct() |>
-    dplyr::compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_pps_records <- ppsEvents |>
     dplyr::filter(!is.na(.data$pps_concept_start_date)) |>
     addAgeSex("pps_concept_start_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
     dplyr::select(-"sex", -"age") |>
-    dplyr::compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
 
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))

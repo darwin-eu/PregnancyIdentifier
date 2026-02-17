@@ -5,6 +5,25 @@ getTblRowCount <- function(tbl) {
     dplyr::pull(.data$n)
 }
 
+#' Compute a lazy table (suppress long-SQL warnings and messages)
+#'
+#' Wrapper around \code{dplyr::compute()} that runs inside
+#' \code{suppressWarnings(suppressMessages(...))} to avoid noisy output from
+#' CDMConnector/dbplyr when generated SQL is long.
+#'
+#' @param x A lazy table (e.g. from a \code{cdm_reference}).
+#' @param name Table name for the computed result.
+#' @param temporary \code{TRUE} or \code{FALSE}.
+#' @param overwrite \code{TRUE} or \code{FALSE}.
+#' @param ... Passed to \code{dplyr::compute()}.
+#' @return Result of \code{dplyr::compute(x, name = name, ...)}.
+#' @noRd
+.compute <- function(x, name = NULL, temporary = TRUE, overwrite = FALSE, ...) {
+  suppressWarnings(suppressMessages(
+    dplyr::compute(x, name = name, temporary = temporary, overwrite = overwrite, ...)
+  ))
+}
+
 #' Validate episode periods: overlaps within person and max duration
 #'
 #' Checks a dataframe of episode periods (start/end dates per person) for two
@@ -193,7 +212,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
       pregnancy_start_date = as.Date(.data$pregnancy_start_date),
       pregnancy_end_date = as.Date(.data$pregnancy_end_date)
     ) %>%
-    dplyr::compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
 
   if (!fullVocab) {
     used_ids <- CDMConnector::cdmFlatten(cdm) %>%
@@ -207,41 +226,39 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
       if ("concept" %in% names(cdm)) {
         cdm$concept <- cdm$concept %>%
           dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          dplyr::compute(name = "concept")
+          .compute(name = "concept")
       }
       if ("concept_relationship" %in% names(cdm)) {
         cdm$concept_relationship <- cdm$concept_relationship %>%
           dplyr::filter(
             .data$concept_id_1 %in% .env$used_ids |
-            .data$concept_id_2 %in% .env$used_ids
+              .data$concept_id_2 %in% .env$used_ids
           ) %>%
-          dplyr::compute(name = "concept_relationship")
+          .compute(name = "concept_relationship")
       }
       if ("concept_ancestor" %in% names(cdm)) {
         cdm$concept_ancestor <- cdm$concept_ancestor %>%
           dplyr::filter(
             .data$ancestor_concept_id %in% .env$used_ids |
-            .data$descendant_concept_id %in% .env$used_ids
+              .data$descendant_concept_id %in% .env$used_ids
           ) %>%
-          dplyr::compute(name = "concept_ancestor")
+          .compute(name = "concept_ancestor")
       }
       if ("concept_synonym" %in% names(cdm)) {
         cdm$concept_synonym <- cdm$concept_synonym %>%
           dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          dplyr::compute(name = "concept_synonym")
+          .compute(name = "concept_synonym")
       }
       if ("drug_strength" %in% names(cdm)) {
         cdm$drug_strength <- cdm$drug_strength %>%
           dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
-          dplyr::compute(name = "drug_strength")
+          .compute(name = "drug_strength")
       }
       if ("relationship" %in% names(cdm)) {
         cdm$relationship <- cdm$relationship %>%
           dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
-          dplyr::compute(name = "relationship")
+          .compute(name = "relationship")
       }
-
-      cdm_src$relationship
     }
   }
 

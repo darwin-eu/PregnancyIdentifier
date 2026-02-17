@@ -399,10 +399,8 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
       before_days = !!CDMConnector::datediff("outcome_date", "next_visit", "day")
     )
   # Materialize so later union/compute does not emit unqualified "prev_visit" in SQL (PostgreSQL)
-  suppressWarnings({ # long sql warning
-    cdm$deliv_tbl_staging <- delivTbl %>%
-      dplyr::compute(name = "deliv_tbl_staging", temporary = FALSE, overwrite = TRUE)
-  })
+  cdm$deliv_tbl_staging <- delivTbl %>%
+    .compute(name = "deliv_tbl_staging", temporary = FALSE, overwrite = TRUE)
   delivTbl <- cdm$deliv_tbl_staging
   # Non-DELIV rows: move LB/SB outcome_date earlier when DELIV precedes and spacing < afterMinDelivSb
   nonDeliv <- delivTbl %>%
@@ -445,10 +443,8 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
     dplyr::mutate(
       outcome_id = paste0(as.character(.data$person_id), "_O_", as.character(.data$outcome_date), "_", .data$outcome_category)
     )
-  suppressWarnings({ # sql is long but it should be ok.
-    cdm$outcome_episodes_df <- allOutcomes %>%
-      dplyr::compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
-  })
+  cdm$outcome_episodes_df <- allOutcomes %>%
+    .compute(name = "outcome_episodes_df", temporary = FALSE, overwrite = TRUE)
   cdm <- omopgenerics::dropSourceTable(cdm, "deliv_tbl_staging")
   log4r::info(logger, "Stage 1: outcome episodes materialized")
   cdm
@@ -526,7 +522,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
     dplyr::ungroup()
   # Materialize so later join/compute does not reference gest_value from wrong scope (PostgreSQL)
   cdm$gest_episodes_staging <- gestationEpisodesTbl %>%
-    dplyr::compute(name = "gest_episodes_staging", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "gest_episodes_staging", temporary = FALSE, overwrite = TRUE)
   gestationEpisodesTbl <- cdm$gest_episodes_staging
   newFirst <- gestationEpisodesTbl %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%
@@ -592,12 +588,9 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
     dplyr::mutate(
       gest_start_date_diff = !!CDMConnector::datediff("min_gest_start_date", "max_gest_start_date", "day")
     )
-  suppressWarnings({
-    # SQL is quite long but should be ok.
-    cdm$gest_episodes_df <- joined %>%
-      dplyr::select(-"max_gest_start_date_further", -"neg_max_gest_day", -"neg_min_gest_day") %>%
-      dplyr::compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
-  })
+  cdm$gest_episodes_df <- joined %>%
+    dplyr::select(-"max_gest_start_date_further", -"neg_max_gest_day", -"neg_min_gest_day") %>%
+    .compute(name = "gest_episodes_df", temporary = FALSE, overwrite = TRUE)
   cdm <- omopgenerics::dropSourceTable(cdm, "gest_episodes_staging")
 
   log4r::info(logger, "Stage 2: gestation episodes materialized")
@@ -637,7 +630,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::ungroup()
   # Workaround for dbplyr get_env() with filtering joins (tidyverse/dbplyr#1534, #1606, #1659):
   # materialize bothTbl then use filter + collected IDs instead of anti_join(lazy y).
-  bothTbl <- dplyr::compute(bothTbl, name = "merge_both_tmp", temporary = TRUE)
+  bothTbl <- .compute(bothTbl, name = "merge_both_tmp", temporary = TRUE)
   bothVisitIds <- bothTbl %>%
     dplyr::select("visit_id") %>%
     dplyr::distinct() %>%
@@ -670,7 +663,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
   }
   # Materialize union first to avoid very long SQL on some database platforms
   unionTbl <- purrr::reduce(tblList, dplyr::union_all) %>%
-    dplyr::compute(name = "merged_episodes_tmp", temporary = TRUE)
+    .compute(name = "merged_episodes_tmp", temporary = TRUE)
   mergedTbl <- unionTbl %>%
     dplyr::mutate(
       final_episode_id = dplyr::coalesce(.data$visit_id, .data$gest_id),
@@ -679,7 +672,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     ) %>%
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "final_visit_date", "day"))
   cdm$merged_episodes_df <- mergedTbl %>%
-    dplyr::compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
   log4r::info(logger, "Stage 3: merged episodes materialized")
   cdm
 }
@@ -732,7 +725,7 @@ cleanMergedEpisodes <- function(cdm, logger, bufferDays = 28) {
       min_gest_date_diff = !!CDMConnector::datediff("min_gest_date", "min_gest_date_2", "day"),
       date_diff_max_end = !!CDMConnector::datediff("end_gest_date", "max_gest_date", "day")
     ) %>%
-    dplyr::compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
   cdm
 }
 
@@ -814,7 +807,7 @@ resolveOverlaps <- function(cdm, logger) {
     dplyr::filter(!(!is.na(.data$max_gest_week) & .data$is_over_min == 0))
   cdm$final_episodes_df <- restFinal %>%
     dplyr::union_all(reclassPreg) %>%
-    dplyr::compute(name = "final_episodes_df", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "final_episodes_df", temporary = FALSE, overwrite = TRUE)
   nRemoved <- cdm$final_episodes_df %>%
     dplyr::filter(.data$removed_outcome == 1) %>%
     dplyr::tally() %>%
@@ -896,6 +889,6 @@ attachGestationAndLength <- function(cdm, gestConceptIds) {
     ) %>%
     dplyr::select("person_id", "hip_first_gest_date", "hip_outcome_category", "hip_pregnancy_end", "hip_pregnancy_start", "hip_episode", "hip_gest_flag", "hip_episode_length") %>%
     dplyr::distinct() %>%
-    dplyr::compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "preg_hip_episodes", temporary = FALSE, overwrite = TRUE)
   cdm
 }
