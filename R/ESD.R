@@ -823,10 +823,12 @@ getGtTiming <- function(datesList) {
 
 episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   # add on either GW or GR3m designation depending on whether the concept is present
-
-  esdConcepts2 <-
-    system.file("concepts", "ESD_concepts2.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+  # GW concept IDs: from ESD_concepts.xlsx column is_gw_concept
+  esdConcepts <-
+    system.file("concepts", "ESD_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
     readxl::read_xlsx()
+
+  gwConceptIdsFromEsd <- as.integer(esdConcepts$esd_concept_id[as.logical(esdConcepts$is_gw_concept)])
 
   if (nrow(getTimingConceptsDf) == 0) {
     log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", 0))
@@ -859,7 +861,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
       gt_type = dplyr::case_when(
         .data$date_type %in% c("LMP", "EDD") ~ .data$date_type,
         stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period") |
-          .data$domain_concept_id %in% local(esdConcepts2$concept_id) |
+          .data$domain_concept_id %in% .env$gwConceptIdsFromEsd |
           .data$domain_concept_id %in% .env$gestationAtBirthConceptIds ~ "GW",
         !is.na(.data$min_month) ~ "GR3m",
         TRUE ~ NA_character_
