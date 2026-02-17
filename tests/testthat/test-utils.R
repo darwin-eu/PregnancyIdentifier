@@ -4,7 +4,7 @@ test_that("mockPregnancyCdm runs without error", {
   cleanupCdmDb(cdm)
 })
 
-test_that("mockPregnancyCdm runs without error", {
+test_that("mockPregnancyCdm with fullVocab = FALSE runs without error and has smaller concept table", {
   cdm <- mockPregnancyCdm(fullVocab = FALSE)
   expect_s3_class(cdm, "cdm_reference")
   expect_true(dplyr::tally(cdm$concept) %>% dplyr::pull("n") < 1000)
