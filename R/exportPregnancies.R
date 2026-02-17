@@ -194,6 +194,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
+  # summarise age at pregnancy start across all pregnancies
   resAge %>%
     summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
@@ -203,6 +204,20 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
       pkg_version = pkgVersion
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
+
+  # summarise age at pregnancy start at first pregnancy
+  resAge %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
+    dplyr::ungroup() %>%
+    summariseColumn("age_pregnancy_start") %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    ) %>%
+    utils::write.csv(file.path(resPath, "age_summary_first_pregnancy.csv"), row.names = FALSE)
 
   resAgeRound <- resAge %>%
     dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%
@@ -330,6 +345,7 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
 exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
       pct = .data$n / sum(.data$n) * 100
