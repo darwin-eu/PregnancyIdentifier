@@ -330,6 +330,7 @@ exportGestationalAgeCounts <- function(res, resPath, snap, runStart, pkgVersion)
 exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersion, minCellCount) {
   res %>%
     dplyr::mutate(gestational_weeks = floor(.data$esd_gestational_age_days_calculated / 7)) %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
     dplyr::count(.data$gestational_weeks, name = "n") %>%
     dplyr::mutate(
       pct = .data$n / sum(.data$n) * 100
