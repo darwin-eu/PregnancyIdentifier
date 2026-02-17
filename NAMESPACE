@@ -2,6 +2,7 @@
 
 export("%>%")
 export(cdmCommentContents)
+export(comparePregnancyIdentifierWithPET)
 export(exportPregnancies)
 export(initPregnancies)
 export(makeLogger)

@@ -30,7 +30,6 @@ Imports:
     purrr,
     stringr,
     TestGenerator,
-    CodelistGenerator,
     PatientProfiles,
     magrittr,
     tidyr,
@@ -38,13 +37,17 @@ Imports:
     rlang,
     shiny,
     checkmate,
-    tibble
+    tibble,
+    omopgenerics
 Suggests: 
     testthat (>= 3.0.0),
-    omopgenerics,
+    shinytest2,
     knitr,
     rmarkdown,
     rstudioapi,
     DT,
-    readr
+    readr,
+    RSQLite,
+    RPostgres,
+    odbc
 VignetteBuilder: knitr

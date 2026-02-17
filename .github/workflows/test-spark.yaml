@@ -1,0 +1,42 @@
+# Run package tests using Spark/Databricks. Requires DATABRICKS_* secrets. Uses pre-built image.
+on:
+  push:
+    branches: [main, master, test, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+name: Tests (Spark)
+
+jobs:
+  test-spark:
+    runs-on: ubuntu-latest
+    container:
+      image: executionengine.azurecr.io/darwin-eu-dev/examplestudy-base:latest
+      env:
+        DATABRICKS_USER:             ${{ secrets.DATABRICKS_USER }}
+        DATABRICKS_TOKEN:            ${{ secrets.DATABRICKS_TOKEN }}
+        DATABRICKS_HOST:             ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_WORKSPACE:        ${{ secrets.DATABRICKS_WORKSPACE }}
+        DATABRICKS_HTTPPATH:         ${{ secrets.DATABRICKS_HTTPPATH }}
+        DATABRICKS_SCRATCH_SCHEMA:   ${{ secrets.DATABRICKS_SCRATCH_SCHEMA }}
+        DATABRICKS_CDM_SCHEMA:       ${{ secrets.DATABRICKS_CDM_SCHEMA }}
+
+    name: Spark test
+
+    strategy:
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages and prepare data
+        run: |
+          install.packages("devtools", repos = "https://cloud.r-project.org/")
+          install.packages("remotes", repos = "https://cloud.r-project.org/")
+          install.packages("testthat", repos = "https://cloud.r-project.org/")
+          CDMConnector::downloadEunomiaData()
+        shell: Rscript {0}
+
+      - name: Run tests (Spark)
+        run: R -e 'devtools::install(); devtools::test(filter = "spark", stop_on_failure = TRUE)'

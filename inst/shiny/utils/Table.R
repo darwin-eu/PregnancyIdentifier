@@ -256,7 +256,7 @@ Table <- R6::R6Class(
       return(sprintf("%s.csv", private$.title))
     },
     dlContent = function(file) {
-      write.csv(isolate(self$reactiveValues$data), file)
+      utils::write.csv(isolate(self$reactiveValues$data), file)
     }
   )
 )

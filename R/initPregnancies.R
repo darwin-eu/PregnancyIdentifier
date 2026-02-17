@@ -30,6 +30,9 @@
 #' represented using a length 2 integer vector. By default this will be
 #' c(15, 56) and will include anyone >= 15 and < 56.
 #' @param logger A log4r logger object that can be created with `makeLogger()`
+#' @param outputDir Optional directory path. When provided, an \code{attrition.csv}
+#'   file is created with initial record and person counts for \code{preg_hip_records}
+#'   and \code{preg_pps_records}.
 #'
 #' @returns The input CDM with new tables added called preg_hip_records, preg_pps_records,
 #' preg_hip_concepts, preg_pps_concepts.
@@ -45,7 +48,8 @@ initPregnancies <- function(cdm,
                             startDate  = as.Date("1900-01-01"),
                             endDate    = Sys.Date(),
                             ageBounds  = c(15L, 56L),
-                            logger) {
+                            logger,
+                            outputDir  = NULL) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertDate(startDate, any.missing = FALSE)
@@ -66,6 +70,33 @@ initPregnancies <- function(cdm,
   hipConcepts <- readxl::read_excel(
     system.file("concepts", "HIP_concepts.xlsx", package = "PregnancyIdentifier")
   )
+  if (!"gest_value" %in% names(hipConcepts)) {
+    hipConcepts <- hipConcepts |> dplyr::mutate(gest_value = NA_real_)
+  }
+  # Only include concepts that are used for episode definition: outcome categories (LB, SB, DELIV, ECT, AB, SA),
+  # concepts with gest_value set (gestation weeks from condition/procedure/observation), or concepts in
+  # gestational_age_concepts.csv (used with value_as_number for gestation episodes).
+  hipOutcomeCategories <- c("LB", "SB", "DELIV", "ECT", "AB", "SA")
+  gestationalAgeConcepts <- utils::read.csv(
+    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+    colClasses = c(concept_id = "integer")
+  )
+  gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+  hipConceptsUsed <- hipConcepts |>
+    dplyr::filter(
+      .data$category %in% .env$hipOutcomeCategories |
+        !is.na(.data$gest_value) |
+        .data$concept_id %in% .env$gestationalAgeConceptIds
+    )
+  nHipDropped <- nrow(hipConcepts) - nrow(hipConceptsUsed)
+  if (nHipDropped > 0) {
+    log4r::info(logger, sprintf(
+      "HIP concepts: using %d of %d (dropped %d PREG-only concepts not used for episode definition)",
+      nrow(hipConceptsUsed), nrow(hipConcepts), nHipDropped
+    ))
+  }
+  hipConcepts <- hipConceptsUsed
+
   ppsConcepts <- readxl::read_excel(
     system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
   ) |>
@@ -99,8 +130,13 @@ initPregnancies <- function(cdm,
   # ============================================================
   log4r::info(logger, "Pulling HIP concept records from OMOP domain tables")
 
+  # Include gest_value (gestational weeks from HIP_concepts.xlsx) so condition/procedure/observation
+  # rows without value_as_number can still contribute to gestation episodes in buildGestationEpisodes.
   hip <- cdm$preg_hip_concepts |>
-    dplyr::select("concept_id", "category")
+    dplyr::select("concept_id", "category", dplyr::any_of("gest_value"))
+  if (!"gest_value" %in% colnames(hip)) {
+    hip <- hip |> dplyr::mutate(gest_value = NA_real_)
+  }
 
   hipSpecs <- tibble::tribble(
     ~tbl,                         ~conceptCol,               ~dateCol,               ~valueCol,
@@ -110,22 +146,29 @@ initPregnancies <- function(cdm,
     cdm$measurement,              "measurement_concept_id",   "measurement_date",      "value_as_number"
   )
 
+  # Cast value_as_number so UNION has a single type (avoids "UNION types text and numeric cannot be matched")
   hipEvents <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
-    extra <- if (!is.na(valueCol)) list(value_as_number = rlang::sym(valueCol)) else list(value_as_number = NA_real_)
-    pullDomain(tbl, conceptCol, dateCol, extra) |>
-      dplyr::mutate(value_as_number = as.numeric(.data$value_as_number))
+    extra <- if (!is.na(valueCol)) {
+      list(value_as_number = rlang::expr(as.numeric(!!rlang::sym(valueCol))))
+    } else {
+      list(value_as_number = rlang::expr(as.numeric(NA)))
+    }
+    pullDomain(tbl, conceptCol, dateCol, extra)
   }) |>
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(hip, by = "concept_id") |>
     dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id") |>
     dplyr::rename(visit_date = "event_date") |>
-    dplyr::compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
-    dplyr::distinct(.data$person_id, .data$visit_date, .data$category, .data$concept_id, .data$value_as_number) |>
-    dplyr::compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
+    dplyr::distinct(
+      .data$person_id, .data$visit_date, .data$category, .data$concept_id,
+      .data$value_as_number, .data$gest_value
+    ) |>
+    .compute(name = "preg_hip_records", temporary = FALSE, overwrite = TRUE)
 
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
@@ -153,17 +196,22 @@ initPregnancies <- function(cdm,
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") |>
     dplyr::distinct() |>
-    dplyr::compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
 
   cdm$preg_pps_records <- ppsEvents |>
     dplyr::filter(!is.na(.data$pps_concept_start_date)) |>
     addAgeSex("pps_concept_start_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
     dplyr::select(-"sex", -"age") |>
-    dplyr::compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
+    .compute(name = "preg_pps_records", temporary = FALSE, overwrite = TRUE)
 
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
+
+  if (!is.null(outputDir)) {
+    checkmate::assertCharacter(outputDir, len = 1)
+    initAttrition(outputDir, cdm)
+  }
 
   cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm

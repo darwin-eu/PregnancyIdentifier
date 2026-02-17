@@ -58,6 +58,8 @@ test_that("exportPregnancies runs with custom minCellCount", {
     "age_summary.csv",
     "age_summary_first_pregnancy.csv",
     "age_summary_groups.csv",
+    "attrition.csv",
+    "attrition_if_cleanup.csv",
     "cdm_source.csv",
     "concept_check.csv",
     "date_consistency.csv",
@@ -76,6 +78,7 @@ test_that("exportPregnancies runs with custom minCellCount", {
     "precision_days.csv",
     "pregnancy_frequency.csv",
     "pregnancy_overlap_counts.csv",
+    "quality_check_cleanup.csv",
     "swapped_dates.csv",
     "yearly_trend.csv",
     "yearly_trend_missing.csv"

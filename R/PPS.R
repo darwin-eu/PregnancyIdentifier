@@ -97,13 +97,46 @@ runPps <- function(cdm,
     ppsWithOutcomes <- ppsWithOutcomes %>%
       dplyr::rename(pps_episode_number = "person_episode_number", pps_n_gt_concepts = "n_gt_concepts")
   }
+  # When episode has no concept start dates, min is NA; impute from max so we have a valid period
   ppsWithOutcomes <- ppsWithOutcomes %>%
+    dplyr::mutate(
+      pps_episode_min_date = dplyr::coalesce(
+        .data$pps_episode_min_date,
+        .data$pps_episode_max_date - lubridate::days(280)
+      )
+    ) %>%
     dplyr::select(
       "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
       "pps_episode_max_date_plus_two_months", "pps_outcome_category", "pps_outcome_date",
       "pps_n_gt_concepts"
     )
+  validateEpisodePeriods(
+    ppsWithOutcomes,
+    personIdCol = "person_id",
+    startDateCol = "pps_episode_min_date",
+    endDateCol = "pps_episode_max_date",
+    logger = logger
+  )
   saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
+
+  # Attrition: pps_episodes from preg_pps_records
+  prior <- getAttritionPrior(outputDir, "preg_pps_records")
+  if (!is.null(prior)) {
+    postR <- nrow(ppsWithOutcomes)
+    postP <- dplyr::n_distinct(ppsWithOutcomes$person_id)
+    appendAttrition(
+      outputDir,
+      step = "pps_episodes",
+      table = "pps_episodes",
+      outcome = NA_character_,
+      prior_records = prior$post_records,
+      prior_persons = prior$post_persons,
+      dropped_records = prior$post_records - postR,
+      dropped_persons = prior$post_persons - postP,
+      post_records = postR,
+      post_persons = postP
+    )
+  }
 
   cdm
 }

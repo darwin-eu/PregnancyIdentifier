@@ -9,7 +9,8 @@ initPregnancies(
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   ageBounds = c(15L, 56L),
-  logger
+  logger,
+  outputDir = NULL
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ represented using a length 2 integer vector. By default this will be
 c(15, 56) and will include anyone >= 15 and < 56.}
 
 \item{logger}{A log4r logger object that can be created with `makeLogger()`}
+
+\item{outputDir}{Optional directory path. When provided, an \code{attrition.csv}
+file is created with initial record and person counts for \code{preg_hip_records}
+and \code{preg_pps_records}.}
 }
 \value{
 The input CDM with new tables added called preg_hip_records, preg_pps_records,

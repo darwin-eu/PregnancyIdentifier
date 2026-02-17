@@ -40,6 +40,7 @@
 #' @param endDate Latest episode date to include (as.Date). Default: \code{Sys.Date()}.
 #' @param logger A \code{log4r} logger object for info/debug messages.
 #' @param debugMode (`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)
+#' @param conformToValidation (`logical(1)`: `FALSE`) If `TRUE`, modify episodes to conform (remove overlaps and length > 308 days). Validation and logging always run.
 #'
 #' @return Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
 #'         The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
@@ -49,8 +50,10 @@ runEsd <- function(cdm,
                    startDate = as.Date("1900-01-01"),
                    endDate = Sys.Date(),
                    logger,
-                   debugMode = FALSE) {
+                   debugMode = FALSE,
+                   conformToValidation = FALSE) {
   checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertLogical(conformToValidation, len = 1, any.missing = FALSE)
 
   log4r::info(logger, "Running ESD")
 
@@ -153,10 +156,290 @@ runEsd <- function(cdm,
       "esd_preterm_status_from_calculation",
       dplyr::everything()
     )
+  # Long episodes and overlaps: only modify when conformToValidation is TRUE (conformEpisodePeriods below).
+  # Validation and logging always run (validateEpisodePeriods).
+  validateEpisodePeriods(
+    mergedDf,
+    personIdCol = "person_id",
+    startDateCol = "final_episode_start_date",
+    endDateCol = "final_episode_end_date",
+    logger = logger
+  )
+  if (conformToValidation) {
+    mergedDf <- conformEpisodePeriods(
+      mergedDf,
+      personIdCol = "person_id",
+      startDateCol = "final_episode_start_date",
+      endDateCol = "final_episode_end_date"
+    )
+  }
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
+  # Attrition: final_episodes overall and by outcome
+  prior <- getAttritionPrior(outputDir, "hipps_episodes")
+  if (!is.null(prior)) {
+    postR <- nrow(mergedDf)
+    postP <- dplyr::n_distinct(mergedDf$person_id)
+    appendAttrition(
+      outputDir,
+      step = "final_episodes",
+      table = "final_episodes",
+      outcome = NA_character_,
+      prior_records = prior$post_records,
+      prior_persons = prior$post_persons,
+      dropped_records = prior$post_records - postR,
+      dropped_persons = prior$post_persons - postP,
+      post_records = postR,
+      post_persons = postP
+    )
+  }
+  # By outcome (only when attrition file exists, e.g. pipeline run via runPregnancyIdentifier)
+  if (file.exists(attritionFileName(outputDir)) && "final_outcome_category" %in% names(mergedDf)) {
+    outcomeCol <- "final_outcome_category"
+    outcomes <- sort(unique(mergedDf[[outcomeCol]][!is.na(mergedDf[[outcomeCol]])]))
+    for (oc in outcomes) {
+      sub <- mergedDf %>% dplyr::filter(.data[[outcomeCol]] == .env$oc)
+      appendAttrition(
+        outputDir,
+        step = "final_episodes_by_outcome",
+        table = "final_episodes",
+        outcome = oc,
+        prior_records = NA_integer_,
+        prior_persons = NA_integer_,
+        dropped_records = NA_integer_,
+        dropped_persons = NA_integer_,
+        post_records = nrow(sub),
+        post_persons = dplyr::n_distinct(sub$person_id)
+      )
+    }
+  }
+
   invisible(NULL)
+}
+
+# ============================================================
+# Remove long pregnancies and overlapping episodes
+# ============================================================
+
+#' Remove pregnancies longer than a maximum duration
+#'
+#' Filters out episodes whose period (end date minus start date in days) exceeds
+#' \code{maxDays}. Episodes with missing start or end date are retained.
+#' Logs how many episodes were removed.
+#'
+#' @param df Data frame with at least start and end date columns.
+#' @param logger A \code{log4r} logger object.
+#' @param startDateCol Character. Name of the episode start date column (default \code{"final_episode_start_date"}).
+#' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
+#' @param maxDays Numeric. Maximum allowed duration in days (default 322).
+#' @return The data frame with long episodes removed.
+#' @noRd
+removeLongPregnancies <- function(df,
+                                  logger,
+                                  startDateCol = "final_episode_start_date",
+                                  endDateCol = "final_episode_end_date",
+                                  maxDays = 322) {
+  checkmate::assertDataFrame(df, min.rows = 0)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  checkmate::assertNumber(maxDays, lower = 0, finite = TRUE)
+  stopifnot(
+    startDateCol %in% names(df),
+    endDateCol %in% names(df)
+  )
+
+  nBefore <- nrow(df)
+  out <- df %>%
+    dplyr::mutate(
+      .days = as.numeric(as.Date(.data[[endDateCol]]) - as.Date(.data[[startDateCol]]))
+    ) %>%
+    dplyr::filter(is.na(.data$.days) | .data$.days <= .env$maxDays) %>%
+    dplyr::select(-".days")
+  nRemoved <- nBefore - nrow(out)
+
+  if (nRemoved > 0) {
+    log4r::info(
+      logger,
+      sprintf(
+        "removeLongPregnancies: removed %d episode(s) with period length greater than %d days.",
+        nRemoved,
+        maxDays
+      )
+    )
+  }
+
+  out
+}
+
+# ============================================================
+# Remove overlapping episodes from final ESD output
+# ============================================================
+
+#' Outcome category rank for prioritization (HIP hierarchy)
+#' Lower value = higher priority. LB (live birth) first, then SB, DELIV, ECT, AB, SA, PREG.
+#' @noRd
+outcomeRank <- function(cat) {
+  dplyr::case_when(
+    cat == "LB" ~ 1L,
+    cat == "SB" ~ 2L,
+    cat == "DELIV" ~ 3L,
+    cat == "ECT" ~ 4L,
+    cat == "AB" ~ 5L,
+    cat == "SA" ~ 6L,
+    cat == "PREG" ~ 7L,
+    TRUE ~ 99L
+  )
+}
+
+#' Find connected components of overlapping intervals within a set of (start, end) pairs.
+#' Returns integer vector of group id (1, 2, ...) per row.
+#' Uses O(n log n) sweep by start date instead of O(n^2) pairwise union-find.
+#' @noRd
+overlapGroups <- function(start, end) {
+  n <- length(start)
+  if (n == 0) return(integer(0))
+  groups <- integer(n)
+  valid <- !is.na(start) & !is.na(end)
+  if (any(valid)) {
+    idx <- seq_len(n)
+    valid_idx <- idx[valid]
+    o <- order(start[valid_idx], end[valid_idx])
+    ordered_idx <- valid_idx[o]
+    current_group_id <- 1L
+    first_i <- ordered_idx[1L]
+    groups[first_i] <- current_group_id
+    current_group_max_end <- end[first_i]
+    if (length(ordered_idx) > 1L) {
+      for (k in 2:length(ordered_idx)) {
+        i <- ordered_idx[k]
+        s_i <- start[i]
+        e_i <- end[i]
+        if (s_i < current_group_max_end) {
+          groups[i] <- current_group_id
+          if (e_i > current_group_max_end) {
+            current_group_max_end <- e_i
+          }
+        } else {
+          current_group_id <- current_group_id + 1L
+          groups[i] <- current_group_id
+          current_group_max_end <- e_i
+        }
+      }
+    }
+    max_valid_group <- current_group_id
+  } else {
+    max_valid_group <- 0L
+  }
+  if (any(!valid)) {
+    na_idx <- which(!valid)
+    groups[na_idx] <- max_valid_group + seq_along(na_idx)
+  }
+  groups
+}
+
+#' Remove overlapping episodes from final ESD output
+#'
+#' Within each person, groups episodes whose date ranges overlap and keeps a single
+#' episode per group. Prioritization: (1) \code{hip_flag == 1} over 0; (2) among HIP
+#' episodes, HIP outcome hierarchy (live birth > stillbirth > delivery > ectopic >
+#' abortion/miscarriage > ongoing); (3) \code{esd_outcome_match == 1} (concordant);
+#' (4) better ESD precision (lower \code{esd_precision_days}); (5) gestational week
+#' evidence (\code{esd_gw_flag}); (6) earliest \code{final_episode_end_date}; (7) first row.
+#'
+#' @param esdDf Data frame of final ESD output (e.g. from \code{runEsd} or
+#'   \code{final_pregnancy_episodes.rds}) with at least \code{person_id},
+#'   \code{final_episode_start_date}, \code{final_episode_end_date}. Optional
+#'   columns used for prioritization: \code{hip_flag}, \code{final_outcome_category},
+#'   \code{hip_outcome_category}, \code{esd_outcome_match}, \code{esd_precision_days},
+#'   \code{esd_gw_flag}. If \code{hip_flag} is missing it is treated as 0.
+#' @param personIdCol Character. Name of the person identifier column (default \code{"person_id"}).
+#' @param startDateCol Character. Name of the episode start date column (default \code{"final_episode_start_date"}).
+#' @param endDateCol Character. Name of the episode end date column (default \code{"final_episode_end_date"}).
+#' @return Data frame with the same columns as \code{esdDf}, with overlapping
+#'   episodes removed (one episode retained per overlap group per person).
+#' @noRd
+removeOverlaps <- function(esdDf,
+                           personIdCol = "person_id",
+                           startDateCol = "final_episode_start_date",
+                           endDateCol = "final_episode_end_date") {
+  checkmate::assertDataFrame(esdDf, min.rows = 0)
+  checkmate::assertString(personIdCol)
+  checkmate::assertString(startDateCol)
+  checkmate::assertString(endDateCol)
+  stopifnot(
+    personIdCol %in% names(esdDf),
+    startDateCol %in% names(esdDf),
+    endDateCol %in% names(esdDf)
+  )
+
+  if (nrow(esdDf) == 0) return(esdDf)
+
+  originalCols <- names(esdDf)
+  work <- esdDf
+  if (!"hip_flag" %in% originalCols) work$hip_flag <- 0L
+  if (!"final_outcome_category" %in% originalCols) work$final_outcome_category <- NA_character_
+  if (!"hip_outcome_category" %in% originalCols) work$hip_outcome_category <- NA_character_
+  if (!"esd_outcome_match" %in% originalCols) work$esd_outcome_match <- NA_integer_
+  if (!"esd_precision_days" %in% originalCols) work$esd_precision_days <- NA_integer_
+  if (!"esd_gw_flag" %in% originalCols) work$esd_gw_flag <- NA_real_
+
+  df <- work %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      .row = dplyr::row_number(),
+      .hip_flag = dplyr::coalesce(.data$hip_flag, 0L),
+      .outcome_rank = outcomeRank(.data$final_outcome_category),
+      .hip_outcome_rank = outcomeRank(.data$hip_outcome_category),
+      .esd_match = dplyr::coalesce(.data$esd_outcome_match, 0L),
+      .precision = dplyr::if_else(
+        is.na(.data$esd_precision_days),
+        Inf,
+        as.numeric(.data$esd_precision_days)
+      ),
+      .gw_flag = dplyr::coalesce(as.numeric(.data$esd_gw_flag), 0),
+      .end_date = as.Date(.data[[endDateCol]])
+    )
+
+  # Compute overlap group per person (use .row to assign back to correct rows)
+  by_person <- df %>%
+    dplyr::group_by(.data[[personIdCol]]) %>%
+    dplyr::group_split()
+
+  group_ids <- integer(nrow(df))
+  for (i in seq_along(by_person)) {
+    block <- by_person[[i]]
+    start <- as.Date(block[[startDateCol]])
+    end <- as.Date(block[[endDateCol]])
+    grp <- overlapGroups(start, end)
+    group_ids[block$.row] <- grp
+  }
+
+  df <- df %>%
+    dplyr::mutate(.overlap_group = .env$group_ids)
+
+  # Within each person and overlap group, keep best row (arrange by priority, then slice first)
+  kept <- df %>%
+    dplyr::arrange(
+      .data[[personIdCol]],
+      .data$.overlap_group,
+      dplyr::desc(.data$.hip_flag),
+      .data$.outcome_rank,
+      .data$.hip_outcome_rank,
+      dplyr::desc(.data$.esd_match),
+      .data$.precision,
+      dplyr::desc(.data$.gw_flag),
+      .data$.end_date,
+      .data$.row
+    ) %>%
+    dplyr::group_by(.data[[personIdCol]], .data$.overlap_group) %>%
+    dplyr::slice(1L) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-dplyr::starts_with(".")) %>%
+    dplyr::select(dplyr::all_of(originalCols))
+
+  dplyr::as_tibble(kept)
 }
 
 # ============================================================
@@ -206,6 +489,11 @@ getTimingConcepts <- function(cdm,
     colClasses = c(concept_id = "integer")
   )
   gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
+  # Gestation-at-birth concepts (length of gestation at birth): use value 1-44 as GA weeks like GW concepts
+  gestationAtBirthConceptIds <- c(4260747L, 46234792L)
+  # LMP/EDD concepts: value_col is a date; use as direct pregnancy start (LMP) or EDD - 280 days (EDD)
+  lmpConceptIds <- as.integer(esdConcepts$esd_concept_id[esdConcepts$esd_category == "estConceptionConceptIds"])
+  eddConceptIds <- as.integer(esdConcepts$esd_concept_id[esdConcepts$esd_category == "estDeliveryConceptIds"])
 
   conceptIdsToSearch <- as.integer(c(ppsConcepts$pps_concept_id, esdConcepts$esd_concept_id))
 
@@ -268,7 +556,8 @@ getTimingConcepts <- function(cdm,
         (
           stringr::str_detect(tolower(.data$domain_concept_name), "gestation period,") |
             stringr::str_detect(tolower(.data$domain_concept_name), "gestational age") |
-            .data$domain_concept_id %in% .env$gestationalAgeConceptIds
+            .data$domain_concept_id %in% .env$gestationalAgeConceptIds |
+            .data$domain_concept_id %in% .env$gestationAtBirthConceptIds
         ) &
           (.data$domain_value <= 44 & .data$domain_value > 0),
         1, 0
@@ -278,7 +567,40 @@ getTimingConcepts <- function(cdm,
         .data$domain_concept_start_date - (.data$domain_value * 7),
         lubridate::NA_Date_
       )
-    )
+    ) %>%
+    # Parse LMP/EDD date values: use as pregnancy start (LMP) or EDD - 280 days (EDD)
+    dplyr::mutate(
+      value_col_clean = stringr::str_replace(.data$value_col, "\\|text_result_val:", ""),
+      value_col_clean = stringr::str_replace(.data$value_col_clean, "\\|mapped_text_result_val:", ""),
+      parsed_date = suppressWarnings(as.Date(.data$value_col_clean, "%Y-%m-%d")),
+      parsed_date = dplyr::if_else(
+        is.na(.data$parsed_date),
+        suppressWarnings(as.Date(.data$value_col_clean, "%Y/%m/%d")),
+        .data$parsed_date
+      ),
+      extrapolated_preg_start = dplyr::if_else(
+        .data$domain_concept_id %in% .env$lmpConceptIds & !is.na(.data$parsed_date),
+        .data$parsed_date,
+        .data$extrapolated_preg_start
+      ),
+      extrapolated_preg_start = dplyr::if_else(
+        .data$domain_concept_id %in% .env$eddConceptIds & !is.na(.data$parsed_date),
+        .data$parsed_date - 280L,
+        .data$extrapolated_preg_start
+      ),
+      keep_value = dplyr::if_else(
+        (.data$domain_concept_id %in% .env$lmpConceptIds | .data$domain_concept_id %in% .env$eddConceptIds) &
+          !is.na(.data$parsed_date),
+        1L,
+        .data$keep_value
+      ),
+      date_type = dplyr::case_when(
+        .data$domain_concept_id %in% .env$lmpConceptIds & !is.na(.data$parsed_date) ~ "LMP",
+        .data$domain_concept_id %in% .env$eddConceptIds & !is.na(.data$parsed_date) ~ "EDD",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    dplyr::select(-"value_col_clean", -"parsed_date")
   })
 }
 
@@ -501,10 +823,12 @@ getGtTiming <- function(datesList) {
 
 episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
   # add on either GW or GR3m designation depending on whether the concept is present
-
-  esdConcepts2 <-
-    system.file("concepts", "ESD_concepts2.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+  # GW concept IDs: from ESD_concepts.xlsx column is_gw_concept
+  esdConcepts <-
+    system.file("concepts", "ESD_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
     readxl::read_xlsx()
+
+  gwConceptIdsFromEsd <- as.integer(esdConcepts$esd_concept_id[as.logical(esdConcepts$is_gw_concept)])
 
   if (nrow(getTimingConceptsDf) == 0) {
     log4r::info(logger, sprintf("Number of episodes with GR3m intervals: %s", 0))
@@ -524,12 +848,21 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
     ))
   }
 
+  # Backward compatibility: date_type added when LMP/EDD parsing was implemented
+  if (!"date_type" %in% names(getTimingConceptsDf)) {
+    getTimingConceptsDf <- getTimingConceptsDf %>%
+      dplyr::mutate(date_type = NA_character_)
+  }
+  # Gestation-at-birth concepts (4260747, 46234792): treat as GW when they have extrapolated_preg_start
+  gestationAtBirthConceptIds <- c(4260747L, 46234792L)
   timingDf <- getTimingConceptsDf %>%
     dplyr::mutate(
       domain_concept_id = as.integer(.data$domain_concept_id),
       gt_type = dplyr::case_when(
+        .data$date_type %in% c("LMP", "EDD") ~ .data$date_type,
         stringr::str_detect(stringr::str_to_lower(.data$domain_concept_name), "gestation period") |
-          .data$domain_concept_id %in% local(esdConcepts2$concept_id) ~ "GW",
+          .data$domain_concept_id %in% .env$gwConceptIdsFromEsd |
+          .data$domain_concept_id %in% .env$gestationAtBirthConceptIds ~ "GW",
         !is.na(.data$min_month) ~ "GR3m",
         TRUE ~ NA_character_
       )
@@ -553,7 +886,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
     ) %>%
     dplyr::select(-"min_days_to_pregnancy_start", -"max_days_to_pregnancy_start")
 
-  # Remove type if GW values are null (preserves original logic)
+  # Remove type if GW values are null (preserves original logic). LMP/EDD are kept (they use extrapolated_preg_start only).
   timingDf <- timingDf %>%
     dplyr::mutate(
       gt_type = dplyr::case_when(
@@ -561,7 +894,7 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
         TRUE ~ .data$gt_type
       )
     ) %>%
-    dplyr::filter(.data$gt_type %in% c("GW", "GR3m"))
+    dplyr::filter(.data$gt_type %in% c("GW", "GR3m", "LMP", "EDD"))
 
   # Build the date ranges used downstream:
   # - GR3m uses "max_pregnancy_start min_pregnancy_start"
@@ -723,11 +1056,15 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
       )
     )
 
-  # Join with term_max_min data frame and drop 'retry' column
+  # Join with term_max_min data frame and drop 'retry' column.
+  # When final_outcome_category is missing from Matcho (e.g. PREG), coalesce min_term/max_term
+  # so the start-date fallback and precision_days still work.
   finalDf <- finalDf %>%
     dplyr::left_join(termMaxMin, by = c("final_outcome_category" = "category")) %>%
     dplyr::select(-"retry") %>%
     dplyr::mutate(
+      min_term = dplyr::coalesce(.data$min_term, 140),
+      max_term = dplyr::coalesce(.data$max_term, 301),
       # If no start date, subtract max term from inferred end date
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),
@@ -805,9 +1142,11 @@ addDeliveryMode <- function(cdm, df, intersectWindow = c(-30, 30)) {
                                    name = tableName,
                                    table = df)
 
-  conceptSet <- CodelistGenerator::codesFromConceptSet(
-    path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode"),
-    cdm = cdm)
+  conceptSet <- omopgenerics::importConceptSetExpression(
+    path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
+  )
+  conceptSet <- omopgenerics::validateConceptSetArgument(conceptSet, cdm = cdm)
+  # remove leading id prefix from names (e.g. "3861-cesarean" -> "cesarean")
   names(conceptSet) <- unlist(lapply(names(conceptSet), FUN = function(name) {
     unlist(strsplit(name, "^\\d+-"))[2]
   }))

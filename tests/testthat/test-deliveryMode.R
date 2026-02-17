@@ -1,6 +1,6 @@
 test_that("Delivery mode is correct", {
 
-  library(dplyr, warn.conflicts = FALSE)
+  suppressWarnings(library(dplyr, warn.conflicts = FALSE))
 
   suppressMessages({
     cdm <- TestGenerator::patientsCDM(
