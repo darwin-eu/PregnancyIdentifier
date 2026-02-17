@@ -14,3 +14,4 @@
 work/*
 ^README\.Rmd$
 ^STYLE\.md$
+^inst/shiny$

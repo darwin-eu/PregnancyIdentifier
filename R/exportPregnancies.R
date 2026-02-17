@@ -207,9 +207,8 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
 
   # summarise age at pregnancy start at first pregnancy
   resAge %>%
-    dplyr::group_by(person_id) %>%
-    dplyr::arrange(person_id, final_episode_start_date) %>%
-    dplyr::filter(row_number() == 1) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
     summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
