@@ -63,9 +63,17 @@ for (i in 1:length(zipFiles)) {
   csvFiles <- list.files(tempFolder, pattern = ".csv")
   zipName <- gsub(".zip", "", basename(zipFiles[i]))
   zipNameParts <- unlist(strsplit(zipName, "-"))
-  dbName <- zipNameParts[4]
+  dbName <- NULL
+  version <- NULL
+  versionOrDBName <- zipNameParts[4]
+  if (startsWith(versionOrDBName, "1") || startsWith(versionOrDBName, "2") || startsWith(versionOrDBName, "3")) {
+    version <- versionOrDBName
+    dbName <- zipNameParts[5]
+  } else {
+    dbName <- versionOrDBName
+  }
   runDate <- gsub(paste0("-", dbName, ".*"), "", zipName)
-  lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, folder = tempFolder, overwrite = (i == 1))
+  lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, zipVersion = version, folder = tempFolder, overwrite = (i == 1))
   unlink(tempFolder, recursive = TRUE)
 }
 # formatting
@@ -98,7 +106,7 @@ swappedDates <- rbind(swappedDates, percDF) %>%
 
 ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
 numRound <- function(x) { round(100*as.numeric(x), 2) }
-dateConsistancy <- dataToLong(dateConsistancy) %>%
+dateConsistency <- dataToLong(dateConsistency) %>%
   dplyr::mutate(across(!name, numRound))
 
 observationPeriodRange <- dataToLong(observationPeriodRange)
@@ -254,13 +262,13 @@ appStructure <- list(
                                                                                yVar = "value",
                                                                                fillVar = "name",
                                                                                title =  "Swapped dates"), result = swappedDates),
-    "Date consistency" = handleEmptyResult(object = EpisodeConstructionModule$new(data = dateConsistancy,
+    "Date consistency" = handleEmptyResult(object = EpisodeConstructionModule$new(data = dateConsistency,
                                                                                   dp = allDP,
                                                                                   convertDataForPlot = TRUE,
                                                                                   yVar = "value",
                                                                                   fillVar = "name",
                                                                                   position = "dodge",
-                                                                                  title =  "Date consistency"), result = dateConsistancy)
+                                                                                  title =  "Date consistency"), result = dateConsistency)
   ),
   "Episode outcomes" = list(
     "Mode of delivery" = handleEmptyResult(object = DeliveryModeModule$new(data = deliveryModeSummary,
