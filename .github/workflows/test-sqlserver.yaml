@@ -9,7 +9,7 @@ on:
 name: Tests (SQL Server)
 
 jobs:
-  test-postgres:
+  test-sqlserver:
     runs-on: ubuntu-latest
     container:
       image: executionengine.azurecr.io/darwin-eu-dev/examplestudy-base:latest
