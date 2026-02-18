@@ -7,7 +7,6 @@ test_that("runPregnancyIdentifier runs on SQL Server", {
   skip_if(Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE") == "")
   con <- get_connection("sqlserver")
 
-  DBI::dbExecute(con, "create schema pregnancy_cdm")
   writeSchema <- c("pregnancy_cdm")
   cdmSchema <- c("pregnancy_cdm")
 
