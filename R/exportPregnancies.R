@@ -176,14 +176,14 @@ addAge <- function(cdm, res) {
     dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
     dplyr::collect() %>%
     dplyr::mutate(
-      age_pregnancy_start = as.numeric(as.Date(.data$final_episode_start_date) - .data$birth_datetime)
+      age_pregnancy_start = (as.numeric(as.Date(.data$final_episode_start_date) - .data$birth_datetime) / 365.25),
+      age_pregnancy_end = (as.numeric(as.Date(.data$final_episode_end_date) - .data$birth_datetime) / 365.25)
     )
 }
 
 #' @noRd
 exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minCellCount) {
-  resAge <- addAge(cdm, res) %>%
-    dplyr::mutate(age_pregnancy_start = age_pregnancy_start / 365.25)
+  resAge <- addAge(cdm, res)
 
   resAge %>%
     dplyr::select(age_pregnancy_start) %>%
@@ -206,12 +206,13 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
-  # summarise age at pregnancy start at first pregnancy
+  # summarise age at pregnancy start at birth first child
   resAge %>%
+    dplyr::filter(final_outcome_category == "LB") %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
-    summariseColumn("age_pregnancy_start") %>%
+    summariseColumn("age_pregnancy_end") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,

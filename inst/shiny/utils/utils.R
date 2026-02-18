@@ -19,11 +19,14 @@ snakeCaseToCamelCase <- function(string) {
   return(string)
 }
 
-loadFile <- function(file, dbName, runDate, folder, overwrite) {
+loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
   if (endsWith(file, ".csv")) {
     print(file)
     tableName <- gsub(".csv$", "", file)
     camelCaseName <- snakeCaseToCamelCase(tableName)
+    if (camelCaseName == "attrition") {
+      camelCaseName <- "attrition_episodes"
+    }
 
     if (grepl("incidence|prevalence|characteristics", tolower(file))) {
       parts <- unlist(strsplit(tableName, "_"))
@@ -48,14 +51,18 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
 
     # add version number to cdm_name
     version <- NULL
-    if ("pkg_version" %in% colnames(data)) {
+    if (!is.null(zipVersion)) {
+      version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
+    } else if ("pkg_version" %in% colnames(data)) {
       version <- data %>% dplyr::pull("pkg_version") %>% unique()
       version <- paste0("_v", as.numeric(substr(version, 1, 1)))
       data <- data %>% dplyr::select(-"pkg_version")
     } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
-    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-01-31"))) {
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-02-16"))) {
       version <- "_v2"
+    } else if (dplyr::between(as.Date(runDate), as.Date("2026-02-17"), as.Date("2026-03-31"))) {
+      version <- "_v3"
     }
 
     data <- data %>%
@@ -146,7 +153,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
                    plot.title = element_text(hjust = 0.5),
                    strip.text = element_text(size = facetTextSize))
   }
-  if (!is.null(ggtitle)) {
+  if (!is.null(title)) {
     p <- p + ggtitle(title)
   }
   if (flipCoordinates) {

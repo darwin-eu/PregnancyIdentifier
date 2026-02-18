@@ -50,7 +50,7 @@ PregnancyFrequencyModule <- R6::R6Class(
       # input filters
       private$.inputPanelCDM$server(input, output, session)
 
-      getData <- reactive({
+      getData <- shiny::reactive({
         data <- NULL
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
@@ -64,7 +64,7 @@ PregnancyFrequencyModule <- R6::R6Class(
         return(data)
       })
 
-      getPlotData <- reactive({
+      getPlotData <- shiny::reactive({
         result <- getData() %>%
           tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
           dplyr::mutate(value = as.numeric(value))
@@ -82,7 +82,7 @@ PregnancyFrequencyModule <- R6::R6Class(
       }, ignoreNULL = FALSE)
 
       ### make plot ----
-      createPlot <- reactive({
+      createPlot <- shiny::reactive({
         plot <- NULL
         data <- getPlotData()
         if (!is.null(data) && nrow(data) > 0) {
@@ -115,7 +115,7 @@ PregnancyFrequencyModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         createPlot()
       })
     }

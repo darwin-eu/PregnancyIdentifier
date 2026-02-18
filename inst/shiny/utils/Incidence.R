@@ -178,7 +178,7 @@ Incidence <- R6::R6Class(
       }
 
       # Incidence
-      getIncidenceEstimates <- reactive({
+      getIncidenceEstimates <- shiny::reactive({
         result <- private$.tidyData %>%
           dplyr::filter(database %in% private$.pickers[["cdm"]]$inputValues$cdm) %>%
           dplyr::filter(outcome_cohort_name %in% private$.pickers[["outcome"]]$inputValues$outcome) %>%
@@ -196,7 +196,7 @@ Incidence <- R6::R6Class(
       })
 
       # Filtered data
-      summarised_result_data <- reactive({
+      summarised_result_data <- shiny::reactive({
         private$.data %>%
           dplyr::filter(cdm_name %in% private$.pickers[["cdm"]]$inputValues$cdm) %>%
           omopgenerics::filterSettings(denominator_age_group %in% private$.pickers[["denomAgeGroup"]]$inputValues$age_group) %>%
@@ -205,7 +205,7 @@ Incidence <- R6::R6Class(
       })
 
       # TABLE
-      summarised_gt_table <- reactive({
+      summarised_gt_table <- shiny::reactive({
         req(summarised_result_data())
         IncidencePrevalence::tableIncidence(result = summarised_result_data(),
                                             header = private$.pickers[["headerColumn"]]$inputValues$headerColumn,
@@ -262,7 +262,7 @@ Incidence <- R6::R6Class(
       })
 
       ### make plot ----
-      plotIncidenceEstimates <- reactive({
+      plotIncidenceEstimates <- shiny::reactive({
         table <- getIncidenceEstimates()
         shiny::validate(need(nrow(table) > 0, "No results for selected inputs"))
         class(table) <- c("IncidenceResult", "IncidencePrevalenceResult", class(table))
@@ -306,7 +306,7 @@ Incidence <- R6::R6Class(
         }
       )
       ### plot ----
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         plotIncidenceEstimates()
       })
     },

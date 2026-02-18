@@ -33,7 +33,7 @@ TemporalPatternsModule <- R6::R6Class(
                                                args = list(period = list(
                                                  inputId = "period", label = "Time period",
                                                  choices = c("year", "month"),
-                                                 selected = "Year",
+                                                 selected = "year",
                                                  multiple = FALSE)),
                                                growDirection = "horizontal")
       private$.inputPanelPeriod$parentNamespace <- self$namespace
@@ -104,7 +104,7 @@ TemporalPatternsModule <- R6::R6Class(
       private$.inputPanelColumn$server(input, output, session)
       private$.inputPanelMinYear$server(input, output, session)
 
-      getData <- reactive({
+      getData <- shiny::reactive({
         data <-  private$.data %>%
           dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name) %>%
           dplyr::filter(.data$period %in% private$.inputPanelPeriod$inputValues$period) %>%
@@ -117,7 +117,7 @@ TemporalPatternsModule <- R6::R6Class(
         return(data)
       })
 
-      getMissingData <- reactive({
+      getMissingData <- shiny::reactive({
         data <-  private$.missingData %>%
           dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name) %>%
           dplyr::filter(.data$period %in% private$.inputPanelPeriod$inputValues$period) %>%
@@ -139,7 +139,7 @@ TemporalPatternsModule <- R6::R6Class(
       }, ignoreNULL = FALSE)
 
       ### make plot ----
-      createPlot <- reactive({
+      createPlot <- shiny::reactive({
         plot <- NULL
         data <- getData()
         if (!is.null(data) && nrow(data) > 0) {
@@ -151,11 +151,11 @@ TemporalPatternsModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         createPlot()
       })
 
-      createMissingPlot <- reactive({
+      createMissingPlot <- shiny::reactive({
         plot <- NULL
         data <- getMissingData()
         if (!is.null(data) && nrow(data) > 0) {
@@ -170,7 +170,7 @@ TemporalPatternsModule <- R6::R6Class(
         return(plot)
       })
 
-      output$missingPlot <- renderPlotly({
+      output$missingPlot <- plotly::renderPlotly({
         createMissingPlot()
       })
     }

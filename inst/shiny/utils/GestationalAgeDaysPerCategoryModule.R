@@ -117,7 +117,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       private$.maxInputPanel$server(input, output, session)
       private$.flipCoordinatesInputPanel$server(input, output, session)
 
-      getData <- reactive({
+      getData <- shiny::reactive({
         private$.data %>%
           dplyr::filter(.data$cdm_name %in% private$.cdmInputPanel$inputValues$cdm_name) %>%
           dplyr::filter(.data$final_outcome_category %in% private$.outcomeInputPanel$inputValues$outcome)
@@ -149,7 +149,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       }, ignoreNULL = FALSE)
 
       ### make plot ----
-      createPlot <- reactive({
+      createPlot <- shiny::reactive({
         plot <- NULL
         data <- getData()
         if (!is.null(data) && nrow(data) > 0) {
