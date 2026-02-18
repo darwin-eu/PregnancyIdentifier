@@ -1,11 +1,12 @@
 # Database test: DATABRICKS/SPARK Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
 
-test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result files", {
+test_that("runPregnancyIdentifier on SPARK/Databricks", {
   skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
 
   con <- get_connection("spark")
-  writeSchema <- get_write_schema("spark", prefix = "preg_")
+  writeSchema <- get_write_schema("spark", prefix = "temp_")
+  cdmSchema <- get_cdm_schema("spark")
 
   # only do this once
   # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
@@ -16,18 +17,17 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
   # cdm <- CDMConnector::copyCdmTo(
   #   con = con,
   #   cdm = cdm_src,
-  #   schema = writeSchema,
+  #   schema = cdmSchema,
   #   overwrite = TRUE
   # )
   # cleanupCdmDb(cdm_src)
 
   cdm <- CDMConnector::cdmFromCon(
     con,
-    cdmSchema = writeSchema,
+    cdmSchema = cdmSchema,
     writeSchema = writeSchema,
     cdmName = "preg_postgres_test"
   )
-
 
   outputDir <- file.path(tempdir(), "test_db_spark")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)

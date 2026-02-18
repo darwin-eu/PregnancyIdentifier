@@ -85,7 +85,7 @@ get_cdm_schema <- function(dbms) {
   switch(dbms,
          "postgres" = Sys.getenv("CDM5_POSTGRESQL_CDM_SCHEMA"),
          "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_CDM_SCHEMA"), "\\.")[[1]],
-         "spark" = Sys.getenv("DATABRICKS_CDM_SCHEMA"),
+         "spark" = "pregnancy_test_cdm",
          "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_CDM_SCHEMA"), "\\.")[[1]],
          ""
   )
@@ -95,7 +95,7 @@ get_write_schema <- function(dbms, prefix = paste0("temp", (floor(as.numeric(Sys
   s <- switch(dbms,
               "postgres" = Sys.getenv("CDM5_POSTGRESQL_SCRATCH_SCHEMA"),
               "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_SCRATCH_SCHEMA"), "\\.")[[1]],
-              "spark" = Sys.getenv("DATABRICKS_SCRATCH_SCHEMA"),
+              "spark" = "pregnancy_test_cdm",
               "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_SCRATCH_SCHEMA"), "\\.")[[1]],
               ""
   )

@@ -205,32 +205,10 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   # 35        | 444098                 | 2023-12-20 | NA         | 32817           | condition_occurrence | Gestation period, 40 weeks            | EHR
 
   # ---- Person 35: GA 40w on 2023-12-20 only (no LB in condition_occurrence) ----
-  # Why zero episodes is valid for gestation-only input:
-  # - HIP is outcome-centric: it first builds outcome episodes (LB, SB, AB, etc.) from
-  #   preg_hip_records. Person 35 has no outcome record, so they never get an outcome episode.
-  # - When justGestation=TRUE, HIP can still emit gestation-only episodes (PREG). Whether
-  #   such an episode appears in the final output depends on merge/ESD and concept coverage.
-  # - Zero episodes is valid: the algorithm is allowed to require a recorded outcome to
-  #   report an episode (conservative cohort definition; avoids counting uncertain pregnancies).
   out35 <- dplyr::filter(df, .data$person_id == 35L)
-  if (nrow(out35) >= 1L) {
-    # TODO: check this test again. 
-    
-    # Order of episodes can differ by platform (e.g. SQL/backend); assert at least one PREG/LB episode
-    expect_true(
-      any(out35$final_outcome_category %in% c("PREG", "LB")),
-      info = "person 35 should have at least one episode with outcome PREG or LB"
-    )
-    preg_lb <- out35[out35$final_outcome_category %in% c("PREG", "LB"), ]
-    if (nrow(preg_lb) >= 1L) {
-      expect_true(!is.na(preg_lb$final_episode_start_date[1L]), info = "person 35 start date should be populated")
-      expect_true(!is.na(preg_lb$final_episode_end_date[1L]), info = "person 35 end date should be populated")
-      expect_true(preg_lb$final_episode_start_date[1L] <= preg_lb$final_episode_end_date[1L],
-                  info = "person 35 start should be on or before end"
-      )
-    }
-  }
-  # If 0 episodes, that is acceptable for gestation-only with no outcome.
+  expect_true(nrow(out35) == 1)
+  expect_equal(out35$final_outcome_category, "DELIV")
+  expect_equal(out35$final_episode_end_date, as.Date("2024-02-06"))
 
   # ---- Person 36: GA 40 weeks, LB +0 week (recorded same day) ----
   # cdm %>% cdmCommentContents(36)
