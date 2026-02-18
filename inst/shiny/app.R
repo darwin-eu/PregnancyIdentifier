@@ -201,6 +201,7 @@ outcomeCategoriesCount <- outcomeCategoriesCount %>%
 
 # delivery mode
 deliveryModeSummary <- deliveryModeSummary %>%
+  dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
   dplyr::select(-c("cesarean_count", "vaginal_count")) %>%
   dplyr::rename(total = n)
 
@@ -213,7 +214,7 @@ deliveryModeSummary <- dplyr::left_join(
                   cesarean = cesarean_pct) %>%
     tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")) %>%
   dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), as.numeric) %>%
-  dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG"))) %>%
+  dplyr::mutate(pct = round(pct, 2)) %>%
   dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
 
 ######### Shiny app ########
@@ -258,6 +259,7 @@ appStructure <- list(
                                                                                   convertDataForPlot = TRUE,
                                                                                   yVar = "value",
                                                                                   fillVar = "name",
+                                                                                  position = "dodge",
                                                                                   title =  "Date consistency"), result = dateConsistancy)
   ),
   "Episode outcomes" = list(

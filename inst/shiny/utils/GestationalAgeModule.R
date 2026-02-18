@@ -92,7 +92,7 @@ GestationalAgeModule <- R6::R6Class(
         private$.inputPanelMaxWeeks$server(input, output, session)
       }
 
-      getData <- reactive({
+      getData <- shiny::reactive({
         data <- private$.data
         if (private$.maxWeeksFilter) {
           data <- private$.data %>%
@@ -111,11 +111,11 @@ GestationalAgeModule <- R6::R6Class(
         return(data)
       })
 
-      getPlotData <- reactive({
+      getPlotData <- shiny::reactive({
         getData()
       })
 
-      getLabelData <- reactive({
+      getLabelData <- shiny::reactive({
         private$.daysData
       })
 
@@ -127,7 +127,7 @@ GestationalAgeModule <- R6::R6Class(
       }, ignoreNULL = FALSE)
 
       ### make plot ----
-      createPlot <- reactive({
+      createPlot <- shiny::reactive({
         plot <- NULL
         data <- getPlotData()
         labelData <- getLabelData()
@@ -159,7 +159,7 @@ GestationalAgeModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         createPlot()
       })
     }

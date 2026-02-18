@@ -54,7 +54,7 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
       data <- data %>% dplyr::select(-"pkg_version")
     } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
-    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-01-31"))) {
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-02-18"))) {
       version <- "_v2"
     }
 
@@ -146,7 +146,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
                    plot.title = element_text(hjust = 0.5),
                    strip.text = element_text(size = facetTextSize))
   }
-  if (!is.null(ggtitle)) {
+  if (!is.null(title)) {
     p <- p + ggtitle(title)
   }
   if (flipCoordinates) {

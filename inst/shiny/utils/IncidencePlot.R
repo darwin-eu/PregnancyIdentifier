@@ -121,7 +121,7 @@ IncidencePlot <- R6::R6Class(
       }
 
       # Incidence
-      getIncidenceEstimates <- reactive({
+      getIncidenceEstimates <- shiny::reactive({
         result <- private$.tidyData %>%
           dplyr::filter(database %in% private$.pickers[["cdm"]]$inputValues$cdm) %>%
           dplyr::filter(outcome_cohort_name %in% private$.pickers[["outcome"]]$inputValues$outcome) %>%
@@ -139,7 +139,7 @@ IncidencePlot <- R6::R6Class(
       })
 
       ### make plot ----
-      plotIncidenceEstimates <- reactive({
+      plotIncidenceEstimates <- shiny::reactive({
         table <- getIncidenceEstimates()
         shiny::validate(need(nrow(table) > 0, "No results for selected inputs"))
         class(table) <- c("IncidenceResult", "IncidencePrevalenceResult", class(table))
@@ -197,7 +197,7 @@ IncidencePlot <- R6::R6Class(
         }
       )
       ### plot ----
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         plotIncidenceEstimates()
       })
     },

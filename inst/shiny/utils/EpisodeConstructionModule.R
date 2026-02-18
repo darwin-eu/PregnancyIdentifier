@@ -63,7 +63,7 @@ EpisodeConstructionModule <- R6::R6Class(
       # input filters
       private$.inputPanelCDM$server(input, output, session)
 
-      getData <- reactive({
+      getData <- shiny::reactive({
         data <- NULL
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
@@ -79,7 +79,7 @@ EpisodeConstructionModule <- R6::R6Class(
       return(data)
       })
 
-      getPlotData <- reactive({
+      getPlotData <- shiny::reactive({
         data <- getData()
         if (private$.convertDataForPlot) {
           data <- data %>%
@@ -101,7 +101,7 @@ EpisodeConstructionModule <- R6::R6Class(
       }, ignoreNULL = FALSE)
 
       ### make plot ----
-      createPlot <- reactive({
+      createPlot <- shiny::reactive({
         plot <- NULL
         data <- getPlotData()
         if (!is.null(data) && nrow(data) > 0) {
@@ -120,7 +120,7 @@ EpisodeConstructionModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- renderPlotly({
+      output$plot <- plotly::renderPlotly({
         createPlot()
       })
     }
