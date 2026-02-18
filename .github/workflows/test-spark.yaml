@@ -22,7 +22,7 @@ jobs:
         DATABRICKS_SCRATCH_SCHEMA:   ${{ secrets.DATABRICKS_SCRATCH_SCHEMA }}
         DATABRICKS_CDM_SCHEMA:       ${{ secrets.DATABRICKS_CDM_SCHEMA }}
 
-    name: Spark test
+    name: spark-test
 
     strategy:
       fail-fast: true

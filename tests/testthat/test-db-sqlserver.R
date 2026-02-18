@@ -1,8 +1,6 @@
-# Database test: PostgreSQL. Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
-# Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
 
 test_that("runPregnancyIdentifier runs on SQL Server", {
-  # skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
+  skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
   skip_if(Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE") == "")
   con <- get_connection("sqlserver")

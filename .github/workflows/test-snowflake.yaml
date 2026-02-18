@@ -23,7 +23,7 @@ jobs:
         SNOWFLAKE_CDM_SCHEMA: ${{ secrets.SNOWFLAKE_CDM_SCHEMA }}
         SNOWFLAKE_SCRATCH_SCHEMA: ${{ secrets.SNOWFLAKE_SCRATCH_SCHEMA }}
 
-    name: Snowflake test
+    name: snowflake-test
 
     strategy:
       fail-fast: true

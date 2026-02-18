@@ -22,7 +22,7 @@ jobs:
         CDM5_POSTGRESQL_SERVER:         ${{ secrets.CDM5_POSTGRESQL_SERVER }}
         CDM5_POSTGRESQL_CDM_SCHEMA:     ${{ secrets.CDM5_POSTGRESQL_CDM_SCHEMA }}
 
-    name: Postgres test
+    name: postgres-test
 
     strategy:
       fail-fast: true
