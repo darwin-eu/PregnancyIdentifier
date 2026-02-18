@@ -147,7 +147,8 @@ initPregnancies <- function(cdm,
   )
 
   # Cast value_as_number so UNION has a single type (avoids "UNION types text and numeric cannot be matched")
-  hipEvents <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
+  # Single pipeline to preg_hip_records (no staging table) so prefixed write-schema works on all DBs
+  cdm$preg_hip_records <- purrr::pmap(hipSpecs, function(tbl, conceptCol, dateCol, valueCol) {
     extra <- if (!is.na(valueCol)) {
       list(value_as_number = rlang::expr(as.numeric(!!rlang::sym(valueCol))))
     } else {
@@ -159,9 +160,6 @@ initPregnancies <- function(cdm,
     dplyr::inner_join(hip, by = "concept_id") |>
     dplyr::left_join(dplyr::select(cdm$concept, "concept_id", "concept_name"), by = "concept_id") |>
     dplyr::rename(visit_date = "event_date") |>
-    .compute(name = "hip_events_staging", temporary = FALSE, overwrite = TRUE)
-
-  cdm$preg_hip_records <- hipEvents |>
     addAgeSex("visit_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
     dplyr::distinct(
@@ -185,7 +183,8 @@ initPregnancies <- function(cdm,
     cdm$measurement,          "measurement_concept_id",  "measurement_date"
   )
 
-  ppsEvents <- purrr::pmap(ppsSpecs, function(tbl, conceptCol, dateCol) {
+  # Single pipeline to preg_pps_records (no staging table) so prefixed write-schema works on all DBs
+  cdm$preg_pps_records <- purrr::pmap(ppsSpecs, function(tbl, conceptCol, dateCol) {
     pullDomain(tbl, conceptCol, dateCol) |>
       dplyr::transmute(
         person_id,
@@ -196,9 +195,6 @@ initPregnancies <- function(cdm,
     purrr::reduce(dplyr::union_all) |>
     dplyr::inner_join(cdm$preg_pps_concepts, by = "pps_concept_id") |>
     dplyr::distinct() |>
-    .compute(name = "pps_events_staging", temporary = FALSE, overwrite = TRUE)
-
-  cdm$preg_pps_records <- ppsEvents |>
     dplyr::filter(!is.na(.data$pps_concept_start_date)) |>
     addAgeSex("pps_concept_start_date") |>
     dplyr::filter(.data$sex == "female", .data$age >= lowerAge, .data$age < upperAge) |>
@@ -213,6 +209,5 @@ initPregnancies <- function(cdm,
     initAttrition(outputDir, cdm)
   }
 
-  cdm <- omopgenerics::dropSourceTable(cdm, c("hip_events_staging", "pps_events_staging"))
   cdm
 }
