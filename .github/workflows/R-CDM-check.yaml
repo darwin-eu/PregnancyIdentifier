@@ -23,8 +23,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-      # Use 1 core for tests on CI; locally parallel uses default (e.g. Ncpus or TESTTHAT_CPUS)
-      TESTTHAT_CPUS: 1
+      TESTTHAT_CPUS: 2
       SKIP_DATABASE_TESTING: TRUE
 
     steps:

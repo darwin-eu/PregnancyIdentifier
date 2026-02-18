@@ -2,27 +2,27 @@
 # Runs only when PG_* env vars are set. Runs in parallel with other test-db-* files.
 
 test_that("runPregnancyIdentifier runs on SQL Server", {
-  skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
+  # skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
   skip_if(Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE") == "")
   con <- get_connection("sqlserver")
-  writeSchema <- get_write_schema("sqlserver", prefix = "preg_")
+
+  DBI::dbExecute(con, "create schema pregnancy_cdm")
+  writeSchema <- c("pregnancy_cdm")
+  cdmSchema <- c("pregnancy_cdm")
 
   existingTables <- CDMConnector::listTables(con, writeSchema)
 
-  if (!any(grepl("pregnancy_extension", existingTables, ignore.case = TRUE))) {
-    # only do this once. on sqlserver tempdb is cleaned up on restart so we may need to copy
-    # the pregnancy tables if they are not there. Luckily on sql server this is fast.
-    cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
-
-    cdm <- CDMConnector::copyCdmTo(
-      con = con,
-      cdm = cdm_src,
-      schema = writeSchema,
-      overwrite = TRUE
-    )
-    cleanupCdmDb(cdm_src)
-  }
+    # # only do this once.
+    # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
+    #
+    # cdm <- CDMConnector::copyCdmTo(
+    #   con = con,
+    #   cdm = cdm_src,
+    #   schema = cdmSchema,
+    #   overwrite = TRUE
+    # )
+    # cleanupCdmDb(cdm_src)
 
   cdm <- CDMConnector::cdmFromCon(
     con,
