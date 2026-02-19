@@ -243,10 +243,17 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
   patientsDf <- cdm$preg_pps_records %>%
    dplyr::collect()
 
-  # QA: write concept frequencies
-  patientsDf %>%
-    dplyr::count(.data$pps_concept_id, .data$pps_concept_name, name = "n") %>%
-    utils::write.csv(file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
+  # QA: concept counts (record_count, person_count). initPregnancies() also writes
+  # this when outputDir is provided; runPps overwrites so standalone PPS runs get it.
+  ppsConceptCounts <- patientsDf %>%
+    dplyr::group_by(.data$pps_concept_id, .data$pps_concept_name) %>%
+    dplyr::summarise(
+      record_count = dplyr::n(),
+      person_count = dplyr::n_distinct(.data$person_id),
+      .groups = "drop"
+    ) %>%
+    dplyr::select("pps_concept_id", "pps_concept_name", "record_count", "person_count")
+  utils::write.csv(ppsConceptCounts, file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 

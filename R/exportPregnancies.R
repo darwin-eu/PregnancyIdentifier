@@ -34,7 +34,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
   }
 
   # Copy key raw artifacts (if present)
-  for (f in c("pps_concept_counts.csv", "log.txt", "attrition.csv")) {
+  for (f in c("hip_concept_counts.csv", "pps_concept_counts.csv", "esd_concept_counts.csv", "log.txt", "attrition.csv")) {
     src <- file.path(outputDir, f)
     if (file.exists(src)) file.copy(src, file.path(exportDir, f), overwrite = TRUE)
   }

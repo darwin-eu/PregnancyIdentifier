@@ -173,6 +173,24 @@ initPregnancies <- function(cdm,
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
 
+  # HIP concept counts (record_count, person_count) for outputDir / export
+  if (!is.null(outputDir)) {
+    hipConceptCounts <- cdm$preg_hip_records %>%
+      dplyr::group_by(.data$concept_id) %>%
+      dplyr::summarise(
+        record_count = dplyr::n(),
+        person_count = dplyr::n_distinct(.data$person_id),
+        .groups = "drop"
+      ) %>%
+      dplyr::left_join(
+        dplyr::select(cdm$preg_hip_concepts, "concept_id", "concept_name"),
+        by = "concept_id"
+      ) %>%
+      dplyr::collect() %>%
+      dplyr::select("concept_id", "concept_name", "record_count", "person_count")
+    utils::write.csv(hipConceptCounts, file.path(outputDir, "hip_concept_counts.csv"), row.names = FALSE)
+  }
+
   # ============================================================
   # PPS records (condition/procedure/measurement)
   # ============================================================
@@ -205,6 +223,20 @@ initPregnancies <- function(cdm,
 
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
+
+  # PPS concept counts (record_count, person_count) for outputDir / export
+  if (!is.null(outputDir)) {
+    ppsConceptCounts <- cdm$preg_pps_records %>%
+      dplyr::group_by(.data$pps_concept_id, .data$pps_concept_name) %>%
+      dplyr::summarise(
+        record_count = dplyr::n(),
+        person_count = dplyr::n_distinct(.data$person_id),
+        .groups = "drop"
+      ) %>%
+      dplyr::collect() %>%
+      dplyr::select("pps_concept_id", "pps_concept_name", "record_count", "person_count")
+    utils::write.csv(ppsConceptCounts, file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
+  }
 
   if (!is.null(outputDir)) {
     checkmate::assertCharacter(outputDir, len = 1)
