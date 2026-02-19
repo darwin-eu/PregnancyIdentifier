@@ -152,15 +152,15 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
   )
   saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
 
-  # Attrition: hip_episodes from preg_hip_records
+  # Attrition: preg_hip_episodes from preg_hip_records
   prior <- getAttritionPrior(outputDir, "preg_hip_records")
   if (!is.null(prior)) {
     postR <- nrow(hipDf)
     postP <- dplyr::n_distinct(hipDf$person_id)
     appendAttrition(
       outputDir,
-      step = "hip_episodes",
-      table = "hip_episodes",
+      step = "preg_hip_episodes",
+      table = "preg_hip_episodes",
       outcome = NA_character_,
       prior_records = prior$post_records,
       prior_persons = prior$post_persons,
@@ -484,7 +484,7 @@ estimateOutcomeStarts <- function(cdm) {
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
 buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, gestConceptIds) {
   # Source A: concepts in gestational_age_concepts.csv with value_as_number (e.g. from measurement).
-  # Source B: any record with gest_value (e.g. from HIP_concepts.xlsx for condition/procedure/observation).
+  # Source B: any record with gest_value (e.g. from HIP_concepts_reviewed17022026.xlsx for condition/procedure/observation).
   gestFromValue <- cdm$preg_hip_records %>%
     dplyr::filter(!is.na(.data$value_as_number)) %>%
     dplyr::mutate(gest_value = as.integer(.data$value_as_number))
@@ -720,14 +720,20 @@ cleanMergedEpisodes <- function(cdm, logger, bufferDays = 28) {
   rest3 <- combined2 %>%
     dplyr::filter(!(!is.na(.data$gest_id) & !is.na(.data$visit_id) & .data$days_diff < -bufferDays))
   log4r::info(logger, sprintf("Total number of episodes with negative days between outcome and max_gest_date: %s", getTblRowCount(negDays)))
-  cdm$merged_episodes_df <- rest3 %>%
+  # Write to a staging name first so overwrite does not drop the table we are selecting from (Snowflake etc.)
+  cleanTbl <- rest3 %>%
     dplyr::union_all(negDays) %>%
     dplyr::mutate(
       gest_at_outcome = !!CDMConnector::datediff("max_gest_start_date", "final_visit_date", "day"),
       min_gest_date_diff = !!CDMConnector::datediff("min_gest_date", "min_gest_date_2", "day"),
       date_diff_max_end = !!CDMConnector::datediff("end_gest_date", "max_gest_date", "day")
     ) %>%
+    .compute(name = "merged_episodes_df_clean", temporary = FALSE, overwrite = TRUE)
+  cdm$merged_episodes_df_clean <- cleanTbl
+  cdm <- omopgenerics::dropSourceTable(cdm, "merged_episodes_df")
+  cdm$merged_episodes_df <- cdm$merged_episodes_df_clean %>%
     .compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
+  cdm <- omopgenerics::dropSourceTable(cdm, "merged_episodes_df_clean")
   cdm
 }
 
@@ -806,7 +812,11 @@ resolveOverlaps <- function(cdm, logger) {
       removed_outcome = 1L
     )
   restFinal <- afterRemove %>%
-    dplyr::filter(!(!is.na(.data$max_gest_week) & .data$is_over_min == 0))
+    dplyr::filter(!(!is.na(.data$max_gest_week) & .data$is_over_min == 0)) %>%
+    dplyr::mutate(
+      removed_category = NA_character_,
+      removed_outcome = 0L
+    )
   cdm$final_episodes_df <- restFinal %>%
     dplyr::union_all(reclassPreg) %>%
     .compute(name = "final_episodes_df", temporary = FALSE, overwrite = TRUE)

@@ -85,7 +85,7 @@ initAttrition <- function(outputDir, cdm) {
 #' Append one row to the attrition CSV
 #'
 #' @param outputDir Directory containing \code{attrition.csv}.
-#' @param step Character. Pipeline step name (e.g. \code{"hip_episodes"}, \code{"final_episodes"}).
+#' @param step Character. Pipeline step name (e.g. \code{"preg_hip_episodes"}, \code{"final_episodes"}).
 #' @param table Character. Output table or artifact name.
 #' @param outcome Character or NA. Outcome category for by-outcome rows; NA for overall.
 #' @param prior_records, prior_persons Prior record and person counts.

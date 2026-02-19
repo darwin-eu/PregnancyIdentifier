@@ -81,7 +81,7 @@ mergeHipps <- function(outputDir, logger) {
   saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
 
   # Attrition: hipps_episodes from hip_episodes + pps_episodes
-  hipPrior <- getAttritionPrior(outputDir, "hip_episodes")
+  hipPrior <- getAttritionPrior(outputDir, "preg_hip_episodes")
   ppsPrior <- getAttritionPrior(outputDir, "pps_episodes")
   if (!is.null(hipPrior) && !is.null(ppsPrior)) {
     priorR <- hipPrior$post_records + ppsPrior$post_records

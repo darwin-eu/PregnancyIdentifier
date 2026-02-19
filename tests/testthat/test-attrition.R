@@ -74,7 +74,7 @@ test_that("full pipeline produces attrition with expected steps and columns", {
 
   steps <- unique(att$step)
   expect_true("init" %in% steps)
-  expect_true("hip_episodes" %in% steps)
+  expect_true("preg_hip_episodes" %in% steps)
   expect_true("pps_episodes" %in% steps)
   expect_true("hipps_episodes" %in% steps)
   expect_true("final_episodes" %in% steps)
