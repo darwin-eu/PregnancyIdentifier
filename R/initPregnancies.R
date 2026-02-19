@@ -67,12 +67,14 @@ initPregnancies <- function(cdm,
 
   log4r::info(logger, "Loading + inserting pregnancy concept tables into the CDM")
 
-  hipConcepts <- readxl::read_excel(
-    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier")
-  )
-  if (!"gest_value" %in% names(hipConcepts)) {
-    hipConcepts <- hipConcepts |> dplyr::mutate(gest_value = NA_real_)
-  }
+  hipConcepts <- suppressMessages(readxl::read_excel(
+    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier"),
+    col_types = "text"
+  )) %>%
+    dplyr::select("concept_id", "concept_name", "category", "gest_value") %>%
+    dplyr::mutate(concept_id = suppressWarnings(as.integer(.data$concept_id))) %>%
+    dplyr::mutate(gest_value = as.numeric(.data$gest_value))
+
   # Only include concepts that are used for episode definition: outcome categories (LB, SB, DELIV, ECT, AB, SA),
   # concepts with gest_value set (gestation weeks from condition/procedure/observation), or concepts in
   # gestational_age_concepts.csv (used with value_as_number for gestation episodes).
@@ -97,11 +99,11 @@ initPregnancies <- function(cdm,
   }
   hipConcepts <- hipConceptsUsed
 
-  ppsConcepts <- readxl::read_excel(
+  ppsConcepts <- suppressMessages(readxl::read_excel(
     system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier")
-  ) |>
-    dplyr::rename_with(tolower) |>
-    dplyr::mutate(pps_concept_id = as.integer(.data$pps_concept_id))
+  )) |>
+    dplyr::rename_with(tolower) %>%
+    dplyr::mutate(pps_concept_id = suppressWarnings(as.integer(.data$pps_concept_id)))
 
   matchoTermDurations <- readxl::read_excel(
     system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier")
