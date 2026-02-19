@@ -1,0 +1,303 @@
+---
+title: "PPS algorithm"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{PPS algorithm}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+The **PPS** (pregnancy-related concept) algorithm builds pregnancy episodes from **pregnancy-related concepts** across OMOP domains and their **expected gestational timing windows**. It is run via `runPps()` and produces episode-level outputs that are later merged with HIP episodes by `mergeHipps()`. See the [pipeline overview](algorithm.html) and the [Merge vignette](merge.html).
+
+---
+
+Often electronic health records do not contain a clean variable that identifies 
+pregnancy episode start and end dates.
+
+Instead, we observe scattered clinical signals:
+
+* "Gestational week 12"
+* "Second trimester"
+* "Pregnancy confirmed"
+* "Prenatal visit"
+* "Delivery procedure"
+
+Each appears on different dates, in different tables, and may be noisy or incorrect.
+
+The PPS algorithm reconstructs **pregnancy episodes** by asking 
+"Which of these records plausibly belong to the same pregnancy?"
+
+---
+
+# Build pregnancy timing evidence
+
+From multiple OMOP tables, PPS extracts only **pregnancy-related concepts** that indicate 
+gestational timing, each with:
+
+* `person_id`
+* `domain_concept_start_date`
+* `domain_concept_id`
+* known gestational timing range:
+
+```
+min_month   max_month
+---------------------
+3           4      ← e.g., second trimester
+8           9      ← e.g., late pregnancy
+0           1      ← early pregnancy indicator
+```
+
+So for every pregnancy record identified by PPS we know 
+that the observation usually happens around months X–Y of pregnancy.
+
+You can investigate the PPS concept data below.
+
+```{r, echo=FALSE}
+library(DT)
+library(readxl)
+
+pps_concepts <- read_xlsx(
+  system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier")
+)
+
+datatable(
+  pps_concepts,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel"),
+    pageLength = 10,
+    scrollX = TRUE
+  ),
+  rownames = FALSE
+)
+```
+
+
+---
+
+# Process one person at a time
+
+For each person:
+
+1. Sort all pregnancy-related records by date
+2. Walk forward in time
+3. Decide whether each record continues the current pregnancy
+   or starts a new one
+
+---
+
+Core idea: *agreement*. Two records are said to **agree** if the *observed time difference* between them matches what pregnancy biology would expect.
+
+---
+
+## How agreement is computed
+
+Suppose we have two records:
+
+| Record | Date  | Gestational meaning         |
+| ------ | ----- | --------------------------- |
+| A      | Jan 1 | early pregnancy (month 1–2) |
+| B      | May 1 | mid pregnancy (month 5–6)   |
+
+The observed spacing between the two records is
+
+```
+Jan → May ≈ 4 months
+```
+
+The expected spacing for these two reacords based on clinical knowledge is a range.
+
+```
+min_expected = 5 − 2 = 3 months
+max_expected = 6 − 1 = 5 months
+```
+
+With slack (±2 months) we calculate and acceptable window of for the observed spacing.
+
+```
+acceptable window = 1 to 7 months
+```
+
+Since the observed spacing is 4 months we say these records are in agreement and 
+are plausibly part of the same pregnancy episode.
+
+If the observed gap falls inside the window → records agree.
+
+
+Agreement means:
+
+> "These two records could plausibly belong to the same pregnancy."
+
+No agreement means:
+
+> "These two records cannot biologically belong to the same pregnancy."
+
+
+---
+
+# Agreement is evaluated in two ways
+
+##  Direct agreement (primary rule)
+
+When processing record *i*:
+
+> Does record *i* agree with **any earlier record** in the current timeline?
+
+If yes → stay in same episode.
+
+
+```
+Pregnancy episode
+|--------------------------------|
+
+R1 ----- R2 ----- R3 ----- Ri
+             ↑
+          agrees?
+```
+
+Only **one match is needed**.
+
+---
+
+## Surrounding agreement (outlier protection)
+
+Sometimes one record is wrong:
+
+* incorrect date
+* miscoded concept
+* late data entry
+
+So PPS asks:
+
+> Even if record *i* doesn’t agree with earlier records,
+> do records *around it* agree with each other?
+
+```
+R1 ----- R2 ---- Ri ---- R4 ----- R5
+       |-----------------------|
+                agree
+```
+
+If **left and right records agree**, then record *i* is treated as noise and kept in the same pregnancy.
+
+This prevents a single bad record from splitting an episode.
+
+---
+
+# When does a new episode start?
+
+A new pregnancy episode begins only if **both timing and biology indicate it**.
+
+A new episode starts if:
+
+---
+
+## Rule 1 — incompatible + meaningful gap
+
+```
+no agreement AND gap > 1 month
+```
+
+Why?
+
+* small gaps (<1 month) often represent:
+
+  * documentation retries
+  * duplicate visits
+  * late coding
+* so PPS waits for a real temporal break
+
+---
+
+## Rule 2 — definitely new pregnancy
+
+```
+gap > 10 months
+```
+
+Regardless of agreement.
+
+Why?
+
+* A pregnancy cannot last that long
+* Even with coding noise, this must be a new pregnancy
+
+---
+
+### Decision diagram
+
+```
+                 New record
+                      |
+              ┌───────┴────────┐
+              |                |
+         gap > 10 mo?      no
+              |                |
+            YES          agreement?
+              |                |
+         NEW EPISODE     yes → same
+                               |
+                          no + gap > 1 mo?
+                               |
+                            yes → new
+                            no  → same
+```
+
+---
+
+# Final cleanup: remove implausible pregnancies
+
+After episodes are assigned:
+
+* Each episode’s duration is computed
+* Any episode lasting **> 12 months** is discarded
+
+Why?
+
+* Normal pregnancy ≈ 9–10 months
+* * documentation noise
+* > 12 months is biologically implausible
+
+These episodes are marked invalid (`episode = 0`).
+
+---
+
+# Final output
+
+For each person:
+
+| person_id | episode | min_date   | max_date   | concepts |
+| --------- | ------- | ---------- | ---------- | -------- |
+| 1         | 1       | 2019-01-10 | 2019-10-02 | 14       |
+| 1         | 2       | 2021-03-04 | 2021-12-15 | 11       |
+
+Each episode represents a **reconstructed pregnancy**.
+
+---
+
+
+
+# Outputs written by runPps()
+
+`runPps()` writes the following files to `outputDir`:
+
+- **pps_episodes.rds** — Always written. PPS episodes with inferred outcomes (used by `mergeHipps()` as the PPS input).
+- **pps_gest_timing_episodes.rds** — Only when `debugMode = TRUE`. Record-level dataset of pregnancy-related concept rows with an assigned `person_episode_number`.
+- **pps_min_max_episodes.rds** — Only when `debugMode = TRUE`. Episode-level summaries (`pps_episode_min_date`, `pps_episode_max_date`, `pps_episode_max_date_plus_two_months`, `n_gt_concepts`).
+
+For the full pipeline (HIP → PPS → merge → ESD), use `runPregnancyIdentifier()`; see the [pipeline overview](algorithm.html) and the [Merge vignette](merge.html).
+
+---
+
+In summary, the PPS algorithm reconstructs pregnancy episodes by checking whether the spacing between pregnancy-related clinical records matches what biology allows, tolerating noise but enforcing physiological limits.
+

@@ -4,3 +4,16 @@
 .Ruserdata
 dev
 docs
+work/
+inst/doc
+/doc/
+/Meta/
+rsconnect
+renv/
+.Rprofile
+*~$*
+.Renviron
+vignettes/algorithm_cache
+.vscode/
+.claude/
+..Rcheck/

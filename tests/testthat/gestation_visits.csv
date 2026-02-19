@@ -1,4 +1,4 @@
-﻿person_id;concept_id;visit_date;value_as_number;concept_name;category;gest_value;date_of_birth;date_diff;age
+person_id;concept_id;visit_date;value_as_number;concept_name;category;gest_value;date_of_birth;date_diff;age
 1;3012266;2021-05-27;7;Gestational age;PREG;7;1990-01-01;;
 1;3012266;2021-06-03;7;Gestational age;PREG;7;1990-01-01;;
 1;3012266;2021-06-28;11;Gestational age;PREG;11;1990-01-01;;

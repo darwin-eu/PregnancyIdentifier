@@ -106,7 +106,7 @@ Characteristics <- R6::R6Class(
       }
 
       # Filtered data
-      getData <- reactive({
+      getData <- shiny::reactive({
         private$.data %>%
           dplyr::filter(cdm_name %in% private$.pickers[["cdm"]]$inputValues$cdm) %>%
           dplyr::filter(strata_level %in% private$.pickers[["strata"]]$inputValues$strata) %>%
@@ -114,7 +114,7 @@ Characteristics <- R6::R6Class(
       })
 
       # TABLE
-      gtTable <- reactive({
+      gtTable <- shiny::reactive({
         req(getData())
         CohortCharacteristics::tableCharacteristics(result = getData(),
                                                     header = private$.pickers[["headerColumn"]]$inputValues$headerColumn,

@@ -1,53 +1,14 @@
-#' runPps
-#'
-#' Runs PPS algorithm
-#'
-#' @param cdm (`cdm_reference`)
-#' @param outputDir output directory
-#' @param uploadConceptSets if concept sets should be uploaded
-#' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
-#' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
-#' @param logger (`logger`) Logger object.
-#' @param ... optional parameters
-#'
-#' @return cdm object
-#' @export
-runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger, ...) {
-  dir.create(path = outputDir, recursive = TRUE, showWarnings = FALSE)
-
-  log4r::info(logger, "START Running PPS")
-  if (uploadConceptSets) {
-    log4r::info(logger, "Uploading Concepts")
-    cdm <- uploadConceptSets(cdm, logger)
-  }
-  log4r::info(logger, "Pull PPS Concepts from Tables")
-  # pull PPS concepts from each table
-  cdm <- input_GT_concepts(cdm, startDate, endDate, logger)
-
-  # get the gestational timing information for each concept
-  log4r::info(logger, "Get gestational timing information")
-  get_PPS_episodes_df <- get_PPS_episodes(cdm, outputDir)
-  saveRDS(get_PPS_episodes_df, file.path(outputDir, "PPS_gest_timing_episodes.rds"))
-
-  # get the min and max dates for each episode
-  log4r::info(logger, "Get min and max dates for episodes")
-  PPS_episodes_df <- get_episode_max_min_dates(get_PPS_episodes_df)
-  saveRDS(PPS_episodes_df, file.path(outputDir, "PPS_min_max_episodes.rds"))
-  return(cdm)
-}
-
 # Copyright (c) 2024 Louisa Smith
-#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-#
+
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-#
+
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -56,309 +17,398 @@ runPps <- function(cdm, outputDir, uploadConceptSets = FALSE, startDate = as.Dat
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# From: https://github.com/louisahsmith/allofus-pregnancy/blob/main/code/algorithm/PPS_algorithm_functions.R
+#' Run the PPS Algorithm to Identify Pregnancy Episodes
+#'
+#' This function executes the Pregnancy Progression Signature (PPS) algorithm against a Common Data Model (CDM) instance.
+#' It inserts the required PPS concept lookup table, extracts gestational timing evidence (e.g., gestational weeks, trimesters) across OMOP clinical domains,
+#' assembles person-level gestational timing records, and writes intermediate episode and summary files to the specified output directory.
+#'
+#' @param cdm A `cdm_reference` object; must include all OMOP tables and structure needed for pregnancy concept search.
+#' @param outputDir Character. Directory path where intermediate and output RDS files will be saved.
+#' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
+#' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
+#' @param logger `log4r` logger object (required) for emitting information and debug messages.
+#' @param debugMode (`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)
+#'
+#' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
+#'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
+#' @export
+runPps <- function(cdm,
+                   outputDir,
+                   startDate = as.Date("1900-01-01"),
+                   endDate   = Sys.Date(),
+                   logger,
+                   debugMode = FALSE) {
 
-rename_cols <- function(cdm, tblName, outcomeTblName, start_date_col, id_col, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), logger) {
-  log4r::info(logger, sprintf("Pulling data from %s", tblName))
-  cdm[[outcomeTblName]] <- cdm[[tblName]] %>%
-    dplyr::filter(
-      .data[[start_date_col]] >= startDate,
-      .data[[start_date_col]] <= endDate
-    ) %>%
-    dplyr::rename(
-      domain_concept_start_date = start_date_col,
-      domain_concept_id = id_col
-    ) %>%
-    dplyr::inner_join(cdm$pps_concepts, by = "domain_concept_id") %>%
-    dplyr::select("person_id", "domain_concept_start_date", "domain_concept_id") %>%
-    dplyr::distinct() %>%
-    dplyr::compute()
-  return(cdm)
-}
+  # ---- validation ----
+  checkmate::assertClass(cdm, "cdm_reference")
+  checkmate::assertCharacter(outputDir, len = 1)
+  checkmate::assertDate(startDate)
+  checkmate::assertDate(endDate)
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
-input_GT_concepts <- function(cdm, startDate, endDate, logger) {
-  cdm <- rename_cols(
-    cdm = cdm,
-    tblName  = "condition_occurrence",
-    outcomeTblName = "c_o",
-    start_date_col = "condition_start_date",
-    id_col = "condition_concept_id",
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
+  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 
-  cdm <- rename_cols(
-    cdm = cdm,
-    tblName  = "procedure_occurrence",
-    outcomeTblName = "p_o",
-    start_date_col = "procedure_date",
-    id_col = "procedure_concept_id",
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
-  cdm <- rename_cols(
-    cdm = cdm,
-    tblName = "observation",
-    outcomeTblName = "o_df",
-    start_date_col = "observation_date",
-    id_col = "observation_concept_id",
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
-  cdm <- rename_cols(
-    cdm = cdm,
-    tblName = "measurement",
-    outcomeTblName = "m_df",
-    start_date_col = "measurement_date",
-    id_col = "measurement_concept_id",
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
-  cdm <- rename_cols(
-    cdm = cdm,
-    tblName  = "visit_occurrence",
-    outcomeTblName = "v_o",
-    start_date_col = "visit_start_date",
-    id_col = "visit_concept_id",
-    startDate = startDate,
-    endDate = endDate,
-    logger = logger
-  )
+  log4r::info(logger, "START Running PPS")
 
-  cdm$input_gt_concepts_df <- list(cdm$c_o, cdm$p_o, cdm$o_df, cdm$m_df, cdm$v_o) %>%
-    purrr::reduce(dplyr::union_all) %>%
-    dplyr::compute()
+  # ----------------------------------------------------------
+  # Get gestational timing information for each person
+  # ----------------------------------------------------------
+  log4r::info(logger, "Get gestational timing information")
+  ppsEpisodes <- getPpsEpisodes(cdm, outputDir)
 
-  return(cdm)
-}
+  # ----------------------------------------------------------
+  # Get min and max dates and outcomes for each episode
+  # ----------------------------------------------------------
+  log4r::info(logger, "Get min and max dates for episodes")
+  ppsMinMax <- getEpisodeMaxMinDates(ppsEpisodes)
 
-records_comparison <- function(personlist, i) {
-  # for the below: t = time (actual), c = concept (expected)
-  # first do the comparisons to the records PREVIOUS to record i
+  ppsWithOutcomes <- outcomesPerEpisode(ppsMinMax, ppsEpisodes, cdm, logger) %>%
+    addOutcomes(ppsMinMax)
 
-  # Iterate through the previous records
-  for (j in 1:(i - 1)) {
-    # Obtain the difference in actual dates of the consecutive patient records
-    delta_t <- as.numeric(difftime(personlist$domain_concept_start_date[i], personlist$domain_concept_start_date[i - j], units = "days") / 30)
-    # Obtain the max expected month difference based on clinician knowledge of the two concepts (allow two extra months for leniency)
-    adjConceptMonths_MaxExpectedDelta <- personlist$max_month[i] - personlist$min_month[i - j] + 2
-    # Obtain the min expected month difference based on clinician knowledge of the two concepts (allow two extra months for leniency)
-    adjConceptMonths_MinExpectedDelta <- personlist$min_month[i] - personlist$max_month[i - j] - 2
-    # Save a boolean indicating whether the actual date difference falls within the max and min expected date differences for the consecutive concepts
-    agreement_t_c <- (adjConceptMonths_MaxExpectedDelta >= delta_t) & (delta_t >= adjConceptMonths_MinExpectedDelta)
-
-    # If there is agreement between the concepts, update the return_agreement_t_c variable
-    if (agreement_t_c == TRUE) {
-      return(TRUE) # return early -- only needs to be true once
-    }
+  if (nrow(ppsWithOutcomes) == 0) {
+    ppsWithOutcomes <- emptyPpsEpisodes()
   }
-  # Next, do the comparisons to the records SURROUNDING record i
-  len_to_start <- i - 1
-  len_to_end <- nrow(personlist) - i
-  bridge_len <- min(len_to_start, len_to_end)
-  if (bridge_len == 0) {
-    return(FALSE)
-  } # no records surrounding
-
-  # Iterate through the bridge records around record i, in case record i was an outlier
-  for (s in seq_len(len_to_start)) {
-    for (e in seq_len(len_to_end)) {
-      # Obtain the time difference in months between the bridge records
-      bridge_delta_t <- as.numeric(difftime(personlist$domain_concept_start_date[i + e],
-        personlist$domain_concept_start_date[i - s],
-        units = "days"
-      ) / 30)
-      # Obtain the max and min expected month differences based on clinician knowledge of the bridge concepts (allow two extra months for leniency)
-      bridge_adjConceptMonths_MaxExpectedDelta <- personlist$max_month[i + e] - personlist$min_month[i - s] + 2
-      bridge_adjConceptMonths_MinExpectedDelta <- personlist$min_month[i + e] - personlist$max_month[i - s] - 2
-      # Check if there is agreement between the bridge concepts
-      bridge_agreement_t_c <- (bridge_adjConceptMonths_MaxExpectedDelta >= bridge_delta_t) &
-        (bridge_delta_t >= bridge_adjConceptMonths_MinExpectedDelta)
-      # If there is agreement between the bridge concepts, update the return_agreement_t_c variable
-      if (bridge_agreement_t_c == TRUE) {
-        return(TRUE) # return early -- only needs to be true once
-      }
+  # Only write record-level and min/max summary RDS when debugging
+  if (debugMode) {
+    ppsGestTimingOut <- if (nrow(ppsEpisodes) == 0) emptyPpsGestTiming() else ppsEpisodes
+    if ("person_episode_number" %in% names(ppsGestTimingOut)) {
+      ppsGestTimingOut <- ppsGestTimingOut %>% dplyr::rename(pps_episode_number = "person_episode_number")
     }
-  }
-
-  # Return the final agreement status between the concepts
-  return(FALSE)
-}
-
-assign_episodes <- function(personlist, ...) {
-  if (nrow(personlist) == 1) {
-    personlist$person_episode_number <- 1
-    return(personlist)
-  }
-
-  # Filter to plausible pregnancy timelines and concept month sequences, and number by episode to get person_episode_number
-
-  # Initialize variables for episode numbering and storing episode information
-  # # Treat the first record as belonging to the first episode
-  person_episode_number <- 1
-  person_episodes <- 1
-  person_episode_chr <- "1"
-  person_episode_dates <- list()
-
-  # Add the date of the current record to the corresponding episode in person_episode_dates
-  person_episode_dates[[person_episode_chr]] <- c(personlist$domain_concept_start_date[1])
-
-  for (i in 2:nrow(personlist)) {
-    # Calculate the time difference in months between the current record and the previous record
-    delta_t <- as.numeric(difftime(personlist$domain_concept_start_date[i],
-      personlist$domain_concept_start_date[i - 1],
-      units = "days"
-    ) / 30)
-
-    # Perform the checks to determine whether this is a continuation of an episode or the start of a new episode
-    agreement_t_c <- records_comparison(personlist, i)
-
-    # If there is no agreement between the concepts and the time difference is greater than 2 months,
-    # change to 1 month, ie retry period
-    # increment the person_episode_number to indicate a new episode
-    if ((!agreement_t_c) && (delta_t > 1)) {
-      person_episode_number <- person_episode_number + 1
-    } else if (delta_t > 10) {
-      # If the time difference is greater than 10 months, increment the person_episode_number to indicate a new episode
-      person_episode_number <- person_episode_number + 1
-    }
-
-    # Append the person_episode_number to the person_episodes list
-    person_episodes <- c(person_episodes, person_episode_number)
-
-    person_episode_chr <- as.character(person_episode_number)
-
-    # Check if the person_episode_number is already in the person_episode_dates list
-    if (!(person_episode_chr %in% names(person_episode_dates))) {
-      person_episode_dates[[person_episode_chr]] <- personlist$domain_concept_start_date[i]
-    } else {
-      # Add the date of the current record to the corresponding episode in person_episode_dates
-      person_episode_dates[[person_episode_chr]] <- c(
-        person_episode_dates[[person_episode_chr]],
-        personlist$domain_concept_start_date[i]
+    ppsGestTimingOut <- ppsGestTimingOut %>%
+      dplyr::select(
+        "person_id", "pps_episode_number", "pps_concept_start_date",
+        "pps_concept_id", "pps_concept_name", "pps_min_month", "pps_max_month"
       )
+    saveRDS(ppsGestTimingOut, file.path(outputDir, "pps_gest_timing_episodes.rds"))
+    ppsMinMaxOut <- if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax
+    if ("person_episode_number" %in% names(ppsMinMaxOut)) {
+      ppsMinMaxOut <- ppsMinMaxOut %>%
+        dplyr::rename(pps_episode_number = "person_episode_number", pps_n_gt_concepts = "n_gt_concepts")
     }
+    ppsMinMaxOut <- ppsMinMaxOut %>%
+      dplyr::select(
+        "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
+        "pps_episode_max_date_plus_two_months", "pps_n_gt_concepts"
+      )
+    saveRDS(ppsMinMaxOut, file.path(outputDir, "pps_min_max_episodes.rds"))
   }
-
-  # - Check that all the episodes are < 12 mo in length (the 9-10 mo of pregnancy plus the few months of delivery concept ramblings).
-  # In the case that any have to be removed, loop through the episodes of the patient again and renumber the remaining episodes
-  episodes_to_remove <- c()
-  for (episode in names(person_episode_dates)) {
-    len_of_episode <- as.numeric(difftime(person_episode_dates[[episode]][length(person_episode_dates[[episode]])],
-      person_episode_dates[[episode]][1],
-      units = "days"
-    ) / 30)
-    if (len_of_episode > 12) {
-      episodes_to_remove <- c(episodes_to_remove, episode)
-    }
+  if ("person_episode_number" %in% names(ppsWithOutcomes)) {
+    ppsWithOutcomes <- ppsWithOutcomes %>%
+      dplyr::rename(pps_episode_number = "person_episode_number", pps_n_gt_concepts = "n_gt_concepts")
   }
-  new_person_episodes <- ifelse(as.character(person_episodes) %in% episodes_to_remove, 0, person_episodes)
-  numUniqueNonZero <- sum(unique(new_person_episodes) != 0)
-  nonZeroNewList <- 1:numUniqueNonZero
-  nonZeroOrigList <- unique(new_person_episodes)[unique(new_person_episodes) != 0]
-  new_person_episodes <- nonZeroNewList[match(new_person_episodes, nonZeroOrigList)]
-  personlist$person_episode_number <- new_person_episodes
-
-  return(personlist)
-}
-
-get_PPS_episodes <- function(cdm, outputDir) {
-  cdm$patients_with_preg_concepts <- cdm$input_gt_concepts_df %>%
-    dplyr::filter(!is.na(.data$domain_concept_start_date)) %>%
-    dplyr::left_join(cdm$pps_concepts, by = "domain_concept_id") %>%
-    dplyr::compute(name = "patients_with_preg_concepts")
-
-  cdm$patients_with_preg_concepts %>%
-    dplyr::group_by(.data$domain_concept_id, .data$domain_concept_name) %>%
-    dplyr::summarise(n = dplyr::n()) %>%
-    write.csv(file.path(outputDir, "PPS-concept_counts.csv"), row.names = FALSE)
-
-  cdm$patients_with_preg_concepts <- cdm$patients_with_preg_concepts %>%
-    dplyr::inner_join(
-      cdm$person %>%
-        dplyr::select("person_id", "gender_concept_id", "year_of_birth", "day_of_birth", "month_of_birth"),
-      by = "person_id"
-    ) %>%
+  # When episode has no concept start dates, min is NA; impute from max so we have a valid period
+  ppsWithOutcomes <- ppsWithOutcomes %>%
     dplyr::mutate(
-      day_of_birth = dplyr::if_else(is.na(.data$day_of_birth), 1, .data$day_of_birth),
-      month_of_birth = dplyr::if_else(is.na(.data$month_of_birth), 1, .data$month_of_birth),
-      date_of_birth = as.Date(paste0(as.character(as.integer(.data$year_of_birth)), "-", as.character(as.integer(.data$month_of_birth)), "-", as.character(as.integer(.data$day_of_birth))))
-    ) %>%
-    dplyr::mutate(
-      date_diff = !!CDMConnector::datediff("date_of_birth", "domain_concept_start_date", "day"),
-      age = date_diff / 365
-    ) %>%
-    # women of reproductive age
-    dplyr::filter(
-      .data$gender_concept_id == 8532,
-      #.data$sex_at_birth_concept_id != 45880669,
-      .data$age >= 15,
-      .data$age < 56
+      pps_episode_min_date = dplyr::coalesce(
+        .data$pps_episode_min_date,
+        .data$pps_episode_max_date - lubridate::days(280)
+      )
     ) %>%
     dplyr::select(
-      -dplyr::ends_with("_of_birth"),
-      -"date_diff",
-      -"gender_concept_id"
+      "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
+      "pps_episode_max_date_plus_two_months", "pps_outcome_category", "pps_outcome_date",
+      "pps_n_gt_concepts"
     )
+  validateEpisodePeriods(
+    ppsWithOutcomes,
+    personIdCol = "person_id",
+    startDateCol = "pps_episode_min_date",
+    endDateCol = "pps_episode_max_date",
+    logger = logger
+  )
+  saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
 
-  # OBTAIN ALL RELEVANT INPUT PATIENTS AND SAVE GT INFORMATION PER CONCEPT TO A LOOKUP DICTIONARY
-  # First we save the women that have gestational timing concepts, and save the gestational timing information for each concept.
-  # We add the concepts and their gestational timing months ([min,max]) during pregnancy to a dictionary (hash) in
-  # concept key: month value list format e.g. {2211756: [4,8], 2101830: [2,2]...}
-
-
-  # SAVE EXPECTED GESTATIONAL TIMING MONTH INFORMATION FOR EACH OF THE PATIENT RECORDS
-  # Looping over each person with pregnancy concepts, order their concepts by date of each record, and for each concept ID in order, loop through the
-  # keys of the dictionary and compare to the concept ID, if there’s a match, save the month value(s) to a list for the record date. You’ll end up with
-  # record date: list of matching months, save this to a new dictionary with record dates as the keys. Where no match occurs, put NA
-  #   person_dates_dict <- split(person_dates_df$list_col, person_dates_df$person_id)
-
-  person_dates_df <- cdm$patients_with_preg_concepts %>%
-    dplyr::collect(page_size = 50000) %>%
-    dplyr::group_by(.data$person_id) %>%
-    dplyr::arrange(.data$domain_concept_start_date)
-
-  res <- person_dates_df
-  if (nrow(res) > 0) {
-    res <- res %>%
-      dplyr::group_modify(assign_episodes)
+  # Attrition: pps_episodes from preg_pps_records
+  prior <- getAttritionPrior(outputDir, "preg_pps_records")
+  if (!is.null(prior)) {
+    postR <- nrow(ppsWithOutcomes)
+    postP <- dplyr::n_distinct(ppsWithOutcomes$person_id)
+    appendAttrition(
+      outputDir,
+      step = "pps_episodes",
+      table = "pps_episodes",
+      outcome = NA_character_,
+      prior_records = prior$post_records,
+      prior_persons = prior$post_persons,
+      dropped_records = prior$post_records - postR,
+      dropped_persons = prior$post_persons - postP,
+      post_records = postR,
+      post_persons = postP
+    )
   }
 
-  return(res)
+  cdm
 }
 
-get_episode_max_min_dates <- function(get_PPS_episodes_df) {
-  if (!"person_episode_number" %in% names(get_PPS_episodes_df)) {
-    if (nrow(get_PPS_episodes_df) > 0) {
-      get_PPS_episodes_df <- get_PPS_episodes_df %>%
-        dplyr::mutate(
-          person_episode_number = .data$person_id
-        )
-    } else {
-      get_PPS_episodes_df <- get_PPS_episodes_df %>%
-        dplyr::mutate(
-          person_episode_number = integer(0)
-        )
-    }
+getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
+
+  # ------------------------------------------------------------------
+  # Episode logic (per-person):
+  # - Each record is a pregnancy-related concept with an observed date.
+  # - Concepts have expected gestational windows (pps_min_month/pps_max_month).
+  # - Two records "agree" if their observed spacing (months) is consistent
+  #   with what we'd expect given their gestational windows (± slack).
+  #
+  # Episodes are created by scanning records in date order:
+  # - By default, record 1 starts episode 1.
+  # - For each subsequent record i:
+  #     * If it "fits" with earlier context, keep same episode.
+  #     * Otherwise, start a new episode only if there is a meaningful gap:
+  #         - gap > 1 month AND no agreement (to allow short "retry"/noise)
+  #         - OR gap > 10 months (definitely a different pregnancy)
+  #
+  # After assignment:
+  # - Drop implausibly long episodes (> 12 months) as invalid (set to 0).
+  # - Renumber remaining episodes sequentially (1..K), keep 0 as invalid.
+  # ------------------------------------------------------------------
+
+  agrees <- function(df, later, earlier) {
+    # Observed spacing in months (approx)
+    delta <- as.numeric(difftime(df$pps_concept_start_date[later],
+                                 df$pps_concept_start_date[earlier],
+                                 units = "days")) / 30
+
+    # Expected spacing bounds derived from gestational windows:
+    # latest plausible month for "later" minus earliest plausible month for "earlier"
+    maxExp <- df$pps_max_month[later] - df$pps_min_month[earlier] + slackMonths
+    # earliest plausible month for "later" minus latest plausible month for "earlier"
+    minExp <- df$pps_min_month[later] - df$pps_max_month[earlier] - slackMonths
+
+    delta >= minExp && delta <= maxExp
   }
 
-  df <- get_PPS_episodes_df %>%
+  hasAgreement <- function(df, i) {
+    if (i <= 1) return(TRUE)
+
+    # Reasoning: record i can stay in the current episode if it is compatible
+    # with at least one earlier record in the same person's timeline.
+    # i is the current record index. j iterates over all previous records (seq_len(i-1))
+    if (any(purrr::map_lgl(seq_len(i-1), \(j) agrees(df, i, j)))) return(TRUE)
+
+    # Reasoning: record i itself may be an "outlier" (bad date/code),
+    # so also allow keeping the episode if there exists *any* pair
+    # of records that bracket i (some earlier record and some later record)
+    # that agree with each other—suggesting the pregnancy is continuous
+    # and i is just noise.
+    earlier  <- seq_len(i - 1)
+    later <- (i + 1):nrow(df)
+    if (length(later) == 0) return(FALSE)
+
+    # For each later record, is there any earlier record that agrees?
+    # If there is any agreement between any later record and any earlier record, return TRUE => same episode
+    any(purrr::map_lgl(later, \(r) any(purrr::map_lgl(earlier, \(l) agrees(df, r, l)))))
+  }
+
+  assignEpisodes <- function(df) {
+    n <- nrow(df)
+    if (n <= 1) {
+      # Single record => trivially one episode
+      return(dplyr::mutate(df, person_episode_number = 1L))
+    }
+
+    # Consecutive gaps in months:
+    # used as a pragmatic "break" signal when compatibility is absent.
+    gaps <- c(0, as.numeric(diff(df$pps_concept_start_date)) / 30)
+
+    # Start a new episode at record i if:
+    # - No agreement with pregnancy context AND gap is meaningfully large (> 1 mo),
+    #   which avoids splitting episodes due to short documentation retries/noise.
+    # - OR gap is huge (> 10 mo), which is taken as definitive evidence of a new
+    #   pregnancy regardless of concept compatibility.
+    starts <- purrr::map_lgl(seq_len(n), \(i) i > 1 && ((!hasAgreement(df, i) && gaps[i] > 1) || gaps[i] > 10))
+
+    # Episode number increments each time we "start" a new episode
+    ep <- 1L + cumsum(starts)
+
+    # Post-filter: pregnancies shouldn't span > 12 months (9–10 expected, + noise).
+    # Mark those episodes invalid by setting episode number to 0.
+    spans <- tapply(df$pps_concept_start_date, ep, \(d)
+                    as.numeric(difftime(max(d), min(d), units = "days")) / 30
+    )
+    invalid <- as.integer(names(spans)[spans > 12])
+    ep[ep %in% invalid] <- 0L
+
+    # Renumber valid episodes to be consecutive (1..K); keep 0 for invalid
+    valid <- sort(unique(ep[ep != 0L]))
+    ep <- ifelse(ep == 0L, 0L, match(ep, valid))
+
+    dplyr::mutate(df, person_episode_number = .env$ep)
+  }
+
+  # ------------------------------------------------------------------
+  # Episode extraction pipeline
+  # ------------------------------------------------------------------
+
+  patientsDf <- cdm$preg_pps_records %>%
+   dplyr::collect()
+
+  # QA: write concept frequencies
+  patientsDf %>%
+    dplyr::count(.data$pps_concept_id, .data$pps_concept_name, name = "n") %>%
+    utils::write.csv(file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
+
+  if (nrow(patientsDf) == 0) return(patientsDf)
+
+  patientsDf %>%
+    tidyr::nest(.by = person_id) %>%
+    dplyr::mutate(data = purrr::map(.data$data, assignEpisodes)) %>%
+    tidyr::unnest("data")
+}
+
+getEpisodeMaxMinDates <- function(ppsEpisodesDf) {
+
+  # If no episode numbers exist, fall back to person-level episodes
+  if (!"person_episode_number" %in% names(ppsEpisodesDf)) {
+    ppsEpisodesDf$person_episode_number <-
+      if (nrow(ppsEpisodesDf) > 0) ppsEpisodesDf$person_id else integer(0)
+  }
+
+  ppsEpisodesDf %>%
     dplyr::filter(!is.na(.data$person_episode_number)) %>%
     dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
     dplyr::summarise(
-      # first time pregnancy concept appears
-      episode_min_date = min(.data$domain_concept_start_date, na.rm = TRUE),
-      # last time a pregnancy concept appears
-      episode_max_date = max(.data$domain_concept_start_date, na.rm = TRUE),
-      episode_max_date_plus_two_months = lubridate::`%m+%`(.data$episode_max_date, months(2)),
-      # add the number of unique gestational timing concepts per episode
-      n_gt_concepts = dplyr::n_distinct(domain_concept_id)
+      pps_episode_min_date = min(.data$pps_concept_start_date, na.rm = TRUE),
+      pps_episode_max_date = max(.data$pps_concept_start_date, na.rm = TRUE),
+      pps_episode_max_date_plus_two_months = lubridate::add_with_rollback(.data$pps_episode_max_date, lubridate::period(months = 2)),
+      n_gt_concepts = dplyr::n_distinct(.data$pps_concept_id),
+      .groups = "drop"
+    )
+}
+
+# ---- Outcomes for PPS episodes ----------------------------------------------
+
+getOutcomeDate <- function(x, outcome) {
+  # outcomes_list contains strings like "YYYY-MM-DD,concept_id,CATEGORY"
+  # return the first date matching CATEGORY, else NA
+  hit <- grep(outcome, x)
+  if (length(hit)) strsplit(x[hit[1]], ",")[[1]][1] else NA_character_
+}
+
+outcomesPerEpisode <- function(ppsMinMaxDf, ppsEpisodesDf, cdm, logger) {
+  # Outcomes are inferred for PPS episodes within an episode-specific window:
+  # - lookback: 14 days before pps_episode_max_date
+  # - lookahead: earliest of:
+  #   (a) the day before the next episode starts, or
+  #   (b) the latest plausible pregnancy outcome date based on the last concept
+  #
+  # Within that window, choose one outcome using the Matcho hierarchy.
+
+  # Ensure ppsEpisodesDf has person_episode_number
+  if (!"person_episode_number" %in% names(ppsEpisodesDf)) {
+    ppsEpisodesDf$person_episode_number <- if (nrow(ppsEpisodesDf)) 1L else integer(0)
+  }
+
+  pregnantDates <- ppsMinMaxDf %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::arrange(.data$person_episode_number, .data$pps_episode_min_date, .by_group = TRUE) %>%
+    dplyr::mutate(
+      # next episode bounds the lookahead to avoid borrowing outcomes from later pregnancies
+      next_closest_episode_date = dplyr::coalesce(
+        dplyr::lead(.data$pps_episode_min_date) - lubridate::days(1),
+        lubridate::ymd("2999-01-01")
+      ),
+      pps_episode_max_date_minus_lookback_window = .data$pps_episode_max_date - lubridate::days(14)
     ) %>%
     dplyr::ungroup()
 
-  return(df)
+  # Determine the last plausible pregnancy outcome date based on the last concept
+  # months_to_add = 11 - pps_min_month, then add to the last concept date.
+  maxPregnancyDateDf <- ppsEpisodesDf %>%
+    dplyr::group_by(.data$person_id, .data$person_episode_number) %>%
+    dplyr::arrange(
+      dplyr::desc(.data$pps_concept_start_date),
+      dplyr::desc(.data$pps_max_month),
+      dplyr::desc(.data$pps_min_month),
+      .by_group = TRUE
+    ) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup() %>%
+    dplyr::transmute(
+      .data$person_id, .data$person_episode_number,
+      max_pregnancy_date = lubridate::add_with_rollback(
+        .data$pps_concept_start_date,
+        lubridate::period(months = 11L - as.integer(.data$pps_min_month))
+      )
+    )
+
+  pregnantDates <- pregnantDates %>%
+    dplyr::left_join(maxPregnancyDateDf, by = c("person_id", "person_episode_number")) %>%
+    dplyr::mutate(
+      # final lookahead is the earliest of (next episode) and (max plausible outcome date)
+      pps_episode_max_date_plus_lookahead_window =
+        pmin(.data$next_closest_episode_date, .data$max_pregnancy_date, na.rm = TRUE)
+    )
+
+  # Pull outcome concepts (LB/SB/ECT/SA/AB/DELIV) that fall within each episode window
+  pregRelatedConcepts <- cdm$preg_hip_records %>%
+    dplyr::filter(.data$category %in% c("LB", "SB", "DELIV", "ECT", "AB", "SA")) %>%
+    dplyr::collect() %>%
+    dplyr::inner_join(
+      pregnantDates,
+      by = dplyr::join_by(
+        person_id,
+        dplyr::between(
+          visit_date,
+          pps_episode_max_date_minus_lookback_window,
+          pps_episode_max_date_plus_lookahead_window
+        )
+      ),
+      relationship = "many-to-many"
+    )
+
+  outcomesListDf <- pregRelatedConcepts %>%
+    dplyr::mutate(lst = paste(.data$visit_date, ",", .data$concept_id, ",", .data$category)) %>%
+    dplyr::group_by(
+      .data$person_id, .data$person_episode_number, .data$pps_episode_min_date, .data$pps_episode_max_date,
+      .data$pps_episode_max_date_minus_lookback_window, .data$pps_episode_max_date_plus_lookahead_window,
+      .data$n_gt_concepts
+    ) %>%
+    dplyr::summarise(outcomes_list = list(sort(unique(.data$lst))), .groups = "drop") %>%
+    dplyr::filter(purrr::map_lgl(.data$outcomes_list, ~ length(.x) > 0))
+
+  # Matcho hierarchy (priority order) for PPS outcomes
+  outcome_order <- c("LB", "SB", "ECT", "SA", "AB", "DELIV")
+  date_cols <- paste0(tolower(outcome_order), "_delivery_date")
+
+  outcomesListDf %>%
+    dplyr::mutate(
+      # Extract first matching date per outcome category
+      !!!rlang::set_names(
+        purrr::map(outcome_order, \(cat)
+                   rlang::expr(purrr::map_chr(.data$outcomes_list, getOutcomeDate, !!cat))
+        ),
+        date_cols
+      ),
+      # Choose one category/date by hierarchy
+      pps_outcome_category = dplyr::case_when(
+        !is.na(.data$lb_delivery_date)    ~ "LB",
+        !is.na(.data$sb_delivery_date)    ~ "SB",
+        !is.na(.data$ect_delivery_date)   ~ "ECT",
+        !is.na(.data$sa_delivery_date)    ~ "SA",
+        !is.na(.data$ab_delivery_date)    ~ "AB",
+        !is.na(.data$deliv_delivery_date) ~ "DELIV"
+      ),
+      pps_outcome_date = lubridate::ymd(dplyr::case_when(
+        !is.na(.data$lb_delivery_date)    ~ .data$lb_delivery_date,
+        !is.na(.data$sb_delivery_date)    ~ .data$sb_delivery_date,
+        !is.na(.data$ect_delivery_date)   ~ .data$ect_delivery_date,
+        !is.na(.data$sa_delivery_date)    ~ .data$sa_delivery_date,
+        !is.na(.data$ab_delivery_date)    ~ .data$ab_delivery_date,
+        !is.na(.data$deliv_delivery_date) ~ .data$deliv_delivery_date
+      ))
+    )
+}
+
+addOutcomes <- function(outcomesDf, ppsMinMaxDf) {
+  # Attach inferred PPS outcomes back onto the PPS episode min/max table
+  ppsMinMaxDf %>%
+    dplyr::left_join(
+      outcomesDf %>%
+        dplyr::select(
+          "person_id", "person_episode_number", "pps_episode_min_date",
+          "pps_outcome_category", "pps_outcome_date", "n_gt_concepts"
+        ),
+      by = c("person_id", "person_episode_number", "pps_episode_min_date", "n_gt_concepts")
+    )
 }

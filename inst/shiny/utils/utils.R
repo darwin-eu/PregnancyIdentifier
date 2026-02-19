@@ -19,11 +19,14 @@ snakeCaseToCamelCase <- function(string) {
   return(string)
 }
 
-loadFile <- function(file, dbName, runDate, folder, overwrite) {
+loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
   if (endsWith(file, ".csv")) {
     print(file)
     tableName <- gsub(".csv$", "", file)
     camelCaseName <- snakeCaseToCamelCase(tableName)
+    if (camelCaseName == "attrition") {
+      camelCaseName <- "attrition_episodes"
+    }
 
     if (grepl("incidence|prevalence|characteristics", tolower(file))) {
       parts <- unlist(strsplit(tableName, "_"))
@@ -41,15 +44,30 @@ loadFile <- function(file, dbName, runDate, folder, overwrite) {
       if (!"cdm_name" %in% colnames(data)) {
         data <- data %>% dplyr::mutate(cdm_name = dbName)
       }
+      if (file == "cdm_source.csv" && "cdm_data_hash" %in% colnames(data)) {
+        data <- data %>% dplyr::select(-"cdm_data_hash")
+      }
     }
 
     # add version number to cdm_name
     version <- NULL
-    if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-21"))) {
+    if (!is.null(zipVersion)) {
+      version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
+    } else if ("pkg_version" %in% colnames(data)) {
+      version <- data %>% dplyr::pull("pkg_version") %>% unique()
+      version <- paste0("_v", as.numeric(substr(version, 1, 1)))
+      data <- data %>% dplyr::select(-"pkg_version")
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
       version <- "_v1"
+    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-02-16"))) {
+      version <- "_v2"
+    } else if (dplyr::between(as.Date(runDate), as.Date("2026-02-17"), as.Date("2026-03-31"))) {
+      version <- "_v3"
     }
+
     data <- data %>%
       dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
+      dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
       dplyr::mutate(cdm_name = paste0(cdm_name, version))
 
     if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
@@ -93,7 +111,7 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
     geom_line() +
     geom_point() +
     labs(x = xLabel, y = "Count (N)") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 6))
 
   if (!is.null(facetVar)) {
     p <- p + facet_wrap(as.formula(paste("~", facetVar)))
@@ -105,7 +123,9 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
   plotly::ggplotly(p)
 }
 
-barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL, rotateAxisText = FALSE, flipCoordinates = FALSE) {
+barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunction = NULL,
+                    label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL,
+                    rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL) {
   p <- ggplot(data = data,
               mapping = aes_string(x = xVar, y = yVar, label = label))
 
@@ -118,7 +138,11 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = N
                       mapping = aes_string(fill = fillVar))
   }
   if (!is.null(facetVar)) {
-    p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+    if (is.null(labelFunction)) {
+      p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+    } else {
+      p <- p + facet_wrap(as.formula(paste("~", facetVar)), labeller = labelFunction)
+    }
   }
 
   if (!is.null(xLabel) && !is.null(yLabel)) {
@@ -126,18 +150,24 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, label = N
   }
   if (rotateAxisText) {
     p <- p + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-          plot.title = element_text(hjust = 0.5))
+                   plot.title = element_text(hjust = 0.5),
+                   strip.text = element_text(size = facetTextSize))
   }
-  if (!is.null(ggtitle)) {
+  if (!is.null(title)) {
     p <- p + ggtitle(title)
   }
   if (flipCoordinates) {
     p <- p + coord_flip()
   }
+  if (!is.null(verticalLinesPos)) {
+    for (pos in verticalLinesPos) {
+      p <- p + geom_vline(xintercept = pos, colour = "red")
+    }
+  }
   plotly::ggplotly(p)
 }
 
-boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
+boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, gg_plot = FALSE) {
   plotData <- data
   if (transform) {
     # assume we have a column per DP, next to the first column
@@ -151,24 +181,39 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE) {
       }))
   }
 
-  p <- NULL
-  if (is.null(colorVar)) {
-    p <- plot_ly(data = plotData,
-                 x = ~ cdm_name)
+  if (gg_plot) {
+    plotData <- plotData %>%
+      dplyr::mutate(min = as.numeric(min),
+                    Q25 = as.numeric(Q25),
+                    mean = as.numeric(mean),
+                    Q75 = as.numeric(Q75),
+                    max = as.numeric(max),
+                    x = 1)
+
+    ggplot(plotData, aes(x)) +
+      geom_boxplot(aes(ymin = min, lower = Q25, middle = mean, upper = Q75, ymax = max),
+                   stat = "identity") +
+      facet_wrap(~ cdm_name)
   } else {
-    p <- plot_ly(data = plotData,
-                 x = ~ cdm_name,
-                 color = ~ get(colorVar))
+    p <- NULL
+    if (is.null(colorVar)) {
+      p <- plot_ly(data = plotData,
+                   x = ~ cdm_name)
+    } else {
+      p <- plot_ly(data = plotData,
+                   x = ~ cdm_name,
+                   color = ~ get(colorVar))
+    }
+    p %>%
+      add_boxplot(
+        lowerfence = ~ min,
+        q1 = ~ Q25,
+        median = ~ median,
+        mean = ~ mean,
+        sd = ~ sd,
+        q3 = ~ Q75,
+        upperfence = ~ max)
   }
-  p %>%
-    add_boxplot(
-      lowerfence = ~ min,
-      q1 = ~ Q25,
-      median = ~ median,
-      mean = ~ mean,
-      sd = ~ sd,
-      q3 = ~ Q75,
-      upperfence = ~ max)
 }
 
 customDarwinFooter <- function() {
@@ -183,4 +228,13 @@ customDarwinFooter <- function() {
       )
     )
   )
+}
+
+suppressCounts <- function(result, colNames, minCellCount = 5) {
+  suppressCountCol <- function (values) {
+    values[values > 0 & values < minCellCount] <- NA
+    return(values)
+  }
+  result %>%
+    dplyr::mutate(dplyr::across(colNames, suppressCountCol))
 }

@@ -4,9 +4,9 @@
 \name{PregnancyIdentifier-package}
 \alias{PregnancyIdentifier}
 \alias{PregnancyIdentifier-package}
-\title{PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcoms Partnership) CDM (Commen Data Model)}
+\title{PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)}
 \description{
-Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et. all (2024) \doi{10.1093/jamia/ocae195}.
+Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et al. (2024) \doi{10.1093/jamia/ocae195}.
 }
 \seealso{
 Useful links:
@@ -23,6 +23,7 @@ Authors:
 \itemize{
   \item Aniek Markus (\href{https://orcid.org/0000-0001-5779-4794}{ORCID})
   \item Julieta Politi (\href{https://orcid.org/0000-0001-7315-034X}{ORCID})
+  \item Adam Black \email{black@ohdsi.org} (\href{https://orcid.org/0000-0001-5576-8701}{ORCID})
 }
 
 }

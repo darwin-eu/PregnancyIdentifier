@@ -119,6 +119,126 @@
       "race_concept_id": 0,
       "ethnicity_concept_id": 0,
       "gender": "Female"
+    },
+    {
+      "person_id": 16,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1970,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 21,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 22,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 23,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 24,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 25,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 26,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 27,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 28,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 29,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 30,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 31,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 32,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 33,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
+    },
+    {
+      "person_id": 34,
+      "gender_concept_id": 8532,
+      "year_of_birth": 1990,
+      "race_concept_id": 0,
+      "ethnicity_concept_id": 0,
+      "gender": "Female"
     }
   ],
   "observation_period": [
@@ -226,6 +346,111 @@
       "observation_period_start_date": "2012-01-01",
       "observation_period_end_date": "2024-12-31",
       "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 16,
+      "person_id": 16,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 21,
+      "person_id": 21,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 22,
+      "person_id": 22,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 23,
+      "person_id": 23,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 24,
+      "person_id": 24,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 25,
+      "person_id": 25,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 26,
+      "person_id": 26,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 27,
+      "person_id": 27,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 28,
+      "person_id": 28,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 29,
+      "person_id": 29,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 30,
+      "person_id": 30,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 31,
+      "person_id": 31,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 32,
+      "person_id": 32,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 33,
+      "person_id": 33,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
+    },
+    {
+      "observation_period_id": 34,
+      "person_id": 34,
+      "observation_period_start_date": "2012-01-01",
+      "observation_period_end_date": "2024-12-31",
+      "period_type_concept_id": "32880"
     }
   ],
   "condition_occurrence": [
@@ -237,7 +462,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 2,
@@ -247,7 +472,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 3,
@@ -257,7 +482,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 4,
@@ -267,7 +492,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 5,
@@ -277,7 +502,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 6,
@@ -287,7 +512,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 7,
@@ -297,7 +522,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 8,
@@ -307,7 +532,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 9,
@@ -317,7 +542,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 10,
@@ -327,7 +552,7 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
     },
     {
       "condition_occurrence_id": 11,
@@ -337,7 +562,548 @@
       "condition_type_concept_id": 32817,
       "condition_status_concept_id": 0,
       "condition_source_concept_id": 0,
-      "condition": "Gestation period, 21 weeks"
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 12,
+      "person_id": 15,
+      "condition_concept_id": 4244438,
+      "condition_start_date": "2017-12-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 13,
+      "person_id": 15,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2017-12-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 14,
+      "person_id": 15,
+      "condition_concept_id": 435640,
+      "condition_start_date": "2017-12-21",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 25 weeks"
+    },
+    {
+      "condition_occurrence_id": 15,
+      "person_id": 15,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2018-05-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 16,
+      "person_id": 15,
+      "condition_concept_id": 443213,
+      "condition_start_date": "2017-12-30",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Stillbrith"
+    },
+    {
+      "condition_occurrence_id": 21,
+      "person_id": 21,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-10-08",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 22,
+      "person_id": 21,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-02-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 23,
+      "person_id": 22,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2021-06-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 24,
+      "person_id": 23,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-01-28",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 25,
+      "person_id": 23,
+      "condition_concept_id": 4051642,
+      "condition_start_date": "2023-05-28",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 20 weeks"
+    },
+    {
+      "condition_occurrence_id": 26,
+      "person_id": 23,
+      "condition_concept_id": 442558,
+      "condition_start_date": "2023-08-20",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 32 weeks"
+    },
+    {
+      "condition_occurrence_id": 27,
+      "person_id": 23,
+      "condition_concept_id": 4014454,
+      "condition_start_date": "2023-08-20",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single stillbirth"
+    },
+    {
+      "condition_occurrence_id": 28,
+      "person_id": 21,
+      "condition_concept_id": 4185780,
+      "condition_start_date": "2023-07-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 21 weeks"
+    },
+    {
+      "condition_occurrence_id": 29,
+      "person_id": 24,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-01-28",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 30,
+      "person_id": 24,
+      "condition_concept_id": 4132434,
+      "condition_start_date": "2023-03-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 8 weeks"
+    },
+    {
+      "condition_occurrence_id": 31,
+      "person_id": 24,
+      "condition_concept_id": 437611,
+      "condition_start_date": "2023-03-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Ectopic pregnancy"
+    },
+    {
+      "condition_occurrence_id": 32,
+      "person_id": 25,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2021-11-25",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 33,
+      "person_id": 25,
+      "condition_concept_id": 4132434,
+      "condition_start_date": "2021-02-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 12 weeks"
+    },
+    {
+      "condition_occurrence_id": 34,
+      "person_id": 25,
+      "condition_concept_id": 4081422,
+      "condition_start_date": "2021-02-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Elective termination of pregnancy"
+    },
+    {
+      "condition_occurrence_id": 35,
+      "person_id": 26,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-09-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 36,
+      "person_id": 26,
+      "condition_concept_id": 4132434,
+      "condition_start_date": "2023-11-05",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 8 weeks"
+    },
+    {
+      "condition_occurrence_id": 37,
+      "person_id": 26,
+      "condition_concept_id": 45876808,
+      "condition_start_date": "2023-11-05",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Miscarriage"
+    },
+    {
+      "condition_occurrence_id": 38,
+      "person_id": 27,
+      "condition_concept_id": 4197245,
+      "condition_start_date": "2021-04-04",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 12 weeks"
+    },
+    {
+      "condition_occurrence_id": 39,
+      "person_id": 27,
+      "condition_concept_id": 4051642,
+      "condition_start_date": "2021-05-30",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 20 weeks"
+    },
+    {
+      "condition_occurrence_id": 40,
+      "person_id": 28,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-09-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 41,
+      "person_id": 28,
+      "condition_concept_id": 444098,
+      "condition_start_date": "2023-09-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 40 weeks"
+    },
+    {
+      "condition_occurrence_id": 42,
+      "person_id": 28,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-10-20",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 43,
+      "person_id": 28,
+      "condition_concept_id": 45876808,
+      "condition_start_date": "2023-12-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Miscarriage"
+    },
+    {
+      "condition_occurrence_id": 44,
+      "person_id": 28,
+      "condition_concept_id": 4132434,
+      "condition_start_date": "2023-12-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 8 weeks"
+    },
+    {
+      "condition_occurrence_id": 45,
+      "person_id": 29,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-10-07",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 46,
+      "person_id": 29,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-10-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 47,
+      "person_id": 29,
+      "condition_concept_id": 444098,
+      "condition_start_date": "2023-10-10",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 40 weeks"
+    },
+    {
+      "condition_occurrence_id": 48,
+      "person_id": 30,
+      "condition_concept_id": 45876808,
+      "condition_start_date": "2018-11-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Miscarriage"
+    },
+    {
+      "condition_occurrence_id": 49,
+      "person_id": 30,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2018-12-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 50,
+      "person_id": 30,
+      "condition_concept_id": 444098,
+      "condition_start_date": "2018-12-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 40 weeks"
+    },
+    {
+      "condition_occurrence_id": 51,
+      "person_id": 31,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2018-11-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 52,
+      "person_id": 31,
+      "condition_concept_id": 443213,
+      "condition_start_date": "2018-12-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Stillbrith"
+    },
+    {
+      "condition_occurrence_id": 53,
+      "person_id": 31,
+      "condition_concept_id": 444098,
+      "condition_start_date": "2018-12-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 40 weeks"
+    },
+    {
+      "condition_occurrence_id": 54,
+      "person_id": 32,
+      "condition_concept_id": 4051642,
+      "condition_start_date": "2023-06-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 20 weeks"
+    },
+    {
+      "condition_occurrence_id": 55,
+      "person_id": 32,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-10-29",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 56,
+      "person_id": 32,
+      "condition_concept_id": 4197245,
+      "condition_start_date": "2024-01-15",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 12 weeks"
+    },
+    {
+      "condition_occurrence_id": 57,
+      "person_id": 33,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-07-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 58,
+      "person_id": 33,
+      "condition_concept_id": 4197245,
+      "condition_start_date": "2023-07-01",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 12 weeks"
+    },
+    {
+      "condition_occurrence_id": 59,
+      "person_id": 34,
+      "condition_concept_id": 4094910,
+      "condition_start_date": "2023-03-29",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Pregnancy test positive"
+    },
+    {
+      "condition_occurrence_id": 64,
+      "person_id": 34,
+      "condition_concept_id": 4014295,
+      "condition_start_date": "2023-12-20",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Single live birth"
+    },
+    {
+      "condition_occurrence_id": 65,
+      "person_id": 34,
+      "condition_concept_id": 444098,
+      "condition_start_date": "2023-12-20",
+      "condition_type_concept_id": 32817,
+      "condition_status_concept_id": 0,
+      "condition_source_concept_id": 0,
+      "condition_source_value": "Gestation period, 40 weeks"
+    }
+  ],
+  "observation": [
+    {
+      "observation_id": 1,
+      "person_id": 22,
+      "observation_concept_id": 4192676,
+      "observation_date": "2021-02-01",
+      "observation_type_concept_id": 32817,
+      "Observation": "Born by cesarean section"
+    },
+    {
+      "observation_id": 2,
+      "person_id": 22,
+      "observation_concept_id": 74698,
+      "observation_date": "2021-01-01",
+      "observation_type_concept_id": 32817,
+      "Observation": "Breech presentation"
+    },
+    {
+      "observation_id": 3,
+      "person_id": 28,
+      "observation_concept_id": 74698,
+      "observation_date": "2023-04-01",
+      "observation_type_concept_id": 32817,
+      "Observation": "Breech presentation"
+    },
+    {
+      "observation_id": 4,
+      "person_id": 29,
+      "observation_concept_id": 4308655,
+      "observation_date": "2023-02-07",
+      "observation_type_concept_id": 32817,
+      "Observation": "Fetal non-stress test"
+    }
+  ],
+  "procedure_occurrence": [
+    {
+      "procedure_occurrence_id": 2,
+      "person_id": 22,
+      "procedure_concept_id": 2211751,
+      "procedure_date": "2021-01-13",
+      "procedure_end_date": "2021-01-13",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation plus detailed fetal anatomic examination, transabdominal approach; single or first gestation"
+    },
+    {
+      "procedure_occurrence_id": 3,
+      "person_id": 23,
+      "procedure_concept_id": 2211747,
+      "procedure_date": "2023-02-22",
+      "procedure_end_date": "2023-02-22",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Ultrasound, pregnant uterus, real time with image documentation, fetal and maternal evaluation, first trimester (< 14 weeks 0 days), transabdominal approach; single or first gestation"
+    },
+    {
+      "procedure_occurrence_id": 4,
+      "person_id": 27,
+      "procedure_concept_id": 2211751,
+      "procedure_date": "2021-05-30",
+      "procedure_end_date": "2021-05-30",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
+    },
+    {
+      "procedure_occurrence_id": 5,
+      "person_id": 34,
+      "procedure_concept_id": 2211747,
+      "procedure_date": "2023-05-24",
+      "procedure_end_date": "2023-05-24",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Ultrasound, pregnant uterus, first trimester (<14w), transabdominal; single/first gestation"
+    },
+    {
+      "procedure_occurrence_id": 6,
+      "person_id": 34,
+      "procedure_concept_id": 2211751,
+      "procedure_date": "2023-08-12",
+      "procedure_end_date": "2023-08-12",
+      "procedure_type_concept_id": 32817,
+      "procedure_source_value": "Ultrasound, pregnant uterus, detailed fetal anatomic exam, transabdominal; single/first gestation"
     }
   ],
   "measurement": [
@@ -529,6 +1295,20 @@
       "measurement_source_value": 224005,
       "measurement_source_concept_id": 2000030076,
       "value_source_value": "Positive"
+    },
+    {
+      "measurement_id": 10,
+      "person_id": 21,
+      "measurement_concept_id": 3036000,
+      "measurement_date": "2023-09-10",
+      "measurement_type_concept_id": 32817,
+      "value_source_value": "Positive"
+    },
+    {
+      "measurement_id": 62,
+      "person_id": 34,
+      "measurement_concept_id": 3036000,
+      "measurement_date": "2023-11-30"
     }
   ],
   "drug_exposure": [
@@ -541,7 +1321,7 @@
       "drug_exposure_start_date": "2019-01-01",
       "drug_exposure_end_date": "2019-11-01",
       "drug_type_concept_id": 32838,
-      "10": 304
+      "...10": 304
     },
     {
       "drug_exposure_id": 2,
@@ -552,7 +1332,7 @@
       "drug_exposure_start_date": "2020-01-01",
       "drug_exposure_end_date": "2020-03-14",
       "drug_type_concept_id": 32838,
-      "10": 73
+      "...10": 73
     },
     {
       "drug_exposure_id": 2,
@@ -563,7 +1343,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -574,7 +1354,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -585,7 +1365,7 @@
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
       "drug_type_concept_id": 32838,
-      "10": 70
+      "...10": 70
     },
     {
       "drug_exposure_id": 2,
@@ -595,6 +1375,16 @@
       "days_supply": 70,
       "drug_exposure_start_date": "2020-05-05",
       "drug_exposure_end_date": "2020-07-14",
+      "drug_type_concept_id": 32838
+    },
+    {
+      "drug_exposure_id": 62,
+      "person_id": 34,
+      "drug_concept_id": 4147892,
+      "quantity": 21,
+      "days_supply": 4,
+      "drug_exposure_start_date": "2023-10-11",
+      "drug_exposure_end_date": "2023-10-15",
       "drug_type_concept_id": 32838
     }
   ],
@@ -755,6 +1545,36 @@
     },
     {
       "person_id": 9,
+      "pregnancy_id": 1,
+      "pregnancy_start_date": "2020-01-20",
+      "pregnancy_end_date": "2020-09-14",
+      "pregnancy_outcome_id": "livebirth",
+      "mode_delivery": "c-section",
+      "gestational_length_in_day": 238,
+      "number_fetuses": 1,
+      "pregnancy_smok": "yes",
+      "pregnancy_alc": "yes",
+      "pregnancy_bmi": 20,
+      "pre_pregnancy_bmi": 20,
+      "prev_pregnancy_gravidity": 2
+    },
+    {
+      "person_id": 15,
+      "pregnancy_id": 1,
+      "pregnancy_start_date": "2020-01-20",
+      "pregnancy_end_date": "2020-09-14",
+      "pregnancy_outcome_id": "livebirth",
+      "mode_delivery": "c-section",
+      "gestational_length_in_day": 238,
+      "number_fetuses": 1,
+      "pregnancy_smok": "yes",
+      "pregnancy_alc": "yes",
+      "pregnancy_bmi": 20,
+      "pre_pregnancy_bmi": 20,
+      "prev_pregnancy_gravidity": 2
+    },
+    {
+      "person_id": 15,
       "pregnancy_id": 1,
       "pregnancy_start_date": "2020-01-20",
       "pregnancy_end_date": "2020-09-14",
