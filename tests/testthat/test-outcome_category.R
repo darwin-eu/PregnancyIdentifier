@@ -12,7 +12,7 @@ test_that("Outcome category is correct", {
   runPregnancyIdentifier(cdm, outputFolder, outputLogToConsole = FALSE)
 
   df <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds")) |>
-    select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)
+    dplyr::select(person_id, final_episode_start_date, final_episode_end_date, final_outcome_category)
 
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
   PregnancyIdentifier:::validateEpisodePeriods(
@@ -279,6 +279,10 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   # Start: 2020-02-18 - 12*7 = 2019-11-26. End desired: 2019-11-26 + 42*7 = 2020-09-17.
   # Algorithm may emit 0 episodes when GA is only in measurement (not condition_occurrence); gestation-only
   # episodes from measurement GA are not yet supported, or an outcome record is required.
+
+  # cdmCommentContents(cdm, 39)
+# person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name | type_concept_name
+# 39        | 4299535                | 2020-02-18 | NA       | 32817           | condition_occurrence | Pregnant                 | EHR
   out39 <- dplyr::filter(df, .data$person_id == 39L)
   expect_true(nrow(out39) %in% c(0L, 1L), info = "person 39: 0 or 1 episode (0 when GA only in measurement and gestation-only from measurement not supported)")
   if (nrow(out39) >= 1L) {
