@@ -115,7 +115,7 @@ The observed spacing between the two records is
 Jan → May ≈ 4 months
 ```
 
-The expected spacing for these two reacords based on clinical knowledge is a range.
+The expected spacing for these two records based on clinical knowledge is a range.
 
 ```
 min_expected = 5 − 2 = 3 months

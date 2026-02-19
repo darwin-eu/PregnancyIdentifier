@@ -50,7 +50,7 @@ So: **HIP_concepts_reviewed17022026** supplies both outcome labels (`category`) 
 **How it’s used:**
 
 - **HIP** (`buildGestationEpisodes`, `attachGestationAndLength`): Records in `preg_hip_records` with this `concept_id` and `value_as_number` in 1–44 are used to build gestation episodes and to attach gestation length to final episodes. Also used in **initPregnancies** to decide which HIP concepts to keep (see above).
-- **ESD** (`getTimingConcepts`): For these concept IDs, if the parsed value is 1–44, the record gets `keep_value = 1` and `extrapolated_preg_start = record_date - (value * 7)` (gestation-week back-calculation). They are also eligible for `gt_type = "GW"` via **ESD_concepts2.xlsx**.
+- **ESD** (`getTimingConcepts`): For these concept IDs, if the parsed value is 1–44, the record gets `keep_value = 1` and `extrapolated_preg_start = record_date - (value * 7)` (gestation-week back-calculation). They are also eligible for `gt_type = "GW"` when listed in **ESD_concepts.xlsx** with **is_gw_concept = TRUE** (or when the concept name contains “gestation period” / “gestational age”).
 
 Typical contents: e.g. 3048230 (Gestational age in weeks), 3002209 (Gestational age Estimated), 3012266 (Gestational age).
 
@@ -126,7 +126,7 @@ So: **PPS_concepts_reviewed1702026** drives both PPS episode definition and ESD�
   So only include concepts here that you intend to use for timing (e.g. gestational age, LMP, EDD, or gestation-at-birth). Non-timing concepts (e.g. “Number of fetuses”) will be pulled but never affect inferred start dates.
 
 **Optional column: `is_gw_concept`**  
-To use a **single ESD concept file** and avoid maintaining **ESD_concepts2.xlsx**, add a column **`is_gw_concept`** (logical or 1/0) to **ESD_concepts.xlsx**. Set it to **TRUE** (or 1) for every concept that should be assigned **gt_type = "GW"** when they have a valid gestation-week value (e.g. 3048230, 3002209, 3012266, 3050433). If this column exists and has at least one TRUE, the package uses it and does **not** load **ESD_concepts2.xlsx**. If the column is missing or has no TRUE values, the package falls back to **ESD_concepts2.xlsx** for the GW concept list (legacy behaviour).
+Add a column **`is_gw_concept`** (logical or 1/0) to **ESD_concepts.xlsx** and set it to **TRUE** (or 1) for every concept that should be assigned **gt_type = "GW"** when they have a valid gestation-week value (e.g. 3048230, 3002209, 3012266, 3050433). The package uses this column to identify GW concepts for start-date inference. Concepts in **gestational_age_concepts.csv** or whose name contains “gestation period” or “gestational age” can also be treated as GW when they have a value in 1–44 weeks.
 
 **Summary:** **ESD_concepts.xlsx** defines *which* concepts are in scope for ESD; **esd_category** defines *how* each is used (LMP date, EDD date, GW weeks, or gestation-at-birth weeks). Records can be in measurement or observation (or condition/procedure) regardless of category.
 

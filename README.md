@@ -59,7 +59,8 @@ runPregnancyIdentifier(
   cdm       = cdm,
   outputDir = "pregnancy_output",
   startDate = as.Date("2000-01-01"),
-  endDate   = Sys.Date()
+  endDate   = Sys.Date(),
+  runExport = FALSE
 )
 ```
 
@@ -70,10 +71,14 @@ row per pregnancy episode: `person_id`, `final_episode_start_date`,
 `esd_precision_days`, and other esd\_\* QA/concordance columns. Load it
 for cohort definition, export, or further analysis.
 
-Optional: run **export** for de-identified summary CSVs and a ZIP:
+Optional: set **`runExport = TRUE`** to run export automatically after
+ESD, or run **export** yourself for de-identified summary CSVs and a
+ZIP:
 
 ``` r
-exportPregnancies(cdm, outputDir = "pregnancy_output", exportDir = "pregnancy_export")
+runPregnancyIdentifier(cdm, outputDir = "pregnancy_output", runExport = TRUE)
+# or:
+exportPregnancies(cdm, outputDir = "pregnancy_output", exportDir = "pregnancy_output/export")
 ```
 
 ------------------------------------------------------------------------
@@ -85,7 +90,8 @@ exportPregnancies(cdm, outputDir = "pregnancy_output", exportDir = "pregnancy_ex
   [HIP](https://darwin-eu.github.io/PregnancyIdentifier/articles/hip.html),
   [PPS](https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html),
   [Merge](https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html),
-  [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html).
+  [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html),
+  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html).
 - **Reference:** [pkgdown
   site](https://darwin-eu.github.io/PregnancyIdentifier/).
 - **Issues:** [GitHub

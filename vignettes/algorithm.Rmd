@@ -35,12 +35,14 @@ library(CDMConnector)
 cdm <- mockPregnancyCdm()
 
 runPregnancyIdentifier(
-  cdm           = cdm,
-  outputDir     = "pregnancy_identifier_output",
-  startDate     = as.Date("2000-01-01"),
-  endDate       = Sys.Date(),
-  justGestation = TRUE,
-  minCellCount  = 5L
+  cdm                   = cdm,
+  outputDir             = "pregnancy_identifier_output",
+  startDate             = as.Date("2000-01-01"),
+  endDate               = Sys.Date(),
+  justGestation         = TRUE,
+  minCellCount          = 5L,
+  runExport             = FALSE,
+  conformToValidation   = FALSE
 )
 ```
 
@@ -54,9 +56,13 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 | `log.txt` | Run log |
 | `hip_episodes.rds` | HIP episodes (outcome and/or gestation-derived) |
 | `pps_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
+| `pps_concept_counts.csv` | PPS concept record counts per concept (used by export when `runExport = TRUE`). |
+| `pps_gest_timing_episodes.rds` | (Only when `debugMode = TRUE`) Record-level PPS concept rows with episode assignment. |
+| `pps_min_max_episodes.rds` | (Only when `debugMode = TRUE`) Episode-level PPS min/max date summaries. |
 | `hipps_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
 | `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes |
-| `export/` | De-identified summary CSVs and ZIP archive (if export step is used). See the [Export vignette](export.html) for file names, columns, and analysis use. |
+| `esd.rds` | (Only when `debugMode = TRUE`) ESD episode-level start inference before merging back to HIPPS. |
+| `export/` | De-identified summary CSVs and ZIP archive when `runExport = TRUE`. See the [Export vignette](export.html) for file names, columns, and analysis use. |
 
 ## Pipeline steps in order
 
@@ -64,8 +70,8 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 2.  **runHip** — Builds outcome episodes, then gestation episodes, merges and cleans them, and writes `hip_episodes.rds`.
 3.  **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes, and writes `pps_episodes.rds`.
 4.  **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
-5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, harmonizes end and outcome from HIP vs PPS, and writes `final_pregnancy_episodes.rds`.
-6.  **exportPregnancies** — (Optional) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `exportDir`. See the [Export vignette](export.html).
+5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, harmonizes end and outcome from HIP vs PPS, and writes `final_pregnancy_episodes.rds`. When `conformToValidation = TRUE`, episode output is modified to remove overlapping episodes and episodes longer than 308 days.
+6.  **exportPregnancies** — (Optional, when `runExport = TRUE`) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `file.path(outputDir, "export")`. See the [Export vignette](export.html).
 
 ## What each step contributes to final start, end, and outcome
 
