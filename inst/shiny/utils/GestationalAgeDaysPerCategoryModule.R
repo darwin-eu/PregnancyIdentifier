@@ -6,14 +6,11 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, plotData, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, plotData = NULL, dp = unique(data$cdm_name), height = "600px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
       private$.height <- height
-      private$.table <- Table$new(data = data)
-      private$.table$parentNamespace <- self$namespace
-
       # input pickers
       private$.cdmInputPanel <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
                                                args = list(cdm_name = list(
@@ -39,7 +36,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       plotDataChoices <- c("cdm_name", "final_outcome_category")
       # facet by
       private$.facetByInputPanel <- InputPanel$new(
-        funs = list(facet_by = shinyWidgets::pickerInput),
+        fun = list(facet_by = shinyWidgets::pickerInput),
         args = list(facet_by = list(
           inputId = "facet_by", choices = plotDataChoices, label = "Facet by", selected = c("cdm_name"), multiple = FALSE
         )),
@@ -49,7 +46,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
       # color by
       private$.colorByInputPanel <- InputPanel$new(
-        funs = list(color_by = shinyWidgets::pickerInput),
+        fun = list(color_by = shinyWidgets::pickerInput),
         args = list(color_by = list(
           inputId = "color_by", choices = plotDataChoices, label = "Colour by", selected = c("final_outcome_category"), multiple = FALSE
         )),
@@ -57,7 +54,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       )
       private$.colorByInputPanel$parentNamespace <- self$namespace
 
-      private$.maxInputPanel <- InputPanel$new(funs = list(max = shiny::checkboxInput),
+      private$.maxInputPanel <- InputPanel$new(fun = list(max = shiny::checkboxInput),
                                                            args = list(max = list(
                                                              inputId = "max",
                                                              value = TRUE,
@@ -66,7 +63,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
                                                            growDirection = "horizontal")
       private$.maxInputPanel$parentNamespace <- self$namespace
 
-      private$.flipCoordinatesInputPanel <- InputPanel$new(funs = list(flip = shiny::checkboxInput),
+      private$.flipCoordinatesInputPanel <- InputPanel$new(fun = list(flip = shiny::checkboxInput),
                                                             args = list(flip = list(
                                                               inputId = "flip",
                                                               value = TRUE,
@@ -80,7 +77,6 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
   private = list(
     .data = NULL,
     .dp = NULL,
-    .table = NULL,
     .cdmInputPanel = NULL,
     .outcomeInputPanel = NULL,
     .facetByInputPanel = NULL,
@@ -90,25 +86,34 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
     .height = NULL,
 
     .UI = function() {
+      emptyMsg <- is.null(private$.data) || nrow(private$.data) == 0
+      dataTableOut <- shiny::tagList(
+        shiny::h4("Data"),
+        DT::DTOutput(shiny::NS(private$.namespace, "dataTable"))
+      )
+      if (emptyMsg) {
+        return(shiny::tagList(
+          shiny::p("Results files are empty.", style = "margin: 20px; font-size: 16px; font-weight: bold;"),
+          dataTableOut
+        ))
+      }
       shiny::tagList(
         private$.cdmInputPanel$UI(),
         private$.outcomeInputPanel$UI(),
-        p("Plotting options"),
+        shiny::p("Plotting options"),
         private$.facetByInputPanel$UI(),
         private$.colorByInputPanel$UI(),
         shiny::HTML("&nbsp;&nbsp;"),
         private$.maxInputPanel$UI(),
         shiny::HTML("&nbsp;&nbsp;"),
         private$.flipCoordinatesInputPanel$UI(),
-        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
-        p(),
-        private$.table$UI()
+        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
+        shiny::p(),
+        dataTableOut
       )
     },
 
     .server = function(input, output, session) {
-      # tables
-      private$.table$server(input, output, session)
       # input filters
       private$.cdmInputPanel$server(input, output, session)
       private$.outcomeInputPanel$server(input, output, session)
@@ -118,35 +123,14 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       private$.flipCoordinatesInputPanel$server(input, output, session)
 
       getData <- shiny::reactive({
+        cdmSel <- private$.cdmInputPanel$inputValues$cdm_name
+        outcomeSel <- private$.outcomeInputPanel$inputValues$outcome
+        if (is.null(cdmSel) || length(cdmSel) == 0) cdmSel <- private$.dp
+        if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- unique(as.character(private$.data$final_outcome_category))
         private$.data %>%
-          dplyr::filter(.data$cdm_name %in% private$.cdmInputPanel$inputValues$cdm_name) %>%
-          dplyr::filter(.data$final_outcome_category %in% private$.outcomeInputPanel$inputValues$outcome)
+          dplyr::filter(.data$cdm_name %in% cdmSel) %>%
+          dplyr::filter(.data$final_outcome_category %in% outcomeSel)
       })
-
-      # handle updates
-      shiny::observeEvent(c(private$.cdmInputPanel$inputValues$cdm_name,
-                            private$.outcomeInputPanel$inputValues$outcome), {
-        data <-  getData()
-
-        # format
-        if (nrow(data) > 0) {
-          resultList <- lapply(unique(data$cdm_name), FUN = function(name) {
-            dbData <- data %>%dplyr::filter(cdm_name == name)
-            result <- dbData %>%
-              dplyr::select(-c("cdm_name", "colName")) %>%
-              tidyr::pivot_longer(cols = setdiff(colnames(.), c("final_outcome_category")), names_to = "name", values_to = unique(dbData$cdm_name))
-            return(result)
-          })
-          resultList <- resultList[order(sapply(resultList, nrow), decreasing = T)]
-          result <- purrr::reduce(resultList, dplyr::left_join)
-        } else {
-          result <- data.frame(final_outcome_category = character(0),
-                               name = character(0))
-        }
-
-        private$.table$data <- result
-        private$.table$server(input, output, session)
-      }, ignoreNULL = FALSE)
 
       ### make plot ----
       createPlot <- shiny::reactive({
@@ -154,18 +138,22 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         data <- getData()
         if (!is.null(data) && nrow(data) > 0) {
           colorBy <- private$.colorByInputPanel$inputValues$color_by
+          if (is.null(colorBy) || length(colorBy) == 0) colorBy <- "final_outcome_category"
           iqrOnly <- private$.maxInputPanel$inputValues$max
+          if (is.null(iqrOnly)) iqrOnly <- TRUE
           ymaxValue <- ifelse(iqrOnly, "Q75", "max")
           yminValue <- ifelse(iqrOnly, "Q25", "min")
-          plot <- ggplot2::ggplot(data, ggplot2::aes_string(x = colorBy, ymin = yminValue, lower = "Q25", middle = "median", upper = "Q75", ymax = ymaxValue)) +
-            ggplot2::geom_boxplot(ggplot2::aes_string(fill = colorBy), stat = "identity")
+          plot <- ggplot2::ggplot(data, ggplot2::aes(x = .data[[colorBy]], ymin = .data[[yminValue]], lower = .data[["Q25"]], middle = .data[["median"]], upper = .data[["Q75"]], ymax = .data[[ymaxValue]])) +
+            ggplot2::geom_boxplot(ggplot2::aes(fill = .data[[colorBy]]), stat = "identity")
 
           facetBy <- private$.facetByInputPanel$inputValues$facet_by
+          if (is.null(facetBy) || length(facetBy) == 0) facetBy <- "cdm_name"
           if (!is.null(facetBy)) {
             plot <- plot +
-              ggplot2::facet_wrap(sym(facetBy), scales = "free")
+              ggplot2::facet_wrap(as.formula(paste("~", facetBy)), scales = "free")
           }
           flipCoordinates <- private$.flipCoordinatesInputPanel$inputValues$flip
+          if (is.null(flipCoordinates)) flipCoordinates <- TRUE
           if (flipCoordinates) {
             plot <- plot + ggplot2::coord_flip()
           }
@@ -173,8 +161,23 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- renderPlot({
-        createPlot()
+      output$plot <- shiny::renderPlot({
+        p <- createPlot()
+        if (is.null(p)) {
+          msg <- if (nrow(private$.data) == 0) "Results files are empty." else "No data for selected filters."
+          p <- ggplot2::ggplot() +
+            ggplot2::annotate("text", x = 0.5, y = 0.5, label = msg, size = 6) +
+            ggplot2::theme_void()
+        }
+        p
+      })
+
+      output$dataTable <- DT::renderDT({
+        DT::datatable(
+          private$.data,
+          options = list(scrollX = TRUE, pageLength = 25),
+          filter = "top"
+        )
       })
     }
   )

@@ -39,7 +39,7 @@ EpisodeFrequencyModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
+        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
         private$.table$UI()
       )
     },
@@ -59,7 +59,7 @@ EpisodeFrequencyModule <- R6::R6Class(
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
         }
         return(data)
       })

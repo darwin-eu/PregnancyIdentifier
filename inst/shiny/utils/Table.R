@@ -177,7 +177,7 @@ Table <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         shiny::h3(private$.title),
-        DT::DTOutput(outputId = shiny::NS(private$.namespace, "table")),
+        DT::DTOutput(outputId = shiny::NS(private$.namespace, "table")) %>% shinycssloaders::withSpinner(),
         shiny::downloadButton(outputId = shiny::NS(private$.namespace, "dlButton"), label = "csv")
       )
     },

@@ -1,12 +1,63 @@
-handleEmptyResult <- function(object, result) {
+handleEmptyResult <- function(object, result, emptyMessage = "No data available") {
   if (is.null(result)) {
-    return(DarwinShinyModules::Text$new(markdown = "No data available"))
+    return(DarwinShinyModules::Text$new(markdown = emptyMessage))
   }
   if (nrow(result) == 0) {
-    return(DarwinShinyModules::Text$new(markdown = "No data available"))
+    return(DarwinShinyModules::Text$new(markdown = emptyMessage))
   } else {
     return(object)
   }
+}
+
+#' Plotly placeholder when there is no data to display
+#' @param message Text to show (e.g. "Results files are empty." or "No data for selected filters.")
+#' @return A plotly object with the message as annotation
+emptyPlotlyMessage <- function(message = "No data to display.") {
+  plotly::plot_ly() %>%
+    plotly::add_annotations(
+      text = message,
+      x = 0.5, y = 0.5, xref = "paper", yref = "paper",
+      showarrow = FALSE, font = list(size = 16)
+    ) %>%
+    plotly::layout(xaxis = list(visible = FALSE), yaxis = list(visible = FALSE))
+}
+
+#' Wrap a Shiny module with short helper text shown at the top of the tab.
+#' @param module Module object with UI() and server() (e.g. from handleEmptyResult).
+#' @param text One or two sentences explaining what the tab shows.
+#' @return An object that can be used in appStructure in place of the module.
+tabWithHelpText <- function(module, text) {
+  if (is.null(text) || !nzchar(trimws(text))) {
+    return(module)
+  }
+  inner <- module
+  desc <- trimws(text)
+  helpUi <- shiny::div(
+    class = "tab-help-text",
+    style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
+    shiny::p(desc)
+  )
+  wrapper <- R6::R6Class(
+    "TabWithHelpText",
+    portable = TRUE,
+    public = list(
+      UI = function() {
+        shiny::tagList(helpUi, inner$UI())
+      },
+      server = function(input, output, session) {
+        if (is.function(inner$server)) {
+          inner$server(input, output, session)
+        }
+      }
+    ),
+    active = list(
+      namespace = function() inner$namespace,
+      parentNamespace = function(value) {
+        if (missing(value)) inner$parentNamespace else inner$parentNamespace <- value
+      }
+    )
+  )
+  wrapper$new()
 }
 
 # copied from SQLRender, so we don't need to include this dependency (and rJava)
@@ -57,18 +108,24 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
       version <- data %>% dplyr::pull("pkg_version") %>% unique()
       version <- paste0("_v", as.numeric(substr(version, 1, 1)))
       data <- data %>% dplyr::select(-"pkg_version")
-    } else if (dplyr::between(as.Date(runDate), as.Date("2025-11-17"), as.Date("2025-11-30"))) {
-      version <- "_v1"
-    } else if (dplyr::between(as.Date(runDate), as.Date("2025-12-07"), as.Date("2026-02-16"))) {
-      version <- "_v2"
-    } else if (dplyr::between(as.Date(runDate), as.Date("2026-02-17"), as.Date("2026-03-31"))) {
-      version <- "_v3"
+    } else if (nzchar(trimws(runDate))) {
+      runDateParsed <- suppressWarnings(as.Date(runDate))
+      if (!is.na(runDateParsed)) {
+        if (dplyr::between(runDateParsed, as.Date("2025-11-17"), as.Date("2025-11-30"))) {
+          version <- "_v1"
+        } else if (dplyr::between(runDateParsed, as.Date("2025-12-07"), as.Date("2026-02-16"))) {
+          version <- "_v2"
+        } else if (dplyr::between(runDateParsed, as.Date("2026-02-17"), as.Date("2026-03-31"))) {
+          version <- "_v3"
+        }
+      }
     }
 
     data <- data %>%
       dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
       dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
-      dplyr::mutate(cdm_name = paste0(cdm_name, version))
+      dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
+      dplyr::mutate(cdm_name = tolower(cdm_name))
 
     if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
       existingData <- get(camelCaseName, envir = .GlobalEnv)
@@ -98,16 +155,21 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
 }
 
 dataToLong <- function(data, skipCols = c("cdm_name")) {
-  do.call(cbind, lapply(data$cdm_name, FUN = function(db) {
+  do.call(cbind, lapply(unique(data$cdm_name), FUN = function(db) {
     dbData <- data %>% dplyr::filter(cdm_name == db)
+    valColName <- as.character(db)[1L]
     return(dbData %>%
-             tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = dbData$cdm_name) %>%
+             tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = valColName) %>%
              dplyr::select(-dplyr::all_of(skipCols)))
   })) %>% dplyr::select(unique(colnames(.)))
 }
 
 trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
-  p <- ggplot(data = data, mapping = aes_string(x = xVar, y = "count", color = "column", group = "column")) +
+  # Ensure xLabel is a single string for labs()
+  if (length(xLabel) > 1) xLabel <- xLabel[1]
+  xLabel <- as.character(xLabel)
+  if (!nzchar(xLabel)) xLabel <- "Period"
+  p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[["count"]], color = .data[["column"]], group = .data[["column"]])) +
     geom_line() +
     geom_point() +
     labs(x = xLabel, y = "Count (N)") +
@@ -126,8 +188,11 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
 barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunction = NULL,
                     label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL,
                     rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL) {
-  p <- ggplot(data = data,
-              mapping = aes_string(x = xVar, y = yVar, label = label))
+  if (!is.null(label)) {
+    p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[[yVar]], label = .data[[label]]))
+  } else {
+    p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[[yVar]]))
+  }
 
   if (is.null(fillVar)) {
     p <- p + geom_bar(stat = "identity",
@@ -135,7 +200,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
   } else {
     p <- p + geom_bar(stat = "identity",
                       position = position,
-                      mapping = aes_string(fill = fillVar))
+                      mapping = aes(fill = .data[[fillVar]]))
   }
   if (!is.null(facetVar)) {
     if (is.null(labelFunction)) {
@@ -174,7 +239,7 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, g
     nameColumn <- colnames(data)[1]
     dpCols <- colnames(data)[-1]
     plotData <- do.call(rbind, lapply(dpCols, FUN = function(dp) {
-      dbData <- data %>% dplyr::select(nameColumn, dp)
+      dbData <- data %>% dplyr::select(dplyr::all_of(c(nameColumn, dp)))
       dbData %>%
         tidyr::pivot_wider(names_from = nameColumn, values_from = dp) %>%
         dplyr::mutate(cdm_name = dp)
@@ -231,10 +296,16 @@ customDarwinFooter <- function() {
 }
 
 suppressCounts <- function(result, colNames, minCellCount = 5) {
-  suppressCountCol <- function (values) {
+  suppressCountCol <- function(values) {
     values[values > 0 & values < minCellCount] <- NA
     return(values)
   }
+  # Match columns that exist (case-insensitive: data may have "ipci", allDP may have "IPCI")
+  resultNames <- colnames(result)
+  colNamesPresent <- resultNames[tolower(resultNames) %in% tolower(colNames)]
+  if (length(colNamesPresent) == 0) {
+    return(result)
+  }
   result %>%
-    dplyr::mutate(dplyr::across(colNames, suppressCountCol))
+    dplyr::mutate(dplyr::across(dplyr::all_of(colNamesPresent), suppressCountCol))
 }

@@ -94,7 +94,7 @@ Characteristics <- R6::R6Class(
             shiny::tabPanel(
               "Plot",
               private$.pickers[["variable"]]$UI(),
-              shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = "600px")
+              shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = "600px") %>% shinycssloaders::withSpinner()
             )
           )
         )

@@ -19,7 +19,7 @@ DeliveryModeModule <- R6::R6Class(
       private$.height <- height
       private$.position <- position
 
-      private$.table <- Table$new(data = data)
+      private$.table <- Table$new(data = data, title = "Delivery mode data")
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
@@ -52,8 +52,17 @@ DeliveryModeModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
-        private$.table$UI()
+        shiny::tabsetPanel(
+          id = shiny::NS(private$.namespace, "deliveryModeTabs"),
+          shiny::tabPanel(
+            "Data",
+            private$.table$UI()
+          ),
+          shiny::tabPanel(
+            "Plot",
+            plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner()
+          )
+        )
       )
     },
 
@@ -65,16 +74,18 @@ DeliveryModeModule <- R6::R6Class(
 
       getData <- shiny::reactive({
         data <- NULL
+        cdmSel <- private$.inputPanelCDM$inputValues$cdm_name
+        if (is.null(cdmSel) || length(cdmSel) == 0) cdmSel <- private$.dp
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name) %>%
+            dplyr::filter(.data$cdm_name %in% cdmSel) %>%
             dplyr::arrange(cdm_name) %>%
             dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp)))
         } else {
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
         return(data)
       })

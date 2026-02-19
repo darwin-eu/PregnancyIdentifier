@@ -52,7 +52,7 @@ EpisodeConstructionModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
+        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
         private$.table$UI()
       )
     },
@@ -74,20 +74,24 @@ EpisodeConstructionModule <- R6::R6Class(
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
         }
       return(data)
       })
 
       getPlotData <- shiny::reactive({
         data <- getData()
-        if (private$.convertDataForPlot) {
+        if (private$.convertDataForPlot && !is.null(data) && nrow(data) > 0) {
+          colsToPivot <- setdiff(colnames(data), c("name", "value"))
+          if (length(colsToPivot) == 0) {
+            return(data[integer(0), , drop = FALSE])
+          }
           data <- data %>%
-            tidyr::pivot_longer(cols = setdiff(colnames(.), c("name", "value")), names_to = "cdm_name") %>%
+            tidyr::pivot_longer(cols = dplyr::all_of(colsToPivot), names_to = "cdm_name") %>%
             dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp))) %>%
             dplyr::mutate(value = as.numeric(value)) %>%
             dplyr::rename(!!private$.yVar := value)
-          if ("name" %in% colnames(data) &&  any(grepl("perc", unique(data$name)))) {
+          if ("name" %in% colnames(data) && any(grepl("perc", unique(data$name)))) {
             data <- data %>% dplyr::filter(grepl("perc", name))
           }
         }

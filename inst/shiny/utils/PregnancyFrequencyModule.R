@@ -39,7 +39,7 @@ PregnancyFrequencyModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
+        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
         private$.table$UI()
       )
     },
@@ -59,7 +59,7 @@ PregnancyFrequencyModule <- R6::R6Class(
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
         }
         return(data)
       })
@@ -92,12 +92,13 @@ PregnancyFrequencyModule <- R6::R6Class(
             dplyr::mutate(label = glue::glue("{perc}% first, {round(100-perc, 2)}% multiple pregnancies")) %>%
             dplyr::select(cdm_name, label)
 
-          plot_labeller <- function(variable, value) {
-            perc <- data %>% dplyr::filter(freq == 1, cdm_name == .env$value) %>% dplyr::pull(perc) %>% round(digits = 1)
-            perc2 <- round(100 - perc, digits = 1)
-            result <- glue::glue("{value} - 1: {perc}%, ≥1: {perc2}%")
-            return(result)
-          }
+          plot_labeller <- ggplot2::as_labeller(function(x) {
+            vapply(x, function(val) {
+              perc <- data %>% dplyr::filter(.data$freq == 1, .data$cdm_name == val) %>% dplyr::pull("perc") %>% round(digits = 1)
+              perc2 <- round(100 - perc, digits = 1)
+              as.character(glue::glue("{val} - 1: {perc}%, ≥1: {perc2}%"))
+            }, character(1))
+          })
 
           plot <- barPlot(data = data,
                           xVar = "freq",

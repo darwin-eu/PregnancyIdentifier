@@ -42,17 +42,24 @@ FilterTableModule <- R6::R6Class(
     },
 
     .server = function(input, output, session) {
+      # Effective database selection: use picker value when available, otherwise show all (so CSV data is surfaced on first paint)
+      getSelectedCdm <- function() {
+        sel <- private$.inputPanelCDM$inputValues$cdm_name
+        if (is.null(sel) || length(sel) == 0) private$.dp else sel
+      }
+
       # handle updates
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
 
+        cdmSel <- getSelectedCdm()
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
+            dplyr::filter(.data$cdm_name %in% cdmSel)
         } else {
           nameCols <- setdiff(colnames(private$.data), private$.dp)
 
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
 
         private$.table$data <- data

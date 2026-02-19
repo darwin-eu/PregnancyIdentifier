@@ -12,7 +12,7 @@ OutcomeCategoriesModule <- R6::R6Class(
       private$.dp <- dp
       private$.height <- height
 
-      private$.table <- Table$new(data = data)
+      private$.table <- Table$new(data = data, title = "Outcome categories data")
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
@@ -39,8 +39,17 @@ OutcomeCategoriesModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height),
-        private$.table$UI()
+        shiny::tabsetPanel(
+          id = shiny::NS(private$.namespace, "outcomeCategoriesTabs"),
+          shiny::tabPanel(
+            "Data",
+            private$.table$UI()
+          ),
+          shiny::tabPanel(
+            "Plot",
+            plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner()
+          )
+        )
       )
     },
 
@@ -52,14 +61,15 @@ OutcomeCategoriesModule <- R6::R6Class(
 
       getData <- shiny::reactive({
         data <- NULL
+        cdmSel <- private$.inputPanelCDM$inputValues$cdm_name
+        if (is.null(cdmSel) || length(cdmSel) == 0) cdmSel <- private$.dp
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
+            dplyr::filter(.data$cdm_name %in% cdmSel)
         } else {
           nameCols <- setdiff(colnames(private$.data), private$.dp)
-
           data <-  private$.data %>%
-            dplyr::select(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name))
+            dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
         return(data)
       })
@@ -91,7 +101,11 @@ OutcomeCategoriesModule <- R6::R6Class(
       })
 
       output$plot <- plotly::renderPlotly({
-        createPlot()
+        p <- createPlot()
+        if (is.null(p)) {
+          return(emptyPlotlyMessage("No data for selected filters."))
+        }
+        p
       })
     }
   )
