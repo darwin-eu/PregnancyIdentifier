@@ -56,13 +56,15 @@ emptyHippsEpisodes <- function() {
   )
 }
 
+# Schema must match mergedEpisodesWithMetadata() output (pre-rename) so addDeliveryMode
+# and runEsd filter/rename work. runEsd renames inferred_* -> final_* and precision_* -> esd_*.
 #' @noRd
 emptyFinalPregnancyEpisodes <- function() {
   dplyr::tibble(
     person_id = integer(0),
     merge_episode_number = integer(0),
-    final_episode_start_date = as.Date(character(0)),
-    final_episode_end_date = as.Date(character(0)),
+    inferred_episode_start = as.Date(character(0)),
+    inferred_episode_end = as.Date(character(0)),
     final_outcome_category = character(0),
     merge_episode_start = as.Date(character(0)),
     merge_episode_end = as.Date(character(0)),
@@ -70,15 +72,15 @@ emptyFinalPregnancyEpisodes <- function() {
     pps_end_date = as.Date(character(0)),
     hip_outcome_category = character(0),
     pps_outcome_category = character(0),
-    esd_precision_days = integer(0),
-    esd_precision_category = character(0),
-    esd_gestational_age_days_calculated = integer(0),
-    esd_gw_flag = numeric(0),
-    esd_gr3m_flag = numeric(0),
-    esd_outcome_match = integer(0),
-    esd_term_duration_flag = integer(0),
-    esd_outcome_concordance_score = integer(0),
-    esd_preterm_status_from_calculation = integer(0),
+    precision_days = integer(0),
+    precision_category = character(0),
+    gestational_age_days_calculated = integer(0),
+    gw_flag = numeric(0),
+    gr3m_flag = numeric(0),
+    outcome_match = integer(0),
+    term_duration_flag = integer(0),
+    outcome_concordance_score = integer(0),
+    preterm_status_from_calculation = integer(0),
     merge_pregnancy_start = as.Date(character(0))
   )
 }

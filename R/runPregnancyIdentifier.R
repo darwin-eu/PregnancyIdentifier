@@ -55,7 +55,7 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
 #' 6) optionally, export (`exportPregnancies()`): writes shareable summary outputs
-#'    (with optional small-cell suppression) when `runExport = TRUE`.
+#'    (with optional small-cell suppression) when `exportPregnancies = TRUE`.
 #'
 #' @param cdm (`cdm_reference`) A CDM reference created by `CDMConnector` pointing
 #'   to an OMOP CDM instance.
@@ -164,8 +164,8 @@ runPregnancyIdentifier <- function(cdm,
   # Inputs:
   #   - cdm + study window
   # Outputs:
-  #   - writes: outputDir/pps_episodes.rds, outputDir/pps_concept_counts.csv
-  #   - when debugMode: outputDir/pps_gest_timing_episodes.rds, outputDir/pps_min_max_episodes.rds
+  #   - writes: outputDir/pps_gest_timing_episodes.rds
+  #   - writes: outputDir/pps_min_max_episodes.rds
   #   - may add supporting PPS tables in the CDM
   log4r::info(logger, "Running `runPps`")
   cdm <- runPps(

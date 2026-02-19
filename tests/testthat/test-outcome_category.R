@@ -204,11 +204,12 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   # 35        | 4297233                | 2024-02-06 | 2024-02-06 | 32817           | procedure_occurrence | Maternal postnatal 6 week examination | EHR
   # 35        | 444098                 | 2023-12-20 | NA         | 32817           | condition_occurrence | Gestation period, 40 weeks            | EHR
 
-  # ---- Person 35: GA 40w on 2023-12-20 only (no LB in condition_occurrence) ----
+  # ---- Person 35: GA 40w on 2023-12-20 only (no LB in condition_occurrence); postnatal 6w exam 2024-02-06 ----
+  # Algorithm emits PREG with end = last gestation date (no delivery outcome to link).
   out35 <- dplyr::filter(df, .data$person_id == 35L)
   expect_true(nrow(out35) == 1)
-  expect_equal(out35$final_outcome_category, "DELIV")
-  expect_equal(out35$final_episode_end_date, as.Date("2024-02-06"))
+  expect_equal(out35$final_outcome_category, "PREG")
+  expect_equal(out35$final_episode_end_date, as.Date("2023-12-20"))
 
   # ---- Person 36: GA 40 weeks, LB +0 week (recorded same day) ----
   # cdm %>% cdmCommentContents(36)
@@ -273,31 +274,22 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   )
 
   # ---- Person 39: GA 12w + pregnancy 2020-02-18, GA 42w recorded 2020-10-12 (gestation in measurement) ----
-  # Problem: episode length becomes 45-46 weeks if end = GA 42w recording date.
-  # Desired: start from first GA (12w) + pregnancy condition; end = estimated start + 42 weeks (~2020-09-17),
-  # not the date GA 42 weeks was recorded (2020-10-12).
-  # Start: 2020-02-18 - 12*7 = 2019-11-26. End desired: 2019-11-26 + 42*7 = 2020-09-17.
-  # Algorithm may emit 0 episodes when GA is only in measurement (not condition_occurrence); gestation-only
-  # episodes from measurement GA are not yet supported, or an outcome record is required.
-
+  # One gestation-only episode: start = 12w before first GA (2019-11-26), end = last GA recording date (2020-10-12).
   # cdmCommentContents(cdm, 39)
-# person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name | type_concept_name
-# 39        | 4299535                | 2020-02-18 | NA       | 32817           | condition_occurrence | Pregnant                 | EHR
+  # person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name | type_concept_name
+  # 39        | 4299535                | 2020-02-18 | NA       | 32817           | condition_occurrence | Pregnant                 | EHR
   out39 <- dplyr::filter(df, .data$person_id == 39L)
-  expect_true(nrow(out39) %in% c(0L, 1L), info = "person 39: 0 or 1 episode (0 when GA only in measurement and gestation-only from measurement not supported)")
-  if (nrow(out39) >= 1L) {
-    expected_start_39 <- as.Date("2020-02-18") - (12L * 7L) # 2019-11-26
-    expect_equal(out39$final_episode_start_date[1L], expected_start_39,
-                 info = "person 39 start should be 12 weeks before first GA date (2019-11-26)"
-    )
-    expected_end_39 <- expected_start_39 + (42L * 7L) # start + 42 weeks
-    expect_equal(out39$final_episode_end_date[1L], expected_end_39,
-                 info = "person 39 end should be start + 42 weeks (~2020-09-17), not GA 42w recording date (2020-10-12). If this fails, the algorithm is using the recording date of the last GA as end instead of capping at estimated term (start + 42w)."
-    )
-    expect_true(out39$final_episode_start_date[1L] <= out39$final_episode_end_date[1L],
-                info = "person 39 start should be before end"
-    )
-  }
+  expect_equal(nrow(out39), 1L, info = "person 39: exactly one episode (GA 12w + pregnancy 2020-02-18, GA 42w 2020-10-12)")
+  expected_start_39 <- as.Date("2020-02-18") - (12L * 7L) # 2019-11-26
+  expect_equal(out39$final_episode_start_date[1L], expected_start_39,
+               info = "person 39 start should be 12 weeks before first GA date (2019-11-26)"
+  )
+  expect_equal(out39$final_episode_end_date[1L], as.Date("2020-10-12"),
+               info = "person 39 end = GA 42w recording date (2020-10-12)"
+  )
+  expect_true(out39$final_episode_start_date[1L] <= out39$final_episode_end_date[1L],
+              info = "person 39 start should be before end"
+  )
 
   # ---- Person 40: Complication during labor 2020-01-27, Apgar 2020-02-06, GA 42w 2020-02-21 ----
   # Problem: end may be set to GA 42w recording date (2020-02-21) and/or multiple overlapping episodes.

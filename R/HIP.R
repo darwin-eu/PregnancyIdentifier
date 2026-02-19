@@ -482,22 +482,28 @@ estimateOutcomeStarts <- function(cdm) {
 # Outputs: cdm$gest_episodes_df (materialized). Columns: person_id, gestId, episode, max_gest_date, max_gest_week, min_gest_date, min_gest_week,
 #   max_gest_start_date, min_gest_start_date, end_gest_date, min_gest_date_2, max_gest_day, min_gest_day, gest_start_date_diff, etc.
 # Column mutations: filters/derives gestational records; defines episodes; per-episode min/max gest week and dates.
+# Cast value_as_number to numeric so filters work on all backends (e.g. when stored as varchar). Use coalesce with gest_value for condition/obs.
 buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, gestConceptIds) {
-  # Source A: concepts in gestational_age_concepts.csv with value_as_number (e.g. from measurement).
-  # Source B: any record with gest_value (e.g. from HIP_concepts_reviewed17022026.xlsx for condition/procedure/observation).
-  gestFromValue <- cdm$preg_hip_records %>%
-    dplyr::filter(!is.na(.data$value_as_number)) %>%
-    dplyr::mutate(gest_value = as.integer(.data$value_as_number))
-
-  gestationVisitsTbl <- cdm$preg_hip_records %>%
-    dplyr::filter(
-      .data$concept_id %in% .env$gestConceptIds,
-      !is.na(.data$value_as_number),
-      .data$value_as_number > 0,
-      .data$value_as_number <= 44
+  # Effective gestation week: record value (measurement) or concept-level gest_value (condition/procedure/observation).
+  pregWithGest <- cdm$preg_hip_records %>%
+    dplyr::mutate(
+      value_num = as.numeric(.data$value_as_number),
+      gest_num = as.numeric(.data$gest_value),
+      effective_gest = dplyr::coalesce(.data$value_num, .data$gest_num)
     ) %>%
-    dplyr::mutate(gest_value = as.integer(.data$value_as_number)) %>%
-    dplyr::union_all(gestFromValue) %>%
+    dplyr::filter(
+      !is.na(.data$effective_gest),
+      .data$effective_gest > 0,
+      .data$effective_gest <= 44
+    )
+  # GA concepts (gestational_age_concepts.csv) or concepts with gest_value in HIP sheet.
+  gestFromValue <- pregWithGest %>%
+    dplyr::filter(
+      .data$concept_id %in% .env$gestConceptIds | !is.na(.data$gest_value)
+    ) %>%
+    dplyr::mutate(gest_value = as.integer(.data$effective_gest))
+
+  gestationVisitsTbl <- gestFromValue %>%
     dplyr::distinct(.data$person_id, .data$visit_date, .data$gest_value, .keep_all = TRUE)
   gestationEpisodesTbl <- gestationVisitsTbl %>%
     dplyr::filter(!is.na(.data$visit_date), .data$gest_value > 0, .data$gest_value <= 44) %>%
@@ -651,17 +657,67 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
       final_visit_date = .data$max_gest_date,
       visit_id = NA_character_
     )
+  # Ensure all tables have the same columns for union_all (gestation-only lacks outcome cols; outcome-only lacks gest cols).
+  # When including gestation-only: drop PREG outcome+gest rows when the same person has a gestation-only
+  # episode with max_gest_date > outcome_date, so we emit one episode (the later one). Keep non-PREG outcomes.
+  if (justGestation) {
+    gestOnlyMax <- justGestationTbl %>%
+      dplyr::group_by(.data$person_id) %>%
+      dplyr::summarise(gest_only_max = max(.data$max_gest_date, na.rm = TRUE), .groups = "drop")
+    bothTbl <- bothTbl %>%
+      dplyr::left_join(gestOnlyMax, by = "person_id") %>%
+      dplyr::filter(
+        .data$outcome_category != "PREG" |
+          is.na(.data$gest_only_max) |
+          .data$outcome_date >= .data$gest_only_max
+      ) %>%
+      dplyr::select(-"gest_only_max") %>%
+      .compute(name = "merge_both_filtered_tmp", temporary = TRUE)
+  }
+  bothTblMutated <- bothTbl %>%
+    dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date)
+  justOutcomeTblFull <- justOutcomeTbl %>%
+    dplyr::mutate(
+      final_category = .data$outcome_category,
+      final_visit_date = .data$outcome_date,
+      episode = NA_integer_,
+      first_gest_week = NA_integer_,
+      end_gest_date = as.Date(NA),
+      end_gest_week = NA_integer_,
+      min_gest_week = NA_integer_,
+      min_gest_date = as.Date(NA),
+      min_gest_date_2 = as.Date(NA),
+      max_gest_week = NA_integer_,
+      max_gest_date = as.Date(NA),
+      max_gest_day = NA_integer_,
+      min_gest_day = NA_integer_,
+      max_gest_start_date = as.Date(NA),
+      min_gest_start_date = as.Date(NA),
+      gest_start_date_diff = NA_integer_,
+      gest_at_outcome = NA_integer_,
+      is_under_max = NA_integer_,
+      is_over_min = NA_integer_,
+      days_diff = NA_integer_
+    )
+  justGestationTblFull <- justGestationTbl %>%
+    dplyr::mutate(
+      outcome_date = as.Date(NA),
+      outcome_category = NA_character_,
+      outcome_id = NA_character_,
+      min_start_date = as.Date(NA),
+      max_start_date = as.Date(NA),
+      min_term = NA_integer_,
+      max_term = NA_integer_,
+      retry = NA_integer_,
+      gest_at_outcome = NA_integer_,
+      is_under_max = NA_integer_,
+      is_over_min = NA_integer_,
+      days_diff = NA_integer_
+    )
   tblList <- if (justGestation) {
-    list(
-      bothTbl %>% dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date),
-      justOutcomeTbl %>% dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date),
-      justGestationTbl
-    )
+    list(bothTblMutated, justOutcomeTblFull, justGestationTblFull)
   } else {
-    list(
-      bothTbl %>% dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date),
-      justOutcomeTbl %>% dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date)
-    )
+    list(bothTblMutated, justOutcomeTblFull)
   }
   # Materialize union first to avoid very long SQL on some database platforms
   unionTbl <- purrr::reduce(tblList, dplyr::union_all) %>%
@@ -673,6 +729,17 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
       has_gestation = !is.na(.data$gest_id)
     ) %>%
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "final_visit_date", "day"))
+  # One row per (person_id, final_episode_id). Prefer the row where gest_id matches final_episode_id for gestation-only
+  # episodes (so we keep the correct gestation row and avoid duplicates from union column misalignment).
+  mergedTbl <- mergedTbl %>%
+    dplyr::group_by(.data$person_id, .data$final_episode_id) %>%
+    dplyr::filter(
+      dplyr::n() == 1L |
+        (.data$final_episode_id == .data$gest_id) |
+        (is.na(.data$gest_id) & .data$final_episode_id == .data$visit_id)
+    ) %>%
+    dplyr::filter(dplyr::row_number() == 1L) %>%
+    dplyr::ungroup()
   cdm$merged_episodes_df <- mergedTbl %>%
     .compute(name = "merged_episodes_df", temporary = FALSE, overwrite = TRUE)
   log4r::info(logger, "Stage 3: merged episodes materialized")
@@ -761,13 +828,15 @@ resolveOverlaps <- function(cdm, logger) {
     dplyr::ungroup()
   overlapRows <- withPrev %>%
     dplyr::filter(.data$has_overlap == 1 & .data$prev_category == "PREG")
-  gestIdToRemove <- overlapRows %>%
-    dplyr::distinct(.data$prev_gest_id) %>%
-    dplyr::pull()
-  # Use sentinel when none to remove: real gest_id are like "12_G_2017-12-15"; "" would make NULL gest_id rows drop in SQL (NULL IN ('') -> NULL, NOT NULL excludes row).
-  if (length(gestIdToRemove) == 0) gestIdToRemove <- ".__NO_GEST_IDS_TO_REMOVE__"
+  # Remove only (person_id, gest_id) pairs that appear as (person_id, prev_gest_id) in overlapRows,
+  # so overlapping PREG is removed within the same person only (avoids cross-person removal if lag is wrong).
+  pairsToRemoveTbl <- overlapRows %>%
+    dplyr::filter(!is.na(.data$prev_gest_id)) %>%
+    dplyr::distinct(.data$person_id, .data$prev_gest_id) %>%
+    dplyr::rename(gest_id = "prev_gest_id") %>%
+    .compute(name = "resolve_pairs_to_remove_tmp", temporary = TRUE)
   afterRemove <- withPrev %>%
-    dplyr::filter(!(.data$gest_id %in% .env$gestIdToRemove & .data$final_category == "PREG")) %>%
+    dplyr::anti_join(pairsToRemoveTbl, by = c("person_id", "gest_id")) %>%
     dplyr::group_by(.data$person_id) %>%
     dbplyr::window_order(.data$final_visit_date) %>%
     dplyr::mutate(
@@ -802,9 +871,11 @@ resolveOverlaps <- function(cdm, logger) {
       is_over_min = ifelse(.data$gest_at_outcome >= .data$min_term, 1, 0)
     ) %>%
     dplyr::ungroup()
+  # Reclassify to PREG when under minimum term (outcome+gestation with is_over_min == 0).
+  # restFinal = everyone else. Use explicit complement so rows with is_over_min == NA (e.g. gestation-only)
+  # are kept in restFinal; !(A & B) evaluates to NA when B is NA and would drop those rows otherwise.
   reclassPreg <- afterRemove %>%
-    # dplyr::filter(!is.na(.data$max_gest_week) & !is.na(.data$concept_name) & .data$is_over_min == 0) %>% # old logic
-    dplyr::filter(!is.na(.data$max_gest_week) & .data$is_over_min == 0) %>% # new logic (is this the same?)
+    dplyr::filter(!is.na(.data$max_gest_week) & .data$is_over_min == 0) %>%
     dplyr::mutate(
       removed_category = .data$final_category,
       final_category = "PREG",
@@ -812,7 +883,11 @@ resolveOverlaps <- function(cdm, logger) {
       removed_outcome = 1L
     )
   restFinal <- afterRemove %>%
-    dplyr::filter(!(!is.na(.data$max_gest_week) & .data$is_over_min == 0)) %>%
+    dplyr::filter(
+      is.na(.data$max_gest_week) |
+      .data$is_over_min != 0L |
+      is.na(.data$is_over_min)
+    ) %>%
     dplyr::mutate(
       removed_category = NA_character_,
       removed_outcome = 0L
@@ -839,17 +914,21 @@ attachGestationAndLength <- function(cdm, gestConceptIds) {
     dbplyr::window_order(.data$final_visit_date) %>%
     dplyr::mutate(episode_order = dplyr::row_number()) %>%
     dplyr::ungroup()
-  gestFromValue <- cdm$preg_hip_records %>%
-    dplyr::filter(!is.na(.data$gest_value))
-  gestationVisitsTbl <- cdm$preg_hip_records %>%
-    dplyr::filter(
-      .data$concept_id %in% .env$gestConceptIds,
-      !is.na(.data$value_as_number),
-      .data$value_as_number > 0,
-      .data$value_as_number <= 44
+  # Same effective gestation as buildGestationEpisodes (numeric cast + coalesce with gest_value).
+  pregWithGest <- cdm$preg_hip_records %>%
+    dplyr::mutate(
+      value_num = as.numeric(.data$value_as_number),
+      gest_num = as.numeric(.data$gest_value),
+      effective_gest = dplyr::coalesce(.data$value_num, .data$gest_num)
     ) %>%
-    dplyr::mutate(gest_value = as.integer(.data$value_as_number)) %>%
-    dplyr::union_all(gestFromValue) %>%
+    dplyr::filter(
+      !is.na(.data$effective_gest),
+      .data$effective_gest > 0,
+      .data$effective_gest <= 44,
+      .data$concept_id %in% .env$gestConceptIds | !is.na(.data$gest_value)
+    ) %>%
+    dplyr::mutate(gest_value = as.integer(.data$effective_gest))
+  gestationVisitsTbl <- pregWithGest %>%
     dplyr::select("person_id", "gest_value", "visit_date") %>%
     dplyr::rename(gest_date = "visit_date")
   # Start from finalWithOrder and left_join gestation so we never drop input rows.

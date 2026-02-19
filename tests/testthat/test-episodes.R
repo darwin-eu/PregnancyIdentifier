@@ -20,7 +20,7 @@ test_that("gestational episodes from preg_hip_records", {
     dplyr::mutate(
       visit_date = as.Date(.data$visit_date)
     ) %>%
-    dplyr::select("person_id", "concept_id", "visit_date", "value_as_number", "category")
+    dplyr::select("person_id", "concept_id", "visit_date", "value_as_number", "category", "gest_value")
 
   cdm <- CDMConnector::insertTable(
     cdm,
