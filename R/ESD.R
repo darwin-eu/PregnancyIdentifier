@@ -477,7 +477,7 @@ getTimingConcepts <- function(cdm,
   # obtain the gestational timing <= 3 month concept information to use as additional information for precision category designation
 
   ppsConcepts <-
-    system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+    system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
     readxl::read_xlsx()
 
   esdConcepts <-

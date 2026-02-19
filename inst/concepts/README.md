@@ -6,7 +6,7 @@ This folder contains Excel/CSV concept sets and configuration tables used by the
 
 ## HIP (outcome-based pregnancy identification)
 
-### `HIP_concepts.xlsx`
+### `HIP_concepts_reviewed17022026.xlsx`
 
 **Purpose:** Defines which OMOP concepts are treated as pregnancy-related for the HIP algorithm. Records with these concepts are pulled from **condition_occurrence**, **procedure_occurrence**, **observation**, and **measurement** into `preg_hip_records`.
 
@@ -33,7 +33,7 @@ This folder contains Excel/CSV concept sets and configuration tables used by the
    - Records whose `concept_id` is in **gestational_age_concepts.csv** and have `value_as_number` in 1–44 (weeks), or  
    - Records with non-NA **gest_value** from this file (e.g. “Gestation period, N weeks” concepts).  
 
-So: **HIP_concepts** supplies both outcome labels (`category`) and, when `gest_value` is set, direct gestation weeks for building episodes. Records can come from any of the four domains above; the algorithm does not restrict by domain.
+So: **HIP_concepts_reviewed17022026** supplies both outcome labels (`category`) and, when `gest_value` is set, direct gestation weeks for building episodes. Records can come from any of the four domains above; the algorithm does not restrict by domain.
 
 ---
 
@@ -76,7 +76,7 @@ Typical contents: e.g. 3048230 (Gestational age in weeks), 3002209 (Gestational 
 
 ## PPS (Pregnancy Prevention Score / gestational timing)
 
-### `PPS_concepts.xlsx`
+### `PPS_concepts_reviewed1702026.xlsx`
 
 **Purpose:** Concepts and their gestational-time windows (in months) used for PPS episode building and for ESD “GR3m” (gestational timing ≤ 3 months) evidence.
 
@@ -87,7 +87,7 @@ Typical contents: e.g. 3048230 (Gestational age in weeks), 3002209 (Gestational 
 - **PPS algorithm:** Records with these concept IDs are pulled from condition, procedure, and measurement (no observation) and used to build PPS episodes and outcomes.
 - **ESD** (`getTimingConcepts`): All PPS concept IDs are included in the set of concepts to pull for timing. After pulling, each record is left-joined to this table by `domain_concept_id = pps_concept_id`. If `min_month` (and `max_month`) are present, the record is assigned **gt_type = "GR3m"** and contributes a pregnancy-start *range*: `min_pregnancy_start = record_date - (min_month * 30.4)` and similarly for max. That range is used in ESD’s timing/intersection logic.
 
-So: **PPS_concepts** drives both PPS episode definition and ESD’s GR3m timing evidence. Records can come from condition, procedure, or measurement.
+So: **PPS_concepts_reviewed1702026** drives both PPS episode definition and ESD’s GR3m timing evidence. Records can come from condition, procedure, or measurement.
 
 ---
 
@@ -153,11 +153,11 @@ To use a **single ESD concept file** and avoid maintaining **ESD_concepts2.xlsx*
 
 | File                         | Used by | Role |
 |-----------------------------|--------|------|
-| **HIP_concepts.xlsx**       | HIP    | Pregnancy-related concepts and outcome category; optional gest_value for gestation weeks. Filtered at load to outcome + gest_value + gestational_age_concepts. |
+| **HIP_concepts_reviewed17022026.xlsx** | HIP    | Pregnancy-related concepts and outcome category; optional gest_value for gestation weeks. Filtered at load to outcome + gest_value + gestational_age_concepts. |
 | **gestational_age_concepts.csv** | HIP, ESD | Concept IDs treated as GA-in-weeks (value 1–44) for gestation episodes (HIP) and GW timing (ESD). |
 | **Matcho_outcome_limits.xlsx**   | HIP    | Min days between outcome events for episode logic. |
 | **Matcho_term_durations.xlsx**  | HIP, ESD | Min/max term (days) per outcome category for start-date bounds. |
-| **PPS_concepts.xlsx**       | PPS, ESD | PPS episode concepts and GR3m windows (min/max month). |
+| **PPS_concepts_reviewed1702026.xlsx** | PPS, ESD | PPS episode concepts and GR3m windows (min/max month). |
 | **ESD_concepts.xlsx**       | ESD    | All ESD timing concept IDs; esd_category controls LMP/EDD/GW/gest-at-birth handling. |
 | **check_concepts.csv**      | Export | Concept IDs for concept-timing check in export. |
 | **delivery_mode/*.json**    | ESD    | Delivery-mode concept sets for episode-level flags/counts. |

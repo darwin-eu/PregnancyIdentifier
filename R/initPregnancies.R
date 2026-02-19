@@ -68,7 +68,7 @@ initPregnancies <- function(cdm,
   log4r::info(logger, "Loading + inserting pregnancy concept tables into the CDM")
 
   hipConcepts <- readxl::read_excel(
-    system.file("concepts", "HIP_concepts.xlsx", package = "PregnancyIdentifier")
+    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier")
   )
   if (!"gest_value" %in% names(hipConcepts)) {
     hipConcepts <- hipConcepts |> dplyr::mutate(gest_value = NA_real_)
@@ -98,7 +98,7 @@ initPregnancies <- function(cdm,
   hipConcepts <- hipConceptsUsed
 
   ppsConcepts <- readxl::read_excel(
-    system.file("concepts", "PPS_concepts.xlsx", package = "PregnancyIdentifier")
+    system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier")
   ) |>
     dplyr::rename_with(tolower) |>
     dplyr::mutate(pps_concept_id = as.integer(.data$pps_concept_id))
@@ -130,7 +130,7 @@ initPregnancies <- function(cdm,
   # ============================================================
   log4r::info(logger, "Pulling HIP concept records from OMOP domain tables")
 
-  # Include gest_value (gestational weeks from HIP_concepts.xlsx) so condition/procedure/observation
+  # Include gest_value (gestational weeks from HIP_concepts_reviewed17022026.xlsx) so condition/procedure/observation
   # rows without value_as_number can still contribute to gestation episodes in buildGestationEpisodes.
   hip <- cdm$preg_hip_concepts |>
     dplyr::select("concept_id", "category", dplyr::any_of("gest_value"))
