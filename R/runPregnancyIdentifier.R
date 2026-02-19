@@ -55,7 +55,7 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
 #' 6) optionally, export (`exportPregnancies()`): writes shareable summary outputs
-#'    (with optional small-cell suppression) when `exportPregnancies = TRUE`.
+#'    (with optional small-cell suppression) when `runExport = TRUE`.
 #'
 #' @param cdm (`cdm_reference`) A CDM reference created by `CDMConnector` pointing
 #'   to an OMOP CDM instance.
