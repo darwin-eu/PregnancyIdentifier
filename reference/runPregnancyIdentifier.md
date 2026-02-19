@@ -1,0 +1,101 @@
+# Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD, optionally export)
+
+Orchestrates the full PregnancyIdentifier pipeline (adapted from the
+HIPPS implementation at
+https://github.com/louisahsmith/allofus-pregnancy/) on an OMOP CDM with
+\`CDMConnector\`.
+
+## Usage
+
+``` r
+runPregnancyIdentifier(
+  cdm,
+  outputDir,
+  startDate = as.Date("1900-01-01"),
+  endDate = Sys.Date(),
+  justGestation = TRUE,
+  minCellCount = 5L,
+  debugMode = FALSE,
+  runExport = FALSE,
+  outputLogToConsole = TRUE,
+  conformToValidation = FALSE
+)
+```
+
+## Arguments
+
+- cdm:
+
+  (\`cdm_reference\`) A CDM reference created by \`CDMConnector\`
+  pointing to an OMOP CDM instance.
+
+- outputDir:
+
+  (\`character(1)\`) Directory where intermediate artifacts (RDS, logs)
+  and exports will be written. Created if it does not exist.
+
+- startDate:
+
+  (\`Date(1)\`) Lower bound for concept/event dates included in the run.
+  Default \`1900-01-01\`.
+
+- endDate:
+
+  (\`Date(1)\`) Upper bound for concept/event dates included in the run.
+  Default \`Sys.Date()\`.
+
+- justGestation:
+
+  (\`logical(1)\`) If \`TRUE\`, allow episodes consisting only of
+  gestational concepts (HIP behavior). Passed through to \`runHip()\`.
+
+- minCellCount:
+
+  (\`integer(1)\`) Minimum cell count used for suppression in exported
+  summaries. Passed through to \`exportPregnancies()\` when \`runExport
+  = TRUE\`.
+
+- debugMode:
+
+  (\`logical(1)\`) Should extra intermediate datasets be written to the
+  outputDir for debugging? \`TRUE\` or \`FALSE\` (default)
+
+- runExport:
+
+  (\`logical(1)\`) If \`TRUE\`, run \`exportPregnancies()\` after ESD
+  and write shareable CSVs and ZIP to \`file.path(outputDir,
+  "export")\`. Default \`FALSE\`.
+
+- outputLogToConsole:
+
+  (\`logical(1)\`) If \`TRUE\` (default), log messages are written to
+  the console. If \`FALSE\`, only to the log file (e.g. for tests).
+
+- conformToValidation:
+
+  (\`logical(1)\`) If \`TRUE\`, after validation modify episode output
+  to conform: remove overlapping episodes and episodes longer than 308
+  days. If \`FALSE\` (default), only validate and log issues; do not
+  modify the result. Validation and logging always run regardless of
+  this parameter.
+
+## Value
+
+Invisibly returns \`NULL\`. Side effects: - Adds/updates tables inside
+\`cdm\` (e.g., \`cdm\$preg_hip_records\`, concept tables, and
+intermediate algorithm tables). - Writes intermediate RDS artifacts
+under \`outputDir\`. - If \`runExport = TRUE\`, writes shareable csv
+exports under \`file.path(outputDir, "export")\`.
+
+## Details
+
+The pipeline performs: 1) cohort initialization (\`initPregnancies()\`):
+creates pregnancy-related concept tables and an initial cohort in the
+CDM, 2) HIP episode identification (\`runHip()\`): identifies episodes
+based on HIP rules, 3) PPS episode identification (\`runPps()\`):
+identifies episodes based on PPS rules, 4) merge (\`mergeHipps()\`):
+merges HIP and PPS into combined HIPPS episodes, 5) ESD refinement
+(\`runEsd()\`): derives inferred pregnancy start/precision and enriches
+merged episodes, 6) optionally, export (\`exportPregnancies()\`): writes
+shareable summary outputs (with optional small-cell suppression) when
+\`exportPregnancies = TRUE\`.

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -16,6 +16,7 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -41,24 +42,52 @@
 
       <dl><dt>
 
-          <code><a href="export.html">export()</a></code>
+          <code><a href="cdmCommentContents.html">cdmCommentContents()</a></code>
 
         </dt>
-        <dd>export</dd>
+        <dd>Insert flattened CDM records as an aligned R comment in the active editor</dd>
 
         <dt>
 
-          <code><a href="insertPregnancyEpisodesTable.html">insertPregnancyEpisodesTable()</a></code>
+          <code><a href="comparePregnancyIdentifierWithPET.html">comparePregnancyIdentifierWithPET()</a></code>
 
         </dt>
-        <dd>insertPregnancyEpisodesTable</dd>
+        <dd>Compare runPregnancyIdentifier results with the OMOP Pregnancy Extension Table (PET)</dd>
 
         <dt>
 
-          <code><a href="mergeHipPps.html">mergeHipPps()</a></code>
+          <code><a href="exportPregnancies.html">exportPregnancies()</a></code>
 
         </dt>
-        <dd>mergeHipPps</dd>
+        <dd>Export pregnancy results into shareable summary CSVs</dd>
+
+        <dt>
+
+          <code><a href="initPregnancies.html">initPregnancies()</a></code>
+
+        </dt>
+        <dd>Create Initial Pregnancy Table</dd>
+
+        <dt>
+
+          <code><a href="makeLogger.html">makeLogger()</a></code>
+
+        </dt>
+        <dd>Create a new logger</dd>
+
+        <dt>
+
+          <code><a href="mergeHipps.html">mergeHipps()</a></code>
+
+        </dt>
+        <dd>Merge HIP and PPS episodes into a unified HIPPS episode table</dd>
+
+        <dt>
+
+          <code><a href="mockPregnancyCdm.html">mockPregnancyCdm()</a></code>
+
+        </dt>
+        <dd>Create a mock pregnancy cdm for examples and testing</dd>
 
         <dt>
 
@@ -72,21 +101,28 @@
           <code><a href="runHip.html">runHip()</a></code>
 
         </dt>
-        <dd>runHip</dd>
-
-        <dt>
-
-          <code><a href="runHipps.html">runHipps()</a></code>
-
-        </dt>
-        <dd>runHipps</dd>
+        <dd>Run the HIP pregnancy identification algorithm</dd>
 
         <dt>
 
           <code><a href="runPps.html">runPps()</a></code>
 
         </dt>
-        <dd>runPps</dd>
+        <dd>Run the PPS Algorithm to Identify Pregnancy Episodes</dd>
+
+        <dt>
+
+          <code><a href="runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>
+
+        </dt>
+        <dd>Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD, optionally export)</dd>
+
+        <dt>
+
+          <code><a href="validateEpisodePeriods.html">validateEpisodePeriods()</a></code>
+
+        </dt>
+        <dd>Validate episode periods: overlaps within person and max duration</dd>
 
         <dt>
 
@@ -99,7 +135,7 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Aniek Markus, Julieta Politi, Maarten van Kessel.</p>
+  <p>Developed by Aniek Markus, Julieta Politi, Maarten van Kessel, Adam Black.</p>
 </div>
 
 <div class="pkgdown-footer-right">

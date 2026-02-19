@@ -1,6 +1,12 @@
-# runPps
+# Run the PPS Algorithm to Identify Pregnancy Episodes
 
-Runs PPS algorithm
+This function executes the Pregnancy Progression Signature (PPS)
+algorithm against a Common Data Model (CDM) instance. It inserts the
+required PPS concept lookup table, extracts gestational timing evidence
+(e.g., gestational weeks, trimesters) across OMOP clinical domains,
+assembles person-level gestational timing records, and writes
+intermediate episode and summary files to the specified output
+directory.
 
 ## Usage
 
@@ -8,11 +14,10 @@ Runs PPS algorithm
 runPps(
   cdm,
   outputDir,
-  uploadConceptSets = FALSE,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
-  ...
+  debugMode = FALSE
 )
 ```
 
@@ -20,34 +25,37 @@ runPps(
 
 - cdm:
 
-  (\`cdm_reference\`)
+  A \`cdm_reference\` object; must include all OMOP tables and structure
+  needed for pregnancy concept search.
 
 - outputDir:
 
-  output directory
-
-- uploadConceptSets:
-
-  if concept sets should be uploaded
+  Character. Directory path where intermediate and output RDS files will
+  be saved.
 
 - startDate:
 
-  (\`Date(1)\`: \`as.Date("1900-01-01"\`) Start date of data to use. By
-  default 1900-01-01
+  Date (\`Date(1)\`). Earliest clinical date to be considered for
+  gestational timing evidence (default: \`"1900-01-01"\`).
 
 - endDate:
 
-  (\`Date(1)\`: \`Sys.Date()\`) End date of data to use. By default
-  today.
+  Date (\`Date(1)\`). Latest clinical date to be considered for
+  gestational timing evidence (default: \`Sys.Date()\`).
 
 - logger:
 
-  (\`logger\`) Logger object.
+  \`log4r\` logger object (required) for emitting information and debug
+  messages.
 
-- ...:
+- debugMode:
 
-  optional parameters
+  (\`Logical\`) Should intermediate datasets be written to the output
+  folder for debugging? TRUE or FALSE (default)
 
 ## Value
 
-cdm object
+Returns the input \`cdm_reference\` invisibly, possibly modified with
+intermediate tables in its environment. Main results are side effects:
+RDS files with person-level gestational timing episodes and summary
+statistics are written to \`outputDir\`.

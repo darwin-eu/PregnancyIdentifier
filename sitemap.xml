@@ -1,18 +1,30 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/404.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/LICENSE.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/STYLE.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/algorithm.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/esd.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/hip.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/index.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/merge.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/pps.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/authors.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/index.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/PregnancyIdentifier-package.html</loc></url>
-<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/export.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/cdmCommentContents.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/comparePregnancyIdentifierWithPET.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/index.html</loc></url>
-<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/insertPregnancyEpisodesTable.html</loc></url>
-<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mergeHipPps.html</loc></url>
-<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/pipe.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/initPregnancies.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/makeLogger.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mergeHipps.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mockPregnancyCdm.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runEsd.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runHip.html</loc></url>
-<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runHipps.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.html</loc></url>
+<url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/validateEpisodePeriods.html</loc></url>
 <url><loc>https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/viewResults.html</loc></url>
 </urlset>
 

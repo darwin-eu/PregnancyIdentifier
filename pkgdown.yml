@@ -1,8 +1,14 @@
 pandoc: 3.1.11
 pkgdown: 2.2.0
 pkgdown_sha: ~
-articles: {}
-last_built: 2026-02-03T23:44Z
+articles:
+  algorithm: algorithm.html
+  esd: esd.html
+  export: export.html
+  hip: hip.html
+  merge: merge.html
+  pps: pps.html
+last_built: 2026-02-19T06:08Z
 urls:
   reference: https://darwin-eu-dev.github.io/PregnancyIdentifier/reference
   article: https://darwin-eu-dev.github.io/PregnancyIdentifier/articles
