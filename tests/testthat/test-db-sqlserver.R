@@ -5,7 +5,7 @@ test_that("runPregnancyIdentifier runs on SQL Server", {
   skip_if(Sys.getenv("CDM5_SQL_SERVER_CDM_DATABASE") == "")
   con <- get_connection("sqlserver")
 
-  writeSchema <- c("pregnancy_cdm")
+  writeSchema <- c(schema = "pregnancy_cdm", prefix = prefix())
   cdmSchema <- c("pregnancy_cdm")
 
   existingTables <- CDMConnector::listTables(con, writeSchema)
@@ -23,7 +23,7 @@ test_that("runPregnancyIdentifier runs on SQL Server", {
 
   cdm <- CDMConnector::cdmFromCon(
     con,
-    cdmSchema = writeSchema,
+    cdmSchema = cdmSchema,
     writeSchema = writeSchema,
     cdmName = "preg_postgres_test"
   )

@@ -23,6 +23,9 @@ library(testthat)
 #   NULL
 # }
 
+prefix <- function() {
+  paste0("temp_", gsub("-", "", uuid::UUIDgenerate()))
+}
 
 get_connection <- function(dbms) {
 
@@ -81,38 +84,4 @@ get_connection <- function(dbms) {
   rlang::abort("Could not create connection. Are some environment variables missing?")
 }
 
-get_cdm_schema <- function(dbms) {
-  switch(dbms,
-         "postgres" = Sys.getenv("CDM5_POSTGRESQL_CDM_SCHEMA"),
-         "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_CDM_SCHEMA"), "\\.")[[1]],
-         "spark" = "pregnancy_test_cdm",
-         "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_CDM_SCHEMA"), "\\.")[[1]],
-         ""
-  )
-}
-
-get_write_schema <- function(dbms, prefix = paste0("temp", (floor(as.numeric(Sys.time()) * 100) %% 100000L + Sys.getpid()) %% 100000L, "_")) {
-  s <- switch(dbms,
-              "postgres" = Sys.getenv("CDM5_POSTGRESQL_SCRATCH_SCHEMA"),
-              "snowflake" = strsplit(Sys.getenv("SNOWFLAKE_SCRATCH_SCHEMA"), "\\.")[[1]],
-              "spark" = "pregnancy_test_cdm",
-              "sqlserver" = strsplit(Sys.getenv("CDM5_SQL_SERVER_SCRATCH_SCHEMA"), "\\.")[[1]],
-              ""
-  )
-
-  if (!is.null(prefix)) {
-    if (length(s) == 1) {
-      s <- c(schema = s[1], prefix = prefix)
-    } else {
-      s <- c(catalog = s[1], schema = s[2], prefix = prefix)
-    }
-  }
-
-  return(s)
-}
-
-disconnect <- function(con) {
-  if (is.null(con)) return(invisible(NULL))
-  DBI::dbDisconnect(con)
-}
 

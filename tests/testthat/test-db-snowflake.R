@@ -9,26 +9,27 @@ test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files
 
   con <- get_connection("snowflake")
 
+  # DBI::dbExecute(con, "create schema pregnancy_cdm")
   # DBI::dbGetQuery(con, "select current_role() as role, current_database() as db, current_schema() as schema")
   # DBI::dbGetQuery(con, "create database if not exists SCRATCH;")
   # DBI::dbGetQuery(con, "grant ownership on database SCRATCH to role ACCOUNTADMIN;")
-  # DBI::dbExecute(con, "create schema preg;")
-
-  writeSchema <- get_write_schema("snowflake", prefix = "preg_")
 
   # only need to do this once
   # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
   # cdm <- CDMConnector::copyCdmTo(
   #   con = con,
   #   cdm = cdm_src,
-  #   schema = writeSchema,
+  #   schema = "PREGNANCY_CDM",
   #   overwrite = TRUE
   # )
   # cleanupCdmDb(cdm_src)
 
+  writeSchema <- c(schema = "PREGNANCY_CDM", prefix = prefix())
+  cdmSchema <- c("PREGNANCY_CDM")
+
   cdm <- CDMConnector::cdmFromCon(
     con,
-    cdmSchema = writeSchema,
+    cdmSchema = cdmSchema,
     writeSchema = writeSchema,
     cdmName = "preg_snowflake_test"
   )

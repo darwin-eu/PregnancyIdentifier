@@ -6,15 +6,18 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
   skip_if_not_installed("RPostgres")
   skip_if(Sys.getenv("CDM5_POSTGRESQL_DBNAME") == "")
   con <- get_connection("postgres")
-  writeSchema <- get_write_schema("postgres", prefix = "preg_")
 
+  writeSchema <- c(schema = "pregnancy_cdm", prefix = prefix())
+  cdmSchema <- c("pregnancy_cdm")
+
+  # DBI::dbExecute(con, "create schema pregnancy_cdm;")
   # only do this once
   # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
   #
   # cdm <- CDMConnector::copyCdmTo(
   #   con = con,
   #   cdm = cdm_src,
-  #   schema = writeSchema,
+  #   schema = "pregnancy_cdm",
   #   overwrite = TRUE
   # )
   # cleanupCdmDb(cdm_src)
@@ -22,11 +25,10 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
 
   cdm <- CDMConnector::cdmFromCon(
     con,
-    cdmSchema = writeSchema,
+    cdmSchema = cdmSchema,
     writeSchema = writeSchema,
     cdmName = "preg_postgres_test"
   )
-
 
   outputDir <- file.path(tempdir(), "test_db_postgres")
   dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
@@ -51,5 +53,6 @@ test_that("runPregnancyIdentifier on PostgreSQL (copyCdmTo) produces result file
   expect_true(nrow(final) > 0)
 
   unlink(outputDir, recursive = TRUE)
+
   CDMConnector::cdmDisconnect(cdm)
 })

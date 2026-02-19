@@ -5,8 +5,10 @@ test_that("runPregnancyIdentifier on SPARK/Databricks", {
   skip_if_not_installed("odbc")
 
   con <- get_connection("spark")
-  writeSchema <- get_write_schema("spark", prefix = "temp_")
-  cdmSchema <- get_cdm_schema("spark")
+  omopgenerics::uniqueId()
+
+  writeSchema <- c(schema = "pregnancy_test_cdm", prefix = prefix())
+  cdmSchema <- "pregnancy_test_cdm"
 
   # only do this once
   # cdm_src <- mockPregnancyCdm(fullVocab = FALSE)
@@ -26,7 +28,7 @@ test_that("runPregnancyIdentifier on SPARK/Databricks", {
     con,
     cdmSchema = cdmSchema,
     writeSchema = writeSchema,
-    cdmName = "preg_postgres_test"
+    cdmName = "preg_spark_test"
   )
 
   outputDir <- file.path(tempdir(), "test_db_spark")
