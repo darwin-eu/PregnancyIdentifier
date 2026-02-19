@@ -38,7 +38,8 @@ Imports:
     shiny,
     checkmate,
     tibble,
-    omopgenerics
+    omopgenerics,
+    uuid
 Suggests: 
     testthat (>= 3.0.0),
     shinytest2,
@@ -49,6 +50,5 @@ Suggests:
     readr,
     RSQLite,
     RPostgres,
-    odbc,
-    uuid
+    odbc
 VignetteBuilder: knitr
