@@ -117,6 +117,56 @@ validateEpisodePeriods <- function(df,
   invisible(df)
 }
 
+#' Fix episode start dates so start < end
+#'
+#' Where start >= end (or start > end), set start to end - max_term using
+#' outcome-specific max term from \code{termMaxMin}. No rows are dropped.
+#'
+#' @param df Data frame with start, end, and outcome columns.
+#' @param termMaxMin Data frame with columns \code{category} and \code{max_term} (e.g. from Matcho_term_durations.xlsx).
+#' @param startDateCol Character. Name of the start date column.
+#' @param endDateCol Character. Name of the end date column.
+#' @param outcomeCol Character. Name of the outcome category column (joined to \code{termMaxMin$category}).
+#' @return List with \code{df} (corrected data frame) and \code{n_corrected} (number of rows that had start >= end).
+#' @noRd
+fixStartBeforeEnd <- function(df,
+                              termMaxMin,
+                              startDateCol = "final_episode_start_date",
+                              endDateCol = "final_episode_end_date",
+                              outcomeCol = "final_outcome_category") {
+  checkmate::assertDataFrame(df, min.rows = 0)
+  checkmate::assertDataFrame(termMaxMin)
+  stopifnot(
+    startDateCol %in% names(df),
+    endDateCol %in% names(df),
+    outcomeCol %in% names(df),
+    "category" %in% names(termMaxMin),
+    "max_term" %in% names(termMaxMin)
+  )
+  by_col <- stats::setNames("category", outcomeCol)
+  with_term <- df %>%
+    dplyr::left_join(termMaxMin, by = by_col) %>%
+    dplyr::mutate(.max_term = as.numeric(dplyr::coalesce(.data$max_term, 301)))
+  n_corrected <- with_term %>%
+    dplyr::filter(
+      !is.na(.data[[startDateCol]]),
+      !is.na(.data[[endDateCol]]),
+      as.Date(.data[[startDateCol]]) >= as.Date(.data[[endDateCol]])
+    ) %>%
+    nrow()
+  out <- with_term %>%
+    dplyr::mutate(
+      "{startDateCol}" := as.Date(dplyr::if_else(
+        !is.na(.data[[startDateCol]]) & !is.na(.data[[endDateCol]]) &
+          as.Date(.data[[startDateCol]]) >= as.Date(.data[[endDateCol]]),
+        as.Date(.data[[endDateCol]]) - .data$.max_term,
+        as.Date(.data[[startDateCol]])
+      ))
+    ) %>%
+    dplyr::select(-".max_term", -dplyr::any_of(c("min_term", "max_term", "retry")))
+  list(df = out, n_corrected = n_corrected)
+}
+
 #' Conform episode periods: remove overlaps and too-long episodes
 #'
 #' Optionally applied after \code{validateEpisodePeriods}. Within each person,
