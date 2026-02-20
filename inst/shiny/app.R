@@ -107,7 +107,7 @@ if (!hasData) {
   }
 
   # Ensure age-related CSVs are loaded from data folder root when present (e.g. single CSV export)
-  ageCsvs <- c("age.csv", "age_summary.csv", "age_summary_first_pregnancy.csv", "age_summary_groups.csv")
+  ageCsvs <- c("age_summary.csv", "age_summary_first_pregnancy.csv", "age_summary_groups.csv")
   for (ageFile in ageCsvs) {
     agePath <- file.path(dataFolder, ageFile)
     if (file.exists(agePath)) {
@@ -587,18 +587,8 @@ if (!hasData) {
       appStructure[["Concept counts"]] <- conceptCountsTabs
     }
 
-    # Age tab: load age.csv, age_summary.csv, age_summary_first_pregnancy.csv, age_summary_groups.csv and show in DT tables
+    # Age tab: age_summary.csv, age_summary_first_pregnancy.csv, age_summary_groups.csv
     ageTabs <- list()
-    if (exists("age", envir = .GlobalEnv)) {
-      age <- get("age", envir = .GlobalEnv)
-      ageTabs[["age.csv"]] <- tabWithHelpText(
-        handleEmptyResult(
-          object = Table$new(data = age, title = "age.csv", options = list(scrollX = TRUE, pageLength = 25)),
-          result = age
-        ),
-        "Age-at-pregnancy-start data. Used for cohort description and age-stratified analyses."
-      )
-    }
     if (nrow(ageSummaryRaw) > 0) {
       ageTabs[["age_summary.csv"]] <- tabWithHelpText(
         handleEmptyResult(
