@@ -88,7 +88,7 @@ The observed spacing between the two records is
 
     Jan → May ≈ 4 months
 
-The expected spacing for these two reacords based on clinical knowledge
+The expected spacing for these two records based on clinical knowledge
 is a range.
 
     min_expected = 5 − 2 = 3 months
@@ -264,7 +264,7 @@ writes the following files to `outputDir`:
 - **pps_min_max_episodes.rds** — Only when `debugMode = TRUE`.
   Episode-level summaries (`pps_episode_min_date`,
   `pps_episode_max_date`, `pps_episode_max_date_plus_two_months`,
-  `n_gt_concepts`).
+  `pps_n_gt_concepts`).
 
 For the full pipeline (HIP → PPS → merge → ESD), use
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md);

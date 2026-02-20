@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -114,13 +114,48 @@ runs so you can track provenance and CDM version.</p>
 <h3 id="pps_concept_counts-csv">pps_concept_counts.csv<a class="anchor" aria-label="anchor" href="#pps_concept_counts-csv"></a>
 </h3>
 <p><strong>Source:</strong> Copied from <code>outputDir</code> (written
-by the PPS step in <code><a href="../reference/runPps.html">runPps()</a></code>).</p>
+by <code><a href="../reference/runPps.html">runPps()</a></code>).</p>
 <p><strong>Content:</strong> Counts of pregnancy-related concepts used
 by PPS per concept (e.g. concept_id, concept name, count of
 records).</p>
 <p><strong>Purpose:</strong> Describes the PPS concept usage in this
 run. Used to compare concept coverage across sites and to check that
 expected pregnancy concepts are present.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="hip_concept_counts-csv">hip_concept_counts.csv<a class="anchor" aria-label="anchor" href="#hip_concept_counts-csv"></a>
+</h3>
+<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+present (written by the pipeline when HIP concept counts are
+produced).</p>
+<p><strong>Content:</strong> Counts of HIP pregnancy-related concepts
+per concept.</p>
+<p><strong>Purpose:</strong> Describes HIP concept usage in this run;
+used for concept coverage and cross-site comparison.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="esd_concept_counts-csv">esd_concept_counts.csv<a class="anchor" aria-label="anchor" href="#esd_concept_counts-csv"></a>
+</h3>
+<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+present (written by the pipeline when ESD concept counts are
+produced).</p>
+<p><strong>Content:</strong> Counts of ESD timing concepts used per
+concept.</p>
+<p><strong>Purpose:</strong> Describes ESD concept usage; used for QA
+and cross-site comparison.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="attrition-csv">attrition.csv<a class="anchor" aria-label="anchor" href="#attrition-csv"></a>
+</h3>
+<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+present (written by pipeline steps such as HIP and merge).</p>
+<p><strong>Content:</strong> Step-by-step record and person counts
+(prior/post, dropped) through the pipeline.</p>
+<p><strong>Purpose:</strong> Audit trail of attrition at each step; used
+for debugging and cohort flow.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -173,6 +208,30 @@ be suppressed by <code>minCellCount</code>.</p>
 <p><strong>Purpose:</strong> Counts and percentages of pregnancies by
 age (by year and by boundary groups &lt;12 and &gt;55). Used for
 age-stratified summaries and checking extreme-age pregnancy counts.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="age-csv">age.csv<a class="anchor" aria-label="anchor" href="#age-csv"></a>
+</h3>
+<p><strong>Columns:</strong> <strong>age_pregnancy_start</strong> (age
+in years at pregnancy start) for each episode, plus
+<strong>cdm_name</strong>, <strong>date_run</strong>,
+<strong>date_export</strong>, <strong>pkg_version</strong>.</p>
+<p><strong>Purpose:</strong> Raw age-at-start values per episode for
+custom analyses.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="age_summary_first_pregnancy-csv">age_summary_first_pregnancy.csv<a class="anchor" aria-label="anchor" href="#age_summary_first_pregnancy-csv"></a>
+</h3>
+<p><strong>Columns:</strong> Summary statistics of
+<strong>age_pregnancy_end</strong> (age at first live-birth episode end)
+for each person’s first LB episode: <strong>colName</strong>,
+<strong>min</strong>, <strong>Q25</strong>, <strong>median</strong>,
+<strong>Q75</strong>, <strong>max</strong>, <strong>mean</strong>,
+<strong>sd</strong>, plus metadata.</p>
+<p><strong>Purpose:</strong> Age at first live birth; used for cohort
+description and feasibility.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -330,13 +389,15 @@ sites.</p>
 <div class="section level3">
 <h3 id="pregnancy_overlap_counts-csv">pregnancy_overlap_counts.csv<a class="anchor" aria-label="anchor" href="#pregnancy_overlap_counts-csv"></a>
 </h3>
-<p><strong>Columns:</strong> Summary of <strong>overlap</strong>
-(logical: whether an episode’s start is ≤ previous episode’s end for
-that person): <strong>colName</strong>, <strong>overlap</strong>
-(TRUE/FALSE), <strong>n</strong>, <strong>total</strong>,
-<strong>pct</strong>, plus metadata. Only persons with more than one
-episode are considered.</p>
-<p><strong>Purpose:</strong> Count of persons with overlapping inferred
+<p><strong>Columns:</strong> <strong>n_records_with_previous</strong>
+(number of episode records that have a previous episode for that
+person), <strong>n_overlap_true</strong> (count where episode start ≤
+previous episode end), <strong>n_overlap_false</strong> (count where no
+overlap), <strong>n_persons_with_multiple_episodes</strong>, plus
+<strong>cdm_name</strong>, <strong>date_run</strong>,
+<strong>date_export</strong>, <strong>pkg_version</strong>. Only persons
+with more than one episode are considered.</p>
+<p><strong>Purpose:</strong> Summary counts of overlapping inferred
 pregnancy intervals. Used for data quality (overlaps may indicate
 algorithm or data issues).</p>
 <hr>
@@ -379,6 +440,44 @@ PPS, final harmonized). Used to compare algorithm agreement and to
 describe outcome mix across sites.</p>
 <hr>
 </div>
+<div class="section level3">
+<h3 id="delivery_mode_summary-csv">delivery_mode_summary.csv<a class="anchor" aria-label="anchor" href="#delivery_mode_summary-csv"></a>
+</h3>
+<p><strong>Columns:</strong> <strong>final_outcome_category</strong>,
+delivery-mode counts (e.g. cesarean, vaginal), <strong>n</strong>, plus
+metadata.</p>
+<p><strong>Purpose:</strong> Delivery mode (cesarean vs vaginal) by
+outcome category for live-birth analyses.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="concept_check-csv">concept_check.csv<a class="anchor" aria-label="anchor" href="#concept_check-csv"></a>
+</h3>
+<p><strong>Columns:</strong> Concept-timing check results (concept
+coverage and timing vs episodes), plus metadata.</p>
+<p><strong>Purpose:</strong> QA of concept usage and timing relative to
+pregnancy episodes.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="quality_check_cleanup-csv">quality_check_cleanup.csv<a class="anchor" aria-label="anchor" href="#quality_check_cleanup-csv"></a>
+</h3>
+<p><strong>Columns:</strong> Quality metrics for cleanup/validation
+(e.g. overlap counts, episode length flags), plus metadata.</p>
+<p><strong>Purpose:</strong> QA of pipeline cleanup and validation
+steps.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="attrition_if_cleanup-csv">attrition_if_cleanup.csv<a class="anchor" aria-label="anchor" href="#attrition_if_cleanup-csv"></a>
+</h3>
+<p><strong>Columns:</strong> Attrition summary when
+conform-to-validation cleanup is applied (records/persons before and
+after), plus metadata.</p>
+<p><strong>Purpose:</strong> Documents impact of optional cleanup
+(overlap removal, max length) when used.</p>
+<hr>
+</div>
 </div>
 <div class="section level2">
 <h2 id="zip-archive">ZIP archive<a class="anchor" aria-label="anchor" href="#zip-archive"></a>
@@ -416,9 +515,29 @@ share or archive a full export.</p>
 <td>Concept coverage, PPS input description</td>
 </tr>
 <tr class="odd">
+<td>hip_concept_counts.csv</td>
+<td>HIP concept counts</td>
+<td>HIP concept coverage (when present)</td>
+</tr>
+<tr class="even">
+<td>esd_concept_counts.csv</td>
+<td>ESD concept counts</td>
+<td>ESD concept coverage (when present)</td>
+</tr>
+<tr class="odd">
+<td>attrition.csv</td>
+<td>Pipeline step attrition</td>
+<td>Audit, cohort flow (when present)</td>
+</tr>
+<tr class="even">
 <td>log.txt</td>
 <td>Pipeline log</td>
 <td>Audit, debugging</td>
+</tr>
+<tr class="odd">
+<td>age.csv</td>
+<td>Age-at-start per episode</td>
+<td>Custom age analyses</td>
 </tr>
 <tr class="even">
 <td>age_summary.csv</td>
@@ -426,94 +545,119 @@ share or archive a full export.</p>
 <td>Cohort description, feasibility</td>
 </tr>
 <tr class="odd">
+<td>age_summary_first_pregnancy.csv</td>
+<td>Age at first LB (summary)</td>
+<td>First-birth age description</td>
+</tr>
+<tr class="even">
 <td>age_summary_groups.csv</td>
 <td>Age counts (by year and &lt;12, &gt;55)</td>
 <td>Age stratification, boundary checks</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>precision_days.csv</td>
 <td>Density of ESD precision (days)</td>
 <td>Start-date precision, site comparison</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>episode_frequency.csv</td>
 <td>Total episodes, total individuals</td>
 <td>Denominators, site summaries</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>pregnancy_frequency.csv</td>
 <td>Episodes per person (1, 2, 3, …)</td>
 <td>Parity-like distribution</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>episode_frequency_summary.csv</td>
 <td>Summary of episodes per person</td>
 <td>Cohort description</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>gestational_age_days_summary.csv</td>
 <td>Summary of gestational length (days)</td>
 <td>Duration distribution</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>gestational_age_days_counts.csv</td>
 <td>Counts &lt;1 day, &gt;308 days</td>
 <td>Out-of-range duration QA</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>gestational_weeks.csv</td>
 <td>Counts by gestational week</td>
 <td>GA distribution, preterm/term</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>gestational_age_days_per_category_summary.csv</td>
 <td>Gestational length by outcome</td>
 <td>Outcome-specific duration</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>yearly_trend.csv</td>
 <td>Episode count by year and date column</td>
 <td>Temporal trends</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>yearly_trend_missing.csv</td>
 <td>Missing-date count by column/year</td>
 <td>Completeness</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>monthly_trends.csv</td>
 <td>Episode count by month</td>
 <td>Seasonality, completeness</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>monthly_trend_missing.csv</td>
 <td>Missing-date count by column/month</td>
 <td>Completeness</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>observation_period_range.csv</td>
 <td>Min/max observation period years</td>
 <td>Study window, coverage</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>pregnancy_overlap_counts.csv</td>
-<td>Overlap TRUE/FALSE counts</td>
+<td>Overlap summary (n_overlap_true/false, etc.)</td>
 <td>Overlap QA</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>date_consistency.csv</td>
 <td>Proportion NA per date column</td>
 <td>Completeness by field</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>swapped_dates.csv</td>
 <td>Count of start &gt; end (HIP/PPS)</td>
 <td>Date logic QA</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>outcome_categories_count.csv</td>
 <td>Outcome counts by algorithm</td>
 <td>Outcome mix, algorithm agreement</td>
+</tr>
+<tr class="even">
+<td>delivery_mode_summary.csv</td>
+<td>Delivery mode by outcome</td>
+<td>Cesarean/vaginal by outcome</td>
+</tr>
+<tr class="odd">
+<td>concept_check.csv</td>
+<td>Concept timing vs episodes</td>
+<td>Concept QA</td>
+</tr>
+<tr class="even">
+<td>quality_check_cleanup.csv</td>
+<td>Cleanup/validation QA</td>
+<td>Cleanup QA</td>
+</tr>
+<tr class="odd">
+<td>attrition_if_cleanup.csv</td>
+<td>Attrition when cleanup applied</td>
+<td>Cleanup impact (when present)</td>
 </tr>
 </tbody>
 </table>

@@ -116,10 +116,12 @@ HIP episodes include:
 - `hip_pregnancy_end` — Episode end date (outcome date or max gest
   date).
 - `hip_pregnancy_start` — Inferred pregnancy start date.
-- `category` — One of: `LB`, `SB`, `AB`, `SA`, `DELIV`, `ECT`, `PREG`.
-- `gest_flag` — Whether gestational evidence supported the episode.
-- `episode_length` — Duration measure for the episode.
-- `episode` — Within-person episode number.
+- `hip_outcome_category` — One of: `LB`, `SB`, `AB`, `SA`, `DELIV`,
+  `ECT`, `PREG`.
+- `hip_gest_flag` — Whether gestational evidence supported the episode.
+- `hip_episode_length` — Duration of the episode in days (from
+  `hip_pregnancy_start` to `hip_pregnancy_end`).
+- `hip_episode` — Within-person episode number.
 
 Interpretation of categories:
 

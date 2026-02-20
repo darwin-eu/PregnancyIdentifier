@@ -57,7 +57,7 @@ track provenance and CDM version.
 
 ### pps_concept_counts.csv
 
-**Source:** Copied from `outputDir` (written by the PPS step in
+**Source:** Copied from `outputDir` (written by
 [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)).
 
 **Content:** Counts of pregnancy-related concepts used by PPS per
@@ -66,6 +66,43 @@ concept (e.g. concept_id, concept name, count of records).
 **Purpose:** Describes the PPS concept usage in this run. Used to
 compare concept coverage across sites and to check that expected
 pregnancy concepts are present.
+
+------------------------------------------------------------------------
+
+### hip_concept_counts.csv
+
+**Source:** Copied from `outputDir` when present (written by the
+pipeline when HIP concept counts are produced).
+
+**Content:** Counts of HIP pregnancy-related concepts per concept.
+
+**Purpose:** Describes HIP concept usage in this run; used for concept
+coverage and cross-site comparison.
+
+------------------------------------------------------------------------
+
+### esd_concept_counts.csv
+
+**Source:** Copied from `outputDir` when present (written by the
+pipeline when ESD concept counts are produced).
+
+**Content:** Counts of ESD timing concepts used per concept.
+
+**Purpose:** Describes ESD concept usage; used for QA and cross-site
+comparison.
+
+------------------------------------------------------------------------
+
+### attrition.csv
+
+**Source:** Copied from `outputDir` when present (written by pipeline
+steps such as HIP and merge).
+
+**Content:** Step-by-step record and person counts (prior/post, dropped)
+through the pipeline.
+
+**Purpose:** Audit trail of attrition at each step; used for debugging
+and cohort flow.
 
 ------------------------------------------------------------------------
 
@@ -115,6 +152,28 @@ metadata. Counts may be suppressed by `minCellCount`.
 **Purpose:** Counts and percentages of pregnancies by age (by year and
 by boundary groups \<12 and \>55). Used for age-stratified summaries and
 checking extreme-age pregnancy counts.
+
+------------------------------------------------------------------------
+
+### age.csv
+
+**Columns:** **age_pregnancy_start** (age in years at pregnancy start)
+for each episode, plus **cdm_name**, **date_run**, **date_export**,
+**pkg_version**.
+
+**Purpose:** Raw age-at-start values per episode for custom analyses.
+
+------------------------------------------------------------------------
+
+### age_summary_first_pregnancy.csv
+
+**Columns:** Summary statistics of **age_pregnancy_end** (age at first
+live-birth episode end) for each person’s first LB episode: **colName**,
+**min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus
+metadata.
+
+**Purpose:** Age at first live birth; used for cohort description and
+feasibility.
 
 ------------------------------------------------------------------------
 
@@ -266,14 +325,15 @@ temporal coverage and to compare study windows across sites.
 
 ### pregnancy_overlap_counts.csv
 
-**Columns:** Summary of **overlap** (logical: whether an episode’s start
-is ≤ previous episode’s end for that person): **colName**, **overlap**
-(TRUE/FALSE), **n**, **total**, **pct**, plus metadata. Only persons
-with more than one episode are considered.
+**Columns:** **n_records_with_previous** (number of episode records that
+have a previous episode for that person), **n_overlap_true** (count
+where episode start ≤ previous episode end), **n_overlap_false** (count
+where no overlap), **n_persons_with_multiple_episodes**, plus
+**cdm_name**, **date_run**, **date_export**, **pkg_version**. Only
+persons with more than one episode are considered.
 
-**Purpose:** Count of persons with overlapping inferred pregnancy
-intervals. Used for data quality (overlaps may indicate algorithm or
-data issues).
+**Purpose:** Summary counts of overlapping inferred pregnancy intervals.
+Used for data quality (overlaps may indicate algorithm or data issues).
 
 ------------------------------------------------------------------------
 
@@ -312,6 +372,45 @@ mix across sites.
 
 ------------------------------------------------------------------------
 
+### delivery_mode_summary.csv
+
+**Columns:** **final_outcome_category**, delivery-mode counts
+(e.g. cesarean, vaginal), **n**, plus metadata.
+
+**Purpose:** Delivery mode (cesarean vs vaginal) by outcome category for
+live-birth analyses.
+
+------------------------------------------------------------------------
+
+### concept_check.csv
+
+**Columns:** Concept-timing check results (concept coverage and timing
+vs episodes), plus metadata.
+
+**Purpose:** QA of concept usage and timing relative to pregnancy
+episodes.
+
+------------------------------------------------------------------------
+
+### quality_check_cleanup.csv
+
+**Columns:** Quality metrics for cleanup/validation (e.g. overlap
+counts, episode length flags), plus metadata.
+
+**Purpose:** QA of pipeline cleanup and validation steps.
+
+------------------------------------------------------------------------
+
+### attrition_if_cleanup.csv
+
+**Columns:** Attrition summary when conform-to-validation cleanup is
+applied (records/persons before and after), plus metadata.
+
+**Purpose:** Documents impact of optional cleanup (overlap removal, max
+length) when used.
+
+------------------------------------------------------------------------
+
 ## ZIP archive
 
 After writing all CSVs (and copying log.txt),
@@ -323,27 +422,36 @@ a full export.
 
 ## Summary table
 
-| File                                          | Main content                              | Main use in analysis                    |
-|-----------------------------------------------|-------------------------------------------|-----------------------------------------|
-| cdm_source.csv                                | CDM/snapshot metadata                     | Provenance, site/CDM identification     |
-| pps_concept_counts.csv                        | PPS concept counts                        | Concept coverage, PPS input description |
-| log.txt                                       | Pipeline log                              | Audit, debugging                        |
-| age_summary.csv                               | Age-at-start distribution (summary stats) | Cohort description, feasibility         |
-| age_summary_groups.csv                        | Age counts (by year and \<12, \>55)       | Age stratification, boundary checks     |
-| precision_days.csv                            | Density of ESD precision (days)           | Start-date precision, site comparison   |
-| episode_frequency.csv                         | Total episodes, total individuals         | Denominators, site summaries            |
-| pregnancy_frequency.csv                       | Episodes per person (1, 2, 3, …)          | Parity-like distribution                |
-| episode_frequency_summary.csv                 | Summary of episodes per person            | Cohort description                      |
-| gestational_age_days_summary.csv              | Summary of gestational length (days)      | Duration distribution                   |
-| gestational_age_days_counts.csv               | Counts \<1 day, \>308 days                | Out-of-range duration QA                |
-| gestational_weeks.csv                         | Counts by gestational week                | GA distribution, preterm/term           |
-| gestational_age_days_per_category_summary.csv | Gestational length by outcome             | Outcome-specific duration               |
-| yearly_trend.csv                              | Episode count by year and date column     | Temporal trends                         |
-| yearly_trend_missing.csv                      | Missing-date count by column/year         | Completeness                            |
-| monthly_trends.csv                            | Episode count by month                    | Seasonality, completeness               |
-| monthly_trend_missing.csv                     | Missing-date count by column/month        | Completeness                            |
-| observation_period_range.csv                  | Min/max observation period years          | Study window, coverage                  |
-| pregnancy_overlap_counts.csv                  | Overlap TRUE/FALSE counts                 | Overlap QA                              |
-| date_consistency.csv                          | Proportion NA per date column             | Completeness by field                   |
-| swapped_dates.csv                             | Count of start \> end (HIP/PPS)           | Date logic QA                           |
-| outcome_categories_count.csv                  | Outcome counts by algorithm               | Outcome mix, algorithm agreement        |
+| File                                          | Main content                                 | Main use in analysis                    |
+|-----------------------------------------------|----------------------------------------------|-----------------------------------------|
+| cdm_source.csv                                | CDM/snapshot metadata                        | Provenance, site/CDM identification     |
+| pps_concept_counts.csv                        | PPS concept counts                           | Concept coverage, PPS input description |
+| hip_concept_counts.csv                        | HIP concept counts                           | HIP concept coverage (when present)     |
+| esd_concept_counts.csv                        | ESD concept counts                           | ESD concept coverage (when present)     |
+| attrition.csv                                 | Pipeline step attrition                      | Audit, cohort flow (when present)       |
+| log.txt                                       | Pipeline log                                 | Audit, debugging                        |
+| age.csv                                       | Age-at-start per episode                     | Custom age analyses                     |
+| age_summary.csv                               | Age-at-start distribution (summary stats)    | Cohort description, feasibility         |
+| age_summary_first_pregnancy.csv               | Age at first LB (summary)                    | First-birth age description             |
+| age_summary_groups.csv                        | Age counts (by year and \<12, \>55)          | Age stratification, boundary checks     |
+| precision_days.csv                            | Density of ESD precision (days)              | Start-date precision, site comparison   |
+| episode_frequency.csv                         | Total episodes, total individuals            | Denominators, site summaries            |
+| pregnancy_frequency.csv                       | Episodes per person (1, 2, 3, …)             | Parity-like distribution                |
+| episode_frequency_summary.csv                 | Summary of episodes per person               | Cohort description                      |
+| gestational_age_days_summary.csv              | Summary of gestational length (days)         | Duration distribution                   |
+| gestational_age_days_counts.csv               | Counts \<1 day, \>308 days                   | Out-of-range duration QA                |
+| gestational_weeks.csv                         | Counts by gestational week                   | GA distribution, preterm/term           |
+| gestational_age_days_per_category_summary.csv | Gestational length by outcome                | Outcome-specific duration               |
+| yearly_trend.csv                              | Episode count by year and date column        | Temporal trends                         |
+| yearly_trend_missing.csv                      | Missing-date count by column/year            | Completeness                            |
+| monthly_trends.csv                            | Episode count by month                       | Seasonality, completeness               |
+| monthly_trend_missing.csv                     | Missing-date count by column/month           | Completeness                            |
+| observation_period_range.csv                  | Min/max observation period years             | Study window, coverage                  |
+| pregnancy_overlap_counts.csv                  | Overlap summary (n_overlap_true/false, etc.) | Overlap QA                              |
+| date_consistency.csv                          | Proportion NA per date column                | Completeness by field                   |
+| swapped_dates.csv                             | Count of start \> end (HIP/PPS)              | Date logic QA                           |
+| outcome_categories_count.csv                  | Outcome counts by algorithm                  | Outcome mix, algorithm agreement        |
+| delivery_mode_summary.csv                     | Delivery mode by outcome                     | Cesarean/vaginal by outcome             |
+| concept_check.csv                             | Concept timing vs episodes                   | Concept QA                              |
+| quality_check_cleanup.csv                     | Cleanup/validation QA                        | Cleanup QA                              |
+| attrition_if_cleanup.csv                      | Attrition when cleanup applied               | Cleanup impact (when present)           |

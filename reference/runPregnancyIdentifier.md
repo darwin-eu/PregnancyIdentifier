@@ -98,4 +98,4 @@ merges HIP and PPS into combined HIPPS episodes, 5) ESD refinement
 (\`runEsd()\`): derives inferred pregnancy start/precision and enriches
 merged episodes, 6) optionally, export (\`exportPregnancies()\`): writes
 shareable summary outputs (with optional small-cell suppression) when
-\`runExport = TRUE\`.
+\`exportPregnancies = TRUE\`.

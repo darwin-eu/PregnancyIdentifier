@@ -165,14 +165,15 @@ on the row; ESD never uses **merge_episode_end** for the reported end.
 ESD classifies evidence into two types:
 
 1.  **GW (“gestation week”)** — Week-based gestational age from concepts
-    whose name contains “gestation period” or “gestational age”, or
-    whose concept ID is in `gestational_age_concepts.csv` or
-    `ESD_concepts2.xlsx`. Values are parsed from the record
-    (e.g. “Gestation period, 18 weeks” or numeric value); only values
-    between 1 and 44 weeks are kept. The algorithm extrapolates to a
-    single start date: **concept_date − 7×weeks**. When multiple GW
-    values exist, **removeGWOutliers()** keeps only dates whose distance
-    from the median (in days) lies within the IQR×1.5 range.
+    whose name contains “gestation period” or “gestational age”, whose
+    concept ID is in `gestational_age_concepts.csv`, or whose concept ID
+    has **is_gw_concept = TRUE** in `ESD_concepts.xlsx`. Values are
+    parsed from the record (e.g. “Gestation period, 18 weeks” or numeric
+    value); only values between 1 and 44 weeks are kept. The algorithm
+    extrapolates to a single start date: **concept_date − 7×weeks**.
+    When multiple GW values exist, **removeGWOutliers()** keeps only
+    dates whose distance from the median (in days) lies within the
+    IQR×1.5 range.
 
 2.  **GR3m (“gestational range ≤ 3 months”)** — Concepts that have
     **min_month** and **max_month** in the PPS concept table

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -150,7 +150,7 @@ them matches what pregnancy biology would expect.</p>
 </table>
 <p>The observed spacing between the two records is</p>
 <pre><code>Jan → May ≈ 4 months</code></pre>
-<p>The expected spacing for these two reacords based on clinical
+<p>The expected spacing for these two records based on clinical
 knowledge is a range.</p>
 <pre><code>min_expected = 5 − 2 = 3 months
 max_expected = 6 − 1 = 5 months</code></pre>
@@ -347,7 +347,7 @@ concept rows with an assigned <code>person_episode_number</code>.</li>
 <code>debugMode = TRUE</code>. Episode-level summaries
 (<code>pps_episode_min_date</code>, <code>pps_episode_max_date</code>,
 <code>pps_episode_max_date_plus_two_months</code>,
-<code>n_gt_concepts</code>).</li>
+<code>pps_n_gt_concepts</code>).</li>
 </ul>
 <p>For the full pipeline (HIP → PPS → merge → ESD), use
 <code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>; see the <a href="algorithm.html">pipeline overview</a> and the <a href="merge.html">Merge vignette</a>.</p>

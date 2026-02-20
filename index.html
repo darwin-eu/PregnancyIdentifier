@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,7 +67,7 @@
 <p><strong>Install</strong> (requires R ≥ 4.1 and CDMConnector):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From GitHub (DARWIN EU)</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"darwin-eu/PregnancyIdentifier"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"darwin-eu/PregnancyIdentifier"</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Run the full pipeline</strong> (initializes concepts, runs HIP → PPS → merge → ESD, writes outputs):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://darwin-eu.github.io/PregnancyIdentifier/" class="external-link">PregnancyIdentifier</a></span><span class="op">)</span></span>
@@ -79,12 +79,15 @@
 <span>  cdm       <span class="op">=</span> <span class="va">cdm</span>,</span>
 <span>  outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>,</span>
 <span>  startDate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2000-01-01"</span><span class="op">)</span>,</span>
-<span>  endDate   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  endDate   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  runExport <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><strong>Use the result:</strong><br><code>pregnancy_output/final_pregnancy_episodes.rds</code> is a data frame with one row per pregnancy episode: <code>person_id</code>, <code>final_episode_start_date</code>, <code>final_episode_end_date</code>, <code>final_outcome_category</code>, <code>esd_precision_days</code>, and other esd_* QA/concordance columns. Load it for cohort definition, export, or further analysis.</p>
-<p>Optional: run <strong>export</strong> for de-identified summary CSVs and a ZIP:</p>
+<p>Optional: set <strong><code>runExport = TRUE</code></strong> to run export automatically after ESD, or run <strong>export</strong> yourself for de-identified summary CSVs and a ZIP:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/exportPregnancies.html">exportPregnancies</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>, exportDir <span class="op">=</span> <span class="st">"pregnancy_export"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>, runExport <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co"># or:</span></span>
+<span><span class="fu"><a href="reference/exportPregnancies.html">exportPregnancies</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>, exportDir <span class="op">=</span> <span class="st">"pregnancy_output/export"</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -92,7 +95,7 @@
 </h2>
 <ul>
 <li>
-<strong>Vignettes:</strong> <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/algorithm.html" class="external-link">Pipeline overview</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/hip.html" class="external-link">HIP</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html" class="external-link">PPS</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html" class="external-link">Merge</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html" class="external-link">ESD</a>.</li>
+<strong>Vignettes:</strong> <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/algorithm.html" class="external-link">Pipeline overview</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/hip.html" class="external-link">HIP</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html" class="external-link">PPS</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html" class="external-link">Merge</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html" class="external-link">ESD</a>, <a href="https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html" class="external-link">Export</a>.</li>
 <li>
 <strong>Reference:</strong> <a href="https://darwin-eu.github.io/PregnancyIdentifier/" class="external-link">pkgdown site</a>.</li>
 <li>

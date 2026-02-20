@@ -36,12 +36,14 @@ library(CDMConnector)
 cdm <- mockPregnancyCdm()
 
 runPregnancyIdentifier(
-  cdm           = cdm,
-  outputDir     = "pregnancy_identifier_output",
-  startDate     = as.Date("2000-01-01"),
-  endDate       = Sys.Date(),
-  justGestation = TRUE,
-  minCellCount  = 5L
+  cdm                   = cdm,
+  outputDir             = "pregnancy_identifier_output",
+  startDate             = as.Date("2000-01-01"),
+  endDate               = Sys.Date(),
+  justGestation         = TRUE,
+  minCellCount          = 5L,
+  runExport             = FALSE,
+  conformToValidation   = FALSE
 )
 ```
 
@@ -51,15 +53,19 @@ The pipeline writes intermediate RDS artifacts as it proceeds and
 finishes with a patient-level episode table plus optional shareable
 exports:
 
-| File                           | Description                                                                                                                                                                                                       |
-|--------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `runStart.csv`                 | Run timestamp used in exported csv files                                                                                                                                                                          |
-| `log.txt`                      | Run log                                                                                                                                                                                                           |
-| `hip_episodes.rds`             | HIP episodes (outcome and/or gestation-derived)                                                                                                                                                                   |
-| `pps_episodes.rds`             | PPS episodes with inferred outcomes (input to merge)                                                                                                                                                              |
-| `hipps_episodes.rds`           | Merged HIP + PPS episode table (standardized columns)                                                                                                                                                             |
-| `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes                                                                                                                                |
-| `export/`                      | De-identified summary CSVs and ZIP archive (if export step is used). See the [Export vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md) for file names, columns, and analysis use. |
+| File                           | Description                                                                                                                                                                                                      |
+|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `runStart.csv`                 | Run timestamp used in exported csv files                                                                                                                                                                         |
+| `log.txt`                      | Run log                                                                                                                                                                                                          |
+| `hip_episodes.rds`             | HIP episodes (outcome and/or gestation-derived)                                                                                                                                                                  |
+| `pps_episodes.rds`             | PPS episodes with inferred outcomes (input to merge)                                                                                                                                                             |
+| `pps_concept_counts.csv`       | PPS concept record counts per concept (used by export when `runExport = TRUE`).                                                                                                                                  |
+| `pps_gest_timing_episodes.rds` | (Only when `debugMode = TRUE`) Record-level PPS concept rows with episode assignment.                                                                                                                            |
+| `pps_min_max_episodes.rds`     | (Only when `debugMode = TRUE`) Episode-level PPS min/max date summaries.                                                                                                                                         |
+| `hipps_episodes.rds`           | Merged HIP + PPS episode table (standardized columns)                                                                                                                                                            |
+| `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes                                                                                                                               |
+| `esd.rds`                      | (Only when `debugMode = TRUE`) ESD episode-level start inference before merging back to HIPPS.                                                                                                                   |
+| `export/`                      | De-identified summary CSVs and ZIP archive when `runExport = TRUE`. See the [Export vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md) for file names, columns, and analysis use. |
 
 ## Pipeline steps in order
 
@@ -77,10 +83,12 @@ exports:
 5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing
     concepts (GW/GR3m), infers start dates and precision, harmonizes end
     and outcome from HIP vs PPS, and writes
-    `final_pregnancy_episodes.rds`.
-6.  **exportPregnancies** — (Optional) Reads
+    `final_pregnancy_episodes.rds`. When `conformToValidation = TRUE`,
+    episode output is modified to remove overlapping episodes and
+    episodes longer than 308 days.
+6.  **exportPregnancies** — (Optional, when `runExport = TRUE`) Reads
     `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP
-    to `exportDir`. See the [Export
+    to `file.path(outputDir, "export")`. See the [Export
     vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md).
 
 ## What each step contributes to final start, end, and outcome
@@ -187,13 +195,13 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/RtmpjEY63z/file224be00f0ca.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/Rtmp4OiMRz/file240e2819729e.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    
-#> 1        24                4094910 2023-01-28 NA       Pregnancy test positive  
-#> 2        24                 437611 2023-03-15 NA       Ectopic pregnancy        
-#> 3        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
+#> 1        24                 437611 2023-03-15 NA       Ectopic pregnancy        
+#> 2        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
+#> 3        24                4094910 2023-01-28 NA       Pregnancy test positive  
 #> # ℹ 1 more variable: type_concept_name <chr>
 ```
 
@@ -205,10 +213,11 @@ invisible(capture.output(
 ))
 
 list.files(outputDir)
-#> [1] "attrition.csv"                "final_pregnancy_episodes.rds"
-#> [3] "hip_episodes.rds"             "hipps_episodes.rds"          
-#> [5] "log.txt"                      "pps_concept_counts.csv"      
-#> [7] "pps_episodes.rds"             "runStart.csv"
+#>  [1] "attrition.csv"                "esd_concept_counts.csv"      
+#>  [3] "final_pregnancy_episodes.rds" "hip_concept_counts.csv"      
+#>  [5] "hip_episodes.rds"             "hipps_episodes.rds"          
+#>  [7] "log.txt"                      "pps_concept_counts.csv"      
+#>  [9] "pps_episodes.rds"             "runStart.csv"
 readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
 #> # A tibble: 1 × 39
 #>   person_id merge_episode_number final_episode_start_date final_episode_end_date

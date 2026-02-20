@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -303,9 +303,9 @@ for filtering concept dates.</li>
 <ol style="list-style-type: decimal">
 <li><p><strong>GW (“gestation week”)</strong> — Week-based gestational
 age from concepts whose name contains “gestation period” or “gestational
-age”, or whose concept ID is in
-<code>gestational_age_concepts.csv</code> or
-<code>ESD_concepts2.xlsx</code>. Values are parsed from the record
+age”, whose concept ID is in <code>gestational_age_concepts.csv</code>,
+or whose concept ID has <strong>is_gw_concept = TRUE</strong> in
+<code>ESD_concepts.xlsx</code>. Values are parsed from the record
 (e.g. “Gestation period, 18 weeks” or numeric value); only values
 between 1 and 44 weeks are kept. The algorithm extrapolates to a single
 start date: <strong>concept_date − 7×weeks</strong>. When multiple GW
