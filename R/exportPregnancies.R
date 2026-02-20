@@ -704,7 +704,13 @@ exportDateConsistency <- function(res, resPath, snap, runStart, pkgVersion) {
   )
 
   res %>%
-    dplyr::summarise(dplyr::across(dplyr::any_of(dateCols), ~ mean(is.na(.)))) %>%
+    dplyr::summarise(dplyr::across(
+      dplyr::any_of(dateCols),
+      list(
+        n = ~ sum(is.na(.), na.rm = TRUE),
+        pct = ~ round(100 * mean(is.na(.), na.rm = TRUE), 2)
+      )
+    )) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,

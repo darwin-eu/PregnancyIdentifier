@@ -6,7 +6,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, plotData = NULL, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, plotData = NULL, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -107,7 +107,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         private$.maxInputPanel$UI(),
         shiny::HTML("&nbsp;&nbsp;"),
         private$.flipCoordinatesInputPanel$UI(),
-        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
+        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
         shiny::p(),
         dataTableOut
       )
@@ -143,15 +143,39 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
           if (is.null(iqrOnly)) iqrOnly <- TRUE
           ymaxValue <- ifelse(iqrOnly, "Q75", "max")
           yminValue <- ifelse(iqrOnly, "Q25", "min")
-          plot <- ggplot2::ggplot(data, ggplot2::aes(x = .data[[colorBy]], ymin = .data[[yminValue]], lower = .data[["Q25"]], middle = .data[["median"]], upper = .data[["Q75"]], ymax = .data[[ymaxValue]])) +
+          plot <- ggplot2::ggplot(data, ggplot2::aes(
+            x = .data[[colorBy]],
+            ymin = .data[[yminValue]],
+            lower = .data[["Q25"]],
+            middle = .data[["median"]],
+            upper = .data[["Q75"]],
+            ymax = .data[[ymaxValue]],
+            text = paste0(
+              "Category: ", .data[[colorBy]], "\n",
+              "Min: ", round(.data[["min"]], 1), " days\n",
+              "Q25: ", round(.data[["Q25"]], 1), " days\n",
+              "Median: ", round(.data[["median"]], 1), " days\n",
+              "Q75: ", round(.data[["Q75"]], 1), " days\n",
+              "Max: ", round(.data[["max"]], 1), " days"
+            )
+          )) +
             ggplot2::geom_boxplot(ggplot2::aes(fill = .data[[colorBy]]), stat = "identity")
 
           facetBy <- private$.facetByInputPanel$inputValues$facet_by
           if (is.null(facetBy) || length(facetBy) == 0) facetBy <- "cdm_name"
           if (!is.null(facetBy)) {
+            # free_x so category axis can vary by facet; value axis (y) is shared so
+            # gestational days scale spans full data range and all boxplots are visible
             plot <- plot +
-              ggplot2::facet_wrap(as.formula(paste("~", facetBy)), scales = "free")
+              ggplot2::facet_wrap(as.formula(paste("~", facetBy)), scales = "free_x")
           }
+          # Shared value-axis limits so boxplots (including zero-range ones) are visible
+          valueCols <- c("min", "Q25", "median", "Q75", "max")
+          valueRange <- range(unlist(data[valueCols]), na.rm = TRUE)
+          pad <- diff(valueRange) * 0.05
+          if (pad == 0) pad <- 1
+          plot <- plot +
+            ggplot2::scale_y_continuous(limits = valueRange + c(-pad, pad))
           flipCoordinates <- private$.flipCoordinatesInputPanel$inputValues$flip
           if (is.null(flipCoordinates)) flipCoordinates <- TRUE
           if (flipCoordinates) {
@@ -161,15 +185,16 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         return(plot)
       })
 
-      output$plot <- shiny::renderPlot({
+      output$plot <- plotly::renderPlotly({
         p <- createPlot()
         if (is.null(p)) {
           msg <- if (nrow(private$.data) == 0) "Results files are empty." else "No data for selected filters."
           p <- ggplot2::ggplot() +
             ggplot2::annotate("text", x = 0.5, y = 0.5, label = msg, size = 6) +
             ggplot2::theme_void()
+          return(plotly::ggplotly(p))
         }
-        p
+        plotly::ggplotly(p, tooltip = "text")
       })
 
       output$dataTable <- DT::renderDT({

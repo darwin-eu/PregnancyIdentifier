@@ -32,11 +32,19 @@ tabWithHelpText <- function(module, text) {
   }
   inner <- module
   desc <- trimws(text)
-  helpUi <- shiny::div(
-    class = "tab-help-text",
-    style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
-    shiny::p(desc)
-  )
+  helpUi <- if (requireNamespace("markdown", quietly = TRUE)) {
+    shiny::div(
+      class = "tab-help-text",
+      style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
+      htmltools::HTML(markdown::mark(text = desc))
+    )
+  } else {
+    shiny::div(
+      class = "tab-help-text",
+      style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
+      shiny::p(desc)
+    )
+  }
   wrapper <- R6::R6Class(
     "TabWithHelpText",
     portable = TRUE,
@@ -238,7 +246,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
   plotly::ggplotly(p)
 }
 
-boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, gg_plot = FALSE) {
+boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, gg_plot = FALSE, horizontal = FALSE) {
   plotData <- data
   if (transform) {
     # assume we have a column per DP, next to the first column
@@ -267,23 +275,37 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, g
       facet_wrap(~ cdm_name)
   } else {
     p <- NULL
-    if (is.null(colorVar)) {
-      p <- plot_ly(data = plotData,
-                   x = ~ cdm_name)
+    if (horizontal) {
+      # y = cdm_name (one row per CDM), x = age metric (box extent)
+      p <- plot_ly(data = plotData, y = ~ cdm_name) %>%
+        add_boxplot(
+          lowerfence = ~ min,
+          q1 = ~ Q25,
+          median = ~ median,
+          mean = ~ mean,
+          sd = ~ sd,
+          q3 = ~ Q75,
+          upperfence = ~ max)
     } else {
-      p <- plot_ly(data = plotData,
-                   x = ~ cdm_name,
-                   color = ~ get(colorVar))
+      if (is.null(colorVar)) {
+        p <- plot_ly(data = plotData,
+                     x = ~ cdm_name)
+      } else {
+        p <- plot_ly(data = plotData,
+                     x = ~ cdm_name,
+                     color = ~ get(colorVar))
+      }
+      p <- p %>%
+        add_boxplot(
+          lowerfence = ~ min,
+          q1 = ~ Q25,
+          median = ~ median,
+          mean = ~ mean,
+          sd = ~ sd,
+          q3 = ~ Q75,
+          upperfence = ~ max)
     }
-    p %>%
-      add_boxplot(
-        lowerfence = ~ min,
-        q1 = ~ Q25,
-        median = ~ median,
-        mean = ~ mean,
-        sd = ~ sd,
-        q3 = ~ Q75,
-        upperfence = ~ max)
+    p
   }
 }
 

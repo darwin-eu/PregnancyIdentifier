@@ -7,7 +7,7 @@ DeliveryModeModule <- R6::R6Class(
   public = list(
 
     initialize = function(data, dp = unique(data$cdm_name), convertDataForPlot = FALSE, label = NULL, title = "",
-                          yVar = "pct", fillVar = "cdm_name", position = "stack", height = "600px") {
+                          yVar = "pct", fillVar = "cdm_name", position = "stack", height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp

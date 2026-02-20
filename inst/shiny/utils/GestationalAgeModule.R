@@ -6,7 +6,7 @@ GestationalAgeModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, daysData = NULL, dp = unique(data$cdm_name), maxWeeksFilter = TRUE, height = "900px") {
+    initialize = function(data, daysData = NULL, dp = unique(data$cdm_name), maxWeeksFilter = TRUE, height = "420px") {
       super$initialize()
       private$.data <- data
       private$.daysData <- daysData

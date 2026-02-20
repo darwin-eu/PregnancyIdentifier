@@ -145,7 +145,7 @@ Prevalence <- R6::R6Class(
               private$.pickers[["rotateXLabels"]]$UI(),
               plotly::plotlyOutput(
                 shiny::NS(private$.namespace, "plot"),
-                height = "800px"
+                height = "420px"
               ) %>%
                 shinycssloaders::withSpinner(),
               shiny::h4("Download figure"),

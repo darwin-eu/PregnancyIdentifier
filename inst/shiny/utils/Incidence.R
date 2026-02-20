@@ -140,7 +140,7 @@ Incidence <- R6::R6Class(
               private$.pickers[["confInterval"]]$UI(),
               plotly::plotlyOutput(
                 shiny::NS(private$.namespace, "plot"),
-                height = "800px"
+                height = "420px"
               ) %>%
                 shinycssloaders::withSpinner(),
               shiny::h4("Download figure"),

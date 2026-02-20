@@ -6,7 +6,7 @@ TemporalPatternsModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, missingData, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, missingData, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.missingData <- missingData

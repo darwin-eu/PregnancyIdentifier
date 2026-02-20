@@ -6,7 +6,7 @@ EpisodeFrequencyModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -34,6 +34,22 @@ EpisodeFrequencyModule <- R6::R6Class(
     .height = NULL,
     .table = NULL,
     .inputPanelCDM = NULL,
+
+    # Display names for the episode frequency table (statistics are "episodes per person")
+    .nameLabels = c(
+      total_episodes = "Total episodes",
+      total_individuals = "Total individuals",
+      min = "Minimum episodes per person",
+      Q25 = "25th percentile (episodes per person)",
+      median = "Median episodes per person",
+      Q75 = "75th percentile (episodes per person)",
+      max = "Maximum episodes per person",
+      mean = "Mean episodes per person",
+      sd = "Standard deviation (episodes per person)",
+      pkg_version = "Package version",
+      date_run = "Date run",
+      date_export = "Date export"
+    ),
 
 
     .UI = function() {
@@ -71,9 +87,18 @@ EpisodeFrequencyModule <- R6::R6Class(
           dplyr::mutate(value = as.numeric(value))
       })
 
-      # handle updates
+      # handle updates: show table with display names for statistics
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
-        private$.table$data <- getData()
+        tableData <- getData()
+        if (nrow(tableData) > 0 && "name" %in% colnames(tableData)) {
+          tableData <- tableData %>%
+            dplyr::mutate(name = ifelse(
+              .data$name %in% names(private$.nameLabels),
+              unname(private$.nameLabels[.data$name]),
+              .data$name
+            ))
+        }
+        private$.table$data <- tableData
         private$.table$server(input, output, session)
       }, ignoreNULL = FALSE)
 

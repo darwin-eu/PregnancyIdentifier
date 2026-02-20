@@ -6,7 +6,7 @@ AgeSummaryModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -51,21 +51,28 @@ AgeSummaryModule <- R6::R6Class(
       private$.inputPanelCDM$server(input, output, session)
 
       getData <- shiny::reactive({
-        data <- NULL
-        if ("cdm_name" %in% colnames(private$.data)) {
-          data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
-        } else {
-          nameCols <- setdiff(colnames(private$.data), private$.dp)
-
-          data <-  private$.data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
-        }
-        return(data)
+        # Data is long format: cdm_name, name, value (and optionally colName, etc.)
+        if (!"cdm_name" %in% colnames(private$.data)) return(private$.data)
+        private$.data %>%
+          dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
       })
 
       getPlotData <- shiny::reactive({
-        getData()
+        # One row per CDM with min, Q25, median, Q75, max for horizontal boxplot
+        ageMetrics <- c("min", "Q25", "median", "Q75", "max")
+        d <- getData() %>%
+          dplyr::filter(.data$name %in% ageMetrics) %>%
+          dplyr::mutate(value = as.numeric(.data$value))
+        if (nrow(d) == 0) return(d)
+        idCols <- setdiff(colnames(d), c("name", "value"))
+        d <- d %>%
+          tidyr::pivot_wider(names_from = "name", values_from = "value") %>%
+          dplyr::group_by(.data$cdm_name) %>%
+          dplyr::slice(1L) %>%
+          dplyr::ungroup()
+        if (!all(ageMetrics %in% colnames(d))) return(d[0, ])
+        d %>%
+          dplyr::mutate(dplyr::across(dplyr::all_of(ageMetrics), as.numeric))
       })
 
       # handle updates
@@ -79,10 +86,8 @@ AgeSummaryModule <- R6::R6Class(
         plot <- NULL
         data <- getPlotData()
         if (!is.null(data) && nrow(data) > 0) {
-          # TODO make facet work
-          plot <- boxPlot(data = data,
-                          facetVar = "cdm_name",
-                          transform = TRUE)
+          # Horizontal boxplot: y = cdm_name (one per CDM), x = age metric (min–max)
+          plot <- boxPlot(data = data, horizontal = TRUE)
         }
         return(plot)
       })

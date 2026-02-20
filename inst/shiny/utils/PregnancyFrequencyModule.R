@@ -6,7 +6,7 @@ PregnancyFrequencyModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -65,14 +65,22 @@ PregnancyFrequencyModule <- R6::R6Class(
       })
 
       getPlotData <- shiny::reactive({
-        result <- getData() %>%
-          tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
-          dplyr::mutate(value = as.numeric(value))
+        data <- getData()
+        # Long format: (freq, cdm_name, number_individuals) -> use value column directly
+        if ("cdm_name" %in% colnames(data) && "number_individuals" %in% colnames(data)) {
+          result <- data %>%
+            dplyr::mutate(value = suppressWarnings(as.numeric(.data$number_individuals)))
+        } else {
+          # Wide format: pivot to long so we have cdm_name for faceting
+          result <- data %>%
+            tidyr::pivot_longer(cols = setdiff(colnames(.), c("freq")), names_to = "cdm_name") %>%
+            dplyr::mutate(value = as.numeric(.data$value))
+        }
         totalResult <- result %>%
-          dplyr::group_by(cdm_name) %>%
-          dplyr::summarise(total = sum(value, na.rm = T))
+          dplyr::group_by(.data$cdm_name) %>%
+          dplyr::summarise(total = sum(.data$value, na.rm = TRUE), .groups = "drop")
         result %>% dplyr::left_join(totalResult, by = "cdm_name") %>%
-          dplyr::mutate(perc = round(100*(value/total), 2))
+          dplyr::mutate(perc = round(100 * (.data$value / .data$total), 2))
       })
 
       # handle updates

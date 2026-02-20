@@ -212,7 +212,42 @@ if (!hasData) {
     swappedDates <- rbind(swappedDates, percDF) %>%
       dplyr::arrange(match(name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
 
-    # Ensure ageSummary exists (from age_summary.csv) so Episode frequency and Age summary tab do not crash
+    # Swapped dates display: one row per metric per database with n and pct in separate columns
+    swappedDatesDisplay <- swappedDates %>%
+      dplyr::filter(.data$name %in% c("n_rev_hip", "n_rev_pps", "total", "rev_hip_perc", "rev_pps_perc")) %>%
+      tidyr::pivot_longer(cols = -"name", names_to = "cdm_name", values_to = "value") %>%
+      dplyr::mutate(value = suppressWarnings(as.numeric(.data$value))) %>%
+      tidyr::pivot_wider(names_from = "name", values_from = "value")
+    if (nrow(swappedDatesDisplay) > 0) {
+      swappedDatesDisplay <- dplyr::bind_rows(
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "HIP reversed (start after end)",
+            n = .data$n_rev_hip,
+            pct = .data$rev_hip_perc
+          ),
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "PPS reversed (start after end)",
+            n = .data$n_rev_pps,
+            pct = .data$rev_pps_perc
+          ),
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "Total episodes",
+            n = .data$total,
+            pct = NA_real_
+          )
+      ) %>%
+        dplyr::mutate(pct = round(.data$pct, 2))
+    } else {
+      swappedDatesDisplay <- tibble::tibble(cdm_name = character(0), metric = character(0), n = numeric(0), pct = numeric(0))
+    }
+
+    # Ensure ageSummary exists (from age_summary.csv) so Age tab (Age summary) does not crash
     if (!exists("ageSummary", envir = .GlobalEnv) || is.null(get("ageSummary", envir = .GlobalEnv)) || nrow(get("ageSummary", envir = .GlobalEnv)) == 0) {
       assign("ageSummary",
              tibble::tibble(cdm_name = character(0), colName = character(0)),
@@ -221,30 +256,62 @@ if (!hasData) {
     ageSummary <- get("ageSummary", envir = .GlobalEnv)
     ageSummaryRaw <- ageSummary  # keep raw copy for Age tab DT table
     if (nrow(ageSummary) > 0) {
-      ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
+      # Long format for Age summary tab: cdm_name, identifier cols, name (metric), value
+      skipCols <- intersect(c("cdm_name", "colName"), colnames(ageSummary))
+      ageSummary <- ageSummary %>%
+        tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = "value")
     } else {
-      ageSummary <- tibble::tibble(name = character(0))
+      ageSummary <- tibble::tibble(cdm_name = character(0), name = character(0), value = character(0))
     }
-    numRound <- function(x) {
-      round(100 * as.numeric(x), 2)
+    # Date consistency: table with N missing and Percent missing by date field (support old and new export format)
+    metaCols <- c("cdm_name", "date_run", "date_export", "pkg_version")
+    hasNewDateConsistencyFormat <- any(grepl("_n$", colnames(dateConsistency))) && any(grepl("_pct$", colnames(dateConsistency)))
+    if (hasNewDateConsistencyFormat) {
+      dateCols <- setdiff(colnames(dateConsistency), metaCols)
+      dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
+      dateConsistency <- dateConsistency %>%
+        dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
+        tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
+        dplyr::mutate(
+          value = suppressWarnings(as.numeric(.data$value)),
+          name = gsub("_n$|_pct$", "", .data$key),
+          metric = ifelse(grepl("_n$", .data$key), "n_missing", "percent_missing")
+        ) %>%
+        dplyr::select(-.data$key) %>%
+        tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
+        dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+    } else {
+      skipCols <- intersect(metaCols, colnames(dateConsistency))
+      dateConsistency <- dataToLong(dateConsistency, skipCols = skipCols) %>%
+        tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
+        dplyr::mutate(
+          percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
+          n_missing = NA_integer_
+        )
     }
-    dateConsistency <- dataToLong(dateConsistency) %>%
-      dplyr::mutate(across(!name, numRound))
+    dateConsistency <- dateConsistency %>%
+      dplyr::rename(
+        "Date field" = .data$name,
+        "N missing" = .data$n_missing,
+        "Percent missing" = .data$percent_missing
+      ) %>%
+      dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
 
     observationPeriodRange <- dataToLong(observationPeriodRange)
 
-    pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
-      pregnancyFrequency %>%
-        dplyr::filter(cdm_name == name) %>%
-        dplyr::select(-"cdm_name") %>%
-        dplyr::rename(!!name := number_individuals)
-    })
-    pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = TRUE)]
-    pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
+    # Keep long format (freq, cdm_name, number_individuals) so pregnancy frequency is faceted by cdm_name
     pregnancyFrequency <- pregnancyFrequency %>%
-      dplyr::mutate(freq = factor(freq, levels = unique(pregnancyFrequency$freq))) %>%
-      dplyr::mutate(across(!freq, ~ suppressWarnings(as.numeric(.)))) %>%
-      suppressCounts(colNames = allDP)
+      dplyr::mutate(
+        freq = factor(.data$freq, levels = unique(.data$freq)),
+        number_individuals = suppressWarnings(as.numeric(.data$number_individuals))
+      ) %>%
+      dplyr::group_by(.data$cdm_name) %>%
+      dplyr::mutate(number_individuals = dplyr::if_else(
+        !is.na(.data$number_individuals) & .data$number_individuals > 0 & .data$number_individuals < 5,
+        NA_real_,
+        .data$number_individuals
+      )) %>%
+      dplyr::ungroup()
 
     episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
 
@@ -399,10 +466,6 @@ if (!hasData) {
       "Pregnancy frequency" = tabWithHelpText(
         handleEmptyResult(object = PregnancyFrequencyModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
         "Distribution of pregnancy count per person (parity-like). Used to describe repeat pregnancies and check for implausible multiplicity."
-      ),
-      "Age summary" = tabWithHelpText(
-        handleEmptyResult(object = AgeSummaryModule$new(data = ageSummary, dp = allDP), result = ageSummary),
-        "Distribution of maternal age at pregnancy start. Used for cohort description, feasibility checks, and comparing age across sites."
       )
     )
     if (exists("incidence", envir = .GlobalEnv)) {
@@ -413,7 +476,7 @@ if (!hasData) {
           handleEmptyResult(object = IncidencePlot$new(data = incidence), result = incidence),
           "Incidence estimates over time. Used for temporal trends and rate comparisons across databases."
         )),
-        episodeFreqItems[2:3]
+        episodeFreqItems[2]
       )
     }
 
@@ -429,11 +492,11 @@ if (!hasData) {
       "Episode frequency" = episodeFreqItems,
       "Episode duration" = list(
         "Gestational age weeks" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts),
+          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts, height = "420px"),
           "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison."
         ),
         "Gestational age binned" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksBinned, maxWeeksFilter = FALSE),
+          GestationalAgeModule$new(data = gestationalWeeksBinned, maxWeeksFilter = FALSE, height = "420px"),
           "Gestational age grouped into bands (e.g. &lt;12, 12–28, 28–32 weeks). Used for outcome bands and cross-site comparison."
         ),
         "Gestational age days per category" = tabWithHelpText(
@@ -448,49 +511,51 @@ if (!hasData) {
       "Episode construction" = list(
         "Pregnancy overlap" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
+            object = PregnancyOverlapModule$new(
               data = pregnancyOverlapCounts,
-              dp = unique(pregnancyOverlapCounts$cdm_name),
-              yVar = "pct",
-              label = "n",
-              fillVar = "overlap",
-              title = "Pregnancy overlap counts"
+              dp = unique(pregnancyOverlapCounts$cdm_name)
             ),
             result = pregnancyOverlapCounts,
             emptyMessage = "No pregnancy overlap data available."
           ),
-          "Count of persons with overlapping inferred pregnancy intervals. Used for data quality (overlaps may indicate algorithm or data issues)."
+          "Count of pregnancy episodes by overlap status (overlapping vs non-overlapping). Used for data quality (overlaps may indicate algorithm or data issues)."
         ),
         "Swapped dates" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
-              data = swappedDates,
-              dp = setdiff(colnames(swappedDates), "name"),
-              convertDataForPlot = TRUE,
-              yVar = "value",
-              fillVar = "name",
-              title = "Swapped dates"
+            object = FilterTableModule$new(
+              data = swappedDatesDisplay,
+              dp = unique(swappedDatesDisplay$cdm_name)
             ),
-            result = swappedDates,
+            result = swappedDatesDisplay,
             emptyMessage = "No swapped dates data available."
           ),
-          "Count of episodes with reversed start/end (start after end). Used for data quality and algorithm validation."
+          paste(
+            "Count of episodes with **reversed start/end** (start date after end date). Used for data quality and algorithm validation.",
+            "",
+            "**Table columns:**",
+            "- **n**: number of episodes",
+            "- **pct**: percentage of total episodes",
+            "",
+            "**Metrics:**",
+            "- **HIP reversed (start after end)**: pregnancy start (merge_pregnancy_start) is after HIP end date (hip_end_date)",
+            "- **PPS reversed (start after end)**: pregnancy start is after PPS end date (pps_end_date)",
+            "- **Total episodes**: denominator used for the percentages",
+            sep = "\n\n"
+          )
         ),
         "Date consistency" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
-              data = dateConsistency,
-              dp = allDP,
-              convertDataForPlot = TRUE,
-              yVar = "value",
-              fillVar = "name",
-              position = "dodge",
-              title = "Date consistency"
-            ),
+            object = FilterTableModule$new(data = dateConsistency, dp = allDP),
             result = dateConsistency,
             emptyMessage = "No date consistency data available."
           ),
-          "Proportion of missing dates by field. Used to assess completeness of key dates and to compare across sites."
+          paste(
+            "**Counts and percentages of missing dates** by date field.",
+            "",
+            "**N missing** = number of records with a missing date; **Percent missing** = percentage of all records.",
+            "Used to assess completeness of key dates and to compare across sites.",
+            sep = "\n\n"
+          )
         )
       ),
       "Episode outcomes" = list(
@@ -507,7 +572,15 @@ if (!hasData) {
             result = deliveryModeSummary,
             emptyMessage = "No delivery mode data available."
           ),
-          "Cesarean vs vaginal delivery for delivery and live-birth outcomes. Used for mode-of-delivery summaries and cross-site comparison."
+          paste(
+            "Cesarean vs vaginal delivery for delivery and live-birth outcomes. Used for mode-of-delivery summaries and cross-site comparison.",
+            "",
+            "**Table columns:**",
+            "- **total**: absolute count of episodes for that database, outcome category, and delivery mode (before any table search or filters).",
+            "- **n**: count of episodes that also match any filters or search applied in the table; when no filters are applied, **n** equals **total** for that row.",
+            "- **pct**: percentage for that row, calculated as (n / total) × 100.",
+            sep = "\n\n"
+          )
         ),
         "Outcome categories" = tabWithHelpText(
           handleEmptyResult(
@@ -592,10 +665,10 @@ if (!hasData) {
     if (nrow(ageSummaryRaw) > 0) {
       ageTabs[["age_summary.csv"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = Table$new(data = ageSummaryRaw, title = "age_summary.csv", options = list(scrollX = TRUE, pageLength = 25)),
+          object = AgeSummaryCsvModule$new(data = ageSummaryRaw, dp = unique(ageSummaryRaw$cdm_name)),
           result = ageSummaryRaw
         ),
-        "Distribution of maternal age at pregnancy start. Used for cohort description and feasibility checks."
+        "Distribution of maternal age at pregnancy start. Boxplot: one row per outcome group, faceted by database. Filters for database and outcome group. Used for cohort description and feasibility checks."
       )
     }
     if (exists("ageSummaryFirstPregnancy", envir = .GlobalEnv)) {
@@ -612,10 +685,10 @@ if (!hasData) {
       ageSummaryGroups <- get("ageSummaryGroups", envir = .GlobalEnv)
       ageTabs[["age_summary_groups.csv"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = Table$new(data = ageSummaryGroups, title = "age_summary_groups.csv", options = list(scrollX = TRUE, pageLength = 25)),
+          object = AgeSummaryGroupsModule$new(data = ageSummaryGroups, dp = unique(ageSummaryGroups$cdm_name)),
           result = ageSummaryGroups
         ),
-        "Counts and percentages of pregnancies by age (by year and boundary groups). Used for age-stratified summaries."
+        "Counts and percentages of pregnancies by age (by year and boundary groups). Histogram with filters for database and outcome type; Y axis can be count (n) or percent (pct). Used for age-stratified summaries."
       )
     }
     if (length(ageTabs) > 0) {
@@ -628,7 +701,7 @@ if (!hasData) {
       attritionEpisodes <- get("attrition_episodes", envir = .GlobalEnv)
       attritionTabs[["Attrition"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = attritionEpisodes, dp = allDP),
+          object = AttritionTableModule$new(data = attritionEpisodes, dp = allDP),
           result = attritionEpisodes
         ),
         "Number of episodes and persons excluded at each pipeline step. Used to document cohort flow and feasibility."
@@ -638,7 +711,7 @@ if (!hasData) {
       attritionIfCleanup <- get("attritionIfCleanup", envir = .GlobalEnv)
       attritionTabs[["Attrition if cleanup"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = attritionIfCleanup, dp = allDP),
+          object = AttritionTableModule$new(data = attritionIfCleanup, dp = allDP),
           result = attritionIfCleanup
         ),
         "Attrition that would apply if quality-check cleanup were run. Used to assess impact of cleanup on cohort size."
@@ -669,7 +742,7 @@ if (!hasData) {
     appStructure[["Precision days"]] <- list(
       tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = precisionDays, dp = precisionDaysDp),
+          object = PrecisionDaysModule$new(data = precisionDays, dp = precisionDaysDp),
           result = precisionDays,
           emptyMessage = "No precision days data available."
         ),
@@ -679,6 +752,9 @@ if (!hasData) {
 
     # Quality check cleanup (quality_check_cleanup.csv)
     qualityCheckCleanup <- get("qualityCheckCleanup", envir = .GlobalEnv)
+    if (nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) {
+      qualityCheckCleanup <- qualityCheckCleanup %>% dplyr::select("cdm_name", dplyr::everything())
+    }
     qualityCheckCleanupDp <- if (nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) unique(c(allDP, qualityCheckCleanup$cdm_name)) else allDP
     appStructure[["Quality check cleanup"]] <- list(
       tabWithHelpText(
