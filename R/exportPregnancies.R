@@ -462,8 +462,8 @@ exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgV
     utils::write.csv(file.path(resPath, "observation_period_range.csv"), row.names = FALSE)
 }
 
-#' @noRd
 #' Export summarized overlap counts only (no person_id, no row per person).
+#' @noRd
 exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   summary_overlap <- res %>%
     dplyr::add_count(.data$person_id) %>%
