@@ -127,14 +127,6 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 
 ---
 
-## age.csv
-
-**Columns:** **age_pregnancy_start** (age in years at pregnancy start) for each episode, plus **cdm_name**, **date_run**, **date_export**, **pkg_version**.
-
-**Purpose:** Raw age-at-start values per episode for custom analyses.
-
----
-
 ## age_summary_first_pregnancy.csv
 
 **Columns:** Summary statistics of **age_pregnancy_end** (age at first live-birth episode end) for each person's first LB episode: **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata.
@@ -249,7 +241,7 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 
 ## pregnancy_overlap_counts.csv
 
-**Columns:** **n_records_with_previous** (number of episode records that have a previous episode for that person), **n_overlap_true** (count where episode start ≤ previous episode end), **n_overlap_false** (count where no overlap), **n_persons_with_multiple_episodes**, plus **cdm_name**, **date_run**, **date_export**, **pkg_version**. Only persons with more than one episode are considered.
+**Columns:** **colName** (value `"overlap"` for all rows), **overlap** (FALSE, TRUE, or NA per row), **n** (count of records in that category), **total** (total episode records, same for all rows), **pct** (percentage of records in that category), plus **cdm_name**, **date_run**, **date_export**, **pkg_version**. One row per overlap category: FALSE (no temporal overlap with previous episode), TRUE (episode start ≤ previous episode end within person), NA (no previous episode for that person, e.g. first episode).
 
 **Purpose:** Summary counts of overlapping inferred pregnancy intervals. Used for data quality (overlaps may indicate algorithm or data issues).
 
@@ -325,7 +317,6 @@ After writing all CSVs (and copying log.txt), `exportPregnancies()` creates a ZI
 | esd_concept_counts.csv | ESD concept counts | ESD concept coverage (when present) |
 | attrition.csv | Pipeline step attrition | Audit, cohort flow (when present) |
 | log.txt | Pipeline log | Audit, debugging |
-| age.csv | Age-at-start per episode | Custom age analyses |
 | age_summary.csv | Age-at-start distribution (summary stats) | Cohort description, feasibility |
 | age_summary_first_pregnancy.csv | Age at first LB (summary) | First-birth age description |
 | age_summary_groups.csv | Age counts (by year and &lt;12, &gt;55) | Age stratification, boundary checks |

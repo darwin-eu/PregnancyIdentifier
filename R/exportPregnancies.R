@@ -17,17 +17,22 @@
 #'   be written.
 #' @param minCellCount (`integer(1)`) Minimum count threshold for suppression of
 #'   small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.
+#' @param res Optional data frame of pregnancy episodes. If provided, used instead
+#'   of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
+#'   exporting a conformed copy (e.g. \code{conformToValidation = "both"}).
 #'
 #' @return Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.
 #' @export
-exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5) {
+exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5, res = NULL) {
   runStart <- utils::read.csv(file.path(outputDir, "runStart.csv"))$start
 
   dir.create(exportDir, showWarnings = FALSE, recursive = TRUE)
   snap <- CDMConnector::snapshot(cdm)
   utils::write.csv(snap, file.path(exportDir, "cdm_source.csv"), row.names = FALSE)
 
-  res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+  if (is.null(res)) {
+    res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+  }
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
   if (!"merge_pregnancy_start" %in% names(res) && "final_episode_start_date" %in% names(res)) {
     res$merge_pregnancy_start <- res$final_episode_start_date
@@ -98,7 +103,7 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
         "person_id",
         concept_id = "procedure_concept_id",
         concept_start = "procedure_date",
-        concept_end = "procedure_end_date"
+        concept_end = "procedure_date"
       )
   ) %>%
     dplyr::union_all(
@@ -184,16 +189,6 @@ addAge <- function(cdm, res) {
 #' @noRd
 exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minCellCount) {
   resAge <- addAge(cdm, res)
-
-  resAge %>%
-    dplyr::select(age_pregnancy_start) %>%
-    dplyr::mutate(
-      cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date,
-      pkg_version = pkgVersion
-    ) %>%
-    utils::write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
   # 5-number summary (min, Q25, median, Q75, max, mean) of age_pregnancy_start overall and by outcome
   resAgeFiltered <- resAge %>%
@@ -462,39 +457,58 @@ exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgV
     utils::write.csv(file.path(resPath, "observation_period_range.csv"), row.names = FALSE)
 }
 
-#' Export summarized overlap counts only (no person_id, no row per person).
+#' Export overlap counts in long format: one row per overlap category (FALSE, TRUE, NA)
+#' with colName, overlap, n, total, pct, and metadata (cdm_name, date_run, date_export, pkg_version).
 #' @noRd
 exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  summary_overlap <- res %>%
-    dplyr::add_count(.data$person_id) %>%
-    dplyr::filter(.data$n > 1) %>%
-    dplyr::arrange(.data$person_id, .data$final_episode_start_date, .data$final_episode_end_date) %>%
-    dplyr::group_by(.data$person_id) %>%
-    dplyr::mutate(
-      prev_end = dplyr::lag(.data$final_episode_end_date),
-      overlap = as.Date(.data$final_episode_start_date) <= as.Date(.data$prev_end)
-    ) %>%
-    dplyr::filter(!is.na(.data$prev_end)) %>%
-    dplyr::ungroup() %>%
-    dplyr::summarise(
-      n_records_with_previous = dplyr::n(),
-      n_overlap_true = as.integer(sum(.data$overlap == TRUE, na.rm = TRUE)),
-      n_overlap_false = as.integer(sum(.data$overlap == FALSE, na.rm = TRUE)),
-      n_persons_with_multiple_episodes = as.integer(dplyr::n_distinct(.data$person_id)),
-      .groups = "drop"
-    ) %>%
-    dplyr::mutate(
-      dplyr::across(dplyr::where(is.integer), ~ dplyr::coalesce(.x, 0L))
+  total_n <- nrow(res)
+  if (total_n == 0) {
+    summary_overlap <- tibble::tibble(
+      colName = character(0),
+      overlap = logical(0),
+      n = integer(0),
+      total = integer(0),
+      pct = numeric(0),
+      cdm_name = character(0),
+      date_run = character(0),
+      date_export = character(0),
+      pkg_version = character(0)
+    )
+  } else {
+    overlap_by_record <- res %>%
+      dplyr::arrange(.data$person_id, .data$final_episode_start_date, .data$final_episode_end_date) %>%
+      dplyr::group_by(.data$person_id) %>%
+      dplyr::mutate(
+        prev_end = dplyr::lag(.data$final_episode_end_date),
+        overlap = dplyr::if_else(
+          is.na(.data$prev_end),
+          NA,
+          as.Date(.data$final_episode_start_date) <= as.Date(.data$prev_end)
+        )
+      ) %>%
+      dplyr::ungroup()
+
+    n_false <- as.integer(sum(overlap_by_record$overlap == FALSE, na.rm = TRUE))
+    n_true <- as.integer(sum(overlap_by_record$overlap == TRUE, na.rm = TRUE))
+    n_na <- as.integer(sum(is.na(overlap_by_record$overlap)))
+    counts <- tibble::tibble(
+      colName = "overlap",
+      overlap = c(FALSE, TRUE, NA),
+      n = c(n_false, n_true, n_na),
+      total = total_n,
+      pct = as.numeric(c(n_false, n_true, n_na)) / total_n * 100
     )
 
-  summary_overlap %>%
-    dplyr::mutate(
-      cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date,
-      pkg_version = pkgVersion
-    ) %>%
-    utils::write.csv(file.path(resPath, "pregnancy_overlap_counts.csv"), row.names = FALSE)
+    summary_overlap <- counts %>%
+      dplyr::mutate(
+        cdm_name = snap$cdm_name,
+        date_run = as.character(runStart),
+        date_export = as.character(snap$snapshot_date),
+        pkg_version = as.character(pkgVersion)
+      )
+  }
+
+  utils::write.csv(summary_overlap, file.path(resPath, "pregnancy_overlap_counts.csv"), row.names = FALSE)
 }
 
 # Maximum episode length in days (same as ESD/utils cleanup). Episodes longer are dropped.
@@ -557,9 +571,33 @@ countTooLongRecordsAndPersons <- function(res, maxDays = .cleanupMaxDays,
   )
 }
 
-#' Apply cleanup: remove episodes with length > maxDays, then removeOverlaps
+#' Count records with start date >= end date (both non-NA)
+#' @noRd
+countStartGteEnd <- function(res, startDateCol = "final_episode_start_date",
+                             endDateCol = "final_episode_end_date") {
+  res %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(
+      !is.na(.data[[startDateCol]]),
+      !is.na(.data[[endDateCol]]),
+      as.Date(.data[[startDateCol]]) >= as.Date(.data[[endDateCol]])
+    ) %>%
+    nrow()
+}
+
+#' Apply cleanup: fix start < end, then remove episodes with length > maxDays, then removeOverlaps
 #' @noRd
 applyCleanup <- function(res, maxDays = .cleanupMaxDays) {
+  termMaxMin <- readxl::read_excel(
+    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
+  )
+  res <- fixStartBeforeEnd(
+    res,
+    termMaxMin,
+    startDateCol = "final_episode_start_date",
+    endDateCol = "final_episode_end_date",
+    outcomeCol = "final_outcome_category"
+  )$df
   after_long <- res %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
@@ -583,8 +621,18 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   n_before_records <- nrow(res)
   n_before_persons <- as.integer(dplyr::n_distinct(res$person_id))
 
-  overlap_counts <- countOverlappingRecordsAndPersons(res, "person_id", startDateCol, endDateCol)
-  too_long_counts <- countTooLongRecordsAndPersons(res, maxDays, startDateCol, endDateCol)
+  n_start_geq_end_before <- countStartGteEnd(res, startDateCol, endDateCol)
+  termMaxMin <- readxl::read_excel(
+    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
+  )
+  fixResult <- fixStartBeforeEnd(res, termMaxMin, startDateCol = startDateCol, endDateCol = endDateCol, outcomeCol = "final_outcome_category")
+  res_after_fix <- fixResult$df
+  n_start_geq_end_after <- 0L
+  message(sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
+  message(sprintf("fix_start_before_end: episodes with start >= end after fix: %d", n_start_geq_end_after))
+
+  overlap_counts <- countOverlappingRecordsAndPersons(res_after_fix, "person_id", startDateCol, endDateCol)
+  too_long_counts <- countTooLongRecordsAndPersons(res_after_fix, maxDays, startDateCol, endDateCol)
 
   after_cleanup <- applyCleanup(res, maxDays)
   n_after_records <- nrow(after_cleanup)
@@ -592,6 +640,8 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
 
   # Quality check summary CSV
   quality <- tibble::tibble(
+    n_records_start_geq_end_before_fix = n_start_geq_end_before,
+    n_records_start_geq_end_after_fix = n_start_geq_end_after,
     n_records_overlapping = overlap_counts$records,
     n_persons_overlapping = overlap_counts$persons,
     n_records_too_long = too_long_counts$records,
@@ -607,7 +657,9 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   utils::write.csv(quality, file.path(resPath, "quality_check_cleanup.csv"), row.names = FALSE)
 
   # Attrition that would be added if cleanup were run (same structure as attrition.csv)
-  after_long_only <- res %>%
+  n_after_fix_records <- nrow(res_after_fix)
+  n_after_fix_persons <- as.integer(dplyr::n_distinct(res_after_fix$person_id))
+  after_long_only <- res_after_fix %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
       .days = as.numeric(as.Date(.data[[endDateCol]]) - as.Date(.data[[startDateCol]]))
@@ -616,8 +668,8 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
     dplyr::select(-".days")
   n_after_long_records <- nrow(after_long_only)
   n_after_long_persons <- as.integer(dplyr::n_distinct(after_long_only$person_id))
-  dropped_long_records <- n_before_records - n_after_long_records
-  dropped_long_persons <- n_before_persons - n_after_long_persons
+  dropped_long_records <- n_after_fix_records - n_after_long_records
+  dropped_long_persons <- n_after_fix_persons - n_after_long_persons
 
   after_overlaps <- removeOverlaps(after_long_only,
                                    personIdCol = "person_id",
@@ -627,15 +679,15 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   dropped_overlap_persons <- n_after_long_persons - as.integer(dplyr::n_distinct(after_overlaps$person_id))
 
   attrition_if_cleanup <- tibble::tibble(
-    step = c("final_episodes_before_cleanup", "remove_long_episodes", "remove_overlaps"),
-    table = c("final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes"),
-    outcome = c(NA_character_, NA_character_, NA_character_),
-    prior_records = c(n_before_records, n_before_records, n_after_long_records),
-    prior_persons = c(n_before_persons, n_before_persons, n_after_long_persons),
-    dropped_records = c(NA_integer_, dropped_long_records, dropped_overlap_records),
-    dropped_persons = c(NA_integer_, dropped_long_persons, dropped_overlap_persons),
-    post_records = c(n_before_records, n_after_long_records, n_after_records),
-    post_persons = c(n_before_persons, n_after_long_persons, n_after_persons)
+    step = c("final_episodes_before_cleanup", "fix_start_before_end", "remove_long_episodes", "remove_overlaps"),
+    table = c("final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes"),
+    outcome = c(NA_character_, NA_character_, NA_character_, NA_character_),
+    prior_records = c(n_before_records, n_before_records, n_after_fix_records, n_after_long_records),
+    prior_persons = c(n_before_persons, n_before_persons, n_after_fix_persons, n_after_long_persons),
+    dropped_records = c(NA_integer_, 0L, dropped_long_records, dropped_overlap_records),
+    dropped_persons = c(NA_integer_, 0L, dropped_long_persons, dropped_overlap_persons),
+    post_records = c(n_before_records, n_after_fix_records, n_after_long_records, n_after_records),
+    post_persons = c(n_before_persons, n_after_fix_persons, n_after_long_persons, n_after_persons)
   )
   utils::write.csv(attrition_if_cleanup, file.path(resPath, "attrition_if_cleanup.csv"), row.names = FALSE)
 }
