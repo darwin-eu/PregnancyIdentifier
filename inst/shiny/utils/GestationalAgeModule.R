@@ -15,7 +15,7 @@ GestationalAgeModule <- R6::R6Class(
       private$.height <- height
       private$.hasOutcome <- "final_outcome_category" %in% colnames(data)
       if (private$.hasOutcome) {
-        private$.outcomeChoices <- sort(unique(as.character(data$final_outcome_category)))
+        private$.outcomeChoices <- sort(c(unique(as.character(data$final_outcome_category)), "Overall"))
       }
 
       # input pickers
@@ -129,18 +129,32 @@ GestationalAgeModule <- R6::R6Class(
           maxWeeks <- private$.inputPanelMaxWeeks$inputValues$max_weeks
           if (is.null(maxWeeks)) maxWeeks <- 50
           data <- private$.data %>%
-            dplyr::mutate(gestational_weeks = as.numeric(gestational_weeks)) %>%
-            dplyr::filter(gestational_weeks <= maxWeeks)
+            dplyr::mutate(gestational_weeks = as.numeric(.data$gestational_weeks)) %>%
+            dplyr::filter(.data$gestational_weeks <= maxWeeks)
         }
 
         if ("cdm_name" %in% colnames(data)) {
-          data <-  data %>%
+          data <- data %>%
             dplyr::filter(.data$cdm_name %in% cdmSel)
         } else {
           nameCols <- setdiff(colnames(data), private$.dp)
-          data <-  data %>%
+          data <- data %>%
             dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
+
+        # Add "Overall" group (sum of n across all outcome categories) when outcome column exists
+        if (private$.hasOutcome && "final_outcome_category" %in% colnames(data) && nrow(data) > 0) {
+          overall <- data %>%
+            dplyr::mutate(n = as.numeric(.data$n)) %>%
+            dplyr::group_by(.data$cdm_name, .data$gestational_weeks) %>%
+            dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
+            dplyr::group_by(.data$cdm_name) %>%
+            dplyr::mutate(pct = round(100 * .data$n / sum(.data$n, na.rm = TRUE), 1)) %>%
+            dplyr::ungroup() %>%
+            dplyr::mutate(final_outcome_category = "Overall", .after = "cdm_name")
+          data <- dplyr::bind_rows(data, overall)
+        }
+
         if (private$.hasOutcome && !is.null(private$.inputPanelOutcome)) {
           outcomeSel <- private$.inputPanelOutcome$inputValues$final_outcome_category
           if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- private$.outcomeChoices
