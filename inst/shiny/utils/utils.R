@@ -155,12 +155,14 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
 }
 
 dataToLong <- function(data, skipCols = c("cdm_name")) {
+  # Only skip columns that exist (e.g. age_summary has no colName)
+  skipCols <- intersect(skipCols, colnames(data))
   do.call(cbind, lapply(unique(data$cdm_name), FUN = function(db) {
     dbData <- data %>% dplyr::filter(cdm_name == db)
     valColName <- as.character(db)[1L]
     return(dbData %>%
              tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = valColName) %>%
-             dplyr::select(-dplyr::all_of(skipCols)))
+             dplyr::select(-dplyr::any_of(skipCols)))
   })) %>% dplyr::select(unique(colnames(.)))
 }
 
