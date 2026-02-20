@@ -429,19 +429,19 @@ if (!hasData) {
       "Episode frequency" = episodeFreqItems,
       "Episode duration" = list(
         "Gestational age weeks" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts, dp = allDP),
+          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts),
           "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison."
         ),
         "Gestational age binned" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksBinned, dp = allDP, maxWeeksFilter = FALSE),
+          GestationalAgeModule$new(data = gestationalWeeksBinned, maxWeeksFilter = FALSE),
           "Gestational age grouped into bands (e.g. &lt;12, 12–28, 28–32 weeks). Used for outcome bands and cross-site comparison."
         ),
         "Gestational age days per category" = tabWithHelpText(
-          GestationalAgeDaysPerCategoryModule$new(data = gestationalAgeDaysPerCategorySummary, dp = allDP),
+          GestationalAgeDaysPerCategoryModule$new(data = gestationalAgeDaysPerCategorySummary),
           "Gestational duration by outcome type. Used to check that outcome-specific durations (e.g. live birth vs miscarriage) are plausible."
         ),
         "Temporal patterns" = tabWithHelpText(
-          TemporalPatternsModule$new(data = trendData, missingData = trendDataMissing, dp = allDP),
+          TemporalPatternsModule$new(data = trendData, missingData = trendDataMissing),
           "Episode counts by year and month for each date type. Used for temporal trends, seasonality, and study-window checks."
         )
       ),
