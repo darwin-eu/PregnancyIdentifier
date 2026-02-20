@@ -638,7 +638,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::ungroup()
   # Workaround for dbplyr get_env() with filtering joins (tidyverse/dbplyr#1534, #1606, #1659):
   # materialize bothTbl then use filter + collected IDs instead of anti_join(lazy y).
-  bothTbl <- .compute(bothTbl, name = "merge_both_tmp", temporary = TRUE)
+  bothTbl <- .compute(bothTbl, name = "merge_both_tmp", temporary = FALSE, overwrite = TRUE)
   bothVisitIds <- bothTbl %>%
     dplyr::select("visit_id") %>%
     dplyr::distinct() %>%
@@ -672,35 +672,44 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
           .data$outcome_date >= .data$gest_only_max
       ) %>%
       dplyr::select(-"gest_only_max") %>%
-      .compute(name = "merge_both_filtered_tmp", temporary = TRUE)
+      .compute(name = "merge_both_filtered_tmp", temporary = FALSE, overwrite = TRUE)
   }
   bothTblMutated <- bothTbl %>%
-    dplyr::mutate(final_category = .data$outcome_category, final_visit_date = .data$outcome_date)
+    dplyr::mutate(
+      final_category = .data$outcome_category,
+      final_visit_date = .data$outcome_date,
+      episode = as.integer(.data$episode)
+    )
+  # Outcome-only branch: add placeholder columns so union_all has consistent column types.
+  # Use typed NULL (CAST) so strict backends (e.g. PostgreSQL) match UNION types; otherwise untyped NULL is treated as text.
+  nullInt <- dbplyr::sql("CAST(NULL AS INTEGER)")
+  nullDate <- dbplyr::sql("CAST(NULL AS DATE)")
   justOutcomeTblFull <- justOutcomeTbl %>%
     dplyr::mutate(
       final_category = .data$outcome_category,
       final_visit_date = .data$outcome_date,
-      episode = NA_integer_,
-      first_gest_week = NA_integer_,
-      end_gest_date = as.Date(NA),
-      end_gest_week = NA_integer_,
-      min_gest_week = NA_integer_,
-      min_gest_date = as.Date(NA),
-      min_gest_date_2 = as.Date(NA),
-      max_gest_week = NA_integer_,
-      max_gest_date = as.Date(NA),
-      max_gest_day = NA_integer_,
-      min_gest_day = NA_integer_,
-      max_gest_start_date = as.Date(NA),
-      min_gest_start_date = as.Date(NA),
-      gest_start_date_diff = NA_integer_,
-      gest_at_outcome = NA_integer_,
-      is_under_max = NA_integer_,
-      is_over_min = NA_integer_,
-      days_diff = NA_integer_
+      episode = nullInt,
+      first_gest_week = nullInt,
+      end_gest_date = nullDate,
+      end_gest_week = nullInt,
+      min_gest_week = nullInt,
+      min_gest_date = nullDate,
+      min_gest_date_2 = nullDate,
+      max_gest_week = nullInt,
+      max_gest_date = nullDate,
+      max_gest_day = nullInt,
+      min_gest_day = nullInt,
+      max_gest_start_date = nullDate,
+      min_gest_start_date = nullDate,
+      gest_start_date_diff = nullInt,
+      gest_at_outcome = nullInt,
+      is_under_max = nullInt,
+      is_over_min = nullInt,
+      days_diff = nullInt
     )
   justGestationTblFull <- justGestationTbl %>%
     dplyr::mutate(
+      episode = as.integer(.data$episode),
       outcome_date = as.Date(NA),
       outcome_category = NA_character_,
       outcome_id = NA_character_,
@@ -721,7 +730,7 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
   }
   # Materialize union first to avoid very long SQL on some database platforms
   unionTbl <- purrr::reduce(tblList, dplyr::union_all) %>%
-    .compute(name = "merged_episodes_tmp", temporary = TRUE)
+    .compute(name = "merged_episodes_tmp", temporary = FALSE, overwrite = TRUE)
   mergedTbl <- unionTbl %>%
     dplyr::mutate(
       final_episode_id = dplyr::coalesce(.data$visit_id, .data$gest_id),
@@ -834,7 +843,7 @@ resolveOverlaps <- function(cdm, logger) {
     dplyr::filter(!is.na(.data$prev_gest_id)) %>%
     dplyr::distinct(.data$person_id, .data$prev_gest_id) %>%
     dplyr::rename(gest_id = "prev_gest_id") %>%
-    .compute(name = "resolve_pairs_to_remove_tmp", temporary = TRUE)
+    .compute(name = "resolve_pairs_to_remove_tmp", temporary = FALSE, overwrite = TRUE)
   afterRemove <- withPrev %>%
     dplyr::anti_join(pairsToRemoveTbl, by = c("person_id", "gest_id")) %>%
     dplyr::group_by(.data$person_id) %>%
