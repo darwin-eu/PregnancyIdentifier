@@ -14,6 +14,7 @@ test_that("initPregnancies with outputDir creates attrition.csv with initial cou
 
   att <- utils::read.csv(path, stringsAsFactors = FALSE)
   expect_equal(nrow(att), 2L)
+  expect_true("reason" %in% names(att))
   expect_equal(att$step, c("init", "init"))
   expect_equal(att$table, c("preg_hip_records", "preg_pps_records"))
   expect_true(all(is.na(att$prior_records) | att$prior_records == ""))
@@ -65,7 +66,7 @@ test_that("full pipeline produces attrition with expected steps and columns", {
 
   att <- utils::read.csv(path, stringsAsFactors = FALSE)
   requiredCols <- c(
-    "step", "table", "outcome",
+    "step", "table", "reason", "outcome",
     "prior_records", "prior_persons",
     "dropped_records", "dropped_persons",
     "post_records", "post_persons"
@@ -77,12 +78,28 @@ test_that("full pipeline produces attrition with expected steps and columns", {
   expect_true("preg_hip_episodes" %in% steps)
   expect_true("pps_episodes" %in% steps)
   expect_true("hipps_episodes" %in% steps)
+  expect_true("cohort_attrition" %in% steps)
   expect_true("final_episodes" %in% steps)
   expect_true("final_episodes_by_outcome" %in% steps)
 
   # Init: two rows (hip, pps)
   initRows <- att[att$step == "init", ]
   expect_equal(nrow(initRows), 2L)
+
+  # Seven cohort attrition steps (reasons) for final pregnancy episodes
+  cohortReasons <- c(
+    "Initial qualifying events",
+    "In observation at pregnancy start date",
+    "In observation at pregnancy end date",
+    "Pregnancy end date > pregnancy start date",
+    "Gestational length < 308 days",
+    "Gestational length days != 0",
+    "No overlapping pregnancy records"
+  )
+  attReasons <- unique(att$reason[att$step == "cohort_attrition"])
+  for (r in cohortReasons) {
+    expect_true(r %in% attReasons, info = paste("Missing cohort attrition reason:", r))
+  }
 
   # At least one overall final_episodes row
   finalOverall <- att[att$step == "final_episodes" & (is.na(att$outcome) | att$outcome == ""), ]

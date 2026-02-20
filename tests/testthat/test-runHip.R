@@ -8,8 +8,10 @@ test_that("runHip runs without error", {
 
 
 
-  library(CDMConnector)
-  suppressWarnings(library(dplyr, warn.conflicts = FALSE))
+  suppressWarnings({
+    library(CDMConnector)
+    library(dplyr, warn.conflicts = FALSE)
+  })
 
 # cdmCommentContents(cdm, 12)
 # person_id | observation_concept_id | start_date | end_date | type_concept_id | domain               | observation_concept_name | type_concept_name

@@ -77,8 +77,9 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Check return structure
   expect_type(res, "list")
   expect_named(res, c(
-    "episode_counts", "venn_counts", "confusion_2x2", "ppv_sensitivity", "duration_summary",
-    "date_differences", "outcome_confusion", "outcome_accuracy", "duration_distribution"
+    "episode_counts", "protocol_summary", "person_overlap", "venn_counts", "time_overlap_summary",
+    "confusion_2x2", "ppv_sensitivity", "duration_summary", "duration_matched_summary",
+    "date_differences", "outcome_confusion", "outcome_accuracy", "outcome_by_year", "duration_distribution"
   ))
   expect_s3_class(res$episode_counts, "data.frame")
   expect_s3_class(res$venn_counts, "data.frame")
@@ -101,18 +102,37 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   expect_true("metric" %in% names(res$ppv_sensitivity))
   expect_true("value" %in% names(res$ppv_sensitivity))
 
+  # Person overlap
+  expect_true("metric" %in% names(res$person_overlap))
+  expect_true("n_persons" %in% names(res$person_overlap))
+
+  # Time overlap summary (4 rows: PET->IPE 0/1 day, IPE->PET 0/1 day)
+  expect_equal(nrow(res$time_overlap_summary), 4L)
+  expect_true("label" %in% names(res$time_overlap_summary))
+
+  # Outcome by year
+  expect_true("overall_equal" %in% names(res$outcome_by_year))
+  expect_true("lb_lb" %in% names(res$outcome_by_year))
+
   # Duration summary: algorithm and pet
   expect_equal(nrow(res$duration_summary), 2L)
   expect_true("source" %in% names(res$duration_summary))
 
   # Output files exist
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_episode_counts.csv")))
+  expect_true(file.exists(file.path(outputFolder, "pet_comparison_person_overlap.csv")))
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_venn_counts.csv")))
+  expect_true(file.exists(file.path(outputFolder, "pet_comparison_time_overlap_summary.csv")))
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_ppv_sensitivity.csv")))
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_summary.csv")))
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_distribution.csv")))
   expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_accuracy.csv")))
+  expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_by_year.csv")))
+  expect_true(file.exists(file.path(outputFolder, "pet_comparison_protocol_summary.csv")))
   expect_true(file.exists(file.path(outputFolder, "log.txt")))
+  expect_true("total_matched_episodes" %in% names(res$protocol_summary))
+  expect_true("scope" %in% names(res$duration_summary))
+  if (!is.null(res$duration_matched_summary)) expect_true("scope" %in% names(res$duration_matched_summary))
 
   # When we built PET from algorithm, there should be matches
   expect_true(res$episode_counts$n_episodes[res$episode_counts$source == "algorithm"] >= 1)

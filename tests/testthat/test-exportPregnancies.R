@@ -54,7 +54,6 @@ test_that("exportPregnancies runs with custom minCellCount", {
   expect_true(dir.exists(exportDir))
 
   expect_equal(list.files(exportDir, ".csv"), sort(c(
-    "age.csv",
     "age_summary.csv",
     "age_summary_first_pregnancy.csv",
     "age_summary_groups.csv",
