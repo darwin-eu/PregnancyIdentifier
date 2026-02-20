@@ -14,7 +14,7 @@ runPregnancyIdentifier(
   debugMode = FALSE,
   runExport = FALSE,
   outputLogToConsole = TRUE,
-  conformToValidation = FALSE
+  conformToValidation = "both"
 )
 }
 \arguments{
@@ -46,10 +46,13 @@ Default `FALSE`.}
 \item{outputLogToConsole}{(`logical(1)`) If `TRUE` (default), log messages are
 written to the console. If `FALSE`, only to the log file (e.g. for tests).}
 
-\item{conformToValidation}{(`logical(1)`) If `TRUE`, after validation modify episode
-output to conform: remove overlapping episodes and episodes longer than 308 days.
-If `FALSE` (default), only validate and log issues; do not modify the result.
-Validation and logging always run regardless of this parameter.}
+\item{conformToValidation}{(\code{logical(1)} or \code{"both"}) If \code{TRUE}, after
+validation modify episode output to conform (remove overlapping episodes and
+episodes longer than 308 days). If \code{FALSE} (default), only validate and
+log issues. If \code{"both"}, the pipeline runs once without conforming; when
+\code{runExport = TRUE}, export is run twice and results are written to
+\code{export/conform_false} and \code{export/conform_true}. Validation and
+logging always run.}
 }
 \value{
 Invisibly returns `NULL`. Side effects:
@@ -57,7 +60,8 @@ Invisibly returns `NULL`. Side effects:
     tables, and intermediate algorithm tables).
   - Writes intermediate RDS artifacts under `outputDir`.
   - If `runExport = TRUE`, writes shareable csv exports under
-    `file.path(outputDir, "export")`.
+    `file.path(outputDir, "export")`, or under `export/conform_false` and
+    `export/conform_true` when `conformToValidation = "both"`.
 }
 \description{
 Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS

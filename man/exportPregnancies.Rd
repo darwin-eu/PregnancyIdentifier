@@ -4,7 +4,7 @@
 \alias{exportPregnancies}
 \title{Export pregnancy results into shareable summary CSVs}
 \usage{
-exportPregnancies(cdm, outputDir, exportDir, minCellCount = 5)
+exportPregnancies(cdm, outputDir, exportDir, minCellCount = 5, res = NULL)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) CDM reference used to compute exports that require
@@ -18,6 +18,10 @@ be written.}
 
 \item{minCellCount}{(`integer(1)`) Minimum count threshold for suppression of
 small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
+
+\item{res}{Optional data frame of pregnancy episodes. If provided, used instead
+of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
+exporting a conformed copy (e.g. \code{conformToValidation = "both"}).}
 }
 \value{
 Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.

@@ -11,6 +11,7 @@ comparePregnancyIdentifierWithPET(
   petSchema,
   petTable,
   minOverlapDays = 1L,
+  removeWithinSourceOverlaps = FALSE,
   logger = NULL,
   outputLogToConsole = TRUE
 )
@@ -36,6 +37,11 @@ optional plots will be written. Created if it does not exist.}
 \item{minOverlapDays}{\code{integer(1)}. Minimum overlap in days to consider an
 algorithm episode and a PET episode as the same pregnancy (default 1).}
 
+\item{removeWithinSourceOverlaps}{\code{logical(1)}. If \code{TRUE}, before
+matching the code removes overlapping episodes within PET and within the
+algorithm (greedy non-overlapping by start date per person), which can
+reduce many-to-many candidate pairs. Default \code{FALSE}.}
+
 \item{logger}{Optional \code{log4r::logger}. If \code{NULL}, a logger is
 created via \code{makeLogger(outputFolder)}.}
 
@@ -44,19 +50,26 @@ created via \code{makeLogger(outputFolder)}.}
 }
 \value{
 Invisibly returns a list with elements \code{episode_counts},
-  \code{venn_counts}, \code{confusion_2x2}, \code{ppv_sensitivity},
+  \code{protocol_summary} (total PET, algorithm, matched counts for protocol reporting),
+  \code{person_overlap}, \code{venn_counts}, \code{time_overlap_summary},
+  \code{confusion_2x2}, \code{ppv_sensitivity}, \code{duration_summary},
+  \code{duration_matched_summary} (duration stats for matched pairs only),
   \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
-  \code{duration_summary}, and \code{duration_distribution}. \code{confusion_2x2}
-  is the 2x2 table (TP, FN, FP, TN; TN is \code{NA} at episode level).
-  \code{ppv_sensitivity} contains sensitivity, specificity, PPV, and NPV
-  (specificity and NPV are \code{NA} when TN is not defined). All comparison
-  artifacts are also written to \code{outputFolder} as CSVs (and optionally PNGs).
+  \code{outcome_by_year}, and \code{duration_distribution}. \code{person_overlap}
+  has raw and cohort (filtered) person overlap counts. \code{time_overlap_summary}
+  has min/Q25/median/Q75/max/sd and n_episodes/n_persons for PET->IPE and IPE->PET
+  with 0 or 1 day overlap required. \code{outcome_by_year} is the same-year outcome
+  cross-tab (lb_lb, sb_sb, ab_ab, etc.). \code{confusion_2x2} is the 2x2 table
+  (TP, FN, FP, TN; TN is \code{NA} at episode level). All comparison artifacts
+  are also written to \code{outputFolder} as CSVs (and optionally PNGs).
 }
 \description{
 Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
 table and writes comparison summaries to \code{outputFolder}. Comparisons include:
-pregnancy episode and person counts; pregnancy start/end date differences for
-linked episodes; Venn counts (both, PET only, algorithm only); a 2x2 confusion
-matrix (TP, FN, FP, TN) with sensitivity, specificity, PPV, and NPV; outcome
-confusion matrix and accuracy; and pregnancy duration distributions.
+pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
+person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
+Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
+with sensitivity, specificity, PPV, and NPV; outcome confusion matrix and accuracy;
+outcome comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
+and pregnancy duration distributions.
 }
