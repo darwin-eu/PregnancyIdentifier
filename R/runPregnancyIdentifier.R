@@ -76,17 +76,21 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #'   Default `FALSE`.
 #' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
 #'   written to the console. If `FALSE`, only to the log file (e.g. for tests).
-#' @param conformToValidation (`logical(1)`) If `TRUE`, after validation modify episode
-#'   output to conform: remove overlapping episodes and episodes longer than 308 days.
-#'   If `FALSE` (default), only validate and log issues; do not modify the result.
-#'   Validation and logging always run regardless of this parameter.
+#' @param conformToValidation (\code{logical(1)} or \code{"both"}) If \code{TRUE}, after
+#'   validation modify episode output to conform (remove overlapping episodes and
+#'   episodes longer than 308 days). If \code{FALSE} (default), only validate and
+#'   log issues. If \code{"both"}, the pipeline runs once without conforming; when
+#'   \code{runExport = TRUE}, export is run twice and results are written to
+#'   \code{export/conform_false} and \code{export/conform_true}. Validation and
+#'   logging always run.
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
 #'   - Writes intermediate RDS artifacts under `outputDir`.
 #'   - If `runExport = TRUE`, writes shareable csv exports under
-#'     `file.path(outputDir, "export")`.
+#'     `file.path(outputDir, "export")`, or under `export/conform_false` and
+#'     `export/conform_true` when `conformToValidation = "both"`.
 #' @export
 runPregnancyIdentifier <- function(cdm,
                                    outputDir,
@@ -97,7 +101,7 @@ runPregnancyIdentifier <- function(cdm,
                                    debugMode = FALSE,
                                    runExport = FALSE,
                                    outputLogToConsole = TRUE,
-                                   conformToValidation = FALSE) {
+                                   conformToValidation = "both") {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
@@ -107,9 +111,16 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
   checkmate::assertLogical(runExport, len = 1, any.missing = FALSE)
   checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
-  checkmate::assertLogical(conformToValidation, len = 1, any.missing = FALSE)
+  checkmate::assert(
+    (is.logical(conformToValidation) && length(conformToValidation) == 1L && !is.na(conformToValidation)) ||
+      (is.character(conformToValidation) && length(conformToValidation) == 1L && conformToValidation == "both"),
+    .var.name = "conformToValidation"
+  )
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
+
+  runEsdConform <- isTRUE(conformToValidation)
+  exportBoth <- identical(conformToValidation, "both")
 
   # ---- Prepare output location + logger --------------------------------------
   # Inputs: outputDir
@@ -203,17 +214,67 @@ runPregnancyIdentifier <- function(cdm,
     endDate = endDate,
     logger = logger,
     debugMode = debugMode,
-    conformToValidation = conformToValidation
+    conformToValidation = runEsdConform
   )
 
   if (runExport) {
-    log4r::info(logger, "Running `exportPregnancies`")
-    exportPregnancies(
-      cdm = cdm,
-      outputDir = outputDir,
-      exportDir = file.path(outputDir, "export"),
-      minCellCount = minCellCount
-    )
+    baseExportDir <- file.path(outputDir, "export")
+    if (exportBoth) {
+      # Export non-conformed (current RDS) and conformed (apply conform in memory) to subfolders
+      log4r::info(logger, "Running `exportPregnancies` (conform_false)")
+      exportPregnancies(
+        cdm = cdm,
+        outputDir = outputDir,
+        exportDir = file.path(baseExportDir, "conform_false"),
+        minCellCount = minCellCount
+      )
+      res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+      termMaxMin <- readxl::read_excel(
+        system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
+      )
+      fixResult <- fixStartBeforeEnd(
+        res,
+        termMaxMin,
+        startDateCol = "final_episode_start_date",
+        endDateCol = "final_episode_end_date",
+        outcomeCol = "final_outcome_category"
+      )
+      res_conformed <- fixResult$df %>%
+        dplyr::filter(
+          is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
+            as.Date(.data$final_episode_end_date) > as.Date(.data$final_episode_start_date)
+        ) %>%
+        dplyr::mutate(
+          .gest_days = dplyr::coalesce(
+            as.numeric(.data$esd_gestational_age_days_calculated),
+            as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+          )
+        ) %>%
+        dplyr::filter(is.na(.data$.gest_days) | (.data$.gest_days < 308 & .data$.gest_days != 0)) %>%
+        dplyr::select(-".gest_days")
+      res_conformed <- removeOverlaps(
+        res_conformed,
+        personIdCol = "person_id",
+        startDateCol = "final_episode_start_date",
+        endDateCol = "final_episode_end_date"
+      )
+      log4r::info(logger, "Running `exportPregnancies` (conform_true)")
+      exportPregnancies(
+        cdm = cdm,
+        outputDir = outputDir,
+        exportDir = file.path(baseExportDir, "conform_true"),
+        minCellCount = minCellCount,
+        res = res_conformed
+      )
+    } else {
+      log4r::info(logger, "Running `exportPregnancies`")
+      exportPregnancies(
+        cdm = cdm,
+        outputDir = outputDir,
+        exportDir = baseExportDir,
+        minCellCount = minCellCount
+      )
+    }
   }
 
   invisible(NULL)
