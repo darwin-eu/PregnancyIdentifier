@@ -69,6 +69,7 @@ initAttrition <- function(outputDir, cdm) {
   attrition <- tibble::tibble(
     step = c("init", "init"),
     table = c("preg_hip_records", "preg_pps_records"),
+    reason = c(NA_character_, NA_character_),
     outcome = c(NA_character_, NA_character_),
     prior_records = c(NA_integer_, NA_integer_),
     prior_persons = c(NA_integer_, NA_integer_),
@@ -87,6 +88,7 @@ initAttrition <- function(outputDir, cdm) {
 #' @param outputDir Directory containing \code{attrition.csv}.
 #' @param step Character. Pipeline step name (e.g. \code{"preg_hip_episodes"}, \code{"final_episodes"}).
 #' @param table Character. Output table or artifact name.
+#' @param reason Character or NA. Attrition reason (e.g. \code{"In observation at pregnancy start date"}). NA for legacy steps.
 #' @param outcome Character or NA. Outcome category for by-outcome rows; NA for overall.
 #' @param prior_records, prior_persons Prior record and person counts.
 #' @param dropped_records, dropped_persons Number dropped at this step.
@@ -101,15 +103,23 @@ appendAttrition <- function(outputDir,
                            dropped_records,
                            dropped_persons,
                            post_records,
-                           post_persons) {
+                           post_persons,
+                           reason = NA_character_) {
   path <- attritionFileName(outputDir)
   if (!file.exists(path)) {
     rlang::abort(sprintf("Attrition file not found: %s. Run initPregnancies with outputDir first.", path))
   }
   existing <- utils::read.csv(path, stringsAsFactors = FALSE)
+  if (!("reason" %in% names(existing))) {
+    existing$reason <- NA_character_
+  }
+  if ("outcome" %in% names(existing) && is.logical(existing$outcome)) {
+    existing$outcome <- as.character(existing$outcome)
+  }
   newRow <- data.frame(
     step = step,
     table = table,
+    reason = as.character(reason),
     outcome = as.character(outcome),
     prior_records = as.integer(prior_records),
     prior_persons = as.integer(prior_persons),
@@ -119,9 +129,7 @@ appendAttrition <- function(outputDir,
     post_persons = as.integer(post_persons),
     stringsAsFactors = FALSE
   )
-  if ("outcome" %in% names(existing) && is.logical(existing$outcome)) {
-    existing$outcome <- as.character(existing$outcome)
-  }
+  newRow <- newRow[, names(existing)]
   combined <- rbind(existing, newRow)
   utils::write.csv(combined, path, row.names = FALSE)
   invisible(path)
