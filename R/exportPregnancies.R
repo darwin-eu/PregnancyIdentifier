@@ -195,9 +195,34 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     utils::write.csv(file.path(resPath, "age.csv"), row.names = FALSE)
 
-  # summarise age at pregnancy start across all pregnancies
-  resAge %>%
-    summariseColumn("age_pregnancy_start") %>%
+  # 5-number summary (min, Q25, median, Q75, max, mean) of age_pregnancy_start overall and by outcome
+  resAgeFiltered <- resAge %>%
+    dplyr::filter(!is.na(.data$age_pregnancy_start))
+  overall <- resAgeFiltered %>%
+    dplyr::summarise(
+      final_outcome_category = "overall",
+      n = dplyr::n(),
+      min = min(.data$age_pregnancy_start, na.rm = TRUE),
+      Q25 = stats::quantile(.data$age_pregnancy_start, 0.25, na.rm = TRUE),
+      median = stats::median(.data$age_pregnancy_start, na.rm = TRUE),
+      Q75 = stats::quantile(.data$age_pregnancy_start, 0.75, na.rm = TRUE),
+      max = max(.data$age_pregnancy_start, na.rm = TRUE),
+      mean = mean(.data$age_pregnancy_start, na.rm = TRUE),
+      .groups = "drop"
+    )
+  by_outcome <- resAgeFiltered %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
+    dplyr::summarise(
+      n = dplyr::n(),
+      min = min(.data$age_pregnancy_start, na.rm = TRUE),
+      Q25 = stats::quantile(.data$age_pregnancy_start, 0.25, na.rm = TRUE),
+      median = stats::median(.data$age_pregnancy_start, na.rm = TRUE),
+      Q75 = stats::quantile(.data$age_pregnancy_start, 0.75, na.rm = TRUE),
+      max = max(.data$age_pregnancy_start, na.rm = TRUE),
+      mean = mean(.data$age_pregnancy_start, na.rm = TRUE),
+      .groups = "drop"
+    )
+  dplyr::bind_rows(overall, by_outcome) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -438,8 +463,9 @@ exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgV
 }
 
 #' @noRd
+#' Export summarized overlap counts only (no person_id, no row per person).
 exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res %>%
+  summary_overlap <- res %>%
     dplyr::add_count(.data$person_id) %>%
     dplyr::filter(.data$n > 1) %>%
     dplyr::arrange(.data$person_id, .data$final_episode_start_date, .data$final_episode_end_date) %>%
@@ -449,7 +475,19 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
       overlap = as.Date(.data$final_episode_start_date) <= as.Date(.data$prev_end)
     ) %>%
     dplyr::filter(!is.na(.data$prev_end)) %>%
-    summariseColumn("overlap") %>%
+    dplyr::ungroup() %>%
+    dplyr::summarise(
+      n_records_with_previous = dplyr::n(),
+      n_overlap_true = as.integer(sum(.data$overlap == TRUE, na.rm = TRUE)),
+      n_overlap_false = as.integer(sum(.data$overlap == FALSE, na.rm = TRUE)),
+      n_persons_with_multiple_episodes = as.integer(dplyr::n_distinct(.data$person_id)),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      dplyr::across(dplyr::where(is.integer), ~ dplyr::coalesce(.x, 0L))
+    )
+
+  summary_overlap %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
