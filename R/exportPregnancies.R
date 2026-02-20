@@ -586,32 +586,46 @@ countStartGteEnd <- function(res, startDateCol = "final_episode_start_date",
 }
 
 #' Apply cleanup: fix start < end, then remove episodes with length > maxDays, then removeOverlaps
+#' @param res Data frame of final pregnancy episodes.
+#' @param maxDays Maximum episode length in days (default from .cleanupMaxDays).
+#' @param return_steps If TRUE, return list with \code{df}, \code{steps}, \code{n_fix_corrected}; otherwise return cleaned data frame only.
 #' @noRd
-applyCleanup <- function(res, maxDays = .cleanupMaxDays) {
+applyCleanup <- function(res, maxDays = .cleanupMaxDays, return_steps = FALSE) {
   termMaxMin <- readxl::read_excel(
     system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
   )
-  res <- fixStartBeforeEnd(
+  fixResult <- fixStartBeforeEnd(
     res,
     termMaxMin,
     startDateCol = "final_episode_start_date",
     endDateCol = "final_episode_end_date",
     outcomeCol = "final_outcome_category"
-  )$df
-  after_long <- res %>%
+  )
+  after_fix <- fixResult$df
+  after_long <- after_fix %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
       .days = as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
     ) %>%
     dplyr::filter(is.na(.data$.days) | .data$.days <= .env$maxDays) %>%
     dplyr::select(-".days")
-  removeOverlaps(after_long,
+  after_overlaps <- removeOverlaps(after_long,
                  personIdCol = "person_id",
                  startDateCol = "final_episode_start_date",
                  endDateCol = "final_episode_end_date")
+  if (return_steps) {
+    list(
+      df = after_overlaps,
+      steps = list(after_fix = after_fix, after_long = after_long, after_overlaps = after_overlaps),
+      n_fix_corrected = fixResult$n_corrected
+    )
+  } else {
+    after_overlaps
+  }
 }
 
 #' Export final quality check: overlapping / too-long counts and post-cleanup counts, plus attrition-if-cleanup
+#' Runs the cleanup pipeline once and reports on what was actually done.
 #' @noRd
 exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) {
   startDateCol <- "final_episode_start_date"
@@ -620,25 +634,36 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
 
   n_before_records <- nrow(res)
   n_before_persons <- as.integer(dplyr::n_distinct(res$person_id))
-
   n_start_geq_end_before <- countStartGteEnd(res, startDateCol, endDateCol)
-  termMaxMin <- readxl::read_excel(
-    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
-  )
-  fixResult <- fixStartBeforeEnd(res, termMaxMin, startDateCol = startDateCol, endDateCol = endDateCol, outcomeCol = "final_outcome_category")
-  res_after_fix <- fixResult$df
-  n_start_geq_end_after <- 0L
-  message(sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
+
+  # Run cleanup once; get final result and intermediate steps for reporting
+  cleanup <- applyCleanup(res, maxDays, return_steps = TRUE)
+  after_cleanup <- cleanup$df
+  steps <- cleanup$steps
+  n_fix_corrected <- cleanup$n_fix_corrected
+
+  res_after_fix <- steps$after_fix
+  after_long_only <- steps$after_long
+
+  n_start_geq_end_after <- countStartGteEnd(res_after_fix, startDateCol, endDateCol)
+  message(sprintf("fix_start_before_end: episodes with start >= end before fix: %d", n_fix_corrected))
   message(sprintf("fix_start_before_end: episodes with start >= end after fix: %d", n_start_geq_end_after))
+
+  n_after_records <- nrow(after_cleanup)
+  n_after_persons <- as.integer(dplyr::n_distinct(after_cleanup$person_id))
+  n_after_fix_records <- nrow(res_after_fix)
+  n_after_fix_persons <- as.integer(dplyr::n_distinct(res_after_fix$person_id))
+  n_after_long_records <- nrow(after_long_only)
+  n_after_long_persons <- as.integer(dplyr::n_distinct(after_long_only$person_id))
 
   overlap_counts <- countOverlappingRecordsAndPersons(res_after_fix, "person_id", startDateCol, endDateCol)
   too_long_counts <- countTooLongRecordsAndPersons(res_after_fix, maxDays, startDateCol, endDateCol)
+  dropped_long_records <- n_after_fix_records - n_after_long_records
+  dropped_long_persons <- n_after_fix_persons - n_after_long_persons
+  dropped_overlap_records <- n_after_long_records - n_after_records
+  dropped_overlap_persons <- n_after_long_persons - n_after_persons
 
-  after_cleanup <- applyCleanup(res, maxDays)
-  n_after_records <- nrow(after_cleanup)
-  n_after_persons <- as.integer(dplyr::n_distinct(after_cleanup$person_id))
-
-  # Quality check summary CSV
+  # Quality check summary CSV (report what was actually done)
   quality <- tibble::tibble(
     n_records_start_geq_end_before_fix = n_start_geq_end_before,
     n_records_start_geq_end_after_fix = n_start_geq_end_after,
@@ -656,28 +681,7 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   )
   utils::write.csv(quality, file.path(resPath, "quality_check_cleanup.csv"), row.names = FALSE)
 
-  # Attrition that would be added if cleanup were run (same structure as attrition.csv)
-  n_after_fix_records <- nrow(res_after_fix)
-  n_after_fix_persons <- as.integer(dplyr::n_distinct(res_after_fix$person_id))
-  after_long_only <- res_after_fix %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate(
-      .days = as.numeric(as.Date(.data[[endDateCol]]) - as.Date(.data[[startDateCol]]))
-    ) %>%
-    dplyr::filter(is.na(.data$.days) | .data$.days <= maxDays) %>%
-    dplyr::select(-".days")
-  n_after_long_records <- nrow(after_long_only)
-  n_after_long_persons <- as.integer(dplyr::n_distinct(after_long_only$person_id))
-  dropped_long_records <- n_after_fix_records - n_after_long_records
-  dropped_long_persons <- n_after_fix_persons - n_after_long_persons
-
-  after_overlaps <- removeOverlaps(after_long_only,
-                                   personIdCol = "person_id",
-                                   startDateCol = startDateCol,
-                                   endDateCol = endDateCol)
-  dropped_overlap_records <- n_after_long_records - nrow(after_overlaps)
-  dropped_overlap_persons <- n_after_long_persons - as.integer(dplyr::n_distinct(after_overlaps$person_id))
-
+  # Attrition from the single pipeline run (fix does not drop rows; long and overlap steps do)
   attrition_if_cleanup <- tibble::tibble(
     step = c("final_episodes_before_cleanup", "fix_start_before_end", "remove_long_episodes", "remove_overlaps"),
     table = c("final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes"),
