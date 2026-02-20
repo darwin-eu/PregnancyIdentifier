@@ -29,8 +29,8 @@ GestationalAgeModule <- R6::R6Class(
                                                growDirection = "horizontal")
       private$.inputPanelCDM$parentNamespace <- self$namespace
 
-      outputChoices <- c("pct", "n", "log(n)")
-      selectedOutputChoice <- ifelse(private$.maxWeeksFilter, "log(n)", "pct")
+      outputChoices <- c("n", "pct", "log(n)")
+      selectedOutputChoice <- ifelse(private$.maxWeeksFilter, "log(n)", "n")
       private$.inputPanelOutput <- InputPanel$new(fun = list(output = shinyWidgets::pickerInput),
                                                args = list(output = list(
                                                  inputId = "output", label = "Y value",
@@ -191,8 +191,7 @@ GestationalAgeModule <- R6::R6Class(
 
           yVar <- private$.inputPanelOutput$inputValues$output
           if (is.null(yVar) || length(yVar) == 0) yVar <- if (private$.maxWeeksFilter) "log(n)" else "pct"
-          # Binned data has n and pct only; compute log(n) when selected
-          if (yVar == "log(n)" && !"log(n)" %in% colnames(data) && "n" %in% colnames(data)) {
+          if (yVar == "log(n)" && "n" %in% colnames(data)) {
             data <- data %>% dplyr::mutate(`log(n)` = log1p(as.numeric(.data$n)))
           }
 
@@ -228,7 +227,7 @@ GestationalAgeModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          private$.data,
+          getData(),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )
