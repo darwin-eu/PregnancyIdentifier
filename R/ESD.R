@@ -1274,20 +1274,22 @@ addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
     unlist(strsplit(name, "^\\d+-"))[2]
   }))
 
-  deliveryResult <- cdm[[tableName]] %>%
-    PatientProfiles::addConceptIntersectFlag(
-      conceptSet = conceptSet,
-      indexDate = "inferred_episode_end",
-      window = intersectWindow,
-      nameStyle = "{concept_name}_{window_name}"
-    ) %>%
-    PatientProfiles::addConceptIntersectCount(
-      conceptSet = conceptSet,
-      indexDate = "inferred_episode_end",
-      window = intersectWindow,
-      nameStyle = "{concept_name}_{window_name}_count"
-    ) %>%
-    dplyr::collect()
+  deliveryResult <- suppressWarnings(
+    cdm[[tableName]] %>%
+      PatientProfiles::addConceptIntersectFlag(
+        conceptSet = conceptSet,
+        indexDate = "inferred_episode_end",
+        window = intersectWindow,
+        nameStyle = "{concept_name}_{window_name}"
+      ) %>%
+      PatientProfiles::addConceptIntersectCount(
+        conceptSet = conceptSet,
+        indexDate = "inferred_episode_end",
+        window = intersectWindow,
+        nameStyle = "{concept_name}_{window_name}_count"
+      ) %>%
+      dplyr::collect()
+  )
 
   deliveryCols <- setdiff(names(deliveryResult), c("person_id", "inferred_episode_end"))
   mergedDf <- df %>%
