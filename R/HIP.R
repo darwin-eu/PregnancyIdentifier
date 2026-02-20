@@ -740,8 +740,10 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::mutate(days_diff = !!CDMConnector::datediff("max_gest_date", "final_visit_date", "day"))
   # One row per (person_id, final_episode_id). Prefer the row where gest_id matches final_episode_id for gestation-only
   # episodes (so we keep the correct gestation row and avoid duplicates from union column misalignment).
+  # window_order required for Spark: row_number() must have ORDER BY.
   mergedTbl <- mergedTbl %>%
     dplyr::group_by(.data$person_id, .data$final_episode_id) %>%
+    dbplyr::window_order(.data$final_visit_date, .data$visit_id, .data$gest_id) %>%
     dplyr::filter(
       dplyr::n() == 1L |
         (.data$final_episode_id == .data$gest_id) |
