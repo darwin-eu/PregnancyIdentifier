@@ -187,7 +187,8 @@ trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
 
 barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunction = NULL,
                     label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL,
-                    rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL) {
+                    rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL,
+                    yLim = NULL) {
   if (!is.null(label)) {
     p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[[yVar]], label = .data[[label]]))
   } else {
@@ -220,6 +221,9 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
   }
   if (!is.null(title)) {
     p <- p + ggtitle(title)
+  }
+  if (!is.null(yLim) && length(yLim) == 2L) {
+    p <- p + coord_cartesian(ylim = yLim)
   }
   if (flipCoordinates) {
     p <- p + coord_flip()
