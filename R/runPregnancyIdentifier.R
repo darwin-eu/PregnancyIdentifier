@@ -118,6 +118,11 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertDirectoryExists(outputDir)
 
   logger <- makeLogger(outputDir, outputLogToConsole = outputLogToConsole)
+  pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
+  cdmNm <- CDMConnector::cdmName(cdm)
+  if (length(cdmNm) == 0 || is.na(cdmNm)) cdmNm <- "unknown"
+  log4r::info(logger, paste0("PregnancyIdentifier version: ", pkgVersion))
+  log4r::info(logger, paste0("CDM name: ", cdmNm))
   log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
 
   runStart <- data.frame(start = as.integer(Sys.time()))
