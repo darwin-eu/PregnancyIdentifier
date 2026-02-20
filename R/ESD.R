@@ -120,11 +120,17 @@ runEsd <- function(cdm,
 
   # 5) Apply study period: retain episodes that end on or before endDate and start on or after startDate;
   #    episodes with NA inferred_episode_start or inferred_episode_end are retained.
+  # Coerce to Date so comparison is robust across backends (e.g. when values are POSIXct or character).
   mergedDf <- mergedDf %>%
-    dplyr::filter(
-      (.data$inferred_episode_start >= startDate | is.na(.data$inferred_episode_start)) &
-        (.data$inferred_episode_end <= endDate | is.na(.data$inferred_episode_end))
+    dplyr::mutate(
+      esd_study_start = as.Date(.data$inferred_episode_start),
+      esd_study_end = as.Date(.data$inferred_episode_end),
+      esd_keep = (is.na(.data$esd_study_start) | .data$esd_study_start >= startDate) &
+        (is.na(.data$esd_study_end) | .data$esd_study_end <= endDate)
     )
+  mergedDf <- mergedDf %>%
+    dplyr::filter(.data$esd_keep) %>%
+    dplyr::select(-"esd_study_start", -"esd_study_end", -"esd_keep")
 
   outputPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
   mergedDf <- mergedDf %>%
@@ -164,7 +170,6 @@ runEsd <- function(cdm,
       "esd_preterm_status_from_calculation",
       dplyr::everything()
     )
-  # Long episodes and overlaps: only modify when conformToValidation is TRUE (conformEpisodePeriods below).
   # Validation and logging always run (validateEpisodePeriods).
   validateEpisodePeriods(
     mergedDf,
@@ -173,31 +178,190 @@ runEsd <- function(cdm,
     endDateCol = "final_episode_end_date",
     logger = logger
   )
+  priorForAttrition <- getAttritionPrior(outputDir, "hipps_episodes")
+  recordCohortAttrition <- file.exists(attritionFileName(outputDir)) && !is.null(priorForAttrition)
+
+  # Cohort attrition: apply the 7 criteria in order and record each step when attrition file exists.
+  cohortReasons <- c(
+    "Initial qualifying events",
+    "In observation at pregnancy start date",
+    "In observation at pregnancy end date",
+    "Pregnancy end date > pregnancy start date",
+    "Gestational length < 308 days",
+    "Gestational length days != 0",
+    "No overlapping pregnancy records"
+  )
+
+  .nRec <- function(df) as.integer(nrow(df))
+  .nPer <- function(df) as.integer(dplyr::n_distinct(df$person_id))
+  .appendCohortStep <- function(priorR, priorP, postR, postP, reason) {
+    if (!recordCohortAttrition) return(invisible(NULL))
+    appendAttrition(
+      outputDir,
+      step = "cohort_attrition",
+      table = "final_episodes",
+      outcome = NA_character_,
+      prior_records = priorR,
+      prior_persons = priorP,
+      dropped_records = priorR - postR,
+      dropped_persons = priorP - postP,
+      post_records = postR,
+      post_persons = postP,
+      reason = reason
+    )
+  }
+
+  # 1) Initial qualifying events (count after study period filter)
+  pr <- priorForAttrition$post_records
+  pp <- priorForAttrition$post_persons
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[1L])
+  pr <- postR
+  pp <- postP
+
+  # 2) In observation at pregnancy start date
+  if ("observation_period" %in% names(cdm)) {
+    op <- cdm$observation_period %>%
+      dplyr::select("person_id", "observation_period_start_date", "observation_period_end_date") %>%
+      dplyr::collect()
+    keepStart <- mergedDf %>%
+      dplyr::filter(!is.na(.data$final_episode_start_date)) %>%
+      dplyr::inner_join(op, by = "person_id") %>%
+      dplyr::filter(
+        .data$final_episode_start_date >= .data$observation_period_start_date,
+        .data$final_episode_start_date <= .data$observation_period_end_date
+      ) %>%
+      dplyr::select("person_id", "merge_episode_number") %>%
+      dplyr::distinct()
+    mergedDf <- mergedDf %>%
+      dplyr::inner_join(keepStart, by = c("person_id", "merge_episode_number"))
+  }
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[2L])
+  pr <- postR
+  pp <- postP
+
+  # 3) In observation at pregnancy end date
+  if ("observation_period" %in% names(cdm)) {
+    keepEnd <- mergedDf %>%
+      dplyr::filter(!is.na(.data$final_episode_end_date)) %>%
+      dplyr::inner_join(op, by = "person_id") %>%
+      dplyr::filter(
+        .data$final_episode_end_date >= .data$observation_period_start_date,
+        .data$final_episode_end_date <= .data$observation_period_end_date
+      ) %>%
+      dplyr::select("person_id", "merge_episode_number") %>%
+      dplyr::distinct()
+    mergedDf <- mergedDf %>%
+      dplyr::inner_join(keepEnd, by = c("person_id", "merge_episode_number"))
+  }
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[3L])
+  pr <- postR
+  pp <- postP
+
+  # 4) Pregnancy end date > pregnancy start date (fix first so we only drop truly invalid)
   if (conformToValidation) {
-    mergedDf <- conformEpisodePeriods(
+    fixResult <- fixStartBeforeEnd(
+      mergedDf,
+      termMaxMin,
+      startDateCol = "final_episode_start_date",
+      endDateCol = "final_episode_end_date",
+      outcomeCol = "final_outcome_category"
+    )
+    mergedDf <- fixResult$df
+    log4r::info(logger, sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
+  }
+  mergedDf <- mergedDf %>%
+    dplyr::filter(
+      is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
+        as.Date(.data$final_episode_end_date) > as.Date(.data$final_episode_start_date)
+    )
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[4L])
+  pr <- postR
+  pp <- postP
+
+  # 5) Gestational length < 308 days (only when conformToValidation: drop episodes longer than 308 days)
+  if (conformToValidation) {
+    mergedDf <- mergedDf %>%
+      dplyr::mutate(
+        .gest_days = dplyr::coalesce(
+          as.numeric(.data$esd_gestational_age_days_calculated),
+          as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+        )
+      ) %>%
+      dplyr::filter(is.na(.data$.gest_days) | .data$.gest_days < 308) %>%
+      dplyr::select(-".gest_days")
+  }
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[5L])
+  pr <- postR
+  pp <- postP
+
+  # 6) Gestational length days != 0
+  mergedDf <- mergedDf %>%
+    dplyr::mutate(
+      .gest_days = dplyr::coalesce(
+        as.numeric(.data$esd_gestational_age_days_calculated),
+        as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+      )
+    ) %>%
+    dplyr::filter(is.na(.data$.gest_days) | .data$.gest_days != 0) %>%
+    dplyr::select(-".gest_days")
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[6L])
+  pr <- postR
+  pp <- postP
+
+  # 7) No overlapping pregnancy records (only when conformToValidation)
+  if (conformToValidation) {
+    mergedDf <- removeOverlaps(
       mergedDf,
       personIdCol = "person_id",
       startDateCol = "final_episode_start_date",
       endDateCol = "final_episode_end_date"
     )
   }
+  postR <- .nRec(mergedDf)
+  postP <- .nPer(mergedDf)
+  .appendCohortStep(pr, pp, postR, postP, cohortReasons[7L])
+
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))
 
-  # Attrition: final_episodes overall and by outcome
-  prior <- getAttritionPrior(outputDir, "hipps_episodes")
-  if (!is.null(prior)) {
-    postR <- nrow(mergedDf)
-    postP <- dplyr::n_distinct(mergedDf$person_id)
+  # Attrition: final_episodes overall (summary row)
+  if (recordCohortAttrition) {
     appendAttrition(
       outputDir,
       step = "final_episodes",
       table = "final_episodes",
       outcome = NA_character_,
-      prior_records = prior$post_records,
-      prior_persons = prior$post_persons,
-      dropped_records = prior$post_records - postR,
-      dropped_persons = prior$post_persons - postP,
+      prior_records = postR,
+      prior_persons = postP,
+      dropped_records = 0L,
+      dropped_persons = 0L,
+      post_records = postR,
+      post_persons = postP
+    )
+  } else if (!is.null(priorForAttrition)) {
+    postR <- .nRec(mergedDf)
+    postP <- .nPer(mergedDf)
+    appendAttrition(
+      outputDir,
+      step = "final_episodes",
+      table = "final_episodes",
+      outcome = NA_character_,
+      prior_records = priorForAttrition$post_records,
+      prior_persons = priorForAttrition$post_persons,
+      dropped_records = priorForAttrition$post_records - postR,
+      dropped_persons = priorForAttrition$post_persons - postP,
       post_records = postR,
       post_persons = postP
     )
@@ -564,6 +728,8 @@ getTimingConcepts <- function(cdm,
   eddConceptIds <- as.integer(esdConcepts$esd_concept_id[esdConcepts$esd_category == "estDeliveryConceptIds"])
 
   conceptIdsToSearch <- as.integer(c(ppsConcepts$pps_concept_id, esdConcepts$esd_concept_id))
+  # Include gestational_age_concepts.csv so GA from measurement (e.g. 3012266 "Gestational age") is pulled
+  conceptIdsToSearch <- c(conceptIdsToSearch, gestationalAgeConceptIds)
 
   # need to find concept names that contain 'gestation period' as well as the specific concepts
   conceptsToSearch <- cdm$concept %>%
@@ -1266,10 +1432,14 @@ addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
   tableName <- "esd_delivery_mode_cohort"
   cdm <- omopgenerics::insertTable(cdm = cdm, name = tableName, table = minimalCohort, overwrite = TRUE)
 
-  conceptSet <- omopgenerics::importConceptSetExpression(
-    path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
+  conceptSet <- suppressMessages(
+    omopgenerics::importConceptSetExpression(
+      path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
+    )
   )
-  conceptSet <- omopgenerics::validateConceptSetArgument(conceptSet, cdm = cdm)
+  conceptSet <- suppressMessages(
+    omopgenerics::validateConceptSetArgument(conceptSet, cdm = cdm)
+  )
   names(conceptSet) <- unlist(lapply(names(conceptSet), FUN = function(name) {
     unlist(strsplit(name, "^\\d+-"))[2]
   }))
