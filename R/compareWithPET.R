@@ -24,7 +24,7 @@
 #' pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
 #' person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
 #' Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
-#' with sensitivity, specificity, PPV, and NPV; outcome confusion matrix and accuracy;
+#' with sensitivity and PPV (no gold-standard negatives, so specificity and NPV are not defined); outcome confusion matrix and accuracy;
 #' outcome comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
 #' and pregnancy duration distributions.
 #'
@@ -39,7 +39,10 @@
 #' @param petTable \code{character(1)}. Table name of the pregnancy episode table
 #'   (e.g. \code{"pregnancy_episode"}). Must contain at least \code{person_id},
 #'   \code{pregnancy_start_date}, \code{pregnancy_end_date}, and
-#'   \code{pregnancy_outcome} (concept_id).
+#'   \code{pregnancy_outcome} (concept_id). Gestational length in days is
+#'   computed from start and end dates in the database via
+#'   \code{CDMConnector::datediff()}; the table need not have a
+#'   \code{gestational_length_in_day} column.
 #' @param minOverlapDays \code{integer(1)}. Minimum overlap in days to consider an
 #'   algorithm episode and a PET episode as the same pregnancy (default 1).
 #' @param removeWithinSourceOverlaps \code{logical(1)}. If \code{TRUE}, before
@@ -51,19 +54,10 @@
 #' @param outputLogToConsole \code{logical(1)}. Used only when \code{logger} is
 #'   \code{NULL}. Whether to log to the console as well as to the log file.
 #'
-#' @return Invisibly returns a list with elements \code{episode_counts},
-#'   \code{protocol_summary} (total PET, algorithm, matched counts for protocol reporting),
-#'   \code{person_overlap}, \code{venn_counts}, \code{time_overlap_summary},
-#'   \code{confusion_2x2}, \code{ppv_sensitivity}, \code{duration_summary},
-#'   \code{duration_matched_summary} (duration stats for matched pairs only),
-#'   \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
-#'   \code{outcome_by_year}, and \code{duration_distribution}. \code{person_overlap}
-#'   has raw and cohort (filtered) person overlap counts. \code{time_overlap_summary}
-#'   has min/Q25/median/Q75/max/sd and n_episodes/n_persons for PET->IPE and IPE->PET
-#'   with 0 or 1 day overlap required. \code{outcome_by_year} is the same-year outcome
-#'   cross-tab (lb_lb, sb_sb, ab_ab, etc.). \code{confusion_2x2} is the 2x2 table
-#'   (TP, FN, FP, TN; TN is \code{NA} at episode level). All comparison artifacts
-#'   are also written to \code{outputFolder} as CSVs (and optionally PNGs).
+#' @return Nothing. The summarised result is written to
+#'   \code{file.path(outputFolder, "pet_comparison_summarised_result.csv")}.
+#'   Use \code{omopgenerics::importSummarisedResult()} to read it and
+#'   \code{visOmopResults::visTable()} to display it.
 #' @export
 comparePregnancyIdentifierWithPET <- function(cdm,
                                               outputDir,
@@ -90,6 +84,40 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     logger <- makeLogger(outputFolder, outputLogToConsole = outputLogToConsole)
   }
   log4r::info(logger, "Starting PET comparison")
+
+  # CDM name for SummarisedResult (all columns character except result_id for settings)
+  snap <- tryCatch(CDMConnector::snapshot(cdm), error = function(e) NULL)
+  cdm_name_sr <- if (!is.null(snap) && "cdm_name" %in% names(snap) && nrow(snap) > 0) {
+    as.character(snap$cdm_name[1])
+  } else {
+    "unknown"
+  }
+  result_id_sr <- 1L
+  base_row <- list(
+    result_id = result_id_sr,
+    cdm_name = cdm_name_sr,
+    group_name = "pet_comparison",
+    group_level = "overall",
+    strata_name = "overall",
+    strata_level = "overall",
+    additional_name = "overall",
+    additional_level = "overall"
+  )
+  # Helper: add rows to sr_rows (list of rows) for a variable with one or more estimates
+  add_sr_rows <- function(sr_rows, variable_name, variable_level, estimates) {
+    for (nm in names(estimates)) {
+      est <- estimates[[nm]]
+      sr_rows[[length(sr_rows) + 1]] <- c(
+        base_row,
+        variable_name = variable_name,
+        variable_level = as.character(variable_level),
+        estimate_name = nm,
+        estimate_type = est$type,
+        estimate_value = as.character(est$value)
+      )
+    }
+    sr_rows
+  }
 
   # Min/max that return NA without warning when no non-missing values (for empty/filtered groups)
   safe_min <- function(x) {
@@ -122,22 +150,48 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   }
 
   # PET table from CDM
-  petTbl <- dplyr::tbl(
-    src = attr(cdm, "dbcon"),
-    CDMConnector::inSchema(schema = petSchema, table = petTable)
-  )
   petCols <- c("person_id", "pregnancy_start_date", "pregnancy_end_date", "pregnancy_outcome")
-  # Optional: gestational_length_in_day
-  petNames <- colnames(petTbl)
-  if (!all(petCols %in% petNames)) {
-    missPet <- setdiff(petCols, petNames)
-    log4r::error(logger, sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
-    stop(sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
+  con <- attr(cdm, "dbcon")
+  # DuckDB's tbl() does not support DBI::Id / inSchema; use dbReadTable and compute in R
+  if (inherits(con, "duckdb_connection")) {
+    pet <- DBI::dbReadTable(con, DBI::Id(schema = petSchema, table = petTable))
+    if (!all(petCols %in% names(pet))) {
+      missPet <- setdiff(petCols, names(pet))
+      log4r::error(logger, sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
+      stop(sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
+    }
+    pet <- pet[, petCols, drop = FALSE]
+    log4r::info(logger, "Loading PET table from database")
+    pet$gestational_length_in_day <- as.numeric(
+      difftime(
+        as.Date(pet$pregnancy_end_date),
+        as.Date(pet$pregnancy_start_date),
+        units = "days"
+      )
+    )
+  } else {
+    petTbl <- dplyr::tbl(
+      src = con,
+      CDMConnector::inSchema(schema = petSchema, table = petTable)
+    )
+    petNames <- colnames(petTbl)
+    if (!all(petCols %in% petNames)) {
+      missPet <- setdiff(petCols, petNames)
+      log4r::error(logger, sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
+      stop(sprintf("PET table missing columns: %s", paste(missPet, collapse = ", ")))
+    }
+    log4r::info(logger, "Loading PET table from database")
+    pet <- petTbl %>%
+      dplyr::select(dplyr::all_of(petCols)) %>%
+      dplyr::mutate(
+        gestational_length_in_day = !!CDMConnector::datediff(
+          "pregnancy_start_date",
+          "pregnancy_end_date",
+          interval = "day"
+        )
+      ) %>%
+      dplyr::collect()
   }
-  log4r::info(logger, "Loading PET table from database")
-  pet <- petTbl %>%
-    dplyr::select(dplyr::all_of(petCols), dplyr::any_of("gestational_length_in_day")) %>%
-    dplyr::collect()
 
   # Normalize PET column names to snake_case if needed
   names(pet) <- tolower(names(pet))
@@ -185,9 +239,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     n_episodes = c(n_episodes_alg, n_episodes_pet),
     n_persons = c(n_persons_alg, n_persons_pet)
   )
-  epPath <- file.path(outputFolder, "pet_comparison_episode_counts.csv")
-  utils::write.csv(episode_counts, epPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Episode counts written to %s", epPath))
 
   # ---- 1b) Raw and filtered person overlap ----
   log4r::info(logger, "Computing raw and filtered person overlap")
@@ -207,9 +258,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       "Distinct persons after filtering gestation 0-308 days and end >= start"
     )
   )
-  personOverlapPath <- file.path(outputFolder, "pet_comparison_person_overlap.csv")
-  utils::write.csv(person_overlap, personOverlapPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Person overlap written to %s", personOverlapPath))
 
   # ---- 2) Link episodes (overlap) and date differences ----
   # Match: same person, overlapping period (overlap >= minOverlapDays)
@@ -268,9 +316,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     n_pet_matched = pet_matched,
     n_alg_matched = alg_matched
   )
-  vennPath <- file.path(outputFolder, "pet_comparison_venn_counts.csv")
-  utils::write.csv(venn_counts, vennPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Venn counts written to %s", vennPath))
 
   # Protocol summary: total PET, total algorithm, total matched (for reporting)
   protocol_summary <- tibble::tibble(
@@ -278,9 +323,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     total_algorithm_episodes = n_episodes_alg,
     total_matched_episodes = n_both
   )
-  protocolPath <- file.path(outputFolder, "pet_comparison_protocol_summary.csv")
-  utils::write.csv(protocol_summary, protocolPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Protocol summary written to %s", protocolPath))
 
   # ---- 2b) Time overlap summaries (PET->IPE and IPE->PET, 0 and 1 day) ----
   log4r::info(logger, "Computing time overlap summaries")
@@ -349,9 +391,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     ) %>%
     dplyr::mutate(label = "IPE -> PET 1 day overlap required")
   time_overlap_summary <- dplyr::bind_rows(res1, res2, res3, res4)
-  timeOverlapPath <- file.path(outputFolder, "pet_comparison_time_overlap_summary.csv")
-  utils::write.csv(time_overlap_summary, timeOverlapPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Time overlap summary written to %s", timeOverlapPath))
 
   # 2x2 confusion matrix (PET = reference, Algorithm = test)
   # TP = PET episode has matching algorithm episode; FN = PET episode, no match; FP = algorithm episode, no match; TN = N/A (no negative population at episode level)
@@ -366,26 +405,18 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     count = c(tp, fn, fp, tn),
     cell = c("TP", "FN", "FP", "TN")
   )
-  conf2x2Path <- file.path(outputFolder, "pet_comparison_confusion_2x2.csv")
-  utils::write.csv(confusion_2x2, conf2x2Path, row.names = FALSE)
-  log4r::info(logger, sprintf("2x2 confusion matrix written to %s", conf2x2Path))
 
-  # Sensitivity, specificity, PPV, NPV (PET as reference)
-  # Sensitivity = TP / (TP + FN); Specificity = TN / (TN + FP); PPV = TP / (TP + FP); NPV = TN / (TN + FN)
+  # Sensitivity and PPV only (PET as reference; no gold-standard negatives, so specificity and NPV are not defined)
+  # Sensitivity = TP / (TP + FN); PPV = TP / (TP + FP)
   sensitivity <- if (tp + fn > 0) tp / (tp + fn) else NA_real_
-  specificity <- if (!is.na(tn) && (tn + fp) > 0) tn / (tn + fp) else NA_real_
   ppv <- if (tp + fp > 0) tp / (tp + fp) else NA_real_
-  npv <- if (!is.na(tn) && (tn + fn) > 0) tn / (tn + fn) else NA_real_
 
   ppv_sensitivity <- tibble::tibble(
-    metric = c("sensitivity", "specificity", "ppv", "npv"),
-    value = c(sensitivity, specificity, ppv, npv),
-    denominator = c(tp + fn, tn + fp, tp + fp, tn + fn),
-    numerator = c(tp, tn, tp, tn)
+    metric = c("sensitivity", "ppv"),
+    value = c(sensitivity, ppv),
+    denominator = c(tp + fn, tp + fp),
+    numerator = c(tp, tp)
   )
-  ppvPath <- file.path(outputFolder, "pet_comparison_ppv_sensitivity.csv")
-  utils::write.csv(ppv_sensitivity, ppvPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Sensitivity/Specificity/PPV/NPV written to %s", ppvPath))
 
   # Date differences for best-matched pairs (one row per best-match pair)
   # Sign convention: PET − algorithm (positive = PET start/end is later than algorithm)
@@ -416,25 +447,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       max = c(safe_max(date_diff$start_diff_days), safe_max(date_diff$end_diff_days)),
       n_matched = nrow(date_diff)
     )
-    dateSummaryPath <- file.path(outputFolder, "pet_comparison_date_difference_summary.csv")
-    utils::write.csv(date_summary, dateSummaryPath, row.names = FALSE)
-    utils::write.csv(date_diff, file.path(outputFolder, "pet_comparison_date_differences.csv"), row.names = FALSE)
-    log4r::info(logger, sprintf("Date difference summary written to %s", dateSummaryPath))
-
-    # Histogram data for start_diff_days (only when we have valid breaks)
-    x <- date_diff$start_diff_days[!is.na(date_diff$start_diff_days)]
-    if (length(x) > 0L) {
-      br <- seq(
-        floor(min(x)) - 0.5,
-        ceiling(max(x)) + 0.5,
-        by = 1
-      )
-      if (length(br) >= 2L) {
-        hist_start <- as.data.frame(table(cut(date_diff$start_diff_days, breaks = br), useNA = "no"))
-        colnames(hist_start) <- c("bin", "count")
-        utils::write.csv(hist_start, file.path(outputFolder, "pet_comparison_start_diff_histogram.csv"), row.names = FALSE)
-      }
-    }
   }
 
   # ---- 3) Outcome confusion matrix (matched pairs) ----
@@ -469,9 +481,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     confusion <- outcome_pairs %>%
       dplyr::count(.data$pet_outcome, .data$alg_outcome_char, name = "n") %>%
       tidyr::pivot_wider(names_from = "alg_outcome_char", values_from = "n", values_fill = 0)
-    confPath <- file.path(outputFolder, "pet_comparison_outcome_confusion_matrix.csv")
-    utils::write.csv(confusion, confPath, row.names = FALSE)
-    log4r::info(logger, sprintf("Outcome confusion matrix written to %s", confPath))
 
     # Accuracy: when comparing same concept_id (PET) to algorithm-mapped concept_id
     outcome_pairs_for_acc <- outcome_pairs %>%
@@ -484,12 +493,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       n_total = n_total_acc,
       accuracy = accuracy
     )
-    accPath <- file.path(outputFolder, "pet_comparison_outcome_accuracy.csv")
-    utils::write.csv(outcome_accuracy, accPath, row.names = FALSE)
-    log4r::info(logger, sprintf("Outcome accuracy written to %s", accPath))
-  } else {
-    utils::write.csv(outcome_accuracy, file.path(outputFolder, "pet_comparison_outcome_accuracy.csv"), row.names = FALSE)
-    utils::write.csv(confusion, file.path(outputFolder, "pet_comparison_outcome_confusion_matrix.csv"), row.names = FALSE)
   }
 
   # ---- 3b) Outcome comparison by year (same-year pairs, cross-tab LB/SB/AB) ----
@@ -547,10 +550,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         .groups = "drop"
       )
   }
-  outcomeByYearPath <- file.path(outputFolder, "pet_comparison_outcome_by_year.csv")
-  utils::write.csv(outcome_by_year, outcomeByYearPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Outcome comparison by year written to %s", outcomeByYearPath))
-
   # ---- 4) Pregnancy duration comparison ----
   log4r::info(logger, "Computing pregnancy duration distributions")
   duration_matched_summary <- NULL
@@ -598,10 +597,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         .groups = "drop"
       )
   )
-  durSumPath <- file.path(outputFolder, "pet_comparison_duration_summary.csv")
-  utils::write.csv(duration_summary, durSumPath, row.names = FALSE)
-  log4r::info(logger, sprintf("Duration summary written to %s", durSumPath))
-
   # Matched episodes only: duration PET and Algorithm per episode (protocol: duration of PET/Algorithm for matched)
   duration_matched_summary <- NULL
   if (nrow(best_match) > 0 && exists("date_diff")) {
@@ -635,9 +630,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
           .groups = "drop"
         )
     )
-    durMatchedPath <- file.path(outputFolder, "pet_comparison_duration_matched_summary.csv")
-    utils::write.csv(duration_matched_summary, durMatchedPath, row.names = FALSE)
-    log4r::info(logger, sprintf("Duration (matched) summary written to %s", durMatchedPath))
   }
 
   # Duration distribution (binned) for histogram
@@ -645,49 +637,159 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     duration_alg %>% dplyr::select("duration_days", "source"),
     duration_pet %>% dplyr::select("duration_days", "source")
   )
-  utils::write.csv(all_durations, file.path(outputFolder, "pet_comparison_duration_distribution.csv"), row.names = FALSE)
 
-  # Optional: base R histograms to PNG
-  tryCatch(
-    {
-      if (nrow(best_match) > 0 && exists("date_diff")) {
-        grDevices::png(file.path(outputFolder, "pet_comparison_start_diff_histogram.png"), width = 600, height = 400, res = 100)
-        graphics::hist(date_diff$start_diff_days, main = "Start date difference (PET - algorithm) [days]", xlab = "Days", breaks = 30)
-        grDevices::dev.off()
-      }
-      grDevices::png(file.path(outputFolder, "pet_comparison_duration_histogram.png"), width = 600, height = 400, res = 100)
-      xlim <- range(c(duration_alg$duration_days, duration_pet$duration_days), na.rm = TRUE)
-      graphics::hist(duration_alg$duration_days, col = grDevices::rgb(0.2, 0.4, 0.8, 0.5), main = "Pregnancy duration (days)", xlab = "Days", breaks = 30, xlim = xlim)
-      graphics::hist(duration_pet$duration_days, col = grDevices::rgb(0.8, 0.2, 0.2, 0.5), add = TRUE)
-      graphics::legend("topright", legend = c("Algorithm", "PET"), fill = c(grDevices::rgb(0.2, 0.4, 0.8, 0.5), grDevices::rgb(0.8, 0.2, 0.2, 0.5)))
-      grDevices::dev.off()
-    },
-    error = function(e) {
-      log4r::warn(logger, sprintf("Could not write PNG histograms: %s", conditionMessage(e)))
+  # ---- Build SummarisedResult and export single CSV ----
+  log4r::info(logger, "Building SummarisedResult and exporting pet_comparison_summarised_result.csv")
+  sr_rows <- list()
+  # Episode counts
+  for (i in seq_len(nrow(episode_counts))) {
+    src <- episode_counts$source[i]
+    sr_rows <- add_sr_rows(sr_rows, "episode_counts", src, list(
+      n_episodes = list(type = "integer", value = episode_counts$n_episodes[i]),
+      n_persons = list(type = "integer", value = episode_counts$n_persons[i])
+    ))
+  }
+  # Person overlap
+  for (i in seq_len(nrow(person_overlap))) {
+    sr_rows <- add_sr_rows(sr_rows, "person_overlap", person_overlap$metric[i], list(
+      n_persons = list(type = "integer", value = person_overlap$n_persons[i])
+    ))
+  }
+  # Venn counts
+  for (i in seq_len(nrow(venn_counts))) {
+    sr_rows <- add_sr_rows(sr_rows, "venn_counts", venn_counts$category[i], list(
+      n_episodes = list(type = "integer", value = venn_counts$n_episodes[i]),
+      n_pet_matched = list(type = "integer", value = venn_counts$n_pet_matched[i]),
+      n_alg_matched = list(type = "integer", value = venn_counts$n_alg_matched[i])
+    ))
+  }
+  # Protocol summary (single row)
+  sr_rows <- add_sr_rows(sr_rows, "protocol_summary", "overall", list(
+    total_pet_episodes = list(type = "integer", value = protocol_summary$total_pet_episodes),
+    total_algorithm_episodes = list(type = "integer", value = protocol_summary$total_algorithm_episodes),
+    total_matched_episodes = list(type = "integer", value = protocol_summary$total_matched_episodes)
+  ))
+  # Time overlap summary (one row per label)
+  for (i in seq_len(nrow(time_overlap_summary))) {
+    lab <- time_overlap_summary$label[i]
+    sr_rows <- add_sr_rows(sr_rows, "time_overlap_summary", lab, list(
+      min = list(type = "numeric", value = time_overlap_summary$min[i]),
+      q25 = list(type = "numeric", value = time_overlap_summary$Q25[i]),
+      median = list(type = "numeric", value = time_overlap_summary$median[i]),
+      q75 = list(type = "numeric", value = time_overlap_summary$Q75[i]),
+      max = list(type = "numeric", value = time_overlap_summary$max[i]),
+      sd = list(type = "numeric", value = time_overlap_summary$sd[i]),
+      n_episodes = list(type = "integer", value = time_overlap_summary$n_episodes[i]),
+      n_persons = list(type = "integer", value = time_overlap_summary$n_persons[i])
+    ))
+  }
+  # Confusion 2x2
+  for (i in seq_len(nrow(confusion_2x2))) {
+    sr_rows <- add_sr_rows(sr_rows, "confusion_2x2", confusion_2x2$cell[i], list(
+      count = list(type = "integer", value = confusion_2x2$count[i])
+    ))
+  }
+  # PPV / sensitivity
+  for (i in seq_len(nrow(ppv_sensitivity))) {
+    sr_rows <- add_sr_rows(sr_rows, "ppv_sensitivity", ppv_sensitivity$metric[i], list(
+      value = list(type = "percentage", value = ppv_sensitivity$value[i]),
+      numerator = list(type = "integer", value = ppv_sensitivity$numerator[i]),
+      denominator = list(type = "integer", value = ppv_sensitivity$denominator[i])
+    ))
+  }
+  # Date difference summary (if present)
+  if (nrow(best_match) > 0 && exists("date_summary")) {
+    for (i in seq_len(nrow(date_summary))) {
+      m <- date_summary$measure[i]
+      sr_rows <- add_sr_rows(sr_rows, "date_difference_summary", m, list(
+        mean = list(type = "numeric", value = date_summary$mean[i]),
+        median = list(type = "numeric", value = date_summary$median[i]),
+        sd = list(type = "numeric", value = date_summary$sd[i]),
+        min = list(type = "numeric", value = date_summary$min[i]),
+        q25 = list(type = "numeric", value = date_summary$Q25[i]),
+        q75 = list(type = "numeric", value = date_summary$Q75[i]),
+        max = list(type = "numeric", value = date_summary$max[i]),
+        n_matched = list(type = "integer", value = date_summary$n_matched[i])
+      ))
     }
+  }
+  # Outcome accuracy
+  sr_rows <- add_sr_rows(sr_rows, "outcome_accuracy", "overall", list(
+    n_correct = list(type = "integer", value = outcome_accuracy$n_correct),
+    n_total = list(type = "integer", value = outcome_accuracy$n_total),
+    accuracy = list(type = "percentage", value = outcome_accuracy$accuracy)
+  ))
+  # Outcome by year (one estimate per column)
+  oby <- outcome_by_year[1, ]
+  for (cn in names(oby)) {
+    val <- oby[[cn]]
+    if (is.numeric(val) || is.integer(val)) {
+      lst <- list()
+      lst[[cn]] <- list(type = "integer", value = val)
+      sr_rows <- add_sr_rows(sr_rows, "outcome_by_year", "same_year_pairs", lst)
+    }
+  }
+  # Duration summary (by source)
+  for (i in seq_len(nrow(duration_summary))) {
+    src <- duration_summary$source[i]
+    sr_rows <- add_sr_rows(sr_rows, "duration_summary", src, list(
+      n = list(type = "integer", value = duration_summary$n[i]),
+      mean = list(type = "numeric", value = duration_summary$mean[i]),
+      median = list(type = "numeric", value = duration_summary$median[i]),
+      sd = list(type = "numeric", value = duration_summary$sd[i]),
+      min = list(type = "numeric", value = duration_summary$min[i]),
+      q25 = list(type = "numeric", value = duration_summary$Q25[i]),
+      q75 = list(type = "numeric", value = duration_summary$Q75[i]),
+      max = list(type = "numeric", value = duration_summary$max[i])
+    ))
+  }
+  # Duration matched summary
+  if (!is.null(duration_matched_summary) && nrow(duration_matched_summary) > 0) {
+    for (i in seq_len(nrow(duration_matched_summary))) {
+      src <- duration_matched_summary$source[i]
+      sr_rows <- add_sr_rows(sr_rows, "duration_matched_summary", src, list(
+        n = list(type = "integer", value = duration_matched_summary$n[i]),
+        mean = list(type = "numeric", value = duration_matched_summary$mean[i]),
+        median = list(type = "numeric", value = duration_matched_summary$median[i]),
+        sd = list(type = "numeric", value = duration_matched_summary$sd[i]),
+        min = list(type = "numeric", value = duration_matched_summary$min[i]),
+        q25 = list(type = "numeric", value = duration_matched_summary$Q25[i]),
+        q75 = list(type = "numeric", value = duration_matched_summary$Q75[i]),
+        max = list(type = "numeric", value = duration_matched_summary$max[i])
+      ))
+    }
+  }
+
+  # Build results table (all character for CSV compatibility; result_id as integer for omopgenerics)
+  results_tbl <- do.call(rbind, lapply(sr_rows, function(r) {
+    as.data.frame(r, stringsAsFactors = FALSE)
+  }))
+  results_tbl$result_id <- result_id_sr
+  results_tbl <- tibble::as_tibble(results_tbl)
+
+  # Settings: one row per result_id with function parameters and package metadata
+  pkg_version <- as.character(utils::packageVersion("PregnancyIdentifier"))
+  settings_tbl <- tibble::tibble(
+    result_id = result_id_sr,
+    result_type = "compare_pregnancy_identifier_with_pet",
+    package_name = "PregnancyIdentifier",
+    package_version = pkg_version,
+    pet_schema = petSchema,
+    pet_table = petTable,
+    min_overlap_days = as.character(minOverlapDays),
+    remove_within_source_overlaps = as.character(removeWithinSourceOverlaps)
   )
+
+  summarised_result <- omopgenerics::newSummarisedResult(
+    x = results_tbl,
+    settings = settings_tbl
+  )
+  omopgenerics::exportSummarisedResult(
+    summarised_result,
+    path = outputFolder,
+    fileName = "pet_comparison_summarised_result.csv"
+  )
+  log4r::info(logger, sprintf("PET comparison written to %s", file.path(outputFolder, "pet_comparison_summarised_result.csv")))
 
   log4r::info(logger, "PET comparison complete")
-
-  out <- list(
-    episode_counts = episode_counts,
-    protocol_summary = protocol_summary,
-    person_overlap = person_overlap,
-    venn_counts = venn_counts,
-    time_overlap_summary = time_overlap_summary,
-    confusion_2x2 = confusion_2x2,
-    ppv_sensitivity = ppv_sensitivity,
-    duration_summary = duration_summary,
-    duration_matched_summary = duration_matched_summary,
-    date_differences = NULL,
-    outcome_confusion = NULL,
-    outcome_accuracy = outcome_accuracy,
-    outcome_by_year = outcome_by_year,
-    duration_distribution = all_durations
-  )
-  if (nrow(best_match) > 0) {
-    out$date_differences <- date_diff
-    out$outcome_confusion <- confusion
-  }
-  invisible(out)
 }
