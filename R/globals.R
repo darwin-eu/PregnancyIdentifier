@@ -52,6 +52,7 @@ utils::globalVariables(
     "esd_outcome_match",
     "esd_term_duration_flag",
     "esd_outcome_concordance_score",
-    "esd_preterm_status_from_calculation"
+    "esd_preterm_status_from_calculation",
+    "final_outcome_category"
   ))
 )

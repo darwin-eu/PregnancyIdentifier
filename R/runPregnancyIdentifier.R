@@ -72,8 +72,9 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #' @param debugMode (`logical(1)`) Should extra intermediate datasets be written to
 #'   the outputDir for debugging? `TRUE` or `FALSE` (default)
 #' @param runExport (`logical(1)`) If `TRUE`, run `exportPregnancies()` after
-#'   ESD and write shareable CSVs and ZIP to `file.path(outputDir, "export")`.
-#'   Default `FALSE`.
+#'   ESD and write shareable CSVs to `file.path(outputDir, "export")`. Use
+#'   \code{zipExportFolder()} separately to create a ZIP (e.g. after adding PET
+#'   comparison tables to the same folder). Default `FALSE`.
 #' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
 #'   written to the console. If `FALSE`, only to the log file (e.g. for tests).
 #' @param conformToValidation (\code{logical(1)} or \code{"both"}) If \code{TRUE}, after
