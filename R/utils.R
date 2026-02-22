@@ -312,6 +312,26 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
     }
   }
 
+  pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier"),
+                         show_col_types = FALSE, guess_max = 1e6)
+
+  cdm <- CDMConnector::insertTable(
+    cdm,
+    name = "pregnancy_extension",
+    table = pet,
+    overwrite = TRUE,
+    temporary = FALSE)
+
+  # Ensure PET is in schema "main" so comparePregnancyIdentifierWithPET(..., petSchema = "main", petTable = "pregnancy_extension") works
+  con <- CDMConnector::cdmCon(cdm)
+  pet_df <- dplyr::collect(cdm$pregnancy_extension)
+  DBI::dbWriteTable(
+    con,
+    DBI::Id(schema = "main", table = "pregnancy_extension"),
+    as.data.frame(pet_df),
+    overwrite = TRUE
+  )
+
   return(cdm)
 }
 
