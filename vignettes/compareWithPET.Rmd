@@ -1,0 +1,347 @@
+---
+title: "Comparing algorithm output with the Pregnancy Extension Table (PET)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparing algorithm output with the Pregnancy Extension Table (PET)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+# Overview
+
+The **Pregnancy Extension Table (PET)** is an OMOP CDM extension that stores pregnancy episodes (start date, end date, outcome) identified by a separate process (e.g. chart review or another algorithm). The function **`comparePregnancyIdentifierWithPET()`** compares the episodes produced by the PregnancyIdentifier pipeline to the PET and writes comparison summaries to CSV files. This vignette describes how to run the comparison using the mock CDM, how **matching** is done, and what each output contains.
+
+# How to run the PET comparison
+
+You need:
+
+1. **Algorithm output:** a directory containing `final_pregnancy_episodes.rds` (from `runPregnancyIdentifier()`).
+2. **A PET table in the same CDM:** a table with at least `person_id`, `pregnancy_start_date`, `pregnancy_end_date`, and `pregnancy_outcome` (concept_id).
+
+Below we run the pipeline with `mockPregnancyCdm()` (which includes a PET table `pregnancy_extension` in schema `main`), then run the comparison.
+
+```{r setup}
+library(PregnancyIdentifier)
+library(CDMConnector)
+library(dplyr)
+library(tidyr)
+library(knitr)
+# Helper: get the results table from a summarised_result (handles list with $results or single table)
+sr_results <- function(sr) {
+  if (is.list(sr) && "results" %in% names(sr) && is.data.frame(sr$results)) {
+    sr$results
+  } else {
+    as.data.frame(sr)
+  }
+}
+# Helper: extract a wide table for one variable from the summarised result
+sr_table <- function(sr, var, level_name = "variable_level") {
+  tbl <- sr_results(sr)
+  d <- dplyr::filter(tbl, .data$variable_name == .env$var)
+  if (nrow(d) == 0) return(NULL)
+  d <- dplyr::select(d, "variable_level", "estimate_name", "estimate_value")
+  wide <- tidyr::pivot_wider(d, names_from = "estimate_name", values_from = "estimate_value")
+  if (level_name != "variable_level") wide <- dplyr::rename(wide, !!level_name := "variable_level")
+  wide
+}
+```
+
+```{r run-pipeline-and-pet, message=FALSE, warning=FALSE}
+# Directories for pipeline output and comparison output
+outputDir    <- file.path(tempdir(), "pet_vignette_pipeline")
+outputFolder <- file.path(tempdir(), "pet_vignette_comparison")
+dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+
+# 1) Build mock CDM and run the pipeline
+cdm <- mockPregnancyCdm()
+runPregnancyIdentifier(
+  cdm = cdm,
+  outputDir = outputDir,
+  outputLogToConsole = FALSE
+)
+```
+
+
+```{r insert-mock-pet, message=FALSE, warning=FALSE, echo=FALSE, include=FALSE, eval=FALSE}
+# 2) Build a PET table with realistic noise (so the comparison is not 1:1)
+#    In practice, PET would come from your CDM. Here we derive PET from the
+#    algorithm output then: (a) keep a subset with date jitter so matches are
+#    "close" but not identical, (b) drop some algorithm episodes from PET so
+#    they appear as algorithm-only, and (c) add some PET-only episodes that
+#    do not overlap the algorithm output.
+alg <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+names(alg) <- tolower(names(alg))
+outcome_to_concept <- function(x) {
+  dplyr::case_when(
+    x == "LB"   ~ 4092289L,
+    x == "SB"   ~ 443213L,
+    x == "AB"   ~ 4081422L,
+    x == "SA"   ~ 4067106L,
+    x == "DELIV"~ 4092289L,
+    TRUE        ~ 4092289L
+  )
+}
+
+set.seed(123)
+n_alg <- nrow(alg)
+
+# (a) Keep ~80% of algorithm episodes in PET and add small date jitter (they will still match)
+frac_matched <- 0.8
+n_keep       <- max(1, floor(n_alg * frac_matched))
+idx_keep     <- sample(seq_len(n_alg), size = n_keep, replace = FALSE)
+alg_kept     <- alg[idx_keep, ]
+# Jitter start and end by ±5 days; keep end >= start
+jitter_days   <- 5
+alg_kept$pregnancy_start_date <- as.Date(alg_kept$final_episode_start_date) +
+  sample(-jitter_days:jitter_days, n_keep, replace = TRUE)
+alg_kept$pregnancy_end_date   <- as.Date(alg_kept$final_episode_end_date) +
+  sample(-jitter_days:jitter_days, n_keep, replace = TRUE)
+alg_kept$pregnancy_outcome    <- outcome_to_concept(alg_kept$final_outcome_category)
+# Ensure end >= start (clip to at least start)
+alg_kept$pregnancy_end_date   <- pmax(alg_kept$pregnancy_start_date, alg_kept$pregnancy_end_date)
+pet_matched <- alg_kept %>%
+  dplyr::select("person_id", "pregnancy_start_date", "pregnancy_end_date", "pregnancy_outcome")
+
+# (b) Dropped episodes: the other ~20% of algorithm episodes are not in PET
+#     (they will appear as algorithm_only / FP in the comparison).
+
+# (c) Add PET-only episodes: extra episodes that do not overlap any algorithm episode
+#     (e.g. pregnancies in an earlier period so they are "not close enough" to match).
+date_range_alg <- range(as.Date(alg$final_episode_start_date), as.Date(alg$final_episode_end_date))
+n_pet_only     <- min(5, n_alg)   # up to 5 extra PET episodes
+persons_extra  <- sample(unique(alg$person_id), size = n_pet_only, replace = TRUE)
+# Place these episodes well before the algorithm window so overlap is 0
+days_before    <- 400
+pet_only_start <- date_range_alg[1] - days_before
+pet_only_end   <- pet_only_start + 280L   # typical gestation
+pet_only_df    <- data.frame(
+  person_id             = persons_extra,
+  pregnancy_start_date  = rep(pet_only_start, n_pet_only),
+  pregnancy_end_date    = rep(pet_only_end, n_pet_only),
+  pregnancy_outcome     = 4092289L
+)
+
+pet_df <- dplyr::bind_rows(pet_matched, pet_only_df)
+
+# readr::write_csv(pet_df, "../pet.csv")
+
+con <- CDMConnector::cdmCon(cdm)
+DBI::dbWriteTable(
+  con,
+  DBI::Id(schema = "main", table = "pregnancy_episode"),
+  as.data.frame(pet_df),
+  overwrite = TRUE
+)
+```
+
+
+```{r run-comparison, message=FALSE, warning=FALSE}
+# The mock CDM includes a PET table `pregnancy_extension` in schema `main` with the
+# required columns. We run the comparison against it. (Alternatively, you could build
+# a PET from the algorithm output as in the `insert-mock-pet` chunk and use
+# petTable = "pregnancy_episode".)
+
+# 3) Run the PET comparison (writes summarised result to outputFolder; returns nothing)
+comparePregnancyIdentifierWithPET(
+  cdm = cdm,
+  outputDir = outputDir,
+  outputFolder = outputFolder,
+  petSchema = "main",
+  petTable = "pregnancy_extension",
+  minOverlapDays = 1L,
+  outputLogToConsole = FALSE
+)
+# Load the written summarised result for display and programmatic use
+res <- omopgenerics::importSummarisedResult(file.path(outputFolder, "pet_comparison_summarised_result.csv"))
+```
+
+# How matching is done
+
+Episodes are **matched** by:
+
+1. **Same person:** only algorithm and PET episodes from the same `person_id` are considered.
+2. **Overlapping dates:** for each (algorithm episode, PET episode) pair, overlap in days is  
+   `max(0, min(alg_end, pet_end) - max(alg_start, pet_start) + 1)`.  
+   Pairs with overlap **≥ `minOverlapDays`** (default 1) are **candidate pairs**.
+3. **One-to-one assignment:** within each person, candidate pairs are sorted by overlap (descending). A greedy algorithm assigns each PET episode to at most one algorithm episode and vice versa: it repeatedly picks the pair with the largest overlap among those whose PET and algorithm indices are not yet used. This avoids double-counting and yields consistent Venn and confusion counts.
+
+Optional: if `removeWithinSourceOverlaps = TRUE`, overlapping episodes within PET and within the algorithm are removed (greedy non-overlapping by start date, max 400 days) *before* matching, which can reduce many-to-many pairs.
+
+# Outputs generated
+
+The function writes a **single CSV** in \code{omopgenerics} SummarisedResult format to \code{outputFolder} (\code{pet_comparison_summarised_result.csv}) and returns nothing. Re-import it with \code{omopgenerics::importSummarisedResult()} and display with \code{visOmopResults::visTable()}:
+
+```{r import-and-vis, message=FALSE, warning=FALSE}
+# Display as a gt table (optional: requires visOmopResults)
+if (requireNamespace("visOmopResults", quietly = TRUE)) {
+  visOmopResults::visTable(res)
+}
+```
+
+The summarised result is in long format: each row has \code{variable_name}, \code{variable_level}, \code{estimate_name}, and \code{estimate_value}. The helper \code{sr_table(res, "variable_name")} used below extracts and pivots one variable into a wide table for display. The following sections describe each metric.
+
+## Episode and person counts
+
+```{r episode-counts}
+kable(sr_table(res, "episode_counts", "source"), format = "html", caption = "Episode counts: algorithm vs PET")
+```
+
+Number of episodes and distinct persons in the algorithm output and in the PET table.
+
+## Protocol summary
+
+```{r protocol-summary}
+kable(sr_table(res, "protocol_summary"), format = "html", caption = "Protocol summary (for reporting)")
+```
+
+Totals and number of **matched** episodes (one-to-one pairs).
+
+## Person overlap
+
+```{r person-overlap}
+kable(sr_table(res, "person_overlap", "metric"), format = "html", caption = "Person overlap")
+```
+
+- **raw_person_overlap:** distinct persons with at least one PET episode and one algorithm episode.
+- **cohort_person_overlap:** same, but after filtering both sources to gestation 0–308 days and end ≥ start.
+
+## Venn counts (matched / PET-only / algorithm-only)
+
+```{r venn-counts}
+kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn counts (one-to-one matching)")
+```
+
+- **both:** number of matched episode pairs.
+- **pet_only:** PET episodes with no matched algorithm episode.
+- **algorithm_only:** algorithm episodes with no matched PET episode.
+
+## Time overlap summary
+
+```{r time-overlap}
+kable(sr_table(res, "time_overlap_summary", "label"), format = "html", caption = "Time overlap (days) per episode")
+```
+
+For each PET episode, the **maximum** overlap (in days) with any algorithm episode; and for each algorithm episode, the maximum overlap with any PET episode. Summaries are shown when requiring **0 day** overlap (all episodes) and **1 day** overlap (only episodes with at least 1 day overlap). **PET → IPE** = per-PET max overlap with algorithm; **IPE → PET** = per-algorithm max overlap with PET. Columns: min, Q25, median, Q75, max, sd, n_episodes, n_persons.
+
+## 2×2 confusion matrix (PET as reference)
+
+```{r confusion-2x2}
+kable(sr_table(res, "confusion_2x2", "cell"), format = "html", caption = "2×2 confusion matrix (PET = reference)")
+```
+
+- **TP:** PET episode has a matched algorithm episode.
+- **FN:** PET episode has no match (algorithm “miss”).
+- **FP:** Algorithm episode has no match (algorithm “extra”).
+- **TN:** Not defined at episode level (no negative population).
+
+## Sensitivity, PPV, NPV
+
+```{r ppv-sensitivity}
+kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Sensitivity, specificity, PPV, NPV")
+```
+
+- **Sensitivity** = TP / (TP + FN): fraction of PET episodes that have a match.
+- **PPV** = TP / (TP + FP): fraction of algorithm episodes that match a PET episode.
+- Specificity and NPV use TN and are NA at episode level.
+
+## Date differences (matched pairs only)
+
+For each matched pair, date differences are **PET − algorithm** (positive = PET is later). The summarised result may include \code{date_difference_summary} when there are matched pairs.
+
+```{r date-diff-summary}
+dd_summary <- sr_table(res, "date_difference_summary")
+if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
+  kable(dd_summary, format = "html", caption = "Date difference summary (PET − algorithm, days)")
+} else {
+  cat("No matched pairs; date differences not computed.\n")
+}
+```
+
+## Outcome confusion (matched pairs)
+
+Cross-tabulation of PET outcome (concept_id) vs algorithm outcome (LB, SB, AB, SA, etc.) is not included in the summarised result CSV; only aggregate metrics are exported.
+
+## Outcome accuracy
+
+Among matched pairs with a mappable algorithm outcome (LB/SB/AB/SA/DELIV → concept_id), the fraction where PET outcome concept_id equals the algorithm-mapped concept_id.
+
+```{r outcome-accuracy}
+kable(sr_table(res, "outcome_accuracy"), format = "html", caption = "Outcome accuracy (matched pairs)")
+```
+
+## Outcome by year (same-year pairs)
+
+Among matched pairs in the **same year** (algorithm start year = PET start year), counts of agreement (e.g. lb_lb, sb_sb) and disagreement (e.g. lb_sb, sb_lb). Used for same-year outcome cross-tabs.
+
+```{r outcome-by-year}
+kable(sr_table(res, "outcome_by_year"), format = "html", caption = "Outcome by year (same-year pairs)")
+```
+
+## Duration summary (all episodes)
+
+```{r duration-summary}
+kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
+```
+
+Summary statistics of episode length (end − start) for all algorithm episodes and all PET episodes.
+
+## Duration matched summary
+
+```{r duration-matched}
+dm <- sr_table(res, "duration_matched_summary", "source")
+if (!is.null(dm) && nrow(dm) > 0) {
+  kable(dm, format = "html", caption = "Duration (matched pairs only)")
+} else {
+  cat("No duration matched summary (no matched pairs).\n")
+}
+```
+
+Duration statistics for the **matched** episodes only (algorithm vs PET).
+
+---
+
+# Files written to `outputFolder`
+
+| File | Content |
+|------|--------|
+| `pet_comparison_summarised_result.csv` | All comparison metrics in \code{omopgenerics} SummarisedResult format (episode counts, protocol summary, person overlap, Venn counts, time overlap, confusion 2x2, PPV/sensitivity, date-difference summary, outcome accuracy, outcome by year, duration summaries). Includes settings (e.g. \code{pet_schema}, \code{pet_table}, \code{min_overlap_days}) for traceability. Use \code{omopgenerics::importSummarisedResult()} to read and \code{visOmopResults::visTable()} to display. |
+| `log.txt` | Run log. |
+
+---
+
+# Using your own PET table
+
+If your CDM already has a PET table (e.g. `omop_cmbd.pregnancy_episode`), call:
+
+```{r, eval = FALSE}
+comparePregnancyIdentifierWithPET(
+  cdm = your_cdm,
+  outputDir = "/path/to/pipeline/output",
+  outputFolder = "/path/to/comparison/results",
+  petSchema = "omop_cmbd",
+  petTable = "pregnancy_episode",
+  minOverlapDays = 1L,
+  removeWithinSourceOverlaps = FALSE
+)
+res <- omopgenerics::importSummarisedResult(file.path("/path/to/comparison/results", "pet_comparison_summarised_result.csv"))
+```
+
+Ensure the PET table has at least: `person_id`, `pregnancy_start_date`, `pregnancy_end_date`, `pregnancy_outcome` (concept_id). Gestational length in days is computed from start and end dates using the database (via \code{CDMConnector::datediff()}).
+
+```{r cleanup}
+# Clean up temp dirs (optional; disconnect from cdm when done in your session)
+unlink(outputDir, recursive = TRUE)
+unlink(outputFolder, recursive = TRUE)
+```
