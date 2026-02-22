@@ -3,8 +3,9 @@
 #' Reads the patient-level pregnancy episode results produced by the pipeline (from
 #' `outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
 #' summary tables (counts, age summaries, timing distributions, outcome counts,
-#' and date completeness checks), writes them to `exportDir`, and creates a ZIP
-#' archive of all exported files.
+#' and date completeness checks), and writes them to `exportDir`. Does not create a
+#' ZIP file; use \code{zipExportFolder()} after export (and optionally after
+#' writing PET comparison tables to the same folder) to create an archive.
 #'
 #' The export is intended for lightweight QA and sharing across sites. Small cell
 #' counts can be suppressed via `minCellCount`.
@@ -13,15 +14,14 @@
 #'   database tables (e.g., `person`, `observation_period`).
 #' @param outputDir (`character(1)`) Directory containing pipeline outputs
 #'   (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).
-#' @param exportDir (`character(1)`) Directory where shareable CSVs (and ZIP) will
-#'   be written.
+#' @param exportDir (`character(1)`) Directory where shareable CSVs will be written.
 #' @param minCellCount (`integer(1)`) Minimum count threshold for suppression of
 #'   small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.
 #' @param res Optional data frame of pregnancy episodes. If provided, used instead
 #'   of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
 #'   exporting a conformed copy (e.g. \code{conformToValidation = "both"}).
 #'
-#' @return Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.
+#' @return Invisibly returns `NULL`. Writes CSVs to `exportDir`.
 #' @export
 exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5, res = NULL) {
   runStart <- utils::read.csv(file.path(outputDir, "runStart.csv"))$start
@@ -73,15 +73,43 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5, res =
   exportConceptTimingCheck(cdm, res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
   exportCleanupQualityCheck(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
 
-  zipName <- sprintf("%s-%s-%s-results.zip", snap$snapshot_date, pkgVersion, snap$cdm_name)
-  utils::zip(
-    zipfile = file.path(exportDir, zipName),
-    files = list.files(path = exportDir, full.names = TRUE),
-    flags = "-j -q"
-  )
-
   message(sprintf("Files have been written to: %s", exportDir))
   invisible(NULL)
+}
+
+#' Create a ZIP archive of an export folder
+#'
+#' Zips all files in the given export directory into a single ZIP file. Use this
+#' after \code{exportPregnancies()} and, if applicable, after writing PET
+#' comparison tables to the same folder, so the archive includes both shareable
+#' CSVs and PET comparison outputs.
+#'
+#' @param exportDir (\code{character(1)}) Path to the export folder (contents will
+#'   be zipped).
+#' @param zipPath (\code{character(1)} or \code{NULL}) Full path for the output ZIP
+#'   file. If \code{NULL}, the ZIP is created inside \code{exportDir} with a
+#'   name like \code{YYYY-MM-DD-version-results.zip} (using today's date and
+#'   package version). Supply \code{zipPath} for a custom name (e.g. including
+#'   your CDM name).
+#' @return Invisibly returns the path to the created ZIP file.
+#' @export
+zipExportFolder <- function(exportDir, zipPath = NULL) {
+  checkmate::assertCharacter(exportDir, len = 1L)
+  checkmate::assertDirectoryExists(exportDir)
+  if (is.null(zipPath)) {
+    pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
+    zipName <- sprintf("%s-%s-results.zip", format(Sys.Date(), "%Y-%m-%d"), pkgVersion)
+    zipPath <- file.path(exportDir, zipName)
+  }
+  checkmate::assertCharacter(zipPath, len = 1L)
+  files <- list.files(path = exportDir, full.names = TRUE)
+  if (length(files) == 0) {
+    warning("Export folder is empty; no ZIP created.")
+    return(invisible(NULL))
+  }
+  utils::zip(zipfile = zipPath, files = files, flags = "-j -q")
+  message(sprintf("ZIP created: %s", zipPath))
+  invisible(zipPath)
 }
 
 #' @noRd
@@ -228,7 +256,7 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
 
   # summarise age at pregnancy start at birth first child
   resAge %>%
-    dplyr::filter(final_outcome_category == "LB") %>%
+    dplyr::filter(.data$final_outcome_category == "LB") %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
