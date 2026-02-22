@@ -38,7 +38,8 @@ Imports:
     shiny,
     checkmate,
     tibble,
-    omopgenerics
+    omopgenerics,
+    gt
 Suggests:
     uuid,
     visOmopResults,
