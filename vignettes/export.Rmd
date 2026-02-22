@@ -2,7 +2,7 @@
 title: "Export: shareable summary CSVs"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Export shareable summary CSVs}
+  %\VignetteIndexEntry{Export: shareable summary CSVs}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

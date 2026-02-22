@@ -87,7 +87,10 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
       camelCaseName <- "attrition_episodes"
     }
 
-    if (grepl("incidence|prevalence|characteristics", tolower(file))) {
+    if (file == "pet_comparison_summarised_result.csv") {
+      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
+      camelCaseName <- "petComparisonSummarisedResult"
+    } else if (grepl("incidence|prevalence|characteristics", tolower(file))) {
       parts <- unlist(strsplit(tableName, "_"))
       tableName <- parts[length(parts)]
       camelCaseName <- snakeCaseToCamelCase(tableName)
@@ -108,34 +111,36 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
       }
     }
 
-    # add version number to cdm_name
-    version <- NULL
-    if (!is.null(zipVersion)) {
-      version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
-    } else if ("pkg_version" %in% colnames(data)) {
-      version <- data %>% dplyr::pull("pkg_version") %>% unique()
-      version <- paste0("_v", as.numeric(substr(version, 1, 1)))
-      data <- data %>% dplyr::select(-"pkg_version")
-    } else if (nzchar(trimws(runDate))) {
-      runDateParsed <- suppressWarnings(as.Date(runDate))
-      if (!is.na(runDateParsed)) {
-        if (dplyr::between(runDateParsed, as.Date("2025-11-17"), as.Date("2025-11-30"))) {
-          version <- "_v1"
-        } else if (dplyr::between(runDateParsed, as.Date("2025-12-07"), as.Date("2026-02-16"))) {
-          version <- "_v2"
-        } else if (dplyr::between(runDateParsed, as.Date("2026-02-17"), as.Date("2026-03-31"))) {
-          version <- "_v3"
+    # add version number to cdm_name (skip for PET SummarisedResult)
+    if (camelCaseName != "petComparisonSummarisedResult") {
+      version <- NULL
+      if (!is.null(zipVersion)) {
+        version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
+      } else if ("pkg_version" %in% colnames(data)) {
+        version <- data %>% dplyr::pull("pkg_version") %>% unique()
+        version <- paste0("_v", as.numeric(substr(version, 1, 1)))
+        data <- data %>% dplyr::select(-"pkg_version")
+      } else if (nzchar(trimws(runDate))) {
+        runDateParsed <- suppressWarnings(as.Date(runDate))
+        if (!is.na(runDateParsed)) {
+          if (dplyr::between(runDateParsed, as.Date("2025-11-17"), as.Date("2025-11-30"))) {
+            version <- "_v1"
+          } else if (dplyr::between(runDateParsed, as.Date("2025-12-07"), as.Date("2026-02-16"))) {
+            version <- "_v2"
+          } else if (dplyr::between(runDateParsed, as.Date("2026-02-17"), as.Date("2026-03-31"))) {
+            version <- "_v3"
+          }
         }
       }
+
+      data <- data %>%
+        dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
+        dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
+        dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
+        dplyr::mutate(cdm_name = tolower(cdm_name))
     }
 
-    data <- data %>%
-      dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
-      dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
-      dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
-      dplyr::mutate(cdm_name = tolower(cdm_name))
-
-    if (!overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
+    if (camelCaseName != "petComparisonSummarisedResult" && !overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
       existingData <- get(camelCaseName, envir = .GlobalEnv)
       if (nrow(existingData) > 0) {
         if (nrow(data) > 0 &&
