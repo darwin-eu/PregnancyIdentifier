@@ -6,6 +6,7 @@ library(visOmopResults)
 library(shinydashboard)
 library(shinycssloaders)
 library(plotly)
+library(amVennDiagram5)
 # cleanup environment variables
 
 rm(list = ls())
@@ -50,6 +51,10 @@ if (length(zipFiles) == 0) {
   subfolders <- subfolders[vapply(subfolders, function(d) {
     length(list.files(d, pattern = "\\.csv$")) > 0
   }, logical(1))]
+  # If data folder itself contains CSVs (e.g. single export dir), treat it as a database folder
+  if (length(list.files(dataFolder, pattern = "\\.csv$")) > 0) {
+    subfolders <- c(dataFolder, subfolders)
+  }
 }
 
 hasData <- length(zipFiles) > 0 || length(subfolders) > 0
@@ -142,6 +147,21 @@ if (!hasData) {
         loadFile(file = f, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
         firstLoad <- FALSE
       }
+    }
+  }
+
+  # Load PET comparison: single SummarisedResult CSV (pet_comparison_summarised_result.csv) or legacy many CSVs
+  petCsvsRoot <- list.files(dataFolder, pattern = "^pet_comparison_.*\\.csv$")
+  for (petFile in petCsvsRoot) {
+    loadFile(file = petFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+  }
+  subfoldersForPet <- list.dirs(dataFolder, full.names = TRUE, recursive = FALSE)
+  for (d in subfoldersForPet) {
+    petCsvsSub <- list.files(d, pattern = "^pet_comparison_.*\\.csv$", full.names = FALSE)
+    firstLoad <- TRUE
+    for (petFile in petCsvsSub) {
+      loadFile(file = petFile, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+      firstLoad <- FALSE
     }
   }
 
@@ -767,64 +787,99 @@ if (!hasData) {
       )
     )
 
-    # PET comparison tab (when comparePregnancyIdentifierWithPET outputs are loaded from zip)
-    if (exists("petComparisonEpisodeCounts", envir = .GlobalEnv)) {
-      petComparisonEpisodeCounts <- get("petComparisonEpisodeCounts", envir = .GlobalEnv)
-      appStructure[["PET comparison"]] <- list(
-        "Episode counts" = tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonEpisodeCounts), result = petComparisonEpisodeCounts),
-          "Episode counts from PregnancyIdentifier vs PET. Used to compare pipeline outputs and assess agreement."
+    # PET comparison tab: SummarisedResult (single CSV) or legacy many tables
+    petComparisonTabs <- list()
+    petComparisonVennData <- NULL
+    if (exists("petComparisonSummarisedResult", envir = .GlobalEnv)) {
+      petSr <- get("petComparisonSummarisedResult", envir = .GlobalEnv)
+      if (!is.null(petSr) && nrow(petSr) > 0) {
+        # Extract Venn counts for Plot subtab: variable_name == "venn_counts", estimate_name == "n_episodes"
+        petSrTbl <- as.data.frame(petSr)
+        if (is.data.frame(petSrTbl) && "variable_name" %in% names(petSrTbl)) {
+          vennWide <- petSrTbl %>%
+            dplyr::filter(.data$variable_name == "venn_counts", .data$estimate_name == "n_episodes") %>%
+            dplyr::select("cdm_name", "variable_level", "estimate_value")
+          if (nrow(vennWide) > 0) {
+            pw <- vennWide %>%
+              tidyr::pivot_wider(names_from = "variable_level", values_from = "estimate_value")
+            for (col in c("both", "pet_only", "algorithm_only")) {
+              if (!col %in% names(pw)) pw[[col]] <- NA_integer_
+            }
+            petComparisonVennData <- pw %>%
+              dplyr::mutate(
+                both = suppressWarnings(as.integer(dplyr::coalesce(.data$both, 0L))),
+                pet_only = suppressWarnings(as.integer(dplyr::coalesce(.data$pet_only, 0L))),
+                algorithm_only = suppressWarnings(as.integer(dplyr::coalesce(.data$algorithm_only, 0L)))
+              ) %>%
+              dplyr::select("cdm_name", "both", "pet_only", "algorithm_only")
+          }
+        }
+        petComparisonTabs[["Overview"]] <- tabWithHelpText(
+          PetComparisonOverviewModule$new(),
+          "Methodology and interpretation: what is compared (PET vs algorithm), how matching is done, and what each metric means."
         )
+        if (!is.null(petComparisonVennData) && nrow(petComparisonVennData) > 0) {
+          petComparisonTabs[["Plot"]] <- tabWithHelpText(
+            PetComparisonVennModule$new(data = petComparisonVennData),
+            "**Venn diagram** (one per database): left circle = pregnancy episodes in PET, right circle = episodes identified by the algorithm; overlap = episodes in both (one-to-one matched). Use the Database dropdown when multiple databases are loaded."
+          )
+        }
+        petComparisonTabs[["Table"]] <- tabWithHelpText(
+          handleEmptyResult(
+            object = PetComparisonVisTableModule$new(result = petSr),
+            result = petSr,
+            emptyMessage = "No PET comparison data available."
+          ),
+          "**Formatted comparison table:** all metrics (episode counts, Venn counts, sensitivity, PPV, time overlap, outcome accuracy, duration summaries, etc.) in a readable layout. Filter by **Database** to show one or more databases."
+        )
+        petComparisonTabs[["Summarised result"]] <- tabWithHelpText(
+          handleEmptyResult(
+            object = PetComparisonTableModule$new(data = petSr, title = "Summarised result"),
+            result = petSr,
+            emptyMessage = "No PET comparison data available."
+          ),
+          "**Raw summarised result:** same data as the Table tab in long format (variable_name, variable_level, estimate_name, estimate_value). Download as CSV for use in R with **visOmopResults::visTable()** or **omopgenerics**."
+        )
+      }
+    }
+    # Legacy: many PET comparison CSVs (old export format)
+    if (length(petComparisonTabs) == 0) {
+      petComparisonSpec <- list(
+        petComparisonEpisodeCounts = "Episode counts",
+        petComparisonPersonOverlap = "Person overlap",
+        petComparisonVennCounts = "Venn counts",
+        petComparisonProtocolSummary = "Protocol summary",
+        petComparisonTimeOverlapSummary = "Time overlap summary",
+        petComparisonConfusion2x2 = "Confusion 2x2",
+        petComparisonPpvSensitivity = "PPV and sensitivity",
+        petComparisonDateDifferenceSummary = "Date difference summary",
+        petComparisonDateDifferences = "Date differences",
+        petComparisonOutcomeConfusionMatrix = "Outcome confusion matrix",
+        petComparisonOutcomeAccuracy = "Outcome accuracy",
+        petComparisonOutcomeByYear = "Outcome by year",
+        petComparisonDurationSummary = "Duration summary",
+        petComparisonDurationMatchedSummary = "Duration matched summary",
+        petComparisonDurationDistribution = "Duration distribution"
       )
-      if (exists("petComparisonVennCounts", envir = .GlobalEnv)) {
-        petComparisonVennCounts <- get("petComparisonVennCounts", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Venn counts"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonVennCounts), result = petComparisonVennCounts),
-          "Overlap and exclusive counts between PregnancyIdentifier and PET episodes. Used for concordance assessment."
-        )
+      for (varName in names(petComparisonSpec)) {
+        if (exists(varName, envir = .GlobalEnv)) {
+          data <- get(varName, envir = .GlobalEnv)
+          if (!is.null(data) && nrow(data) > 0) {
+            displayName <- petComparisonSpec[[varName]]
+            petComparisonTabs[[displayName]] <- tabWithHelpText(
+              handleEmptyResult(
+                object = PetComparisonTableModule$new(data = data, title = displayName),
+                result = data,
+                emptyMessage = "No PET comparison data available."
+              ),
+              sprintf("PET comparison: %s. Compare PregnancyIdentifier output with the OMOP Pregnancy Extension Table (PET).", displayName)
+            )
+          }
+        }
       }
-      if (exists("petComparisonPpvSensitivity", envir = .GlobalEnv)) {
-        petComparisonPpvSensitivity <- get("petComparisonPpvSensitivity", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["PPV and sensitivity"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonPpvSensitivity), result = petComparisonPpvSensitivity),
-          "Positive predictive value and sensitivity vs PET. Used to quantify agreement and algorithm performance."
-        )
-      }
-      if (exists("petComparisonDateDifferenceSummary", envir = .GlobalEnv)) {
-        petComparisonDateDifferenceSummary <- get("petComparisonDateDifferenceSummary", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Date difference summary"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDateDifferenceSummary), result = petComparisonDateDifferenceSummary),
-          "Summary of differences in episode start/end dates between PregnancyIdentifier and PET. Used for date-level validation."
-        )
-      }
-      if (exists("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)) {
-        petComparisonOutcomeConfusionMatrix <- get("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Outcome confusion matrix"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeConfusionMatrix), result = petComparisonOutcomeConfusionMatrix),
-          "Cross-tabulation of outcome categories: PregnancyIdentifier vs PET. Used to assess outcome agreement."
-        )
-      }
-      if (exists("petComparisonOutcomeAccuracy", envir = .GlobalEnv)) {
-        petComparisonOutcomeAccuracy <- get("petComparisonOutcomeAccuracy", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Outcome accuracy"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeAccuracy), result = petComparisonOutcomeAccuracy),
-          "Outcome-level accuracy metrics vs PET. Used to compare outcome classification performance."
-        )
-      }
-      if (exists("petComparisonDurationSummary", envir = .GlobalEnv)) {
-        petComparisonDurationSummary <- get("petComparisonDurationSummary", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Duration summary"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationSummary), result = petComparisonDurationSummary),
-          "Summary of gestational duration differences between PregnancyIdentifier and PET. Used for duration validation."
-        )
-      }
-      if (exists("petComparisonDurationDistribution", envir = .GlobalEnv)) {
-        petComparisonDurationDistribution <- get("petComparisonDurationDistribution", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Duration distribution"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationDistribution), result = petComparisonDurationDistribution),
-          "Distribution of duration (and differences) vs PET. Used to assess gestational-age agreement."
-        )
-      }
+    }
+    if (length(petComparisonTabs) > 0) {
+      appStructure[["PET comparison"]] <- petComparisonTabs
     }
 
     app <- DarwinDashboardApp$new(appStructure, title = "PregnancyIdentifier")
