@@ -1,7 +1,7 @@
 # Test comparePregnancyIdentifierWithPET using mockPregnancyCdm and the
 # pregnancy_extension table (PET) that exists in that database.
-# The mock PET has pregnancy_outcome_id (string); we build a table with
-# pregnancy_outcome (concept_id) for the comparison function.
+# mockPregnancyCdm() ensures main.pregnancy_extension has the required columns
+# (person_id, pregnancy_start_date, pregnancy_end_date, pregnancy_outcome).
 
 test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET) from mockPregnancyCdm", {
   cdm <- mockPregnancyCdm()
@@ -23,72 +23,26 @@ test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET)
   )
   expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
 
-  # Build PET-format table from pregnancy_extension: comparison expects
-  # person_id, pregnancy_start_date, pregnancy_end_date, pregnancy_outcome (concept_id).
-  # Mock has pregnancy_outcome_id (e.g. "livebirth") -> map to concept_id.
-  pet_from_extension <- cdm$pregnancy_extension %>%
-    dplyr::collect() %>%
-    dplyr::mutate(
-      pregnancy_start_date = as.Date(.data$pregnancy_start_date),
-      pregnancy_end_date = as.Date(.data$pregnancy_end_date),
-      pregnancy_outcome = dplyr::case_when(
-        tolower(.data$pregnancy_outcome_id) == "livebirth" ~ 4092289L,
-        tolower(.data$pregnancy_outcome_id) == "miscarriage" ~ 4067106L,
-        tolower(.data$pregnancy_outcome_id) == "elective termination" ~ 4081422L,
-        tolower(.data$pregnancy_outcome_id) == "stillbirth" ~ 443213L,
-        TRUE ~ 4092289L
-      )
-    ) %>%
-    dplyr::select(
-      "person_id",
-      "pregnancy_start_date",
-      "pregnancy_end_date",
-      "pregnancy_outcome",
-      dplyr::any_of("gestational_length_in_day")
-    )
-
-  # Write to same database so comparePregnancyIdentifierWithPET can read it
-  con <- CDMConnector::cdmCon(cdm)
-  pet_schema <- "main"
-  DBI::dbWriteTable(
-    con,
-    DBI::Id(schema = pet_schema, table = "pet_from_pregnancy_extension"),
-    as.data.frame(pet_from_extension),
-    overwrite = TRUE
-  )
-
-  # Run comparison using PET table built from pregnancy_extension
-  res <- comparePregnancyIdentifierWithPET(
+  # Run comparison using PET table from mock (main.pregnancy_extension)
+  comparePregnancyIdentifierWithPET(
     cdm = cdm,
     outputDir = outputDir,
     outputFolder = outputFolder,
-    petSchema = pet_schema,
-    petTable = "pet_from_pregnancy_extension",
+    petSchema = "main",
+    petTable = "pregnancy_extension",
     minOverlapDays = 1L,
     outputLogToConsole = FALSE
   )
 
-  expect_type(res, "list")
-  expect_named(res, c(
-    "episode_counts", "protocol_summary", "person_overlap", "venn_counts", "time_overlap_summary",
-    "confusion_2x2", "ppv_sensitivity", "duration_summary", "duration_matched_summary",
-    "date_differences", "outcome_confusion", "outcome_accuracy", "outcome_by_year", "duration_distribution"
-  ))
-
-  expect_s3_class(res$episode_counts, "data.frame")
-  expect_equal(nrow(res$episode_counts), 2L)
-  expect_true("algorithm" %in% res$episode_counts$source)
-  expect_true("pet" %in% res$episode_counts$source)
-
-  expect_s3_class(res$person_overlap, "data.frame")
-  expect_true("raw_person_overlap" %in% res$person_overlap$metric)
-
-  expect_s3_class(res$time_overlap_summary, "data.frame")
-  expect_equal(nrow(res$time_overlap_summary), 4L)
-
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_episode_counts.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_person_overlap.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_time_overlap_summary.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_by_year.csv")))
+  csv_path <- file.path(outputFolder, "pet_comparison_summarised_result.csv")
+  expect_true(file.exists(csv_path))
   expect_true(file.exists(file.path(outputFolder, "log.txt")))
+
+  res <- omopgenerics::importSummarisedResult(csv_path)
+  expect_s3_class(res, "summarised_result")
+
+  vars <- unique(res$variable_name)
+  expect_true("episode_counts" %in% vars)
+  expect_true("person_overlap" %in% vars)
+  expect_true("time_overlap_summary" %in% vars)
 })

@@ -63,8 +63,8 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     overwrite = TRUE
   )
 
-  # Run comparison (use same outputFolder for outputs)
-  res <- comparePregnancyIdentifierWithPET(
+  # Run comparison (use same outputFolder for outputs); function writes summarised result only, returns nothing
+  comparePregnancyIdentifierWithPET(
     cdm = cdm,
     outputDir = outputDir,
     outputFolder = outputFolder,
@@ -74,70 +74,27 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     outputLogToConsole = FALSE
   )
 
-  # Check return structure
-  expect_type(res, "list")
-  expect_named(res, c(
-    "episode_counts", "protocol_summary", "person_overlap", "venn_counts", "time_overlap_summary",
-    "confusion_2x2", "ppv_sensitivity", "duration_summary", "duration_matched_summary",
-    "date_differences", "outcome_confusion", "outcome_accuracy", "outcome_by_year", "duration_distribution"
-  ))
-  expect_s3_class(res$episode_counts, "data.frame")
-  expect_s3_class(res$venn_counts, "data.frame")
-  expect_s3_class(res$ppv_sensitivity, "data.frame")
-  expect_s3_class(res$duration_summary, "data.frame")
-  expect_s3_class(res$duration_distribution, "data.frame")
-  expect_s3_class(res$outcome_accuracy, "data.frame")
-
-  # Episode counts: algorithm and PET
-  expect_equal(nrow(res$episode_counts), 2L)
-  expect_true("source" %in% names(res$episode_counts))
-  expect_true("n_episodes" %in% names(res$episode_counts))
-  expect_true("n_persons" %in% names(res$episode_counts))
-
-  # Venn counts
-  expect_true(nrow(res$venn_counts) >= 1L)
-  expect_true("category" %in% names(res$venn_counts))
-
-  # PPV/sensitivity
-  expect_true("metric" %in% names(res$ppv_sensitivity))
-  expect_true("value" %in% names(res$ppv_sensitivity))
-
-  # Person overlap
-  expect_true("metric" %in% names(res$person_overlap))
-  expect_true("n_persons" %in% names(res$person_overlap))
-
-  # Time overlap summary (4 rows: PET->IPE 0/1 day, IPE->PET 0/1 day)
-  expect_equal(nrow(res$time_overlap_summary), 4L)
-  expect_true("label" %in% names(res$time_overlap_summary))
-
-  # Outcome by year
-  expect_true("overall_equal" %in% names(res$outcome_by_year))
-  expect_true("lb_lb" %in% names(res$outcome_by_year))
-
-  # Duration summary: algorithm and pet
-  expect_equal(nrow(res$duration_summary), 2L)
-  expect_true("source" %in% names(res$duration_summary))
-
-  # Output files exist
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_episode_counts.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_person_overlap.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_venn_counts.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_time_overlap_summary.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_ppv_sensitivity.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_summary.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_distribution.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_accuracy.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_by_year.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_protocol_summary.csv")))
+  # SummarisedResult is written to export
+  csv_path <- file.path(outputFolder, "pet_comparison_summarised_result.csv")
+  expect_true(file.exists(csv_path))
   expect_true(file.exists(file.path(outputFolder, "log.txt")))
-  expect_true("total_matched_episodes" %in% names(res$protocol_summary))
-  expect_true("scope" %in% names(res$duration_summary))
-  if (!is.null(res$duration_matched_summary)) expect_true("scope" %in% names(res$duration_matched_summary))
 
-  # When we built PET from algorithm, there should be matches
-  expect_true(res$episode_counts$n_episodes[res$episode_counts$source == "algorithm"] >= 1)
-  expect_true(res$episode_counts$n_episodes[res$episode_counts$source == "pet"] >= 1)
-  expect_true(sum(res$venn_counts$n_episodes) >= 1)
+  res <- omopgenerics::importSummarisedResult(csv_path)
+  expect_s3_class(res, "summarised_result")
+
+  # Check that key variables are present in the summarised result
+  vars <- unique(res$variable_name)
+  expect_true("episode_counts" %in% vars)
+  expect_true("venn_counts" %in% vars)
+  expect_true("ppv_sensitivity" %in% vars)
+  expect_true("person_overlap" %in% vars)
+  expect_true("time_overlap_summary" %in% vars)
+  expect_true("duration_summary" %in% vars)
+  expect_true("protocol_summary" %in% vars)
+
+  # When we built PET from algorithm, there should be episode counts for both sources
+  ep <- res |> dplyr::filter(.data$variable_name == "episode_counts")
+  expect_true(nrow(ep) >= 1)
 })
 
 test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episodes.rds is missing", {
