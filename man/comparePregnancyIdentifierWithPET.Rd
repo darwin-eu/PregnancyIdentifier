@@ -32,7 +32,10 @@ optional plots will be written. Created if it does not exist.}
 \item{petTable}{\code{character(1)}. Table name of the pregnancy episode table
 (e.g. \code{"pregnancy_episode"}). Must contain at least \code{person_id},
 \code{pregnancy_start_date}, \code{pregnancy_end_date}, and
-\code{pregnancy_outcome} (concept_id).}
+\code{pregnancy_outcome} (concept_id). Gestational length in days is
+computed from start and end dates in the database via
+\code{CDMConnector::datediff()}; the table need not have a
+\code{gestational_length_in_day} column.}
 
 \item{minOverlapDays}{\code{integer(1)}. Minimum overlap in days to consider an
 algorithm episode and a PET episode as the same pregnancy (default 1).}
@@ -49,19 +52,10 @@ created via \code{makeLogger(outputFolder)}.}
 \code{NULL}. Whether to log to the console as well as to the log file.}
 }
 \value{
-Invisibly returns a list with elements \code{episode_counts},
-  \code{protocol_summary} (total PET, algorithm, matched counts for protocol reporting),
-  \code{person_overlap}, \code{venn_counts}, \code{time_overlap_summary},
-  \code{confusion_2x2}, \code{ppv_sensitivity}, \code{duration_summary},
-  \code{duration_matched_summary} (duration stats for matched pairs only),
-  \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
-  \code{outcome_by_year}, and \code{duration_distribution}. \code{person_overlap}
-  has raw and cohort (filtered) person overlap counts. \code{time_overlap_summary}
-  has min/Q25/median/Q75/max/sd and n_episodes/n_persons for PET->IPE and IPE->PET
-  with 0 or 1 day overlap required. \code{outcome_by_year} is the same-year outcome
-  cross-tab (lb_lb, sb_sb, ab_ab, etc.). \code{confusion_2x2} is the 2x2 table
-  (TP, FN, FP, TN; TN is \code{NA} at episode level). All comparison artifacts
-  are also written to \code{outputFolder} as CSVs (and optionally PNGs).
+Nothing. The summarised result is written to
+  \code{file.path(outputFolder, "pet_comparison_summarised_result.csv")}.
+  Use \code{omopgenerics::importSummarisedResult()} to read it and
+  \code{visOmopResults::visTable()} to display it.
 }
 \description{
 Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
@@ -69,7 +63,7 @@ table and writes comparison summaries to \code{outputFolder}. Comparisons includ
 pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
 person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
 Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
-with sensitivity, specificity, PPV, and NPV; outcome confusion matrix and accuracy;
+with sensitivity and PPV (no gold-standard negatives, so specificity and NPV are not defined); outcome confusion matrix and accuracy;
 outcome comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
 and pregnancy duration distributions.
 }

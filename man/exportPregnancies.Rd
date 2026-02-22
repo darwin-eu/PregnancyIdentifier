@@ -13,8 +13,7 @@ database tables (e.g., `person`, `observation_period`).}
 \item{outputDir}{(`character(1)`) Directory containing pipeline outputs
 (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).}
 
-\item{exportDir}{(`character(1)`) Directory where shareable CSVs (and ZIP) will
-be written.}
+\item{exportDir}{(`character(1)`) Directory where shareable CSVs will be written.}
 
 \item{minCellCount}{(`integer(1)`) Minimum count threshold for suppression of
 small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
@@ -24,14 +23,15 @@ of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
 exporting a conformed copy (e.g. \code{conformToValidation = "both"}).}
 }
 \value{
-Invisibly returns `NULL`. Writes CSVs and a ZIP file to `exportDir`.
+Invisibly returns `NULL`. Writes CSVs to `exportDir`.
 }
 \description{
 Reads the patient-level pregnancy episode results produced by the pipeline (from
 `outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
 summary tables (counts, age summaries, timing distributions, outcome counts,
-and date completeness checks), writes them to `exportDir`, and creates a ZIP
-archive of all exported files.
+and date completeness checks), and writes them to `exportDir`. Does not create a
+ZIP file; use \code{zipExportFolder()} after export (and optionally after
+writing PET comparison tables to the same folder) to create an archive.
 }
 \details{
 The export is intended for lightweight QA and sharing across sites. Small cell
