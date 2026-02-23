@@ -13,6 +13,7 @@
 #' @details
 #' Launches a Shiny app that allows the user to explore the diagnostics
 #'
+#' @import gt
 #' @export
 viewResults <- function(dataFolder,
                         makePublishable = FALSE,

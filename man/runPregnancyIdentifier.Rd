@@ -14,7 +14,7 @@ runPregnancyIdentifier(
   minCellCount = 5L,
   debugMode = FALSE,
   outputLogToConsole = TRUE,
-  conformToValidation = "both"
+  conformToValidation = FALSE
 )
 }
 \arguments{

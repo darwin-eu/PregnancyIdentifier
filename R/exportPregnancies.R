@@ -305,19 +305,41 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
 
 #' @noRd
 exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
-  d <- res %>%
+  x <- res %>%
     dplyr::filter(!is.na(.data$esd_precision_days)) %>%
-    dplyr::pull(.data$esd_precision_days) %>%
-    stats::density()
+    dplyr::pull(.data$esd_precision_days)
 
-  data.frame(esd_precision_days = d$x, density = d$y) %>%
-    dplyr::mutate(
-      cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date,
-      pkg_version = pkgVersion
-    ) %>%
-    utils::write.csv(file.path(resPath, "precision_days.csv"), row.names = FALSE)
+  if (length(x) < 2L) {
+    if (length(x) == 0L) {
+      out <- data.frame(
+        esd_precision_days = numeric(0),
+        density = numeric(0),
+        cdm_name = character(0),
+        date_run = character(0),
+        date_export = character(0),
+        pkg_version = character(0)
+      )
+    } else {
+      out <- data.frame(
+        esd_precision_days = x,
+        density = 1,
+        cdm_name = as.character(snap$cdm_name)[1],
+        date_run = as.character(runStart)[1],
+        date_export = as.character(snap$snapshot_date)[1],
+        pkg_version = as.character(pkgVersion)[1]
+      )
+    }
+  } else {
+    d <- stats::density(x)
+    out <- data.frame(esd_precision_days = d$x, density = d$y) %>%
+      dplyr::mutate(
+        cdm_name = snap$cdm_name,
+        date_run = runStart,
+        date_export = snap$snapshot_date,
+        pkg_version = pkgVersion
+      )
+  }
+  utils::write.csv(out, file.path(resPath, "precision_days.csv"), row.names = FALSE)
 }
 
 #' @noRd
