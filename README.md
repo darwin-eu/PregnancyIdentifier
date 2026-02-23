@@ -57,10 +57,9 @@ cdm <- mockPregnancyCdm()  # or your real cdm_reference
 
 runPregnancyIdentifier(
   cdm       = cdm,
-  outputDir = "pregnancy_output",
+  outputFolder = "pregnancy_output",
   startDate = as.Date("2000-01-01"),
-  endDate   = Sys.Date(),
-  runExport = FALSE
+  endDate   = Sys.Date()
 )
 ```
 
@@ -68,18 +67,10 @@ runPregnancyIdentifier(
 `pregnancy_output/final_pregnancy_episodes.rds` is a data frame with one
 row per pregnancy episode: `person_id`, `final_episode_start_date`,
 `final_episode_end_date`, `final_outcome_category`,
-`esd_precision_days`, and other esd\_\* QA/concordance columns. Load it
-for cohort definition, export, or further analysis.
-
-Optional: set **`runExport = TRUE`** to run export automatically after
-ESD, or run **export** yourself for de-identified summary CSVs and a
-ZIP:
-
-``` r
-runPregnancyIdentifier(cdm, outputDir = "pregnancy_output", runExport = TRUE)
-# or:
-exportPregnancies(cdm, outputDir = "pregnancy_output", exportDir = "pregnancy_output/export")
-```
+`esd_precision_days`, and other esd\_\* QA/concordance columns.
+Shareable aggregated CSVs are written to `pregnancy_output/export` by
+default (override with `exportFolder`). Use `exportPregnancies()`
+separately if you need to re-export to a different folder.
 
 ------------------------------------------------------------------------
 
