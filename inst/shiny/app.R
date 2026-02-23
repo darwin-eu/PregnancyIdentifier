@@ -110,8 +110,11 @@ if (!hasData) {
       d <- subfolders[i]
       dbName <- basename(d)
       writeLines(paste("Processing database folder", dbName))
-      csvFiles <- list.files(d, pattern = "\\.csv$")
-      lapply(csvFiles, loadFile, dbName = dbName, runDate = "", zipVersion = NULL, folder = d, overwrite = (i == 1))
+      csvFiles <- list.files(d, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+      # When recursive=TRUE we get full paths; pass directory of each file so loadFile finds it
+      for (csvPath in csvFiles) {
+        loadFile(file = basename(csvPath), dbName = dbName, runDate = "", zipVersion = NULL, folder = dirname(csvPath), overwrite = (i == 1))
+      }
     }
   }
 
@@ -153,6 +156,13 @@ if (!hasData) {
       }
     }
   }
+  # Also try hyphenated precision-days.csv (same variable as precision_days.csv)
+  for (alt in c("precision-days.csv")) {
+    path <- file.path(dataFolder, alt)
+    if (file.exists(path) && (!exists("precisionDays", envir = .GlobalEnv) || nrow(get("precisionDays", envir = .GlobalEnv)) == 0)) {
+      loadFile(file = alt, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+    }
+  }
   # Load from all CSV-containing folders (recursive) so QA tabs get data
   for (j in seq_along(qaCsvs)) {
     firstLoad <- TRUE
@@ -161,6 +171,16 @@ if (!hasData) {
       path <- file.path(d, f)
       if (file.exists(path)) {
         loadFile(file = f, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+        firstLoad <- FALSE
+      }
+    }
+  }
+  for (alt in c("precision-days.csv")) {
+    firstLoad <- TRUE
+    for (d in csvFolders) {
+      path <- file.path(d, alt)
+      if (file.exists(path)) {
+        loadFile(file = alt, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
         firstLoad <- FALSE
       }
     }
@@ -199,6 +219,109 @@ if (!hasData) {
     }
   }
 
+  # Load attrition: recursively find all attrition.csv and attrition_if_cleanup.csv under data folder (and package root) and rowbind
+  loadAttritionFromCsv <- function(pattern, envVar) {
+    roots <- character(0)
+    if (dir.exists(dataFolder)) roots <- c(roots, normalizePath(dataFolder, mustWork = FALSE))
+    wd <- getwd()
+    for (up in c("..", "../..")) {
+      if (dir.exists(up)) {
+        r <- normalizePath(up, mustWork = FALSE)
+        if (!r %in% roots) roots <- c(roots, r)
+      }
+    }
+    files <- character(0)
+    for (r in roots) {
+      f <- list.files(r, pattern = pattern, recursive = TRUE, full.names = TRUE)
+      if (length(f) > 0) files <- c(files, f)
+    }
+    files <- unique(normalizePath(files, mustWork = FALSE))
+    if (length(files) == 0) return()
+    out <- list()
+    for (f in files) {
+      x <- tryCatch(
+        readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(x) && nrow(x) >= 0) {
+        colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+        if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+        parentDir <- basename(dirname(f))
+        if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+        out[[length(out) + 1L]] <- x
+      }
+    }
+    if (length(out) == 0) return()
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    bound <- dplyr::bind_rows(out)
+    if (exists(envVar, envir = .GlobalEnv)) {
+      existing <- get(envVar, envir = .GlobalEnv)
+      allCols <- union(colnames(existing), colnames(bound))
+      missingInBound <- setdiff(allCols, colnames(bound))
+      for (col in missingInBound) bound[[col]] <- NA
+      bound <- bound[, allCols, drop = FALSE]
+      missingInExisting <- setdiff(allCols, colnames(existing))
+      for (col in missingInExisting) existing[[col]] <- NA
+      existing <- existing[, allCols, drop = FALSE]
+      bound <- rbind(existing, bound)
+    }
+    assign(envVar, bound, envir = .GlobalEnv)
+  }
+  loadAttritionFromCsv("^attrition\\.csv$", "attrition_episodes")
+  loadAttritionFromCsv("^attrition_if_cleanup\\.csv$", "attritionIfCleanup")
+
+  # Load outcome_categories_count and delivery_mode_summary recursively from entire data folder (all subfolders)
+  loadResultCsvRecursive <- function(pattern, envVar) {
+    if (!dir.exists(dataFolder)) return()
+    root <- normalizePath(dataFolder, mustWork = FALSE)
+    if (!dir.exists(root)) return()
+    files <- list.files(root, pattern = pattern, recursive = TRUE, full.names = TRUE)
+    if (length(files) == 0) return()
+    out <- list()
+    for (f in files) {
+      x <- tryCatch(
+        readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(x) && nrow(x) >= 0) {
+        colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+        if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+        parentDir <- basename(dirname(f))
+        if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+        out[[length(out) + 1L]] <- x
+      }
+    }
+    if (length(out) == 0) return()
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    combined <- dplyr::bind_rows(out)
+    if (nrow(combined) > 0) {
+      if (exists(envVar, envir = .GlobalEnv)) {
+        existing <- get(envVar, envir = .GlobalEnv)
+        if (is.data.frame(existing) && nrow(existing) > 0) {
+          allCols2 <- union(colnames(existing), colnames(combined))
+          for (col in setdiff(allCols2, colnames(combined))) combined[[col]] <- NA
+          combined <- combined[, allCols2, drop = FALSE]
+          for (col in setdiff(allCols2, colnames(existing))) existing[[col]] <- NA
+          existing <- existing[, allCols2, drop = FALSE]
+          combined <- dplyr::bind_rows(existing, combined)
+        }
+      }
+      assign(envVar, combined, envir = .GlobalEnv)
+    }
+  }
+  loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+  loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
+
   # Formatting (requires cdmSource from at least one source)
   if (!exists("cdmSource") || is.null(cdmSource) || nrow(cdmSource) == 0) {
     ui <- fluidPage(
@@ -236,6 +359,21 @@ if (!hasData) {
     if (!exists("gestationalWeeks", envir = .GlobalEnv)) {
       assign("gestationalWeeks",
              tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), gestational_weeks = numeric(0), n = numeric(0), pct = numeric(0)),
+             envir = .GlobalEnv)
+    }
+    if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || !is.data.frame(get("outcomeCategoriesCount", envir = .GlobalEnv)) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
+      assign("outcomeCategoriesCount",
+             tibble::tibble(cdm_name = character(0), outcome_category = character(0), algorithm = character(0), n = numeric(0), pct = numeric(0)),
+             envir = .GlobalEnv)
+    }
+    if (!exists("deliveryModeSummary", envir = .GlobalEnv) || !is.data.frame(get("deliveryModeSummary", envir = .GlobalEnv)) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
+      assign("deliveryModeSummary",
+             tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
+             envir = .GlobalEnv)
+    }
+    if (!exists("dateConsistency", envir = .GlobalEnv) || !is.data.frame(get("dateConsistency", envir = .GlobalEnv)) || nrow(get("dateConsistency", envir = .GlobalEnv)) == 0) {
+      assign("dateConsistency",
+             tibble::tibble(cdm_name = character(0)),
              envir = .GlobalEnv)
     }
 
@@ -318,38 +456,48 @@ if (!hasData) {
       ageSummary <- tibble::tibble(cdm_name = character(0), name = character(0), value = character(0))
     }
     # Date consistency: table with N missing and Percent missing by date field (support old and new export format)
-    metaCols <- c("cdm_name", "date_run", "date_export", "pkg_version")
-    hasNewDateConsistencyFormat <- any(grepl("_n$", colnames(dateConsistency))) && any(grepl("_pct$", colnames(dateConsistency)))
-    if (hasNewDateConsistencyFormat) {
-      dateCols <- setdiff(colnames(dateConsistency), metaCols)
-      dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
-      dateConsistency <- dateConsistency %>%
-        dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
-        tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
-        dplyr::mutate(
-          value = suppressWarnings(as.numeric(.data$value)),
-          name = gsub("_n$|_pct$", "", .data$key),
-          metric = ifelse(grepl("_n$", .data$key), "n_missing", "percent_missing")
-        ) %>%
-        dplyr::select(-.data$key) %>%
-        tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
-        dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+    dateConsistency <- get("dateConsistency", envir = .GlobalEnv)
+    if (nrow(dateConsistency) == 0) {
+      dateConsistency <- tibble::tibble(
+        cdm_name = character(0),
+        "Date field" = character(0),
+        "N missing" = numeric(0),
+        "Percent missing" = numeric(0)
+      )
     } else {
-      skipCols <- intersect(metaCols, colnames(dateConsistency))
-      dateConsistency <- dataToLong(dateConsistency, skipCols = skipCols) %>%
-        tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
-        dplyr::mutate(
-          percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
-          n_missing = NA_integer_
-        )
+      metaCols <- c("cdm_name", "date_run", "date_export", "pkg_version")
+      hasNewDateConsistencyFormat <- any(grepl("_n$", colnames(dateConsistency))) && any(grepl("_pct$", colnames(dateConsistency)))
+      if (hasNewDateConsistencyFormat) {
+        dateCols <- setdiff(colnames(dateConsistency), metaCols)
+        dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
+        dateConsistency <- dateConsistency %>%
+          dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
+          tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
+          dplyr::mutate(
+            value = suppressWarnings(as.numeric(.data$value)),
+            name = gsub("_n$|_pct$", "", .data$key),
+            metric = ifelse(grepl("_n$", .data$key), "n_missing", "percent_missing")
+          ) %>%
+          dplyr::select(-.data$key) %>%
+          tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
+          dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+      } else {
+        skipCols <- intersect(metaCols, colnames(dateConsistency))
+        dateConsistency <- dataToLong(dateConsistency, skipCols = skipCols) %>%
+          tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
+          dplyr::mutate(
+            percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
+            n_missing = NA_integer_
+          )
+      }
+      dateConsistency <- dateConsistency %>%
+        dplyr::rename(
+          "Date field" = .data$name,
+          "N missing" = .data$n_missing,
+          "Percent missing" = .data$percent_missing
+        ) %>%
+        dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
     }
-    dateConsistency <- dateConsistency %>%
-      dplyr::rename(
-        "Date field" = .data$name,
-        "N missing" = .data$n_missing,
-        "Percent missing" = .data$percent_missing
-      ) %>%
-      dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
 
     observationPeriodRange <- dataToLong(observationPeriodRange)
 
@@ -367,24 +515,24 @@ if (!hasData) {
     episodeFrequencySummary <- get("episodeFrequencySummary", envir = .GlobalEnv)
     episodeFrequency <- get("episodeFrequency", envir = .GlobalEnv)
 
-    # Direct load of pregnancy_frequency.csv from disk so the DT table always shows file contents
+    # Direct load of pregnancy_frequency.csv: recursively find all under data folder and combine
     loadPregnancyFrequencyFromCsv <- function() {
-      paths <- unique(c(dataFolder, csvFolders))
+      if (!dir.exists(dataFolder)) return(NULL)
+      files <- list.files(dataFolder, pattern = "pregnancy_frequency\\.csv$", recursive = TRUE, full.names = TRUE)
+      if (length(files) == 0) return(NULL)
       out <- list()
-      for (d in paths) {
-        f <- file.path(d, "pregnancy_frequency.csv")
-        if (file.exists(f)) {
-          x <- tryCatch(
-            readr::read_csv(f, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
-            error = function(e) NULL
-          )
-          if (!is.null(x) && nrow(x) > 0) {
-            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
-            if ("...1" %in% colnames(x) && !"freq" %in% colnames(x)) x <- x %>% dplyr::rename(freq = "...1")
-            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-"...1")
-            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = basename(d))
-            out[[length(out) + 1L]] <- x
-          }
+      for (f in files) {
+        x <- tryCatch(
+          readr::read_csv(f, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
+          error = function(e) NULL
+        )
+        if (!is.null(x) && nrow(x) > 0) {
+          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+          if ("...1" %in% colnames(x) && !"freq" %in% colnames(x)) x <- x %>% dplyr::rename(freq = "...1")
+          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-"...1")
+          parentDir <- basename(dirname(f))
+          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+          out[[length(out) + 1L]] <- x
         }
       }
       if (length(out) == 0) return(NULL)
@@ -522,7 +670,12 @@ if (!hasData) {
     trendData <- rbind(yearlyTrend, monthlyTrends)
     trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
 
-    # outcome categories
+    # Re-run recursive load for outcome/delivery so data is found regardless of load order (data folder, all subfolders)
+    loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+    loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
+    # outcome categories (ensure we use loaded data from .GlobalEnv)
+    outcomeCategoriesCount <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+    deliveryModeSummary <- get("deliveryModeSummary", envir = .GlobalEnv)
     outcomeCategoriesCount <- outcomeCategoriesCount %>%
       dplyr::mutate(
         n = suppressWarnings(as.numeric(n)),
@@ -530,7 +683,7 @@ if (!hasData) {
       ) %>%
       dplyr::mutate(outcome_category = factor(outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
-    # delivery mode
+    # delivery mode (deliveryModeSummary already retrieved from .GlobalEnv above)
     deliveryModeSummary <- deliveryModeSummary %>%
       dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
       dplyr::select(-c("cesarean_count", "vaginal_count")) %>%
@@ -859,12 +1012,13 @@ if (!hasData) {
     )
 
     # Precision days (precision_days.csv)
-    # Use allDP only (same as concept counts / age tabs) so we don't show alternate CDM names from the CSV
+    # Keep all loaded precision days (don't filter by allDP) so data from any folder/zip is shown
     precisionDays <- get("precisionDays", envir = .GlobalEnv)
-    if (nrow(precisionDays) > 0 && "cdm_name" %in% colnames(precisionDays)) {
-      precisionDays <- precisionDays %>% dplyr::filter(.data$cdm_name %in% .env$allDP)
+    precisionDaysDp <- if (nrow(precisionDays) > 0 && "cdm_name" %in% colnames(precisionDays)) {
+      unique(c(allDP, precisionDays$cdm_name))
+    } else {
+      allDP
     }
-    precisionDaysDp <- allDP
     appStructure[["Precision days"]] <- list(
       tabWithHelpText(
         handleEmptyResult(

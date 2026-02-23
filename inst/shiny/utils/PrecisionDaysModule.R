@@ -64,16 +64,48 @@ PrecisionDaysModule <- R6::R6Class(
               yaxis = list(title = "Density")
             ))
         }
-        # Ensure numeric and sort so each database line is drawn in x order
+        # Ensure numeric; require cdm_name and esd_precision_days
+        hasDensityCol <- "density" %in% colnames(data)
         data <- data %>%
           dplyr::mutate(
             esd_precision_days = as.numeric(.data$esd_precision_days),
-            density = as.numeric(.data$density)
+            density = if (hasDensityCol) as.numeric(.data$density) else NA_real_
           ) %>%
-          dplyr::filter(!is.na(.data$esd_precision_days), !is.na(.data$density)) %>%
-          dplyr::arrange(.data$cdm_name, .data$esd_precision_days)
+          dplyr::filter(!is.na(.data$esd_precision_days))
+        if (!"cdm_name" %in% colnames(data)) {
+          return(plotly::plot_ly() %>%
+            plotly::layout(
+              title = list(text = "No valid data for selected filters.", font = list(size = 14)),
+              xaxis = list(title = "ESD precision (days)"),
+              yaxis = list(title = "Density")
+            ))
+        }
 
-        if (nrow(data) == 0) {
+        # If we have pre-computed density (from precision_days.csv), use it; otherwise compute per database
+        hasDensity <- "density" %in% colnames(data) && any(!is.na(data$density))
+        if (hasDensity) {
+          plotData <- data %>%
+            dplyr::filter(!is.na(.data$density)) %>%
+            dplyr::arrange(.data$cdm_name, .data$esd_precision_days)
+        } else {
+          # Compute density per cdm_name from raw esd_precision_days
+          plotData <- data %>%
+            dplyr::filter(!is.na(.data$esd_precision_days)) %>%
+            dplyr::group_by(.data$cdm_name) %>%
+            dplyr::group_modify(function(g, ...) {
+              x <- g$esd_precision_days
+              if (length(x) < 2L) {
+                if (length(x) == 0L) return(tibble::tibble(esd_precision_days = numeric(0), density = numeric(0)))
+                return(tibble::tibble(esd_precision_days = x, density = 1))
+              }
+              d <- stats::density(x)
+              tibble::tibble(esd_precision_days = d$x, density = d$y)
+            }) %>%
+            dplyr::ungroup() %>%
+            dplyr::arrange(.data$cdm_name, .data$esd_precision_days)
+        }
+
+        if (nrow(plotData) == 0) {
           return(plotly::plot_ly() %>%
             plotly::layout(
               title = list(text = "No valid data for selected filters.", font = list(size = 14)),
@@ -84,7 +116,7 @@ PrecisionDaysModule <- R6::R6Class(
 
         # One line per database: use color = ~cdm_name with type = "scatter", mode = "lines"
         plotly::plot_ly(
-          data = data,
+          data = plotData,
           x = ~esd_precision_days,
           y = ~density,
           color = ~cdm_name,
