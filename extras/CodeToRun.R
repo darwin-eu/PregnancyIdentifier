@@ -49,11 +49,11 @@ cdm <- CDMConnector::cdmFromCon(
 # 2. Paths
 # -----------------------------------------------------------------------------
 # outputFolder  = person-level and episode-level pipeline outputs (RDS, logs).
-# exportDir  = shareable aggregated CSVs (default: outputFolder/export); Shiny app input.
+# exportFolder  = shareable aggregated CSVs (default: outputFolder/export); Shiny app input.
 # The Shiny app expects either ZIP files or one subfolder per database with CSVs;
 # we pass outputFolder (which contains the "export" subfolder) when launching it.
 outputFolder  <- "./output/"
-exportDir  <- file.path(outputFolder, "export")
+exportFolder  <- file.path(outputFolder, "export")
 
 # -----------------------------------------------------------------------------
 # 3. Run the pipeline (export always runs; CSVs go to exportFolder)
@@ -63,7 +63,7 @@ exportDir  <- file.path(outputFolder, "export")
 runPregnancyIdentifier(
   cdm                   = cdm,
   outputFolder             = outputFolder,
-  exportFolder           = exportDir,   # default: file.path(outputFolder, "export")
+  exportFolder           = exportFolder,   # default: file.path(outputFolder, "export")
   minCellCount           = 5L,
   conformToValidation    = FALSE
 )
@@ -73,7 +73,7 @@ runPregnancyIdentifier(
 # -----------------------------------------------------------------------------
 # Run only if the Pregnancy Extension Table (PET) is available in your database.
 # outputFolder = where pipeline wrote episode data (final_pregnancy_episodes.rds).
-# exportFolder = where comparison CSVs and log.txt are written (we use exportDir
+# exportFolder = where comparison CSVs and log.txt are written (we use exportFolder
 # so they sit alongside the other shareable outputs and can be included in the
 # same ZIP and viewed in Shiny).
 
@@ -83,7 +83,7 @@ petTable  <- "..."   # PET table name (e.g. "pregnancy_episode" or "pregnancy_ex
 comparePregnancyIdentifierWithPET(
   cdm                          = cdm,
   outputFolder                  = outputFolder,
-  exportFolder                  = exportDir,
+  exportFolder                  = exportFolder,
   petSchema                     = petSchema,
   petTable                      = petTable,
   minOverlapDays                = 1L,
@@ -113,10 +113,10 @@ if (launchShiny) {
 createZip <- FALSE   # set to TRUE to create the ZIP
 
 if (createZip) {
-  zipExportFolder(exportDir = exportDir)
+  zipExportFolder(exportFolder = exportFolder)
   # Or with a custom path:
-  # zipExportFolder(exportDir = exportDir,
-  #                 zipPath = file.path(exportDir, "2026-02-20-3.0.1-MyCDM-results.zip"))
+  # zipExportFolder(exportFolder = exportFolder,
+  #                 zipPath = file.path(exportFolder, "2026-02-20-3.0.1-MyCDM-results.zip"))
 }
 
 # -----------------------------------------------------------------------------

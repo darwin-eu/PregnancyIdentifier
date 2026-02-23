@@ -2,9 +2,9 @@ test_that("exportPregnancies runs without error", {
   cdm <- mockPregnancyCdm()
 
   outputFolder <- file.path(tempdir(), "test_exportPregnancies")
-  exportDir <- file.path(tempdir(), "test_exportPregnancies_export")
+  exportFolder <- file.path(tempdir(), "test_exportPregnancies_export")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
 
   # Run full pipeline first to create required files
   runPregnancyIdentifier(
@@ -17,14 +17,14 @@ test_that("exportPregnancies runs without error", {
   exportPregnancies(
     cdm = cdm,
     outputFolder = outputFolder,
-    exportDir = exportDir
+    exportFolder = exportFolder
   )
 
-  expect_true(dir.exists(exportDir))
-  expect_true(file.exists(file.path(exportDir, "cdm_source.csv")))
+  expect_true(dir.exists(exportFolder))
+  expect_true(file.exists(file.path(exportFolder, "cdm_source.csv")))
 
   unlink(outputFolder, recursive = TRUE)
-  unlink(exportDir, recursive = TRUE)
+  unlink(exportFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
 
@@ -32,9 +32,9 @@ test_that("exportPregnancies runs with custom minCellCount", {
   cdm <- mockPregnancyCdm()
 
   outputFolder <- file.path(tempdir(), "test_exportPregnancies_custom")
-  exportDir <- file.path(tempdir(), "test_exportPregnancies_export_custom")
+  exportFolder <- file.path(tempdir(), "test_exportPregnancies_export_custom")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
 
   # Run full pipeline first
   runPregnancyIdentifier(
@@ -47,13 +47,13 @@ test_that("exportPregnancies runs with custom minCellCount", {
   exportPregnancies(
     cdm = cdm,
     outputFolder = outputFolder,
-    exportDir = exportDir,
+    exportFolder = exportFolder,
     minCellCount = 0
   )
 
-  expect_true(dir.exists(exportDir))
+  expect_true(dir.exists(exportFolder))
 
-  expect_equal(list.files(exportDir, ".csv"), sort(c(
+  expect_equal(list.files(exportFolder, ".csv"), sort(c(
     "age_summary.csv",
     "age_summary_first_pregnancy.csv",
     "age_summary_groups.csv",
@@ -86,7 +86,7 @@ test_that("exportPregnancies runs with custom minCellCount", {
   )))
 
   unlink(outputFolder, recursive = TRUE)
-  unlink(exportDir, recursive = TRUE)
+  unlink(exportFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
 

@@ -241,12 +241,12 @@ test_that("appendAttrition errors when attrition file does not exist", {
   unlink(outDir, recursive = TRUE)
 })
 
-test_that("exportPregnancies copies attrition.csv to exportDir", {
+test_that("exportPregnancies copies attrition.csv to exportFolder", {
   cdm <- mockPregnancyCdm()
   outputFolder <- file.path(tempdir(), "test_attrition_export_out")
-  exportDir <- file.path(tempdir(), "test_attrition_export_dir")
+  exportFolder <- file.path(tempdir(), "test_attrition_export_dir")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
 
   runPregnancyIdentifier(
     cdm = cdm,
@@ -258,17 +258,17 @@ test_that("exportPregnancies copies attrition.csv to exportDir", {
   exportPregnancies(
     cdm = cdm,
     outputFolder = outputFolder,
-    exportDir = exportDir
+    exportFolder = exportFolder
   )
 
-  exportPath <- file.path(exportDir, "attrition.csv")
-  expect_true(file.exists(exportPath), info = "attrition.csv should be copied to exportDir")
+  exportPath <- file.path(exportFolder, "attrition.csv")
+  expect_true(file.exists(exportPath), info = "attrition.csv should be copied to exportFolder")
   attExport <- utils::read.csv(exportPath, stringsAsFactors = FALSE)
   attOutput <- utils::read.csv(file.path(outputFolder, "attrition.csv"), stringsAsFactors = FALSE)
   expect_equal(attExport, attOutput, info = "exported attrition content should match outputFolder")
 
   unlink(outputFolder, recursive = TRUE)
-  unlink(exportDir, recursive = TRUE)
+  unlink(exportFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
 

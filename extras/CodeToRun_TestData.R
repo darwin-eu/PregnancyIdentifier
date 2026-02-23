@@ -34,6 +34,6 @@ runPregnancyIdentifier(cdm, outputFolder, minCellCount = 0L)
 # esd <- readRDS(file.path(outputFolder, "esd.rds"))
 # final <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
 
-exportPregnancies(cdm, outputFolder, exportDir = here::here("test_export"), minCellCount = 0L)
+exportPregnancies(cdm, outputFolder, exportFolder = here::here("test_export"), minCellCount = 0L)
 
 

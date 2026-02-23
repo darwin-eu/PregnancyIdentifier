@@ -230,7 +230,7 @@ runPregnancyIdentifier <- function(cdm,
       exportPregnancies(
         cdm = cdm,
         outputFolder = outputFolder,
-        exportDir = file.path(baseExportDir, "conform_false"),
+        exportFolder = file.path(baseExportDir, "conform_false"),
         minCellCount = minCellCount
       )
       res <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
@@ -267,7 +267,7 @@ runPregnancyIdentifier <- function(cdm,
       exportPregnancies(
         cdm = cdm,
         outputFolder = outputFolder,
-        exportDir = file.path(baseExportDir, "conform_true"),
+        exportFolder = file.path(baseExportDir, "conform_true"),
         minCellCount = minCellCount,
         res = res_conformed
       )
@@ -276,7 +276,7 @@ runPregnancyIdentifier <- function(cdm,
       exportPregnancies(
         cdm = cdm,
         outputFolder = outputFolder,
-        exportDir = baseExportDir,
+        exportFolder = baseExportDir,
         minCellCount = minCellCount
       )
     }

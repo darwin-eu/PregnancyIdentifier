@@ -3,7 +3,7 @@
 #' Reads the patient-level pregnancy episode results produced by the pipeline (from
 #' \code{outputFolder}; see \code{runPregnancyIdentifier()}), generates a set of
 #' de-identified summary tables (counts, age summaries, timing distributions,
-#' outcome counts, and date completeness checks), and writes them to \code{exportDir}.
+#' outcome counts, and date completeness checks), and writes them to \code{exportFolder}.
 #' \code{runPregnancyIdentifier()} runs this step automatically and writes to
 #' \code{exportFolder} (default \code{file.path(outputDir, "export")}); use
 #' \code{exportPregnancies()} when you need to re-export or write to a different
@@ -18,21 +18,21 @@
 #'   database tables (e.g., `person`, `observation_period`).
 #' @param outputFolder (`character(1)`) Directory containing pipeline outputs
 #'   (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).
-#' @param exportDir (`character(1)`) Directory where shareable CSVs will be written.
+#' @param exportFolder (`character(1)`) Directory where shareable CSVs will be written.
 #' @param minCellCount (`integer(1)`) Minimum count threshold for suppression of
 #'   small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.
 #' @param res Optional data frame of pregnancy episodes. If provided, used instead
 #'   of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used when
 #'   exporting a conformed copy (e.g. \code{conformToValidation = "both"}).
 #'
-#' @return Invisibly returns `NULL`. Writes CSVs to `exportDir`.
+#' @return Invisibly returns `NULL`. Writes CSVs to `exportFolder`.
 #' @export
-exportPregnancies <- function(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL) {
+exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5, res = NULL) {
   runStart <- utils::read.csv(file.path(outputFolder, "runStart.csv"))$start
 
-  dir.create(exportDir, showWarnings = FALSE, recursive = TRUE)
+  dir.create(exportFolder, showWarnings = FALSE, recursive = TRUE)
   snap <- CDMConnector::snapshot(cdm)
-  utils::write.csv(snap, file.path(exportDir, "cdm_source.csv"), row.names = FALSE)
+  utils::write.csv(snap, file.path(exportFolder, "cdm_source.csv"), row.names = FALSE)
 
   if (is.null(res)) {
     res <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
@@ -45,7 +45,7 @@ exportPregnancies <- function(cdm, outputFolder, exportDir, minCellCount = 5, re
   # Copy key raw artifacts (if present)
   for (f in c("hip_concept_counts.csv", "pps_concept_counts.csv", "esd_concept_counts.csv", "log.txt", "attrition.csv")) {
     src <- file.path(outputFolder, f)
-    if (file.exists(src)) file.copy(src, file.path(exportDir, f), overwrite = TRUE)
+    if (file.exists(src)) file.copy(src, file.path(exportFolder, f), overwrite = TRUE)
   }
 
   pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
@@ -58,26 +58,26 @@ exportPregnancies <- function(cdm, outputFolder, exportDir, minCellCount = 5, re
     minCellCount = minCellCount
   )
 
-  exportAgeSummary(res, cdm, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportPrecisionDays(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportEpisodeFrequency(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportPregnancyFrequency(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportEpisodeFrequencySummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalAgeSummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalAgeCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalWeeksCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportGestationalDurationCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportTimeTrends(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportObservationPeriodRange(res, cdm, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportPregnancyOverlapCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportDateConsistency(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportReversedDatesCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportOutcomeCategoriesCounts(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportDeliveryModeSummary(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportConceptTimingCheck(cdm, res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
-  exportCleanupQualityCheck(res, exportDir, meta$snap, meta$runStart, meta$pkgVersion)
+  exportAgeSummary(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
+  exportPrecisionDays(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportEpisodeFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
+  exportPregnancyFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
+  exportEpisodeFrequencySummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportGestationalAgeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportGestationalAgeCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportGestationalWeeksCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
+  exportGestationalDurationCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportTimeTrends(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportObservationPeriodRange(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportPregnancyOverlapCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportDateConsistency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportReversedDatesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportOutcomeCategoriesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportDeliveryModeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportConceptTimingCheck(cdm, res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportCleanupQualityCheck(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
 
-  message(sprintf("Files have been written to: %s", exportDir))
+  message(sprintf("Files have been written to: %s", exportFolder))
   invisible(NULL)
 }
 
@@ -88,25 +88,25 @@ exportPregnancies <- function(cdm, outputFolder, exportDir, minCellCount = 5, re
 #' comparison tables to the same folder, so the archive includes both shareable
 #' CSVs and PET comparison outputs.
 #'
-#' @param exportDir (\code{character(1)}) Path to the export folder (contents will
+#' @param exportFolder (\code{character(1)}) Path to the export folder (contents will
 #'   be zipped).
 #' @param zipPath (\code{character(1)} or \code{NULL}) Full path for the output ZIP
-#'   file. If \code{NULL}, the ZIP is created inside \code{exportDir} with a
+#'   file. If \code{NULL}, the ZIP is created inside \code{exportFolder} with a
 #'   name like \code{YYYY-MM-DD-version-results.zip} (using today's date and
 #'   package version). Supply \code{zipPath} for a custom name (e.g. including
 #'   your CDM name).
 #' @return Invisibly returns the path to the created ZIP file.
 #' @export
-zipExportFolder <- function(exportDir, zipPath = NULL) {
-  checkmate::assertCharacter(exportDir, len = 1L)
-  checkmate::assertDirectoryExists(exportDir)
+zipExportFolder <- function(exportFolder, zipPath = NULL) {
+  checkmate::assertCharacter(exportFolder, len = 1L)
+  checkmate::assertDirectoryExists(exportFolder)
   if (is.null(zipPath)) {
     pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
     zipName <- sprintf("%s-%s-results.zip", format(Sys.Date(), "%Y-%m-%d"), pkgVersion)
-    zipPath <- file.path(exportDir, zipName)
+    zipPath <- file.path(exportFolder, zipName)
   }
   checkmate::assertCharacter(zipPath, len = 1L)
-  files <- list.files(path = exportDir, full.names = TRUE)
+  files <- list.files(path = exportFolder, full.names = TRUE)
   if (length(files) == 0) {
     warning("Export folder is empty; no ZIP created.")
     return(invisible(NULL))

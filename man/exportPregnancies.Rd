@@ -4,7 +4,7 @@
 \alias{exportPregnancies}
 \title{Export pregnancy results into shareable summary CSVs}
 \usage{
-exportPregnancies(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL)
+exportPregnancies(cdm, outputFolder, exportFolder, minCellCount = 5, res = NULL)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) CDM reference used to compute exports that require
@@ -13,7 +13,7 @@ database tables (e.g., `person`, `observation_period`).}
 \item{outputFolder}{(`character(1)`) Directory containing pipeline outputs
 (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).}
 
-\item{exportDir}{(`character(1)`) Directory where shareable CSVs will be written.}
+\item{exportFolder}{(`character(1)`) Directory where shareable CSVs will be written.}
 
 \item{minCellCount}{(`integer(1)`) Minimum count threshold for suppression of
 small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
@@ -23,13 +23,13 @@ of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used wh
 exporting a conformed copy (e.g. \code{conformToValidation = "both"}).}
 }
 \value{
-Invisibly returns `NULL`. Writes CSVs to `exportDir`.
+Invisibly returns `NULL`. Writes CSVs to `exportFolder`.
 }
 \description{
 Reads the patient-level pregnancy episode results produced by the pipeline (from
 \code{outputFolder}; see \code{runPregnancyIdentifier()}), generates a set of
 de-identified summary tables (counts, age summaries, timing distributions,
-outcome counts, and date completeness checks), and writes them to \code{exportDir}.
+outcome counts, and date completeness checks), and writes them to \code{exportFolder}.
 \code{runPregnancyIdentifier()} runs this step automatically and writes to
 \code{exportFolder} (default \code{file.path(outputDir, "export")}); use
 \code{exportPregnancies()} when you need to re-export or write to a different

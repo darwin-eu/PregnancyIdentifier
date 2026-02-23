@@ -36,16 +36,16 @@ cdm <- CDMConnector::cdmFromCon(
 
 # ---- 2. Paths ----
 # outputDir = person-level and episode-level pipeline outputs (RDS, logs).
-# exportDir = shareable aggregated CSVs (default: outputDir/export); use as Shiny input.
+# exportFolder = shareable aggregated CSVs (default: outputDir/export); use as Shiny input.
 outputDir   <- "./output/"
-exportDir   <- file.path(outputDir, "export")
+exportFolder   <- file.path(outputDir, "export")
 
 # ---- 3. Run full pipeline (export always runs; CSVs go to exportFolder) ----
 # exportFolder defaults to outputDir/export; pass explicitly to match variable below.
 runPregnancyIdentifier(
   cdm                   = cdm,
   outputDir             = outputDir,
-  exportFolder          = exportDir,
+  exportFolder          = exportFolder,
   minCellCount          = 5L,
   conformToValidation   = FALSE
 )
@@ -58,7 +58,7 @@ petTable  <- "..."   # e.g. "pregnancy_episode" or "pregnancy_extension"
 comparePregnancyIdentifierWithPET(
   cdm                          = cdm,
   outputFolder                  = outputDir,
-  exportFolder                  = exportDir,
+  exportFolder                  = exportFolder,
   petSchema                     = petSchema,
   petTable                      = petTable,
   minOverlapDays                = 1L,
@@ -69,9 +69,9 @@ comparePregnancyIdentifierWithPET(
 # ---- 5. (Optional) Create a single ZIP of the export folder ----
 # Do this after export and PET comparison so the ZIP contains both
 # shareable CSVs and PET comparison tables.
-zipExportFolder(exportDir = exportDir)
+zipExportFolder(exportFolder = exportFolder)
 
 # Optional: specify the ZIP path explicitly (e.g. include your CDM name)
-# zipExportFolder(exportDir = exportDir, zipPath = file.path(exportDir, "2026-02-20-3.0.1-MyCDM-results.zip"))
+# zipExportFolder(exportFolder = exportFolder, zipPath = file.path(exportFolder, "2026-02-20-3.0.1-MyCDM-results.zip"))
 
 DBI::dbDisconnect(cdmConnection)

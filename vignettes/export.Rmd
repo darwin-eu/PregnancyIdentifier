@@ -35,7 +35,7 @@ runPregnancyIdentifier(cdm, outputFolder = "out")
 runPregnancyIdentifier(cdm, outputFolder = "out", exportFolder = "path/to/my_export")
 ```
 
-To run export alone (e.g. after a previous pipeline run), use `exportPregnancies()` with the same `outputFolder` and your chosen `exportDir`. The same CSVs are produced; `exportFolder` in `runPregnancyIdentifier()` corresponds to `exportDir` in `exportPregnancies()`.
+To run export alone (e.g. after a previous pipeline run), use `exportPregnancies()` with the same `outputFolder` and your chosen `exportFolder`. The same CSVs are produced; `exportFolder` in `runPregnancyIdentifier()` corresponds to `exportFolder` in `exportPregnancies()`.
 
 ---
 

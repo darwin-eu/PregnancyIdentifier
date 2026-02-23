@@ -60,9 +60,9 @@ sr_table <- function(sr, var, level_name = "variable_level") {
 ```{r run-pipeline-and-pet, message=FALSE, warning=FALSE}
 # Directories: pipeline output (episode data), export (comparison results and log)
 outputDir    <- file.path(tempdir(), "pet_vignette_pipeline")
-exportDir    <- file.path(tempdir(), "pet_vignette_comparison")
+exportFolder    <- file.path(tempdir(), "pet_vignette_comparison")
 dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
+dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
 
 # 1) Build mock CDM and run the pipeline (export runs by default to outputDir/export)
 cdm <- mockPregnancyCdm()
@@ -153,18 +153,18 @@ DBI::dbWriteTable(
 # a PET from the algorithm output as in the `insert-mock-pet` chunk and use
 # petTable = "pregnancy_episode".)
 
-# 3) Run the PET comparison (writes summarised result and log to exportDir; returns nothing)
+# 3) Run the PET comparison (writes summarised result and log to exportFolder; returns nothing)
 comparePregnancyIdentifierWithPET(
   cdm = cdm,
   outputFolder = outputDir,
-  exportFolder = exportDir,
+  exportFolder = exportFolder,
   petSchema = "main",
   petTable = "pregnancy_extension",
   minOverlapDays = 1L,
   outputLogToConsole = FALSE
 )
 # Load the written summarised result for display and programmatic use
-res <- omopgenerics::importSummarisedResult(file.path(exportDir, "pet_comparison_summarised_result.csv"))
+res <- omopgenerics::importSummarisedResult(file.path(exportFolder, "pet_comparison_summarised_result.csv"))
 ```
 
 # How matching is done
@@ -347,5 +347,5 @@ Ensure the PET table has at least: `person_id`, `pregnancy_start_date`, `pregnan
 ```{r cleanup}
 # Clean up temp dirs (optional; disconnect from cdm when done in your session)
 unlink(outputDir, recursive = TRUE)
-unlink(exportDir, recursive = TRUE)
+unlink(exportFolder, recursive = TRUE)
 ```

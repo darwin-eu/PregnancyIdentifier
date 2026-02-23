@@ -4,14 +4,14 @@
 \alias{zipExportFolder}
 \title{Create a ZIP archive of an export folder}
 \usage{
-zipExportFolder(exportDir, zipPath = NULL)
+zipExportFolder(exportFolder, zipPath = NULL)
 }
 \arguments{
-\item{exportDir}{(\code{character(1)}) Path to the export folder (contents will
+\item{exportFolder}{(\code{character(1)}) Path to the export folder (contents will
 be zipped).}
 
 \item{zipPath}{(\code{character(1)} or \code{NULL}) Full path for the output ZIP
-file. If \code{NULL}, the ZIP is created inside \code{exportDir} with a
+file. If \code{NULL}, the ZIP is created inside \code{exportFolder} with a
 name like \code{YYYY-MM-DD-version-results.zip} (using today's date and
 package version). Supply \code{zipPath} for a custom name (e.g. including
 your CDM name).}
