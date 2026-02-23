@@ -6,7 +6,7 @@
 \usage{
 runHip(
   cdm,
-  outputDir = NULL,
+  outputFolder = NULL,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   justGestation = TRUE,
@@ -16,7 +16,7 @@ runHip(
 \arguments{
 \item{cdm}{(`cdm_reference`) A cdm reference object from CDMConnector.}
 
-\item{outputDir}{(`character(1)`) Output directory to write output to.}
+\item{outputFolder}{(`character(1)`) Output directory to write output to.}
 
 \item{startDate}{(`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01}
 
@@ -38,7 +38,7 @@ information about each identified pregnancy per individual. The columns are:
 - `hip_gest_flag`: Indicates if gestational age concepts were found in the episode ("yes" or "no").
 - `hip_episode_length`: Length of the pregnancy episode, in days (from `hip_pregnancy_start` to `hip_pregnancy_end`).
 
-A file named `hip_episodes.rds` is saved in the `outputDir` directory. This file
+A file named `hip_episodes.rds` is saved in the `outputFolder` directory. This file
 contains a dataframe with the same columns as listed above for the `cdm$preg_hip_episodes` table.
 }
 \description{

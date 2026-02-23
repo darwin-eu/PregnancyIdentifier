@@ -25,7 +25,14 @@ This vignette describes the **PregnancyIdentifier** pipeline, which implements t
 
 ## Running the full pipeline
 
-The primary entry point is `runPregnancyIdentifier()`, which runs all steps end-to-end and writes intermediate artifacts and final outputs to `outputDir`.
+The primary entry point is `runPregnancyIdentifier()`, which runs all steps end-to-end: it writes **person-level and episode-level data** (RDS, logs) to `outputFolder`, and **shareable aggregated CSV files** to `exportFolder` (default `file.path(outputFolder, "export")`; these CSVs can be used as input to the Shiny app).
+
+Main parameters:
+- **outputFolder** — Directory for pipeline outputs (RDS artifacts, logs, `runStart.csv`). Created if missing.
+- **exportFolder** — Directory for shareable CSVs. Defaults to `file.path(outputFolder, "export")`. Optional; omit to use the default.
+- **startDate**, **endDate** — Study window (defaults: 1900-01-01 to today).
+- **minCellCount** — Small-cell suppression in exported summaries (default 5).
+- **conformToValidation** — `FALSE` (default), `TRUE`, or `"both"`; see step 5 and the Export vignette.
 
 ```{r, eval=FALSE}
 library(PregnancyIdentifier)
@@ -36,19 +43,19 @@ cdm <- mockPregnancyCdm()
 
 runPregnancyIdentifier(
   cdm                   = cdm,
-  outputDir             = "pregnancy_identifier_output",
+  outputFolder             = "pregnancy_identifier_output",
+  # exportFolder         = NULL,   # default: outputFolder/export
   startDate             = as.Date("2000-01-01"),
   endDate               = Sys.Date(),
   justGestation         = TRUE,
   minCellCount          = 5L,
-  runExport             = FALSE,
   conformToValidation   = FALSE
 )
 ```
 
 ### Outputs written to disk
 
-The pipeline writes intermediate RDS artifacts as it proceeds and finishes with a patient-level episode table plus optional shareable exports:
+The pipeline writes intermediate RDS artifacts to `outputFolder` and always runs export: shareable CSVs are written to `exportFolder` (default `outputFolder/export`).
 
 | File | Description |
 |----------------------|--------------------------------------------------|
@@ -56,13 +63,13 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 | `log.txt` | Run log |
 | `hip_episodes.rds` | HIP episodes (outcome and/or gestation-derived) |
 | `pps_episodes.rds` | PPS episodes with inferred outcomes (input to merge) |
-| `pps_concept_counts.csv` | PPS concept record counts per concept (used by export when `runExport = TRUE`). |
+| `pps_concept_counts.csv` | PPS concept record counts per concept (used by export). |
 | `pps_gest_timing_episodes.rds` | (Only when `debugMode = TRUE`) Record-level PPS concept rows with episode assignment. |
 | `pps_min_max_episodes.rds` | (Only when `debugMode = TRUE`) Episode-level PPS min/max date summaries. |
 | `hipps_episodes.rds` | Merged HIP + PPS episode table (standardized columns) |
 | `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes |
 | `esd.rds` | (Only when `debugMode = TRUE`) ESD episode-level start inference before merging back to HIPPS. |
-| `export/` | De-identified summary CSVs and ZIP archive when `runExport = TRUE`. See the [Export vignette](export.html) for file names, columns, and analysis use. |
+| `export/` | De-identified summary CSVs (default: `outputFolder/export`). See the [Export vignette](export.html) for file names, columns, and analysis use. |
 
 ## Pipeline steps in order
 
@@ -71,7 +78,7 @@ The pipeline writes intermediate RDS artifacts as it proceeds and finishes with 
 3.  **runPps** — Builds PPS episodes from pregnancy-related concepts, assigns outcomes, and writes `pps_episodes.rds`.
 4.  **mergeHipps** — Reads `hip_episodes.rds` and `pps_episodes.rds`, merges by temporal overlap, deduplicates many-to-many matches, and writes `hipps_episodes.rds`.
 5.  **runEsd** — Reads `hipps_episodes.rds`, pulls gestational timing concepts (GW/GR3m), infers start dates and precision, harmonizes end and outcome from HIP vs PPS, and writes `final_pregnancy_episodes.rds`. When `conformToValidation = TRUE`, episode output is modified to remove overlapping episodes and episodes longer than 308 days.
-6.  **exportPregnancies** — (Optional, when `runExport = TRUE`) Reads `final_pregnancy_episodes.rds` and writes shareable CSVs and a ZIP to `file.path(outputDir, "export")`. See the [Export vignette](export.html).
+6.  **exportPregnancies** — Reads `final_pregnancy_episodes.rds` and writes shareable CSVs to `exportFolder` (default `file.path(outputFolder, "export")`). See the [Export vignette](export.html).
 
 ## What each step contributes to final start, end, and outcome
 
@@ -134,14 +141,14 @@ cdm %>%
 ```
 
 ```{r, cache=TRUE}
-outputDir <- file.path(tempdir(), "pregnancy_output")
+outputFolder <- file.path(tempdir(), "pregnancy_output")
 
 invisible(capture.output(
-  runPregnancyIdentifier(cdm, outputDir = outputDir)
+  runPregnancyIdentifier(cdm, outputFolder = outputFolder)  # export runs by default to outputFolder/export
 ))
 
-list.files(outputDir)
-readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+list.files(outputFolder)
+readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
 ```
 
 

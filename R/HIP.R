@@ -35,7 +35,7 @@
 #'
 #'
 #' @param cdm (`cdm_reference`) A cdm reference object from CDMConnector.
-#' @param outputDir (`character(1)`) Output directory to write output to.
+#' @param outputFolder (`character(1)`) Output directory to write output to.
 #' @param startDate (`Date(1)`: `as.Date("1900-01-01"`) Start date of data to use. By default 1900-01-01
 #' @param endDate (`Date(1)`: `Sys.Date()`) End date of data to use. By default today.
 #' @param logger (`logger`) A log4r logger object created with `makeLogger()`.
@@ -53,20 +53,20 @@
 #' - `hip_gest_flag`: Indicates if gestational age concepts were found in the episode ("yes" or "no").
 #' - `hip_episode_length`: Length of the pregnancy episode, in days (from `hip_pregnancy_start` to `hip_pregnancy_end`).
 #'
-#' A file named `hip_episodes.rds` is saved in the `outputDir` directory. This file
+#' A file named `hip_episodes.rds` is saved in the `outputFolder` directory. This file
 #' contains a dataframe with the same columns as listed above for the `cdm$preg_hip_episodes` table.
 #'
 #' @export
-runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger) {
+runHip <- function(cdm, outputFolder = NULL, startDate = as.Date("1900-01-01"), endDate = Sys.Date(), justGestation = TRUE, logger) {
 
   checkmate::assertClass(cdm, "cdm_reference")
-  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
+  checkmate::assertCharacter(outputFolder, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
   checkmate::assertClass(logger, "logger", null.ok = FALSE)
-  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
-  checkmate::assertDirectoryExists(outputDir)
+  dir.create(outputFolder, showWarnings = FALSE, recursive = TRUE)
+  checkmate::assertDirectoryExists(outputFolder)
 
   log4r::info(logger, "START Running HIP")
 
@@ -76,13 +76,13 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
 
   if (getTblRowCount(cdm$preg_hip_records) == 0) {
     log4r::warn(logger, "No records after initializing pregnancy cohort")
-    if (!is.null(outputDir)) {
+    if (!is.null(outputFolder)) {
       hipEmpty <- emptyHipEpisodes() %>%
         dplyr::select(
           "person_id", "hip_episode", "hip_pregnancy_start", "hip_pregnancy_end",
           "hip_outcome_category", "hip_first_gest_date", "hip_gest_flag", "hip_episode_length"
         )
-      saveRDS(hipEmpty, file.path(outputDir, "hip_episodes.rds"))
+      saveRDS(hipEmpty, file.path(outputFolder, "hip_episodes.rds"))
     }
     return(cdm)
   }
@@ -150,15 +150,15 @@ runHip <- function(cdm, outputDir = NULL, startDate = as.Date("1900-01-01"), end
     endDateCol = "hip_pregnancy_end",
     logger = logger
   )
-  saveRDS(hipDf, file.path(outputDir, "hip_episodes.rds"))
+  saveRDS(hipDf, file.path(outputFolder, "hip_episodes.rds"))
 
   # Attrition: preg_hip_episodes from preg_hip_records
-  prior <- getAttritionPrior(outputDir, "preg_hip_records")
+  prior <- getAttritionPrior(outputFolder, "preg_hip_records")
   if (!is.null(prior)) {
     postR <- nrow(hipDf)
     postP <- dplyr::n_distinct(hipDf$person_id)
     appendAttrition(
-      outputDir,
+      outputFolder,
       step = "preg_hip_episodes",
       table = "preg_hip_episodes",
       outcome = NA_character_,

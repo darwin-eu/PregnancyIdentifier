@@ -6,9 +6,9 @@ test_that("gestational episodes from preg_hip_records", {
   cdm <- mockPregnancyCdm()
   expect_s3_class(cdm, "cdm_reference")
 
-  outputDir <- file.path(tempdir(), "test_episodes")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
+  outputFolder <- file.path(tempdir(), "test_episodes")
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
 
   cdm <- initPregnancies(cdm, logger = logger)
 
@@ -46,6 +46,6 @@ test_that("gestational episodes from preg_hip_records", {
   episodes <- dplyr::collect(cdm$gest_episodes_df)
   testthat::expect_equal(length(unique(episodes$episode)), 3L)
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })

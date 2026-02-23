@@ -2,7 +2,7 @@
 title: "Export: shareable summary CSVs"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Export shareable summary CSVs}
+  %\VignetteIndexEntry{Export: shareable summary CSVs}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,28 +18,24 @@ knitr::opts_chunk$set(
 
 # Overview
 
-After the pipeline has produced **final_pregnancy_episodes.rds** (see the [ESD vignette](esd.html)), the **export** step turns those results and related artifacts into **shareable CSV files** for QA and cross-site comparison. Export is run via `exportPregnancies()` and writes all CSVs (and a ZIP archive) to an **export directory**. Small cell counts can be suppressed using `minCellCount`.
+The pipeline writes **person-level and episode-level data** (e.g. `final_pregnancy_episodes.rds`) to `outputFolder`. The **export** step turns those results and related artifacts into **shareable aggregated CSV files** for QA, cross-site comparison, and use as input to the Shiny app. Export runs automatically as part of `runPregnancyIdentifier()` and writes to `exportFolder` (default `file.path(outputFolder, "export")`). Small cell counts can be suppressed using `minCellCount`. Alternatively, run `exportPregnancies()` yourself to write to a chosen directory.
 
 This vignette lists every exported CSV: file name, columns, meaning of each column, and how each file is used in analysis.
 
 # How to run export
 
-Export is optional. Run it after the full pipeline (or ensure `outputDir` already contains `final_pregnancy_episodes.rds` and `runStart.csv`):
+Export runs automatically in `runPregnancyIdentifier()`. Shareable CSVs go to `exportFolder`; default is `file.path(outputFolder, "export")`. Override with the `exportFolder` argument:
 
 ```{r, eval=FALSE}
 library(PregnancyIdentifier)
 cdm <- mockPregnancyCdm()
-runPregnancyIdentifier(cdm, outputDir = "out", runExport = FALSE)
-# Then run export explicitly:
-exportPregnancies(
-  cdm       = cdm,
-  outputDir = "out",
-  exportDir = "out/export",
-  minCellCount = 5L
-)
+# Export runs by default; CSVs go to "out/export":
+runPregnancyIdentifier(cdm, outputFolder = "out")
+# Or write export CSVs to a custom folder:
+runPregnancyIdentifier(cdm, outputFolder = "out", exportFolder = "path/to/my_export")
 ```
 
-Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatically after ESD.
+To run export alone (e.g. after a previous pipeline run), use `exportPregnancies()` with the same `outputFolder` and your chosen `exportDir`. The same CSVs are produced; `exportFolder` in `runPregnancyIdentifier()` corresponds to `exportDir` in `exportPregnancies()`.
 
 ---
 
@@ -57,7 +53,7 @@ Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatica
 
 ## pps_concept_counts.csv
 
-**Source:** Copied from `outputDir` (written by `runPps()`).
+**Source:** Copied from `outputFolder` (written by `runPps()`).
 
 **Content:** Counts of pregnancy-related concepts used by PPS per concept (e.g. concept_id, concept name, count of records).
 
@@ -67,7 +63,7 @@ Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatica
 
 ## hip_concept_counts.csv
 
-**Source:** Copied from `outputDir` when present (written by the pipeline when HIP concept counts are produced).
+**Source:** Copied from `outputFolder` when present (written by the pipeline when HIP concept counts are produced).
 
 **Content:** Counts of HIP pregnancy-related concepts per concept.
 
@@ -77,7 +73,7 @@ Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatica
 
 ## esd_concept_counts.csv
 
-**Source:** Copied from `outputDir` when present (written by the pipeline when ESD concept counts are produced).
+**Source:** Copied from `outputFolder` when present (written by the pipeline when ESD concept counts are produced).
 
 **Content:** Counts of ESD timing concepts used per concept.
 
@@ -87,7 +83,7 @@ Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatica
 
 ## attrition.csv
 
-**Source:** Copied from `outputDir` when present (written by pipeline steps such as HIP and merge).
+**Source:** Copied from `outputFolder` when present (written by pipeline steps such as HIP and merge).
 
 **Content:** Step-by-step record and person counts (prior/post, dropped) through the pipeline.
 
@@ -97,7 +93,7 @@ Or use `runPregnancyIdentifier(..., runExport = TRUE)` so export runs automatica
 
 ## log.txt
 
-**Source:** Copied from `outputDir` (pipeline log from `makeLogger()`).
+**Source:** Copied from `outputFolder` (pipeline log from `makeLogger()`).
 
 **Content:** Plain-text log of pipeline steps (init, HIP, PPS, merge, ESD).
 
@@ -124,14 +120,6 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 **Columns:** **colName**, **age_pregnancy_start** (value or group: integer year or `"<12"`, `">55"`), **n**, **total**, **pct**, plus metadata. Counts may be suppressed by `minCellCount`.
 
 **Purpose:** Counts and percentages of pregnancies by age (by year and by boundary groups &lt;12 and &gt;55). Used for age-stratified summaries and checking extreme-age pregnancy counts.
-
----
-
-## age.csv
-
-**Columns:** **age_pregnancy_start** (age in years at pregnancy start) for each episode, plus **cdm_name**, **date_run**, **date_export**, **pkg_version**.
-
-**Purpose:** Raw age-at-start values per episode for custom analyses.
 
 ---
 
@@ -249,7 +237,7 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 
 ## pregnancy_overlap_counts.csv
 
-**Columns:** **n_records_with_previous** (number of episode records that have a previous episode for that person), **n_overlap_true** (count where episode start ≤ previous episode end), **n_overlap_false** (count where no overlap), **n_persons_with_multiple_episodes**, plus **cdm_name**, **date_run**, **date_export**, **pkg_version**. Only persons with more than one episode are considered.
+**Columns:** **colName** (value `"overlap"` for all rows), **overlap** (FALSE, TRUE, or NA per row), **n** (count of records in that category), **total** (total episode records, same for all rows), **pct** (percentage of records in that category), plus **cdm_name**, **date_run**, **date_export**, **pkg_version**. One row per overlap category: FALSE (no temporal overlap with previous episode), TRUE (episode start ≤ previous episode end within person), NA (no previous episode for that person, e.g. first episode).
 
 **Purpose:** Summary counts of overlapping inferred pregnancy intervals. Used for data quality (overlaps may indicate algorithm or data issues).
 
@@ -325,7 +313,6 @@ After writing all CSVs (and copying log.txt), `exportPregnancies()` creates a ZI
 | esd_concept_counts.csv | ESD concept counts | ESD concept coverage (when present) |
 | attrition.csv | Pipeline step attrition | Audit, cohort flow (when present) |
 | log.txt | Pipeline log | Audit, debugging |
-| age.csv | Age-at-start per episode | Custom age analyses |
 | age_summary.csv | Age-at-start distribution (summary stats) | Cohort description, feasibility |
 | age_summary_first_pregnancy.csv | Age at first LB (summary) | First-birth age description |
 | age_summary_groups.csv | Age counts (by year and &lt;12, &gt;55) | Age stratification, boundary checks |

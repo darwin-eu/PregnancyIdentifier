@@ -1,4 +1,5 @@
 library(DarwinShinyModules)
+library(plotly)
 
 GestationalAgeDaysPerCategoryModule <- R6::R6Class(
   classname = "GestationalAgeDaysPerCategoryModule",
@@ -6,7 +7,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, plotData = NULL, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, plotData = NULL, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.dp <- dp
@@ -107,7 +108,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
         private$.maxInputPanel$UI(),
         shiny::HTML("&nbsp;&nbsp;"),
         private$.flipCoordinatesInputPanel$UI(),
-        shiny::plotOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
+        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>% shinycssloaders::withSpinner(),
         shiny::p(),
         dataTableOut
       )
@@ -133,48 +134,117 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       })
 
       ### make plot ----
-      createPlot <- shiny::reactive({
-        plot <- NULL
+      # Native plotly boxplot with pre-computed quartiles (ggplotly does not support geom_boxplot(stat="identity")).
+      createPlotly <- shiny::reactive({
         data <- getData()
-        if (!is.null(data) && nrow(data) > 0) {
-          colorBy <- private$.colorByInputPanel$inputValues$color_by
-          if (is.null(colorBy) || length(colorBy) == 0) colorBy <- "final_outcome_category"
-          iqrOnly <- private$.maxInputPanel$inputValues$max
-          if (is.null(iqrOnly)) iqrOnly <- TRUE
-          ymaxValue <- ifelse(iqrOnly, "Q75", "max")
-          yminValue <- ifelse(iqrOnly, "Q25", "min")
-          plot <- ggplot2::ggplot(data, ggplot2::aes(x = .data[[colorBy]], ymin = .data[[yminValue]], lower = .data[["Q25"]], middle = .data[["median"]], upper = .data[["Q75"]], ymax = .data[[ymaxValue]])) +
-            ggplot2::geom_boxplot(ggplot2::aes(fill = .data[[colorBy]]), stat = "identity")
+        if (is.null(data) || nrow(data) == 0) return(NULL)
 
-          facetBy <- private$.facetByInputPanel$inputValues$facet_by
-          if (is.null(facetBy) || length(facetBy) == 0) facetBy <- "cdm_name"
-          if (!is.null(facetBy)) {
-            plot <- plot +
-              ggplot2::facet_wrap(as.formula(paste("~", facetBy)), scales = "free")
+        colorBy <- private$.colorByInputPanel$inputValues$color_by
+        if (is.null(colorBy) || length(colorBy) == 0) colorBy <- "final_outcome_category"
+        facetBy <- private$.facetByInputPanel$inputValues$facet_by
+        if (is.null(facetBy) || length(facetBy) == 0) facetBy <- "cdm_name"
+        iqrOnly <- private$.maxInputPanel$inputValues$max
+        if (is.null(iqrOnly)) iqrOnly <- TRUE
+        flipCoordinates <- private$.flipCoordinatesInputPanel$inputValues$flip
+        if (is.null(flipCoordinates)) flipCoordinates <- TRUE
+
+        outcomeLevels <- c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")
+        plot_data <- data %>%
+          dplyr::group_by(.data$cdm_name, .data$final_outcome_category) %>%
+          dplyr::slice(1L) %>%
+          dplyr::ungroup() %>%
+          dplyr::mutate(
+            final_outcome_category = factor(.data$final_outcome_category, levels = outcomeLevels),
+            min = as.numeric(.data$min),
+            Q25 = as.numeric(.data$Q25),
+            median = as.numeric(.data$median),
+            Q75 = as.numeric(.data$Q75),
+            max = as.numeric(.data$max),
+            lowerfence = if (iqrOnly) .data$Q25 else .data$min,
+            upperfence = if (iqrOnly) .data$Q75 else .data$max
+          )
+        if (nrow(plot_data) == 0) return(NULL)
+
+        fill_var <- colorBy
+        n_cats <- length(unique(plot_data[[fill_var]]))
+        pal <- scales::hue_pal()(max(1L, n_cats))
+        if (n_cats >= 1) names(pal) <- sort(unique(as.character(plot_data[[fill_var]])))
+
+        facet_levels <- sort(unique(as.character(plot_data[[facetBy]])))
+        plot_list <- lapply(facet_levels, function(facet_val) {
+          pd <- plot_data %>% dplyr::filter(.data[[facetBy]] == .env$facet_val)
+          p <- plotly::plot_ly()
+          for (i in seq_len(nrow(pd))) {
+            row <- pd[i, ]
+            cat_val <- as.character(row$final_outcome_category)
+            clr <- pal[as.character(row[[fill_var]])]
+            if (is.na(clr)) clr <- "gray"
+            trace_args <- list(
+              type = "box",
+              q1 = row$Q25,
+              median = row$median,
+              q3 = row$Q75,
+              lowerfence = row$lowerfence,
+              upperfence = row$upperfence,
+              name = cat_val,
+              line = list(color = clr),
+              fillcolor = clr,
+              showlegend = (facet_val == facet_levels[1])
+            )
+            if (flipCoordinates) {
+              trace_args$y <- cat_val
+              trace_args$orientation <- "h"
+            } else {
+              trace_args$x <- cat_val
+            }
+            p <- do.call(plotly::add_trace, c(list(p), trace_args))
           }
-          flipCoordinates <- private$.flipCoordinatesInputPanel$inputValues$flip
-          if (is.null(flipCoordinates)) flipCoordinates <- TRUE
-          if (flipCoordinates) {
-            plot <- plot + ggplot2::coord_flip()
-          }
+          p <- plotly::layout(
+            p,
+            title = list(text = facet_val, font = list(size = 12)),
+            xaxis = list(
+              title = if (flipCoordinates) "Gestational age (days)" else "Final outcome category",
+              tickangle = if (flipCoordinates) 0 else -45
+            ),
+            yaxis = list(
+              title = if (flipCoordinates) "Final outcome category" else "Gestational age (days)"
+            ),
+            showlegend = (facet_val == facet_levels[1]),
+            legend = list(title = list(text = if (colorBy == "final_outcome_category") "Outcome category" else "Database"))
+          )
+          p
+        })
+
+        if (length(plot_list) == 1) {
+          out <- plot_list[[1]]
+        } else {
+          nrows <- ceiling(sqrt(length(plot_list)))
+          out <- do.call(plotly::subplot, c(plot_list, list(
+            nrows = nrows,
+            margin = 0.05,
+            shareX = TRUE,
+            shareY = TRUE,
+            titleX = TRUE,
+            titleY = TRUE
+          )))
         }
-        return(plot)
+        out
       })
 
-      output$plot <- shiny::renderPlot({
-        p <- createPlot()
+      output$plot <- plotly::renderPlotly({
+        p <- createPlotly()
         if (is.null(p)) {
           msg <- if (nrow(private$.data) == 0) "Results files are empty." else "No data for selected filters."
-          p <- ggplot2::ggplot() +
-            ggplot2::annotate("text", x = 0.5, y = 0.5, label = msg, size = 6) +
-            ggplot2::theme_void()
+          fig <- plotly::plot_ly()
+          fig <- plotly::layout(fig, annotations = list(text = msg, xref = "paper", yref = "paper", x = 0.5, y = 0.5, showarrow = FALSE, font = list(size = 16)))
+          return(fig)
         }
         p
       })
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          private$.data,
+          private$.data %>% dplyr::mutate_if(is.character, as.factor),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

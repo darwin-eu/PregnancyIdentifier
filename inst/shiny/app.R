@@ -6,6 +6,7 @@ library(visOmopResults)
 library(shinydashboard)
 library(shinycssloaders)
 library(plotly)
+library(amVennDiagram5)
 # cleanup environment variables
 
 rm(list = ls())
@@ -36,7 +37,7 @@ if (!exists("shinySettings")) {
 
 dataFolder <- shinySettings$dataFolder
 
-# Data sources: zip files first, then subfolders (one per database)
+# Data sources: zip files first, then folders that contain CSVs (recursive under data folder)
 zipFiles <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
 zipFiles <- zipFiles[!is.na(zipFiles) & nzchar(zipFiles)]
 if (length(zipFiles) > 0) {
@@ -44,12 +45,20 @@ if (length(zipFiles) > 0) {
   zipFiles <- zipFiles[file.exists(zipFiles) & !is.na(info$size) & info$size > 0]
 }
 
+# All directories under dataFolder that contain at least one CSV (recursive).
+# Handles: dataFolder with CSVs (one DB), or dataFolder/db1, dataFolder/db2, or dataFolder/exports/db1, etc.
+listCsvFolders <- function(root) {
+  if (!dir.exists(root)) return(character(0))
+  csvs <- list.files(root, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+  if (length(csvs) == 0) return(character(0))
+  out <- unique(dirname(csvs))
+  out[order(nchar(out))]  # parent folders first (e.g. dataFolder before dataFolder/db1)
+}
+
 subfolders <- character(0)
+csvFolders <- listCsvFolders(dataFolder)  # recursive list of all folders that contain CSVs
 if (length(zipFiles) == 0) {
-  subfolders <- list.dirs(dataFolder, full.names = TRUE, recursive = FALSE)
-  subfolders <- subfolders[vapply(subfolders, function(d) {
-    length(list.files(d, pattern = "\\.csv$")) > 0
-  }, logical(1))]
+  subfolders <- csvFolders
 }
 
 hasData <- length(zipFiles) > 0 || length(subfolders) > 0
@@ -101,13 +110,16 @@ if (!hasData) {
       d <- subfolders[i]
       dbName <- basename(d)
       writeLines(paste("Processing database folder", dbName))
-      csvFiles <- list.files(d, pattern = "\\.csv$")
-      lapply(csvFiles, loadFile, dbName = dbName, runDate = "", zipVersion = NULL, folder = d, overwrite = (i == 1))
+      csvFiles <- list.files(d, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+      # When recursive=TRUE we get full paths; pass directory of each file so loadFile finds it
+      for (csvPath in csvFiles) {
+        loadFile(file = basename(csvPath), dbName = dbName, runDate = "", zipVersion = NULL, folder = dirname(csvPath), overwrite = (i == 1))
+      }
     }
   }
 
   # Ensure age-related CSVs are loaded from data folder root when present (e.g. single CSV export)
-  ageCsvs <- c("age.csv", "age_summary.csv", "age_summary_first_pregnancy.csv", "age_summary_groups.csv")
+  ageCsvs <- c("age_summary.csv", "age_summary_first_pregnancy.csv", "age_summary_groups.csv")
   for (ageFile in ageCsvs) {
     agePath <- file.path(dataFolder, ageFile)
     if (file.exists(agePath)) {
@@ -115,6 +127,19 @@ if (!hasData) {
       camelCaseName <- snakeCaseToCamelCase(tableName)
       if (!exists(camelCaseName, envir = .GlobalEnv) || nrow(get(camelCaseName, envir = .GlobalEnv)) == 0) {
         loadFile(file = ageFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+      }
+    }
+  }
+
+  # Ensure pregnancy_frequency and episode_frequency are loaded from data folder root when present
+  freqCsvs <- c("pregnancy_frequency.csv", "episode_frequency.csv", "episode_frequency_summary.csv")
+  for (freqFile in freqCsvs) {
+    freqPath <- file.path(dataFolder, freqFile)
+    if (file.exists(freqPath)) {
+      tableName <- gsub("\\.csv$", "", freqFile)
+      camelCaseName <- snakeCaseToCamelCase(tableName)
+      if (!exists(camelCaseName, envir = .GlobalEnv) || nrow(get(camelCaseName, envir = .GlobalEnv)) == 0) {
+        loadFile(file = freqFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
       }
     }
   }
@@ -131,11 +156,17 @@ if (!hasData) {
       }
     }
   }
-  # Load from subfolders (e.g. data/ipci) whenever the CSV exists so QA tabs get data even when main load was from zip only
-  subfoldersForQa <- list.dirs(dataFolder, full.names = TRUE, recursive = FALSE)
+  # Also try hyphenated precision-days.csv (same variable as precision_days.csv)
+  for (alt in c("precision-days.csv")) {
+    path <- file.path(dataFolder, alt)
+    if (file.exists(path) && (!exists("precisionDays", envir = .GlobalEnv) || nrow(get("precisionDays", envir = .GlobalEnv)) == 0)) {
+      loadFile(file = alt, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+    }
+  }
+  # Load from all CSV-containing folders (recursive) so QA tabs get data
   for (j in seq_along(qaCsvs)) {
     firstLoad <- TRUE
-    for (d in subfoldersForQa) {
+    for (d in csvFolders) {
       f <- qaCsvs[j]
       path <- file.path(d, f)
       if (file.exists(path)) {
@@ -144,6 +175,152 @@ if (!hasData) {
       }
     }
   }
+  for (alt in c("precision-days.csv")) {
+    firstLoad <- TRUE
+    for (d in csvFolders) {
+      path <- file.path(d, alt)
+      if (file.exists(path)) {
+        loadFile(file = alt, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+        firstLoad <- FALSE
+      }
+    }
+  }
+
+  # Load concept count CSVs from root and subfolders (same pattern as QA) so DT tables get data
+  conceptCountCsvs <- c("esd_concept_counts.csv", "hip_concept_counts.csv", "pps_concept_counts.csv")
+  for (ccFile in conceptCountCsvs) {
+    pathRoot <- file.path(dataFolder, ccFile)
+    if (file.exists(pathRoot)) {
+      loadFile(file = ccFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+    }
+  }
+  for (ccFile in conceptCountCsvs) {
+    firstLoad <- TRUE
+    for (d in csvFolders) {
+      path <- file.path(d, ccFile)
+      if (file.exists(path)) {
+        loadFile(file = ccFile, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+        firstLoad <- FALSE
+      }
+    }
+  }
+
+  # Load PET comparison: single SummarisedResult CSV (pet_comparison_summarised_result.csv) or legacy many CSVs
+  petCsvsRoot <- list.files(dataFolder, pattern = "^pet_comparison_.*\\.csv$")
+  for (petFile in petCsvsRoot) {
+    loadFile(file = petFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+  }
+  for (d in csvFolders) {
+    petCsvsSub <- list.files(d, pattern = "^pet_comparison_.*\\.csv$", full.names = FALSE)
+    firstLoad <- TRUE
+    for (petFile in petCsvsSub) {
+      loadFile(file = petFile, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+      firstLoad <- FALSE
+    }
+  }
+
+  # Load attrition: recursively find all attrition.csv and attrition_if_cleanup.csv under data folder (and package root) and rowbind
+  loadAttritionFromCsv <- function(pattern, envVar) {
+    roots <- character(0)
+    if (dir.exists(dataFolder)) roots <- c(roots, normalizePath(dataFolder, mustWork = FALSE))
+    wd <- getwd()
+    for (up in c("..", "../..")) {
+      if (dir.exists(up)) {
+        r <- normalizePath(up, mustWork = FALSE)
+        if (!r %in% roots) roots <- c(roots, r)
+      }
+    }
+    files <- character(0)
+    for (r in roots) {
+      f <- list.files(r, pattern = pattern, recursive = TRUE, full.names = TRUE)
+      if (length(f) > 0) files <- c(files, f)
+    }
+    files <- unique(normalizePath(files, mustWork = FALSE))
+    if (length(files) == 0) return()
+    out <- list()
+    for (f in files) {
+      x <- tryCatch(
+        readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(x) && nrow(x) >= 0) {
+        colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+        if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+        parentDir <- basename(dirname(f))
+        if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+        out[[length(out) + 1L]] <- x
+      }
+    }
+    if (length(out) == 0) return()
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    bound <- dplyr::bind_rows(out)
+    if (exists(envVar, envir = .GlobalEnv)) {
+      existing <- get(envVar, envir = .GlobalEnv)
+      allCols <- union(colnames(existing), colnames(bound))
+      missingInBound <- setdiff(allCols, colnames(bound))
+      for (col in missingInBound) bound[[col]] <- NA
+      bound <- bound[, allCols, drop = FALSE]
+      missingInExisting <- setdiff(allCols, colnames(existing))
+      for (col in missingInExisting) existing[[col]] <- NA
+      existing <- existing[, allCols, drop = FALSE]
+      bound <- rbind(existing, bound)
+    }
+    assign(envVar, bound, envir = .GlobalEnv)
+  }
+  loadAttritionFromCsv("^attrition\\.csv$", "attrition_episodes")
+  loadAttritionFromCsv("^attrition_if_cleanup\\.csv$", "attritionIfCleanup")
+
+  # Load outcome_categories_count and delivery_mode_summary recursively from entire data folder (all subfolders)
+  loadResultCsvRecursive <- function(pattern, envVar) {
+    if (!dir.exists(dataFolder)) return()
+    root <- normalizePath(dataFolder, mustWork = FALSE)
+    if (!dir.exists(root)) return()
+    files <- list.files(root, pattern = pattern, recursive = TRUE, full.names = TRUE)
+    if (length(files) == 0) return()
+    out <- list()
+    for (f in files) {
+      x <- tryCatch(
+        readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(x) && nrow(x) >= 0) {
+        colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+        if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+        parentDir <- basename(dirname(f))
+        if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+        out[[length(out) + 1L]] <- x
+      }
+    }
+    if (length(out) == 0) return()
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    combined <- dplyr::bind_rows(out)
+    if (nrow(combined) > 0) {
+      if (exists(envVar, envir = .GlobalEnv)) {
+        existing <- get(envVar, envir = .GlobalEnv)
+        if (is.data.frame(existing) && nrow(existing) > 0) {
+          allCols2 <- union(colnames(existing), colnames(combined))
+          for (col in setdiff(allCols2, colnames(combined))) combined[[col]] <- NA
+          combined <- combined[, allCols2, drop = FALSE]
+          for (col in setdiff(allCols2, colnames(existing))) existing[[col]] <- NA
+          existing <- existing[, allCols2, drop = FALSE]
+          combined <- dplyr::bind_rows(existing, combined)
+        }
+      }
+      assign(envVar, combined, envir = .GlobalEnv)
+    }
+  }
+  loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+  loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
 
   # Formatting (requires cdmSource from at least one source)
   if (!exists("cdmSource") || is.null(cdmSource) || nrow(cdmSource) == 0) {
@@ -184,6 +361,21 @@ if (!hasData) {
              tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), gestational_weeks = numeric(0), n = numeric(0), pct = numeric(0)),
              envir = .GlobalEnv)
     }
+    if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || !is.data.frame(get("outcomeCategoriesCount", envir = .GlobalEnv)) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
+      assign("outcomeCategoriesCount",
+             tibble::tibble(cdm_name = character(0), outcome_category = character(0), algorithm = character(0), n = numeric(0), pct = numeric(0)),
+             envir = .GlobalEnv)
+    }
+    if (!exists("deliveryModeSummary", envir = .GlobalEnv) || !is.data.frame(get("deliveryModeSummary", envir = .GlobalEnv)) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
+      assign("deliveryModeSummary",
+             tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
+             envir = .GlobalEnv)
+    }
+    if (!exists("dateConsistency", envir = .GlobalEnv) || !is.data.frame(get("dateConsistency", envir = .GlobalEnv)) || nrow(get("dateConsistency", envir = .GlobalEnv)) == 0) {
+      assign("dateConsistency",
+             tibble::tibble(cdm_name = character(0)),
+             envir = .GlobalEnv)
+    }
 
     if (nrow(gestationalAgeDaysCounts) > 0) {
       gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
@@ -212,7 +404,42 @@ if (!hasData) {
     swappedDates <- rbind(swappedDates, percDF) %>%
       dplyr::arrange(match(name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
 
-    # Ensure ageSummary exists (from age_summary.csv) so Episode frequency and Age summary tab do not crash
+    # Swapped dates display: one row per metric per database with n and pct in separate columns
+    swappedDatesDisplay <- swappedDates %>%
+      dplyr::filter(.data$name %in% c("n_rev_hip", "n_rev_pps", "total", "rev_hip_perc", "rev_pps_perc")) %>%
+      tidyr::pivot_longer(cols = -"name", names_to = "cdm_name", values_to = "value") %>%
+      dplyr::mutate(value = suppressWarnings(as.numeric(.data$value))) %>%
+      tidyr::pivot_wider(names_from = "name", values_from = "value")
+    if (nrow(swappedDatesDisplay) > 0) {
+      swappedDatesDisplay <- dplyr::bind_rows(
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "HIP reversed (start after end)",
+            n = .data$n_rev_hip,
+            pct = .data$rev_hip_perc
+          ),
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "PPS reversed (start after end)",
+            n = .data$n_rev_pps,
+            pct = .data$rev_pps_perc
+          ),
+        swappedDatesDisplay %>%
+          dplyr::transmute(
+            cdm_name,
+            metric = "Total episodes",
+            n = .data$total,
+            pct = NA_real_
+          )
+      ) %>%
+        dplyr::mutate(pct = round(.data$pct, 2))
+    } else {
+      swappedDatesDisplay <- tibble::tibble(cdm_name = character(0), metric = character(0), n = numeric(0), pct = numeric(0))
+    }
+
+    # Ensure ageSummary exists (from age_summary.csv) so Age tab (Age summary) does not crash
     if (!exists("ageSummary", envir = .GlobalEnv) || is.null(get("ageSummary", envir = .GlobalEnv)) || nrow(get("ageSummary", envir = .GlobalEnv)) == 0) {
       assign("ageSummary",
              tibble::tibble(cdm_name = character(0), colName = character(0)),
@@ -221,30 +448,118 @@ if (!hasData) {
     ageSummary <- get("ageSummary", envir = .GlobalEnv)
     ageSummaryRaw <- ageSummary  # keep raw copy for Age tab DT table
     if (nrow(ageSummary) > 0) {
-      ageSummary <- dataToLong(ageSummary, skipCols = c("cdm_name", "colName"))
+      # Long format for Age summary tab: cdm_name, identifier cols, name (metric), value
+      skipCols <- intersect(c("cdm_name", "colName"), colnames(ageSummary))
+      ageSummary <- ageSummary %>%
+        tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = "value")
     } else {
-      ageSummary <- tibble::tibble(name = character(0))
+      ageSummary <- tibble::tibble(cdm_name = character(0), name = character(0), value = character(0))
     }
-    numRound <- function(x) {
-      round(100 * as.numeric(x), 2)
+    # Date consistency: table with N missing and Percent missing by date field (support old and new export format)
+    dateConsistency <- get("dateConsistency", envir = .GlobalEnv)
+    if (nrow(dateConsistency) == 0) {
+      dateConsistency <- tibble::tibble(
+        cdm_name = character(0),
+        "Date field" = character(0),
+        "N missing" = numeric(0),
+        "Percent missing" = numeric(0)
+      )
+    } else {
+      metaCols <- c("cdm_name", "date_run", "date_export", "pkg_version")
+      hasNewDateConsistencyFormat <- any(grepl("_n$", colnames(dateConsistency))) && any(grepl("_pct$", colnames(dateConsistency)))
+      if (hasNewDateConsistencyFormat) {
+        dateCols <- setdiff(colnames(dateConsistency), metaCols)
+        dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
+        dateConsistency <- dateConsistency %>%
+          dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
+          tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
+          dplyr::mutate(
+            value = suppressWarnings(as.numeric(.data$value)),
+            name = gsub("_n$|_pct$", "", .data$key),
+            metric = ifelse(grepl("_n$", .data$key), "n_missing", "percent_missing")
+          ) %>%
+          dplyr::select(-.data$key) %>%
+          tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
+          dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+      } else {
+        skipCols <- intersect(metaCols, colnames(dateConsistency))
+        dateConsistency <- dataToLong(dateConsistency, skipCols = skipCols) %>%
+          tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
+          dplyr::mutate(
+            percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
+            n_missing = NA_integer_
+          )
+      }
+      dateConsistency <- dateConsistency %>%
+        dplyr::rename(
+          "Date field" = .data$name,
+          "N missing" = .data$n_missing,
+          "Percent missing" = .data$percent_missing
+        ) %>%
+        dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
     }
-    dateConsistency <- dataToLong(dateConsistency) %>%
-      dplyr::mutate(across(!name, numRound))
 
     observationPeriodRange <- dataToLong(observationPeriodRange)
 
-    pregnancyFrequencyList <- lapply(unique(pregnancyFrequency$cdm_name), FUN = function(name) {
-      pregnancyFrequency %>%
-        dplyr::filter(cdm_name == name) %>%
-        dplyr::select(-"cdm_name") %>%
-        dplyr::rename(!!name := number_individuals)
-    })
-    pregnancyFrequencyList <- pregnancyFrequencyList[order(sapply(pregnancyFrequencyList, nrow), decreasing = TRUE)]
-    pregnancyFrequency <- purrr::reduce(pregnancyFrequencyList, dplyr::left_join, by = "freq")
+    # Ensure pregnancy frequency and episode frequency exist (empty placeholder if never loaded)
+    if (!exists("pregnancyFrequency", envir = .GlobalEnv) || !is.data.frame(get("pregnancyFrequency", envir = .GlobalEnv))) {
+      assign("pregnancyFrequency", tibble::tibble(freq = integer(0), number_individuals = numeric(0), cdm_name = character(0)), envir = .GlobalEnv)
+    }
+    if (!exists("episodeFrequencySummary", envir = .GlobalEnv) || !is.data.frame(get("episodeFrequencySummary", envir = .GlobalEnv))) {
+      assign("episodeFrequencySummary", tibble::tibble(cdm_name = character(0), colName = character(0)), envir = .GlobalEnv)
+    }
+    if (!exists("episodeFrequency", envir = .GlobalEnv) || !is.data.frame(get("episodeFrequency", envir = .GlobalEnv))) {
+      assign("episodeFrequency", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
+    }
+    pregnancyFrequency <- get("pregnancyFrequency", envir = .GlobalEnv)
+    episodeFrequencySummary <- get("episodeFrequencySummary", envir = .GlobalEnv)
+    episodeFrequency <- get("episodeFrequency", envir = .GlobalEnv)
+
+    # Direct load of pregnancy_frequency.csv: recursively find all under data folder and combine
+    loadPregnancyFrequencyFromCsv <- function() {
+      if (!dir.exists(dataFolder)) return(NULL)
+      files <- list.files(dataFolder, pattern = "pregnancy_frequency\\.csv$", recursive = TRUE, full.names = TRUE)
+      if (length(files) == 0) return(NULL)
+      out <- list()
+      for (f in files) {
+        x <- tryCatch(
+          readr::read_csv(f, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
+          error = function(e) NULL
+        )
+        if (!is.null(x) && nrow(x) > 0) {
+          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+          if ("...1" %in% colnames(x) && !"freq" %in% colnames(x)) x <- x %>% dplyr::rename(freq = "...1")
+          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-"...1")
+          parentDir <- basename(dirname(f))
+          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+          out[[length(out) + 1L]] <- x
+        }
+      }
+      if (length(out) == 0) return(NULL)
+      dplyr::bind_rows(out)
+    }
+    pregnancyFrequencyFromFile <- loadPregnancyFrequencyFromCsv()
+    if (!is.null(pregnancyFrequencyFromFile) && nrow(pregnancyFrequencyFromFile) > 0) {
+      pregnancyFrequency <- pregnancyFrequencyFromFile
+    }
+
+    # Keep long format (freq, cdm_name, number_individuals) so pregnancy frequency is faceted by cdm_name
+    if (nrow(pregnancyFrequency) > 0 && !"freq" %in% colnames(pregnancyFrequency)) {
+      firstCol <- setdiff(colnames(pregnancyFrequency), c("cdm_name", "number_individuals", "date_run", "date_export", "pkg_version"))[1]
+      if (!is.na(firstCol)) pregnancyFrequency <- pregnancyFrequency %>% dplyr::rename(freq = !!rlang::sym(firstCol))
+    }
     pregnancyFrequency <- pregnancyFrequency %>%
-      dplyr::mutate(freq = factor(freq, levels = unique(pregnancyFrequency$freq))) %>%
-      dplyr::mutate(across(!freq, ~ suppressWarnings(as.numeric(.)))) %>%
-      suppressCounts(colNames = allDP)
+      dplyr::mutate(
+        freq = factor(.data$freq, levels = unique(.data$freq)),
+        number_individuals = suppressWarnings(as.numeric(.data$number_individuals))
+      ) %>%
+      dplyr::group_by(.data$cdm_name) %>%
+      dplyr::mutate(number_individuals = dplyr::if_else(
+        !is.na(.data$number_individuals) & .data$number_individuals > 0 & .data$number_individuals < 5,
+        NA_real_,
+        .data$number_individuals
+      )) %>%
+      dplyr::ungroup()
 
     episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
 
@@ -355,7 +670,12 @@ if (!hasData) {
     trendData <- rbind(yearlyTrend, monthlyTrends)
     trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
 
-    # outcome categories
+    # Re-run recursive load for outcome/delivery so data is found regardless of load order (data folder, all subfolders)
+    loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+    loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
+    # outcome categories (ensure we use loaded data from .GlobalEnv)
+    outcomeCategoriesCount <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+    deliveryModeSummary <- get("deliveryModeSummary", envir = .GlobalEnv)
     outcomeCategoriesCount <- outcomeCategoriesCount %>%
       dplyr::mutate(
         n = suppressWarnings(as.numeric(n)),
@@ -363,7 +683,7 @@ if (!hasData) {
       ) %>%
       dplyr::mutate(outcome_category = factor(outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
-    # delivery mode
+    # delivery mode (deliveryModeSummary already retrieved from .GlobalEnv above)
     deliveryModeSummary <- deliveryModeSummary %>%
       dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
       dplyr::select(-c("cesarean_count", "vaginal_count")) %>%
@@ -397,12 +717,12 @@ if (!hasData) {
         "Total pregnancy episodes and total individuals. Used as the main denominator for rates and site-level summaries."
       ),
       "Pregnancy frequency" = tabWithHelpText(
-        handleEmptyResult(object = PregnancyFrequencyModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
+        handleEmptyResult(
+          object = FilterTableModule$new(data = pregnancyFrequency, dp = if ("cdm_name" %in% colnames(pregnancyFrequency) && nrow(pregnancyFrequency) > 0) unique(pregnancyFrequency$cdm_name) else allDP),
+          result = pregnancyFrequency,
+          emptyMessage = "No pregnancy frequency data available. Add pregnancy_frequency.csv to the data folder."
+        ),
         "Distribution of pregnancy count per person (parity-like). Used to describe repeat pregnancies and check for implausible multiplicity."
-      ),
-      "Age summary" = tabWithHelpText(
-        handleEmptyResult(object = AgeSummaryModule$new(data = ageSummary, dp = allDP), result = ageSummary),
-        "Distribution of maternal age at pregnancy start. Used for cohort description, feasibility checks, and comparing age across sites."
       )
     )
     if (exists("incidence", envir = .GlobalEnv)) {
@@ -413,7 +733,7 @@ if (!hasData) {
           handleEmptyResult(object = IncidencePlot$new(data = incidence), result = incidence),
           "Incidence estimates over time. Used for temporal trends and rate comparisons across databases."
         )),
-        episodeFreqItems[2:3]
+        episodeFreqItems[2]
       )
     }
 
@@ -429,11 +749,11 @@ if (!hasData) {
       "Episode frequency" = episodeFreqItems,
       "Episode duration" = list(
         "Gestational age weeks" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts),
+          GestationalAgeModule$new(data = gestationalWeeksSummary, daysData = gestationalAgeDaysCounts, height = "420px"),
           "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison."
         ),
         "Gestational age binned" = tabWithHelpText(
-          GestationalAgeModule$new(data = gestationalWeeksBinned, maxWeeksFilter = FALSE),
+          GestationalAgeModule$new(data = gestationalWeeksBinned, maxWeeksFilter = FALSE, height = "420px"),
           "Gestational age grouped into bands (e.g. &lt;12, 12–28, 28–32 weeks). Used for outcome bands and cross-site comparison."
         ),
         "Gestational age days per category" = tabWithHelpText(
@@ -448,49 +768,51 @@ if (!hasData) {
       "Episode construction" = list(
         "Pregnancy overlap" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
+            object = PregnancyOverlapModule$new(
               data = pregnancyOverlapCounts,
-              dp = unique(pregnancyOverlapCounts$cdm_name),
-              yVar = "pct",
-              label = "n",
-              fillVar = "overlap",
-              title = "Pregnancy overlap counts"
+              dp = unique(pregnancyOverlapCounts$cdm_name)
             ),
             result = pregnancyOverlapCounts,
             emptyMessage = "No pregnancy overlap data available."
           ),
-          "Count of persons with overlapping inferred pregnancy intervals. Used for data quality (overlaps may indicate algorithm or data issues)."
+          "Count of pregnancy episodes by overlap status (overlapping vs non-overlapping). Used for data quality (overlaps may indicate algorithm or data issues)."
         ),
         "Swapped dates" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
-              data = swappedDates,
-              dp = setdiff(colnames(swappedDates), "name"),
-              convertDataForPlot = TRUE,
-              yVar = "value",
-              fillVar = "name",
-              title = "Swapped dates"
+            object = FilterTableModule$new(
+              data = swappedDatesDisplay,
+              dp = unique(swappedDatesDisplay$cdm_name)
             ),
-            result = swappedDates,
+            result = swappedDatesDisplay,
             emptyMessage = "No swapped dates data available."
           ),
-          "Count of episodes with reversed start/end (start after end). Used for data quality and algorithm validation."
+          paste(
+            "Count of episodes with **reversed start/end** (start date after end date). Used for data quality and algorithm validation.",
+            "",
+            "**Table columns:**",
+            "- **n**: number of episodes",
+            "- **pct**: percentage of total episodes",
+            "",
+            "**Metrics:**",
+            "- **HIP reversed (start after end)**: pregnancy start (merge_pregnancy_start) is after HIP end date (hip_end_date)",
+            "- **PPS reversed (start after end)**: pregnancy start is after PPS end date (pps_end_date)",
+            "- **Total episodes**: denominator used for the percentages",
+            sep = "\n\n"
+          )
         ),
         "Date consistency" = tabWithHelpText(
           handleEmptyResult(
-            object = EpisodeConstructionModule$new(
-              data = dateConsistency,
-              dp = allDP,
-              convertDataForPlot = TRUE,
-              yVar = "value",
-              fillVar = "name",
-              position = "dodge",
-              title = "Date consistency"
-            ),
+            object = FilterTableModule$new(data = dateConsistency, dp = allDP),
             result = dateConsistency,
             emptyMessage = "No date consistency data available."
           ),
-          "Proportion of missing dates by field. Used to assess completeness of key dates and to compare across sites."
+          paste(
+            "**Counts and percentages of missing dates** by date field.",
+            "",
+            "**N missing** = number of records with a missing date; **Percent missing** = percentage of all records.",
+            "Used to assess completeness of key dates and to compare across sites.",
+            sep = "\n\n"
+          )
         )
       ),
       "Episode outcomes" = list(
@@ -507,7 +829,15 @@ if (!hasData) {
             result = deliveryModeSummary,
             emptyMessage = "No delivery mode data available."
           ),
-          "Cesarean vs vaginal delivery for delivery and live-birth outcomes. Used for mode-of-delivery summaries and cross-site comparison."
+          paste(
+            "Cesarean vs vaginal delivery for delivery and live-birth outcomes. Used for mode-of-delivery summaries and cross-site comparison.",
+            "",
+            "**Table columns:**",
+            "- **total**: absolute count of episodes for that database, outcome category, and delivery mode (before any table search or filters).",
+            "- **n**: count of episodes that also match any filters or search applied in the table; when no filters are applied, **n** equals **total** for that row.",
+            "- **pct**: percentage for that row, calculated as (n / total) × 100.",
+            sep = "\n\n"
+          )
         ),
         "Outcome categories" = tabWithHelpText(
           handleEmptyResult(
@@ -552,12 +882,14 @@ if (!hasData) {
     )
 
     # Concept counts tab (ESD, HIP, PPS concept count tables)
+    # Use each table's cdm_name for dp so filter matches (concept count CSVs get cdm_name from their load folder)
     conceptCountsTabs <- list()
     if (exists("esdConceptCounts", envir = .GlobalEnv)) {
       esdConceptCounts <- get("esdConceptCounts", envir = .GlobalEnv)
+      esdDp <- if (is.data.frame(esdConceptCounts) && "cdm_name" %in% names(esdConceptCounts)) unique(esdConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["ESD concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = esdConceptCounts, dp = allDP),
+          object = FilterTableModule$new(data = esdConceptCounts, dp = esdDp),
           result = esdConceptCounts
         ),
         "Counts of ESD (Estimated Start Date) concept usage. Used to describe concept coverage and compare across sites."
@@ -565,9 +897,10 @@ if (!hasData) {
     }
     if (exists("hipConceptCounts", envir = .GlobalEnv)) {
       hipConceptCounts <- get("hipConceptCounts", envir = .GlobalEnv)
+      hipDp <- if (is.data.frame(hipConceptCounts) && "cdm_name" %in% names(hipConceptCounts)) unique(hipConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["HIP concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = hipConceptCounts, dp = allDP),
+          object = FilterTableModule$new(data = hipConceptCounts, dp = hipDp),
           result = hipConceptCounts
         ),
         "Counts of HIP (Hierarchical Identification of Pregnancy) concept usage. Used to compare concept coverage across sites."
@@ -575,9 +908,10 @@ if (!hasData) {
     }
     if (exists("ppsConceptCounts", envir = .GlobalEnv)) {
       ppsConceptCounts <- get("ppsConceptCounts", envir = .GlobalEnv)
+      ppsDp <- if (is.data.frame(ppsConceptCounts) && "cdm_name" %in% names(ppsConceptCounts)) unique(ppsConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["PPS concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = ppsConceptCounts, dp = allDP),
+          object = FilterTableModule$new(data = ppsConceptCounts, dp = ppsDp),
           result = ppsConceptCounts
         ),
         "Counts of pregnancy-related concepts used by PPS per concept. Used to check that expected pregnancy concepts are present."
@@ -587,45 +921,35 @@ if (!hasData) {
       appStructure[["Concept counts"]] <- conceptCountsTabs
     }
 
-    # Age tab: load age.csv, age_summary.csv, age_summary_first_pregnancy.csv, age_summary_groups.csv and show in DT tables
+    # Age tab: age_summary.csv, age_summary_first_pregnancy.csv, age_summary_groups.csv
     ageTabs <- list()
-    if (exists("age", envir = .GlobalEnv)) {
-      age <- get("age", envir = .GlobalEnv)
-      ageTabs[["age.csv"]] <- tabWithHelpText(
-        handleEmptyResult(
-          object = Table$new(data = age, title = "age.csv", options = list(scrollX = TRUE, pageLength = 25)),
-          result = age
-        ),
-        "Age-at-pregnancy-start data. Used for cohort description and age-stratified analyses."
-      )
-    }
     if (nrow(ageSummaryRaw) > 0) {
-      ageTabs[["age_summary.csv"]] <- tabWithHelpText(
+      ageTabs[["Age Summary by Outcome"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = Table$new(data = ageSummaryRaw, title = "age_summary.csv", options = list(scrollX = TRUE, pageLength = 25)),
+          object = AgeSummaryCsvModule$new(data = ageSummaryRaw, dp = unique(ageSummaryRaw$cdm_name)),
           result = ageSummaryRaw
         ),
-        "Distribution of maternal age at pregnancy start. Used for cohort description and feasibility checks."
+        "Distribution of maternal age at pregnancy start. Boxplot: one row per outcome group, faceted by database. Filters for database and outcome group. Used for cohort description and feasibility checks."
       )
     }
     if (exists("ageSummaryFirstPregnancy", envir = .GlobalEnv)) {
       ageSummaryFirstPregnancy <- get("ageSummaryFirstPregnancy", envir = .GlobalEnv)
-      ageTabs[["age_summary_first_pregnancy.csv"]] <- tabWithHelpText(
+      ageTabs[["Age at first pregnancy"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = Table$new(data = ageSummaryFirstPregnancy, title = "age_summary_first_pregnancy.csv", options = list(scrollX = TRUE, pageLength = 25)),
+          object = AgeSummaryFirstPregnancyModule$new(data = ageSummaryFirstPregnancy, dp = unique(ageSummaryFirstPregnancy$cdm_name)),
           result = ageSummaryFirstPregnancy
         ),
-        "Summary of maternal age at first pregnancy. Used for cohort description and feasibility checks."
+        "Summary of maternal age at first pregnancy. Boxplot: one row per database. Used for cohort description and feasibility checks."
       )
     }
     if (exists("ageSummaryGroups", envir = .GlobalEnv)) {
       ageSummaryGroups <- get("ageSummaryGroups", envir = .GlobalEnv)
-      ageTabs[["age_summary_groups.csv"]] <- tabWithHelpText(
+      ageTabs[["Age distribution"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = Table$new(data = ageSummaryGroups, title = "age_summary_groups.csv", options = list(scrollX = TRUE, pageLength = 25)),
+          object = AgeSummaryGroupsModule$new(data = ageSummaryGroups, dp = unique(ageSummaryGroups$cdm_name)),
           result = ageSummaryGroups
         ),
-        "Counts and percentages of pregnancies by age (by year and boundary groups). Used for age-stratified summaries."
+        "Counts and percentages of pregnancies by age (by year and boundary groups). Histogram with filters for database and outcome type; Y axis can be count (n) or percent (pct). Used for age-stratified summaries."
       )
     }
     if (length(ageTabs) > 0) {
@@ -633,12 +957,19 @@ if (!hasData) {
     }
 
     # Attrition tab (attrition.csv, attrition_if_cleanup.csv)
+    # Use union of allDP and table cdm_name so mock CDM (or any folder-only source) appears in dropdown and displays when selected
     attritionTabs <- list()
     if (exists("attrition_episodes", envir = .GlobalEnv)) {
       attritionEpisodes <- get("attrition_episodes", envir = .GlobalEnv)
+      attritionDp <- if (nrow(attritionEpisodes) > 0 && "cdm_name" %in% colnames(attritionEpisodes)) {
+        withData <- unique(attritionEpisodes$cdm_name)
+        unique(c(withData, allDP))  # databases with attrition data first so default selection shows data
+      } else {
+        allDP
+      }
       attritionTabs[["Attrition"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = attritionEpisodes, dp = allDP),
+          object = AttritionTableModule$new(data = attritionEpisodes, dp = attritionDp),
           result = attritionEpisodes
         ),
         "Number of episodes and persons excluded at each pipeline step. Used to document cohort flow and feasibility."
@@ -646,9 +977,15 @@ if (!hasData) {
     }
     if (exists("attritionIfCleanup", envir = .GlobalEnv)) {
       attritionIfCleanup <- get("attritionIfCleanup", envir = .GlobalEnv)
+      attritionIfCleanupDp <- if (nrow(attritionIfCleanup) > 0 && "cdm_name" %in% colnames(attritionIfCleanup)) {
+        withData <- unique(attritionIfCleanup$cdm_name)
+        unique(c(withData, allDP))
+      } else {
+        allDP
+      }
       attritionTabs[["Attrition if cleanup"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = attritionIfCleanup, dp = allDP),
+          object = AttritionTableModule$new(data = attritionIfCleanup, dp = attritionIfCleanupDp),
           result = attritionIfCleanup
         ),
         "Attrition that would apply if quality-check cleanup were run. Used to assess impact of cleanup on cohort size."
@@ -669,31 +1006,62 @@ if (!hasData) {
           result = conceptCheck,
           emptyMessage = "No concept check data available."
         ),
-        "Concept-level checks for pregnancy-related concepts. Used to validate concept presence and coverage."
+        paste(
+          "Concept-level checks for pregnancy-related concepts. Validates concept presence and whether concept dates fall within expected timing relative to each pregnancy episode (using concept-specific expected month ranges).",
+          "",
+          "**Table columns:**",
+          "- **concept_id / concept_name:** OMOP concept identifier and name.",
+          "- **n_after_min:** Number of episode–concept pairs where the concept date is on or before the expected window start (min_date).",
+          "- **n_prior_max:** Number of pairs where the concept end date is on or after the expected window end (max_date).",
+          "- **n_in_span:** Number of pairs where the concept start date falls within the expected window [min_date, max_date] for that concept.",
+          "- **n_at_midpoint:** Number of pairs where the concept date is near the midpoint of the expected range.",
+          "- **total:** Total number of episode–concept pairs for this concept.",
+          "- **p_after_min, p_prior_max, p_in_span, p_at_midpoint:** Same counts as percentages of all episodes in the database.",
+          "- **p_concept:** Percentage of episodes that have at least one record for this concept (concept coverage).",
+          "- **cdm_name, date_run, date_export, pkg_version:** Database and export metadata.",
+          sep = "\n\n"
+        )
       )
     )
 
     # Precision days (precision_days.csv)
+    # Keep all loaded precision days (don't filter by allDP) so data from any folder/zip is shown
     precisionDays <- get("precisionDays", envir = .GlobalEnv)
-    precisionDaysDp <- if (nrow(precisionDays) > 0 && "cdm_name" %in% colnames(precisionDays)) unique(c(allDP, precisionDays$cdm_name)) else allDP
+    precisionDaysDp <- if (nrow(precisionDays) > 0 && "cdm_name" %in% colnames(precisionDays)) {
+      unique(c(allDP, precisionDays$cdm_name))
+    } else {
+      allDP
+    }
     appStructure[["Precision days"]] <- list(
       tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = precisionDays, dp = precisionDaysDp),
+          object = PrecisionDaysModule$new(data = precisionDays, dp = precisionDaysDp),
           result = precisionDays,
           emptyMessage = "No precision days data available."
         ),
-        "Distribution of ESD start-date precision (in days). Used to see how precise inferred start dates are and to compare across sites."
+        paste(
+          "**Distribution of ESD start-date precision (in days).**",
+          "",
+          "**What it is:** ESD (Estimated Start Date) precision is the uncertainty in the inferred pregnancy start date for each episode. Lower values mean a more precise start date (e.g. 0–7 days when gestational-week concepts agree); higher values mean the start date is only known to within a wider window (e.g. when only trimester-level information is available).",
+          "",
+          "**How it is calculated:** For each episode, the algorithm derives a start date from ESD concepts (gestational week or trimester). Precision in days is the spread of possible start dates: the range in days between the earliest and latest plausible start date implied by those concepts. The plot shows the **density** of these precision values across all episodes (one curve per database).",
+          "",
+          "**Use:** Compare how precise inferred start dates are within a database and across sites; useful for data quality and for understanding how much timing information is available.",
+          sep = "\n\n"
+        )
       )
     )
 
     # Quality check cleanup (quality_check_cleanup.csv)
     qualityCheckCleanup <- get("qualityCheckCleanup", envir = .GlobalEnv)
+    if (nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) {
+      qualityCheckCleanup <- qualityCheckCleanup %>% dplyr::select("cdm_name", dplyr::everything())
+    }
     qualityCheckCleanupDp <- if (nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) unique(c(allDP, qualityCheckCleanup$cdm_name)) else allDP
     appStructure[["Quality check cleanup"]] <- list(
       tabWithHelpText(
         handleEmptyResult(
-          object = FilterTableModule$new(data = qualityCheckCleanup, dp = qualityCheckCleanupDp),
+          object = QualityCheckCleanupModule$new(data = qualityCheckCleanup, dp = qualityCheckCleanupDp),
           result = qualityCheckCleanup,
           emptyMessage = "No quality check cleanup data available."
         ),
@@ -701,64 +1069,61 @@ if (!hasData) {
       )
     )
 
-    # PET comparison tab (when comparePregnancyIdentifierWithPET outputs are loaded from zip)
-    if (exists("petComparisonEpisodeCounts", envir = .GlobalEnv)) {
-      petComparisonEpisodeCounts <- get("petComparisonEpisodeCounts", envir = .GlobalEnv)
-      appStructure[["PET comparison"]] <- list(
-        "Episode counts" = tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonEpisodeCounts), result = petComparisonEpisodeCounts),
-          "Episode counts from PregnancyIdentifier vs PET. Used to compare pipeline outputs and assess agreement."
+    # PET comparison tab: single sidebar tab (no subtabs) with Overview, Plot, Table, Summarised result; or legacy many tables
+    petComparisonTabs <- list()
+    if (exists("petComparisonSummarisedResult", envir = .GlobalEnv)) {
+      petSr <- get("petComparisonSummarisedResult", envir = .GlobalEnv)
+      if (!is.null(petSr) && nrow(petSr) > 0) {
+        petComparisonTabs <- list(
+          tabWithHelpText(
+            handleEmptyResult(
+              object = PetComparisonModule$new(result = petSr),
+              result = petSr,
+              emptyMessage = "No PET comparison data available."
+            ),
+            "Compare PregnancyIdentifier episodes with the OMOP Pregnancy Extension Table (PET): methodology (Overview), Venn diagram (Plot), formatted table with Database filter (Table), and raw summarised result (Summarised result)."
+          )
         )
+      }
+    }
+    # Legacy: many PET comparison CSVs (old export format)
+    if (length(petComparisonTabs) == 0) {
+      petComparisonSpec <- list(
+        petComparisonEpisodeCounts = "Episode counts",
+        petComparisonPersonOverlap = "Person overlap",
+        petComparisonVennCounts = "Venn counts",
+        petComparisonProtocolSummary = "Protocol summary",
+        petComparisonTimeOverlapSummary = "Time overlap summary",
+        petComparisonConfusion2x2 = "Confusion 2x2",
+        petComparisonPpvSensitivity = "PPV and sensitivity",
+        petComparisonDateDifferenceSummary = "Date difference summary",
+        petComparisonDateDifferences = "Date differences",
+        petComparisonOutcomeConfusionMatrix = "Outcome confusion matrix",
+        petComparisonOutcomeAccuracy = "Outcome accuracy",
+        petComparisonOutcomeByYear = "Outcome by year",
+        petComparisonDurationSummary = "Duration summary",
+        petComparisonDurationMatchedSummary = "Duration matched summary",
+        petComparisonDurationDistribution = "Duration distribution"
       )
-      if (exists("petComparisonVennCounts", envir = .GlobalEnv)) {
-        petComparisonVennCounts <- get("petComparisonVennCounts", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Venn counts"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonVennCounts), result = petComparisonVennCounts),
-          "Overlap and exclusive counts between PregnancyIdentifier and PET episodes. Used for concordance assessment."
-        )
+      for (varName in names(petComparisonSpec)) {
+        if (exists(varName, envir = .GlobalEnv)) {
+          data <- get(varName, envir = .GlobalEnv)
+          if (!is.null(data) && nrow(data) > 0) {
+            displayName <- petComparisonSpec[[varName]]
+            petComparisonTabs[[displayName]] <- tabWithHelpText(
+              handleEmptyResult(
+                object = PetComparisonTableModule$new(data = data, title = displayName),
+                result = data,
+                emptyMessage = "No PET comparison data available."
+              ),
+              sprintf("PET comparison: %s. Compare PregnancyIdentifier output with the OMOP Pregnancy Extension Table (PET).", displayName)
+            )
+          }
+        }
       }
-      if (exists("petComparisonPpvSensitivity", envir = .GlobalEnv)) {
-        petComparisonPpvSensitivity <- get("petComparisonPpvSensitivity", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["PPV and sensitivity"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonPpvSensitivity), result = petComparisonPpvSensitivity),
-          "Positive predictive value and sensitivity vs PET. Used to quantify agreement and algorithm performance."
-        )
-      }
-      if (exists("petComparisonDateDifferenceSummary", envir = .GlobalEnv)) {
-        petComparisonDateDifferenceSummary <- get("petComparisonDateDifferenceSummary", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Date difference summary"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDateDifferenceSummary), result = petComparisonDateDifferenceSummary),
-          "Summary of differences in episode start/end dates between PregnancyIdentifier and PET. Used for date-level validation."
-        )
-      }
-      if (exists("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)) {
-        petComparisonOutcomeConfusionMatrix <- get("petComparisonOutcomeConfusionMatrix", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Outcome confusion matrix"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeConfusionMatrix), result = petComparisonOutcomeConfusionMatrix),
-          "Cross-tabulation of outcome categories: PregnancyIdentifier vs PET. Used to assess outcome agreement."
-        )
-      }
-      if (exists("petComparisonOutcomeAccuracy", envir = .GlobalEnv)) {
-        petComparisonOutcomeAccuracy <- get("petComparisonOutcomeAccuracy", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Outcome accuracy"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonOutcomeAccuracy), result = petComparisonOutcomeAccuracy),
-          "Outcome-level accuracy metrics vs PET. Used to compare outcome classification performance."
-        )
-      }
-      if (exists("petComparisonDurationSummary", envir = .GlobalEnv)) {
-        petComparisonDurationSummary <- get("petComparisonDurationSummary", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Duration summary"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationSummary), result = petComparisonDurationSummary),
-          "Summary of gestational duration differences between PregnancyIdentifier and PET. Used for duration validation."
-        )
-      }
-      if (exists("petComparisonDurationDistribution", envir = .GlobalEnv)) {
-        petComparisonDurationDistribution <- get("petComparisonDurationDistribution", envir = .GlobalEnv)
-        appStructure[["PET comparison"]][["Duration distribution"]] <- tabWithHelpText(
-          handleEmptyResult(object = FilterTableModule$new(data = petComparisonDurationDistribution), result = petComparisonDurationDistribution),
-          "Distribution of duration (and differences) vs PET. Used to assess gestational-age agreement."
-        )
-      }
+    }
+    if (length(petComparisonTabs) > 0) {
+      appStructure[["PET comparison"]] <- petComparisonTabs
     }
 
     app <- DarwinDashboardApp$new(appStructure, title = "PregnancyIdentifier")

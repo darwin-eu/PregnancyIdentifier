@@ -25,7 +25,7 @@ Episode construction (HIP, PPS, merge) yields plausible pregnancy intervals, but
 - **esd_precision_days** and **esd_precision_category** — Uncertainty in days and a binned precision label (e.g. `week`, `month`, `three-month`)
 - Plausibility and concordance metrics: **esd_term_duration_flag**, **esd_outcome_concordance_score**, **esd_outcome_match**, **esd_preterm_status_from_calculation**, etc.
 
-ESD is run via `runEsd()`, which reads `hipps_episodes.rds` from `outputDir`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges ESD results back onto HIPPS metadata (including resolving final outcome and end date when HIP and PPS disagree), and writes **final_pregnancy_episodes.rds** to `outputDir`. Optionally, with `debugMode = TRUE`, it also writes **esd.rds** (episode-level start inference only, before merging back).
+ESD is run via `runEsd()`, which reads `hipps_episodes.rds` from `outputFolder`, pulls gestational timing concepts from the CDM, infers start dates and precision, merges ESD results back onto HIPPS metadata (including resolving final outcome and end date when HIP and PPS disagree), and writes **final_pregnancy_episodes.rds** to `outputFolder`. Optionally, with `debugMode = TRUE`, it also writes **esd.rds** (episode-level start inference only, before merging back).
 
 **Important:** The **final episode end date** and **final outcome category** in the pipeline are **not** taken from the merged episode (e.g. `merge_episode_end`). They are **re-derived by ESD** by picking between HIP and PPS again: ESD compares `hip_end_date` and `pps_end_date` (and `hip_outcome_category` and `pps_outcome_category`) and applies harmonization rules to choose one end and one outcome per episode. The merged interval is used only to define the evidence window for start inference; the reported end and outcome come from this second pass over HIP and PPS.
 
@@ -77,7 +77,7 @@ So the final end and outcome are always one of the two algorithm values on the r
 # Inputs
 
 - **cdm** — CDM reference (for concept and domain tables).
-- **outputDir** — Directory containing `hipps_episodes.rds` (produced by `mergeHipps()`).
+- **outputFolder** — Directory containing `hipps_episodes.rds` (produced by `mergeHipps()`).
 - **startDate**, **endDate** — Study window for filtering concept dates.
 - **logger** — Optional log4r logger.
 
@@ -114,7 +114,7 @@ When **both** GW and GR3m evidence exist, ESD checks whether each GW-extrapolate
 
 4. **Study period filter** — Keeps rows where inferred episode start is on or after `startDate` and inferred episode end is on or before `endDate` (episodes with missing dates are retained).
 
-5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputDir`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
+5. **Write** — Saves the final data frame to **final_pregnancy_episodes.rds** in `outputFolder`. If `debugMode = TRUE`, **esd.rds** is written after step 2 (episode-level start inference only).
 
 # Outputs
 
@@ -125,7 +125,7 @@ When **both** GW and GR3m evidence exist, ESD checks whether each GW-extrapolate
 
 # Running ESD
 
-ESD is normally run as step 5 of `runPregnancyIdentifier()`. To run it alone (e.g. for debugging), ensure `outputDir` already contains `hipps_episodes.rds`:
+ESD is normally run as step 5 of `runPregnancyIdentifier()`; step 6 is export (shareable CSVs to `exportFolder`, default `outputDir/export`). To run ESD alone (e.g. for debugging), ensure `outputDir` already contains `hipps_episodes.rds`:
 
 ```{r, eval=FALSE}
 library(PregnancyIdentifier)
@@ -133,12 +133,12 @@ cdm <- mockPregnancyCdm()
 # ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
 
 runEsd(
-  cdm       = cdm,
-  outputDir = "pregnancy_output",
-  startDate = as.Date("2000-01-01"),
-  endDate   = Sys.Date(),
-  logger    = makeLogger("pregnancy_output"),
-  debugMode = FALSE
+  cdm          = cdm,
+  outputFolder = "pregnancy_output",
+  startDate    = as.Date("2000-01-01"),
+  endDate      = Sys.Date(),
+  logger       = makeLogger("pregnancy_output"),
+  debugMode    = FALSE
 )
 # final_pregnancy_episodes.rds is written to pregnancy_output/
 ```

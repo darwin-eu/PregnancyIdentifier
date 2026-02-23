@@ -38,7 +38,7 @@ No rows are dropped except duplicate overlap candidates; one-sided episodes and 
 
 ## Inputs
 
-`mergeHipps(outputDir, logger)` reads from `outputDir`:
+`mergeHipps(outputFolder, logger)` reads from `outputFolder`:
 
 | File | Source | Main columns |
 |------|--------|----------------|
@@ -195,7 +195,7 @@ After deduplication, `addMergedEpisodeDetails()`:
 
 ## Output file: hipps_episodes.rds
 
-`mergeHipps()` writes a single file to `outputDir`:
+`mergeHipps()` writes a single file to `outputFolder`:
 
 | File | Description |
 |------|-------------|

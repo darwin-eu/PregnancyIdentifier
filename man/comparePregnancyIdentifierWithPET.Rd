@@ -6,11 +6,11 @@
 \usage{
 comparePregnancyIdentifierWithPET(
   cdm,
-  outputDir,
   outputFolder,
   petSchema,
   petTable,
   minOverlapDays = 1L,
+  removeWithinSourceOverlaps = FALSE,
   logger = NULL,
   outputLogToConsole = TRUE
 )
@@ -19,11 +19,9 @@ comparePregnancyIdentifierWithPET(
 \item{cdm}{A \code{cdm_reference} (from CDMConnector) with a database connection.
 The PET table is read via \code{petSchema} and \code{petTable}.}
 
-\item{outputDir}{\code{character(1)}. Directory containing pipeline outputs, in
-particular \code{final_pregnancy_episodes.rds}.}
-
-\item{outputFolder}{\code{character(1)}. Directory where comparison CSVs and
-optional plots will be written. Created if it does not exist.}
+\item{outputFolder}{\code{character(1)}. Directory containing pipeline outputs
+(\code{final_pregnancy_episodes.rds}) and where comparison CSVs and optional
+plots will be written. Created if it does not exist.}
 
 \item{petSchema}{\code{character(1)}. Schema name of the PET table (e.g.
 \code{"omop_cmbd"}).}
@@ -31,10 +29,18 @@ optional plots will be written. Created if it does not exist.}
 \item{petTable}{\code{character(1)}. Table name of the pregnancy episode table
 (e.g. \code{"pregnancy_episode"}). Must contain at least \code{person_id},
 \code{pregnancy_start_date}, \code{pregnancy_end_date}, and
-\code{pregnancy_outcome} (concept_id).}
+\code{pregnancy_outcome} (concept_id). Gestational length in days is
+computed from start and end dates in the database via
+\code{CDMConnector::datediff()}; the table need not have a
+\code{gestational_length_in_day} column.}
 
 \item{minOverlapDays}{\code{integer(1)}. Minimum overlap in days to consider an
 algorithm episode and a PET episode as the same pregnancy (default 1).}
+
+\item{removeWithinSourceOverlaps}{\code{logical(1)}. If \code{TRUE}, before
+matching the code removes overlapping episodes within PET and within the
+algorithm (greedy non-overlapping by start date per person), which can
+reduce many-to-many candidate pairs. Default \code{FALSE}.}
 
 \item{logger}{Optional \code{log4r::logger}. If \code{NULL}, a logger is
 created via \code{makeLogger(outputFolder)}.}
@@ -43,20 +49,18 @@ created via \code{makeLogger(outputFolder)}.}
 \code{NULL}. Whether to log to the console as well as to the log file.}
 }
 \value{
-Invisibly returns a list with elements \code{episode_counts},
-  \code{venn_counts}, \code{confusion_2x2}, \code{ppv_sensitivity},
-  \code{date_differences}, \code{outcome_confusion}, \code{outcome_accuracy},
-  \code{duration_summary}, and \code{duration_distribution}. \code{confusion_2x2}
-  is the 2x2 table (TP, FN, FP, TN; TN is \code{NA} at episode level).
-  \code{ppv_sensitivity} contains sensitivity, specificity, PPV, and NPV
-  (specificity and NPV are \code{NA} when TN is not defined). All comparison
-  artifacts are also written to \code{outputFolder} as CSVs (and optionally PNGs).
+Nothing. The summarised result is written to
+  \code{file.path(outputFolder, "pet_comparison_summarised_result.csv")}.
+  Use \code{omopgenerics::importSummarisedResult()} to read it and
+  \code{visOmopResults::visTable()} to display it.
 }
 \description{
 Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
 table and writes comparison summaries to \code{outputFolder}. Comparisons include:
-pregnancy episode and person counts; pregnancy start/end date differences for
-linked episodes; Venn counts (both, PET only, algorithm only); a 2x2 confusion
-matrix (TP, FN, FP, TN) with sensitivity, specificity, PPV, and NPV; outcome
-confusion matrix and accuracy; and pregnancy duration distributions.
+pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
+person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
+Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
+with sensitivity and PPV (no gold-standard negatives, so specificity and NPV are not defined); outcome confusion matrix and accuracy;
+outcome comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
+and pregnancy duration distributions.
 }

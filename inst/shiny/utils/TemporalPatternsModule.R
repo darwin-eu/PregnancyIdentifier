@@ -6,7 +6,7 @@ TemporalPatternsModule <- R6::R6Class(
 
   public = list(
 
-    initialize = function(data, missingData, dp = unique(data$cdm_name), height = "600px") {
+    initialize = function(data, missingData, dp = unique(data$cdm_name), height = "420px") {
       super$initialize()
       private$.data <- data
       private$.missingData <- missingData
@@ -235,14 +235,14 @@ TemporalPatternsModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          private$.data,
+          private$.data %>% dplyr::mutate_if(is.character, as.factor),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )
       })
       output$missingDataTable <- DT::renderDT({
         DT::datatable(
-          private$.missingData,
+          private$.missingData %>% dplyr::mutate_if(is.character, as.factor),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

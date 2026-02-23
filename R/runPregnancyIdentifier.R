@@ -19,18 +19,18 @@
 
 #' Create a new logger
 #'
-#' @param outputDir The directory where the log should be created
+#' @param outputFolder The directory where the log should be created
 #' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
 #'   written to the console as well as the log file. If `FALSE`, only the file
 #'   appender is used (useful in tests to keep output clean).
 #'
 #' @returns A log4r logger object
 #' @export
-makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
-  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
-  checkmate::assertDirectoryExists(outputDir)
+makeLogger <- function(outputFolder, outputLogToConsole = TRUE) {
+  checkmate::assertCharacter(outputFolder, len = 1, any.missing = FALSE)
+  checkmate::assertDirectoryExists(outputFolder)
   checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
-  logFile <- file.path(outputDir, "log.txt")
+  logFile <- file.path(outputFolder, "log.txt")
   file.create(logFile)
   appenders <- list(log4r::file_appender(logFile))
   if (outputLogToConsole) {
@@ -40,7 +40,7 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
   return(logger)
 }
 
-#' Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD, optionally export)
+#' Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD + export)
 #'
 #' Orchestrates the full PregnancyIdentifier pipeline (adapted from the HIPPS
 #' implementation at https://github.com/louisahsmith/allofus-pregnancy/) on an
@@ -54,13 +54,19 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #' 4) merge (`mergeHipps()`): merges HIP and PPS into combined HIPPS episodes,
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
-#' 6) optionally, export (`exportPregnancies()`): writes shareable summary outputs
-#'    (with optional small-cell suppression) when `exportPregnancies = TRUE`.
+#' 6) export (`exportPregnancies()`): writes shareable aggregated CSV files to
+#'    `exportFolder` (with optional small-cell suppression).
 #'
 #' @param cdm (`cdm_reference`) A CDM reference created by `CDMConnector` pointing
 #'   to an OMOP CDM instance.
-#' @param outputDir (`character(1)`) Directory where intermediate artifacts (RDS,
-#'   logs) and exports will be written. Created if it does not exist.
+#' @param outputFolder (`character(1)`) Directory for pipeline outputs: **person-level
+#'   and episode-level data** (RDS files such as `final_pregnancy_episodes.rds`,
+#'   logs, `runStart.csv`, concept counts, etc.). Created if it does not exist.
+#' @param exportFolder (`character(1)`) Directory where **shareable aggregated CSV
+#'   files** are written. Required. Defaults to `file.path(outputFolder, "export")`.
+#'   These CSVs can be used as input to the Shiny app. With
+#'   `conformToValidation = "both"`, results are written to `exportFolder/conform_false`
+#'   and `exportFolder/conform_true`.
 #' @param startDate (`Date(1)`) Lower bound for concept/event dates included in the
 #'   run. Default `1900-01-01`.
 #' @param endDate (`Date(1)`) Upper bound for concept/event dates included in the
@@ -68,56 +74,66 @@ makeLogger <- function(outputDir, outputLogToConsole = TRUE) {
 #' @param justGestation (`logical(1)`) If `TRUE`, allow episodes consisting only of
 #'   gestational concepts (HIP behavior). Passed through to `runHip()`.
 #' @param minCellCount (`integer(1)`) Minimum cell count used for suppression in
-#'   exported summaries. Passed through to `exportPregnancies()` when `runExport = TRUE`.
+#'   exported summaries. Passed through to `exportPregnancies()`.
 #' @param debugMode (`logical(1)`) Should extra intermediate datasets be written to
-#'   the outputDir for debugging? `TRUE` or `FALSE` (default)
-#' @param runExport (`logical(1)`) If `TRUE`, run `exportPregnancies()` after
-#'   ESD and write shareable CSVs and ZIP to `file.path(outputDir, "export")`.
-#'   Default `FALSE`.
+#'   the outputFolder for debugging? `TRUE` or `FALSE` (default)
 #' @param outputLogToConsole (`logical(1)`) If `TRUE` (default), log messages are
 #'   written to the console. If `FALSE`, only to the log file (e.g. for tests).
-#' @param conformToValidation (`logical(1)`) If `TRUE`, after validation modify episode
-#'   output to conform: remove overlapping episodes and episodes longer than 308 days.
-#'   If `FALSE` (default), only validate and log issues; do not modify the result.
-#'   Validation and logging always run regardless of this parameter.
+#' @param conformToValidation (\code{logical(1)} or \code{"both"}) If \code{TRUE}, after
+#'   validation modify episode output to conform (remove overlapping episodes and
+#'   episodes longer than 308 days). If \code{FALSE} (default), only validate and
+#'   log issues. If \code{"both"}, the pipeline runs once without conforming; export
+#'   is run twice and results are written to \code{exportFolder/conform_false} and
+#'   \code{exportFolder/conform_true}.
 #'
 #' @return Invisibly returns `NULL`. Side effects:
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
-#'   - Writes intermediate RDS artifacts under `outputDir`.
-#'   - If `runExport = TRUE`, writes shareable csv exports under
-#'     `file.path(outputDir, "export")`.
+#'   - Writes person-level and episode-level data (RDS, logs) under `outputFolder`.
+#'   - Writes shareable aggregated CSV files to `exportFolder` (or
+#'     `exportFolder/conform_false` and `exportFolder/conform_true` when
+#'     `conformToValidation = "both"`).
 #' @export
 runPregnancyIdentifier <- function(cdm,
-                                   outputDir,
+                                   outputFolder,
+                                   exportFolder = NULL,
                                    startDate = as.Date("1900-01-01"),
                                    endDate = Sys.Date(),
                                    justGestation = TRUE,
                                    minCellCount = 5L,
                                    debugMode = FALSE,
-                                   runExport = FALSE,
                                    outputLogToConsole = TRUE,
                                    conformToValidation = FALSE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
-  checkmate::assertCharacter(outputDir, len = 1, any.missing = FALSE)
+  checkmate::assertCharacter(outputFolder, len = 1, any.missing = FALSE)
+  if (is.null(exportFolder)) {
+    exportFolder <- file.path(outputFolder, "export")
+  }
+  checkmate::assertCharacter(exportFolder, len = 1, any.missing = FALSE)
   checkmate::assertDate(startDate, len = 1, any.missing = FALSE)
   checkmate::assertDate(endDate, len = 1, any.missing = FALSE)
   checkmate::assertLogical(justGestation, len = 1, any.missing = FALSE)
-  checkmate::assertLogical(runExport, len = 1, any.missing = FALSE)
   checkmate::assertLogical(outputLogToConsole, len = 1, any.missing = FALSE)
-  checkmate::assertLogical(conformToValidation, len = 1, any.missing = FALSE)
+  checkmate::assert(
+    (is.logical(conformToValidation) && length(conformToValidation) == 1L && !is.na(conformToValidation)) ||
+      (is.character(conformToValidation) && length(conformToValidation) == 1L && conformToValidation == "both"),
+    .var.name = "conformToValidation"
+  )
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
 
-  # ---- Prepare output location + logger --------------------------------------
-  # Inputs: outputDir
-  # Outputs: a created directory and a log file via `makeLogger()`
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  checkmate::assertDirectoryExists(outputDir)
+  runEsdConform <- isTRUE(conformToValidation)
+  exportBoth <- identical(conformToValidation, "both")
 
-  logger <- makeLogger(outputDir, outputLogToConsole = outputLogToConsole)
+  # ---- Prepare output location + logger --------------------------------------
+  # Inputs: outputFolder
+  # Outputs: a created directory and a log file via `makeLogger()`
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  checkmate::assertDirectoryExists(outputFolder)
+
+  logger <- makeLogger(outputFolder, outputLogToConsole = outputLogToConsole)
   pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
   cdmNm <- CDMConnector::cdmName(cdm)
   if (length(cdmNm) == 0 || is.na(cdmNm)) cdmNm <- "unknown"
@@ -126,7 +142,7 @@ runPregnancyIdentifier <- function(cdm,
   log4r::info(logger, "Classifying Pregnancy using HIP, PPS, and ESD")
 
   runStart <- data.frame(start = as.integer(Sys.time()))
-  utils::write.csv(runStart, file.path(outputDir, "runStart.csv"))
+  utils::write.csv(runStart, file.path(outputFolder, "runStart.csv"))
 
   # ---- Step 1: Initialize cohort + concept sets ------------------------------
   # Inputs:
@@ -145,7 +161,7 @@ runPregnancyIdentifier <- function(cdm,
     endDate = endDate,
     ageBounds = c(15L, 56L),
     logger = logger,
-    outputDir = outputDir
+    outputFolder = outputFolder
   )
 
   # ---- Step 2: HIP episodes ---------------------------------------------------
@@ -154,11 +170,11 @@ runPregnancyIdentifier <- function(cdm,
   #   - justGestation determines whether gestation-only episodes are allowed
   # Outputs:
   #   - updated cdm (algorithm tables created/updated)
-  #   - writes: outputDir/hip_episodes.rds
+  #   - writes: outputFolder/hip_episodes.rds
   log4r::info(logger, "Running `runHip`")
   cdm <- runHip(
     cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     startDate = startDate,
     endDate = endDate,
     justGestation = justGestation,
@@ -169,13 +185,13 @@ runPregnancyIdentifier <- function(cdm,
   # Inputs:
   #   - cdm + study window
   # Outputs:
-  #   - writes: outputDir/pps_gest_timing_episodes.rds
-  #   - writes: outputDir/pps_min_max_episodes.rds
+  #   - writes: outputFolder/pps_gest_timing_episodes.rds
+  #   - writes: outputFolder/pps_min_max_episodes.rds
   #   - may add supporting PPS tables in the CDM
   log4r::info(logger, "Running `runPps`")
   cdm <- runPps(
     cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     startDate = startDate,
     endDate = endDate,
     logger = logger,
@@ -184,37 +200,86 @@ runPregnancyIdentifier <- function(cdm,
 
   # ---- Step 4: Merge HIP + PPS => HIPPS episodes -----------------------------
   # Inputs:
-  #   - RDS artifacts written by HIP and PPS steps in outputDir
+  #   - RDS artifacts written by HIP and PPS steps in outputFolder
   # Outputs:
-  #   - writes: outputDir/hipps_episodes.rds
+  #   - writes: outputFolder/hipps_episodes.rds
   log4r::info(logger, "Running `mergeHipps`")
-  mergeHipps(outputDir = outputDir, logger = logger)
+  mergeHipps(outputFolder = outputFolder, logger = logger)
 
   # ---- Step 5: ESD refinement -------------------------------------------------
   # Inputs:
-  #   - HIPPS (and other intermediate artifacts) in outputDir
+  #   - HIPPS (and other intermediate artifacts) in outputFolder
   # Outputs:
-  #   - writes: outputDir/final_pregnancy_episodes.rds (final patient-level episodes)
+  #   - writes: outputFolder/final_pregnancy_episodes.rds (final patient-level episodes)
   log4r::info(logger, "Running `runEsd`")
   runEsd(
     cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     startDate = startDate,
     endDate = endDate,
     logger = logger,
     debugMode = debugMode,
-    conformToValidation = conformToValidation
+    conformToValidation = runEsdConform
   )
 
-  if (runExport) {
-    log4r::info(logger, "Running `exportPregnancies`")
-    exportPregnancies(
-      cdm = cdm,
-      outputDir = outputDir,
-      exportDir = file.path(outputDir, "export"),
-      minCellCount = minCellCount
-    )
-  }
+  baseExportDir <- exportFolder
+  dir.create(baseExportDir, recursive = TRUE, showWarnings = FALSE)
+  if (exportBoth) {
+      # Export non-conformed (current RDS) and conformed (apply conform in memory) to subfolders
+      log4r::info(logger, "Running `exportPregnancies` (conform_false)")
+      exportPregnancies(
+        cdm = cdm,
+        outputFolder = outputFolder,
+        exportDir = file.path(baseExportDir, "conform_false"),
+        minCellCount = minCellCount
+      )
+      res <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
+      termMaxMin <- readxl::read_excel(
+        system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
+      )
+      fixResult <- fixStartBeforeEnd(
+        res,
+        termMaxMin,
+        startDateCol = "final_episode_start_date",
+        endDateCol = "final_episode_end_date",
+        outcomeCol = "final_outcome_category"
+      )
+      res_conformed <- fixResult$df %>%
+        dplyr::filter(
+          is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
+            as.Date(.data$final_episode_end_date) > as.Date(.data$final_episode_start_date)
+        ) %>%
+        dplyr::mutate(
+          .gest_days = dplyr::coalesce(
+            as.numeric(.data$esd_gestational_age_days_calculated),
+            as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+          )
+        ) %>%
+        dplyr::filter(is.na(.data$.gest_days) | (.data$.gest_days < 308 & .data$.gest_days != 0)) %>%
+        dplyr::select(-".gest_days")
+      res_conformed <- removeOverlaps(
+        res_conformed,
+        personIdCol = "person_id",
+        startDateCol = "final_episode_start_date",
+        endDateCol = "final_episode_end_date"
+      )
+      log4r::info(logger, "Running `exportPregnancies` (conform_true)")
+      exportPregnancies(
+        cdm = cdm,
+        outputFolder = outputFolder,
+        exportDir = file.path(baseExportDir, "conform_true"),
+        minCellCount = minCellCount,
+        res = res_conformed
+      )
+    } else {
+      log4r::info(logger, "Running `exportPregnancies`")
+      exportPregnancies(
+        cdm = cdm,
+        outputFolder = outputFolder,
+        exportDir = baseExportDir,
+        minCellCount = minCellCount
+      )
+    }
 
   invisible(NULL)
 }

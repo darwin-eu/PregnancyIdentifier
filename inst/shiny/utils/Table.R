@@ -235,6 +235,7 @@ Table <- R6::R6Class(
           rowsToColor <- data %>% dplyr::filter(overlap == TRUE) %>% dplyr::pull(rowId)
           data <- data %>% dplyr::select(-rowId)
         }
+        data <- data %>% dplyr::mutate_if(is.character, as.factor)
         result <- DT::datatable(
           data = data,
           filter = private$.filter,

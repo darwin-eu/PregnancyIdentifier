@@ -289,7 +289,7 @@ Each episode represents a **reconstructed pregnancy**.
 
 # Outputs written by runPps()
 
-`runPps()` writes the following files to `outputDir`:
+`runPps()` writes the following files to `outputFolder`:
 
 - **pps_episodes.rds** — Always written. PPS episodes with inferred outcomes (used by `mergeHipps()` as the PPS input).
 - **pps_gest_timing_episodes.rds** — Only when `debugMode = TRUE`. Record-level dataset of pregnancy-related concept rows with an assigned `person_episode_number`.

@@ -1,7 +1,7 @@
 Package: PregnancyIdentifier
 Type: Package
 Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
-Version: 3.0.1
+Version: 3.0.2
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
     person("Julieta", "Politi", role = "aut", comment = c(ORCID = "0000-0001-7315-034X")),
@@ -39,8 +39,10 @@ Imports:
     checkmate,
     tibble,
     omopgenerics,
-    uuid
-Suggests: 
+    gt
+Suggests:
+    uuid,
+    visOmopResults,
     testthat (>= 3.0.0),
     shinytest2,
     knitr,
@@ -50,5 +52,6 @@ Suggests:
     readr,
     RSQLite,
     RPostgres,
-    odbc
+    odbc,
+    amVennDiagram5
 VignetteBuilder: knitr

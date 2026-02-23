@@ -34,28 +34,28 @@ test_that("runPregnancyIdentifier on Snowflake (copyCdmTo) produces result files
     cdmName = "preg_snowflake_test"
   )
 
-  outputDir <- file.path(tempdir(), "test_db_snowflake")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  outputFolder <- file.path(tempdir(), "test_db_snowflake")
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
 
-  expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")),
+  expect_true(file.exists(file.path(outputFolder, "hip_episodes.rds")),
               label = "hip_episodes.rds exists")
-  expect_true(file.exists(file.path(outputDir, "pps_episodes.rds")),
+  expect_true(file.exists(file.path(outputFolder, "pps_episodes.rds")),
               label = "pps_episodes.rds exists")
-  expect_true(file.exists(file.path(outputDir, "hipps_episodes.rds")),
+  expect_true(file.exists(file.path(outputFolder, "hipps_episodes.rds")),
               label = "hipps_episodes.rds exists")
-  expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")),
+  expect_true(file.exists(file.path(outputFolder, "final_pregnancy_episodes.rds")),
               label = "final_pregnancy_episodes.rds exists")
 
-  final <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+  final <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
 
   expect_true(nrow(final) > 0)
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   CDMConnector::cdmDisconnect(cdm)
 })

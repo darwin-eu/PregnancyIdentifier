@@ -16,24 +16,24 @@ cdm <- TestGenerator::patientsCDM(
   cdmVersion = "5.4")
 
 # start run analysis
-outputDir <- outputDir <- "./dev/output/"
-if (!dir.exists(outputDir)) {
-  dir.create(outputDir, recursive = T)
+outputFolder <- outputFolder <- "./dev/output/"
+if (!dir.exists(outputFolder)) {
+  dir.create(outputFolder, recursive = T)
 }
 
 # debugonce(runPps)
 # debugonce(runHip)
 
-runPregnancyIdentifier(cdm, outputDir, minCellCount = 0L)
+runPregnancyIdentifier(cdm, outputFolder, minCellCount = 0L)
 
-# hipEpisodes <- readRDS(file.path(outputDir, "hip_episodes.rds"))
-# ppsMinMax <- readRDS(file.path(outputDir, "pps_min_max_episodes.rds"))
-# ppsEpisode <- readRDS(file.path(outputDir, "pps_gest_timing_episodes.rds"))
-# pps <- readRDS(file.path(outputDir, "pps_episodes.rds"))
-# hipps <- readRDS(file.path(outputDir, "hipps_episodes.rds"))
-# esd <- readRDS(file.path(outputDir, "esd.rds"))
-# final <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+# hipEpisodes <- readRDS(file.path(outputFolder, "hip_episodes.rds"))
+# ppsMinMax <- readRDS(file.path(outputFolder, "pps_min_max_episodes.rds"))
+# ppsEpisode <- readRDS(file.path(outputFolder, "pps_gest_timing_episodes.rds"))
+# pps <- readRDS(file.path(outputFolder, "pps_episodes.rds"))
+# hipps <- readRDS(file.path(outputFolder, "hipps_episodes.rds"))
+# esd <- readRDS(file.path(outputFolder, "esd.rds"))
+# final <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
 
-exportPregnancies(cdm, outputDir, exportDir = here::here("test_export"), minCellCount = 0L)
+exportPregnancies(cdm, outputFolder, exportDir = here::here("test_export"), minCellCount = 0L)
 
 

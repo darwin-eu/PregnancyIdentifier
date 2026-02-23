@@ -3,12 +3,9 @@
 
 test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_compareWithPET")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_out")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputDir, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -16,13 +13,13 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Run pipeline to get final_pregnancy_episodes.rds
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
-  expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
+  expect_true(file.exists(file.path(outputFolder, "final_pregnancy_episodes.rds")))
 
   # Load algorithm output and build a simulated PET table (subset with same structure)
-  alg <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+  alg <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
   names(alg) <- tolower(names(alg))
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
   PregnancyIdentifier:::validateEpisodePeriods(
@@ -63,10 +60,9 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     overwrite = TRUE
   )
 
-  # Run comparison (use same outputFolder for outputs)
-  res <- comparePregnancyIdentifierWithPET(
+  # Run comparison (same outputFolder for pipeline output and comparison CSVs)
+  comparePregnancyIdentifierWithPET(
     cdm = cdm,
-    outputDir = outputDir,
     outputFolder = outputFolder,
     petSchema = pet_schema,
     petTable = "pregnancy_episode",
@@ -74,60 +70,34 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     outputLogToConsole = FALSE
   )
 
-  # Check return structure
-  expect_type(res, "list")
-  expect_named(res, c(
-    "episode_counts", "venn_counts", "confusion_2x2", "ppv_sensitivity", "duration_summary",
-    "date_differences", "outcome_confusion", "outcome_accuracy", "duration_distribution"
-  ))
-  expect_s3_class(res$episode_counts, "data.frame")
-  expect_s3_class(res$venn_counts, "data.frame")
-  expect_s3_class(res$ppv_sensitivity, "data.frame")
-  expect_s3_class(res$duration_summary, "data.frame")
-  expect_s3_class(res$duration_distribution, "data.frame")
-  expect_s3_class(res$outcome_accuracy, "data.frame")
-
-  # Episode counts: algorithm and PET
-  expect_equal(nrow(res$episode_counts), 2L)
-  expect_true("source" %in% names(res$episode_counts))
-  expect_true("n_episodes" %in% names(res$episode_counts))
-  expect_true("n_persons" %in% names(res$episode_counts))
-
-  # Venn counts
-  expect_true(nrow(res$venn_counts) >= 1L)
-  expect_true("category" %in% names(res$venn_counts))
-
-  # PPV/sensitivity
-  expect_true("metric" %in% names(res$ppv_sensitivity))
-  expect_true("value" %in% names(res$ppv_sensitivity))
-
-  # Duration summary: algorithm and pet
-  expect_equal(nrow(res$duration_summary), 2L)
-  expect_true("source" %in% names(res$duration_summary))
-
-  # Output files exist
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_episode_counts.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_venn_counts.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_ppv_sensitivity.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_summary.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_duration_distribution.csv")))
-  expect_true(file.exists(file.path(outputFolder, "pet_comparison_outcome_accuracy.csv")))
+  # SummarisedResult is written to export
+  csv_path <- file.path(outputFolder, "pet_comparison_summarised_result.csv")
+  expect_true(file.exists(csv_path))
   expect_true(file.exists(file.path(outputFolder, "log.txt")))
 
-  # When we built PET from algorithm, there should be matches
-  expect_true(res$episode_counts$n_episodes[res$episode_counts$source == "algorithm"] >= 1)
-  expect_true(res$episode_counts$n_episodes[res$episode_counts$source == "pet"] >= 1)
-  expect_true(sum(res$venn_counts$n_episodes) >= 1)
+  res <- omopgenerics::importSummarisedResult(csv_path)
+  expect_s3_class(res, "summarised_result")
+
+  # Check that key variables are present in the summarised result
+  vars <- unique(res$variable_name)
+  expect_true("episode_counts" %in% vars)
+  expect_true("venn_counts" %in% vars)
+  expect_true("ppv_sensitivity" %in% vars)
+  expect_true("person_overlap" %in% vars)
+  expect_true("time_overlap_summary" %in% vars)
+  expect_true("duration_summary" %in% vars)
+  expect_true("protocol_summary" %in% vars)
+
+  # When we built PET from algorithm, there should be episode counts for both sources
+  ep <- res |> dplyr::filter(.data$variable_name == "episode_counts")
+  expect_true(nrow(ep) >= 1)
 })
 
 test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episodes.rds is missing", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_compareWithPET_nofile")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile_out")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputDir, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -136,7 +106,6 @@ test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episode
   expect_error(
     comparePregnancyIdentifierWithPET(
       cdm = cdm,
-      outputDir = outputDir,
       outputFolder = outputFolder,
       petSchema = "main",
       petTable = "pregnancy_episode",
