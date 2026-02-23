@@ -129,6 +129,11 @@ appendAttrition <- function(outputDir,
     post_persons = as.integer(post_persons),
     stringsAsFactors = FALSE
   )
+  # Ensure newRow has all columns present in existing, then align column order
+  missingCols <- setdiff(names(existing), names(newRow))
+  for (col in missingCols) {
+    newRow[[col]] <- NA
+  }
   newRow <- newRow[, names(existing)]
   combined <- rbind(existing, newRow)
   utils::write.csv(combined, path, row.names = FALSE)
