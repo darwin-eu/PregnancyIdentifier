@@ -1,5 +1,5 @@
 library(DarwinShinyModules)
-library(ggplot2)
+library(plotly)
 
 GestationalAgeDaysPerCategoryModule <- R6::R6Class(
   classname = "GestationalAgeDaysPerCategoryModule",
@@ -134,7 +134,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       })
 
       ### make plot ----
-      # ggplot2 boxplot with pre-computed quartiles, then plotly::ggplotly() for one legend per category and facet labels.
+      # Native plotly boxplot with pre-computed quartiles (ggplotly does not support geom_boxplot(stat="identity")).
       createPlotly <- shiny::reactive({
         data <- getData()
         if (is.null(data) || nrow(data) == 0) return(NULL)
@@ -155,51 +155,80 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
           dplyr::ungroup() %>%
           dplyr::mutate(
             final_outcome_category = factor(.data$final_outcome_category, levels = outcomeLevels),
-            ymin_ = if (iqrOnly) .data$Q25 else .data$min,
-            ymax_ = if (iqrOnly) .data$Q75 else .data$max
+            min = as.numeric(.data$min),
+            Q25 = as.numeric(.data$Q25),
+            median = as.numeric(.data$median),
+            Q75 = as.numeric(.data$Q75),
+            max = as.numeric(.data$max),
+            lowerfence = if (iqrOnly) .data$Q25 else .data$min,
+            upperfence = if (iqrOnly) .data$Q75 else .data$max
           )
         if (nrow(plot_data) == 0) return(NULL)
 
-        # One color per category; use fill so legend has a single entry per category
         fill_var <- colorBy
         n_cats <- length(unique(plot_data[[fill_var]]))
         pal <- scales::hue_pal()(max(1L, n_cats))
         if (n_cats >= 1) names(pal) <- sort(unique(as.character(plot_data[[fill_var]])))
 
-        gg <- ggplot2::ggplot(
-          plot_data,
-          ggplot2::aes(
-            x = .data$final_outcome_category,
-            ymin = .data$ymin_,
-            lower = .data$Q25,
-            middle = .data$median,
-            upper = .data$Q75,
-            ymax = .data$ymax_,
-            fill = .data[[fill_var]]
+        facet_levels <- sort(unique(as.character(plot_data[[facetBy]])))
+        plot_list <- lapply(facet_levels, function(facet_val) {
+          pd <- plot_data %>% dplyr::filter(.data[[facetBy]] == .env$facet_val)
+          p <- plotly::plot_ly()
+          for (i in seq_len(nrow(pd))) {
+            row <- pd[i, ]
+            cat_val <- as.character(row$final_outcome_category)
+            clr <- pal[as.character(row[[fill_var]])]
+            if (is.na(clr)) clr <- "gray"
+            trace_args <- list(
+              type = "box",
+              q1 = row$Q25,
+              median = row$median,
+              q3 = row$Q75,
+              lowerfence = row$lowerfence,
+              upperfence = row$upperfence,
+              name = cat_val,
+              line = list(color = clr),
+              fillcolor = clr,
+              showlegend = (facet_val == facet_levels[1])
+            )
+            if (flipCoordinates) {
+              trace_args$y <- cat_val
+              trace_args$orientation <- "h"
+            } else {
+              trace_args$x <- cat_val
+            }
+            p <- do.call(plotly::add_trace, c(list(p), trace_args))
+          }
+          p <- plotly::layout(
+            p,
+            title = list(text = facet_val, font = list(size = 12)),
+            xaxis = list(
+              title = if (flipCoordinates) "Gestational age (days)" else "Final outcome category",
+              tickangle = if (flipCoordinates) 0 else -45
+            ),
+            yaxis = list(
+              title = if (flipCoordinates) "Final outcome category" else "Gestational age (days)"
+            ),
+            showlegend = (facet_val == facet_levels[1]),
+            legend = list(title = list(text = if (colorBy == "final_outcome_category") "Outcome category" else "Database"))
           )
-        ) +
-          ggplot2::geom_boxplot(stat = "identity") +
-          ggplot2::scale_fill_manual(values = pal, name = if (colorBy == "final_outcome_category") "Outcome category" else "Database") +
-          ggplot2::labs(
-            x = "Final outcome category",
-            y = "Gestational age (days)",
-            title = NULL
-          ) +
-          ggplot2::theme(
-            axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
-            strip.text = ggplot2::element_text(size = 12, face = "bold"),
-            legend.position = "right"
-          )
+          p
+        })
 
-        # Facet by selected variable so each subplot shows its label (e.g. cdm_name)
-        facet_sym <- rlang::sym(facetBy)
-        gg <- gg + ggplot2::facet_wrap(ggplot2::vars(!!facet_sym), labeller = ggplot2::as_labeller(as.character))
-
-        if (flipCoordinates) {
-          gg <- gg + ggplot2::coord_flip()
+        if (length(plot_list) == 1) {
+          out <- plot_list[[1]]
+        } else {
+          nrows <- ceiling(sqrt(length(plot_list)))
+          out <- do.call(plotly::subplot, c(plot_list, list(
+            nrows = nrows,
+            margin = 0.05,
+            shareX = TRUE,
+            shareY = TRUE,
+            titleX = TRUE,
+            titleY = TRUE
+          )))
         }
-
-        plotly::ggplotly(gg, tooltip = c("ymin", "lower", "middle", "upper", "ymax"))
+        out
       })
 
       output$plot <- plotly::renderPlotly({

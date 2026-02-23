@@ -367,6 +367,34 @@ if (!hasData) {
     episodeFrequencySummary <- get("episodeFrequencySummary", envir = .GlobalEnv)
     episodeFrequency <- get("episodeFrequency", envir = .GlobalEnv)
 
+    # Direct load of pregnancy_frequency.csv from disk so the DT table always shows file contents
+    loadPregnancyFrequencyFromCsv <- function() {
+      paths <- unique(c(dataFolder, csvFolders))
+      out <- list()
+      for (d in paths) {
+        f <- file.path(d, "pregnancy_frequency.csv")
+        if (file.exists(f)) {
+          x <- tryCatch(
+            readr::read_csv(f, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
+            error = function(e) NULL
+          )
+          if (!is.null(x) && nrow(x) > 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x) && !"freq" %in% colnames(x)) x <- x %>% dplyr::rename(freq = "...1")
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-"...1")
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = basename(d))
+            out[[length(out) + 1L]] <- x
+          }
+        }
+      }
+      if (length(out) == 0) return(NULL)
+      dplyr::bind_rows(out)
+    }
+    pregnancyFrequencyFromFile <- loadPregnancyFrequencyFromCsv()
+    if (!is.null(pregnancyFrequencyFromFile) && nrow(pregnancyFrequencyFromFile) > 0) {
+      pregnancyFrequency <- pregnancyFrequencyFromFile
+    }
+
     # Keep long format (freq, cdm_name, number_individuals) so pregnancy frequency is faceted by cdm_name
     if (nrow(pregnancyFrequency) > 0 && !"freq" %in% colnames(pregnancyFrequency)) {
       firstCol <- setdiff(colnames(pregnancyFrequency), c("cdm_name", "number_individuals", "date_run", "date_export", "pkg_version"))[1]
@@ -536,7 +564,11 @@ if (!hasData) {
         "Total pregnancy episodes and total individuals. Used as the main denominator for rates and site-level summaries."
       ),
       "Pregnancy frequency" = tabWithHelpText(
-        handleEmptyResult(object = PregnancyFrequencyModule$new(data = pregnancyFrequency, dp = allDP), result = pregnancyFrequency),
+        handleEmptyResult(
+          object = FilterTableModule$new(data = pregnancyFrequency, dp = if ("cdm_name" %in% colnames(pregnancyFrequency) && nrow(pregnancyFrequency) > 0) unique(pregnancyFrequency$cdm_name) else allDP),
+          result = pregnancyFrequency,
+          emptyMessage = "No pregnancy frequency data available. Add pregnancy_frequency.csv to the data folder."
+        ),
         "Distribution of pregnancy count per person (parity-like). Used to describe repeat pregnancies and check for implausible multiplicity."
       )
     )
