@@ -4,9 +4,12 @@
 test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   cdm <- mockPregnancyCdm()
   outputFolder <- file.path(tempdir(), "test_compareWithPET_out")
+  exportFolder <- file.path(tempdir(), "test_compareWithPET_export")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
     unlink(outputFolder, recursive = TRUE)
+    unlink(exportFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
 
@@ -21,7 +24,7 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Load algorithm output and build a simulated PET table (subset with same structure)
   alg <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
   names(alg) <- tolower(names(alg))
-  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
+  logger <- PregnancyIdentifier:::makeLogger(exportFolder, outputLogToConsole = FALSE)
   PregnancyIdentifier:::validateEpisodePeriods(
     alg, "person_id", "final_episode_start_date", "final_episode_end_date", logger
   )
@@ -60,20 +63,20 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     overwrite = TRUE
   )
 
-  # Run comparison (same outputFolder for pipeline output and comparison CSVs)
+  # Run comparison: outputFolder has episode data; exportFolder gets results and log
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
     outputFolder = outputFolder,
+    exportFolder = exportFolder,
     petSchema = pet_schema,
     petTable = "pregnancy_episode",
     minOverlapDays = 1L,
     outputLogToConsole = FALSE
   )
 
-  # SummarisedResult is written to export
-  csv_path <- file.path(outputFolder, "pet_comparison_summarised_result.csv")
+  csv_path <- file.path(exportFolder, "pet_comparison_summarised_result.csv")
   expect_true(file.exists(csv_path))
-  expect_true(file.exists(file.path(outputFolder, "log.txt")))
+  expect_true(file.exists(file.path(exportFolder, "log.txt")))
 
   res <- omopgenerics::importSummarisedResult(csv_path)
   expect_s3_class(res, "summarised_result")
@@ -96,9 +99,12 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
 test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episodes.rds is missing", {
   cdm <- mockPregnancyCdm()
   outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile_out")
+  exportFolder <- file.path(tempdir(), "test_compareWithPET_nofile_export")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
     unlink(outputFolder, recursive = TRUE)
+    unlink(exportFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
 
@@ -107,6 +113,7 @@ test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episode
     comparePregnancyIdentifierWithPET(
       cdm = cdm,
       outputFolder = outputFolder,
+      exportFolder = exportFolder,
       petSchema = "main",
       petTable = "pregnancy_episode",
       outputLogToConsole = FALSE

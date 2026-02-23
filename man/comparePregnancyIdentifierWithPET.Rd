@@ -7,11 +7,11 @@
 comparePregnancyIdentifierWithPET(
   cdm,
   outputFolder,
+  exportFolder,
   petSchema,
   petTable,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
-  logger = NULL,
   outputLogToConsole = TRUE
 )
 }
@@ -20,8 +20,11 @@ comparePregnancyIdentifierWithPET(
 The PET table is read via \code{petSchema} and \code{petTable}.}
 
 \item{outputFolder}{\code{character(1)}. Directory containing pipeline outputs
-(\code{final_pregnancy_episodes.rds}) and where comparison CSVs and optional
-plots will be written. Created if it does not exist.}
+(\code{final_pregnancy_episodes.rds}), i.e. the episode-level input to the comparison.}
+
+\item{exportFolder}{\code{character(1)}. Directory where comparison CSVs and
+\code{log.txt} are written. Created if it does not exist. Log file is appended
+if it already exists.}
 
 \item{petSchema}{\code{character(1)}. Schema name of the PET table (e.g.
 \code{"omop_cmbd"}).}
@@ -42,21 +45,18 @@ matching the code removes overlapping episodes within PET and within the
 algorithm (greedy non-overlapping by start date per person), which can
 reduce many-to-many candidate pairs. Default \code{FALSE}.}
 
-\item{logger}{Optional \code{log4r::logger}. If \code{NULL}, a logger is
-created via \code{makeLogger(outputFolder)}.}
-
-\item{outputLogToConsole}{\code{logical(1)}. Used only when \code{logger} is
-\code{NULL}. Whether to log to the console as well as to the log file.}
+\item{outputLogToConsole}{\code{logical(1)}. Whether to log to the console as
+well as to \code{file.path(exportFolder, "log.txt")}.}
 }
 \value{
 Nothing. The summarised result is written to
-  \code{file.path(outputFolder, "pet_comparison_summarised_result.csv")}.
+  \code{file.path(exportFolder, "pet_comparison_summarised_result.csv")}.
   Use \code{omopgenerics::importSummarisedResult()} to read it and
   \code{visOmopResults::visTable()} to display it.
 }
 \description{
 Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
-table and writes comparison summaries to \code{outputFolder}. Comparisons include:
+table and writes comparison summaries to \code{exportFolder}. Comparisons include:
 pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
 person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
 Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)

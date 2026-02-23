@@ -6,9 +6,12 @@
 test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET) from mockPregnancyCdm", {
   cdm <- mockPregnancyCdm()
   outputFolder <- file.path(tempdir(), "test_compareWithPET_extension_out")
+  exportFolder <- file.path(tempdir(), "test_compareWithPET_extension_export")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
     unlink(outputFolder, recursive = TRUE)
+    unlink(exportFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
 
@@ -24,15 +27,16 @@ test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET)
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
     outputFolder = outputFolder,
+    exportFolder = exportFolder,
     petSchema = "main",
     petTable = "pregnancy_extension",
     minOverlapDays = 1L,
     outputLogToConsole = FALSE
   )
 
-  csv_path <- file.path(outputFolder, "pet_comparison_summarised_result.csv")
+  csv_path <- file.path(exportFolder, "pet_comparison_summarised_result.csv")
   expect_true(file.exists(csv_path))
-  expect_true(file.exists(file.path(outputFolder, "log.txt")))
+  expect_true(file.exists(file.path(exportFolder, "log.txt")))
 
   res <- omopgenerics::importSummarisedResult(csv_path)
   expect_s3_class(res, "summarised_result")

@@ -58,11 +58,12 @@ petTable  <- "..."   # e.g. "pregnancy_episode" or "pregnancy_extension"
 comparePregnancyIdentifierWithPET(
   cdm                          = cdm,
   outputFolder                  = outputDir,
-  petSchema                    = petSchema,
-  petTable                     = petTable,
-  minOverlapDays               = 1L,
-  removeWithinSourceOverlaps   = FALSE,
-  outputLogToConsole           = TRUE
+  exportFolder                  = exportDir,
+  petSchema                     = petSchema,
+  petTable                      = petTable,
+  minOverlapDays                = 1L,
+  removeWithinSourceOverlaps    = FALSE,
+  outputLogToConsole            = TRUE
 )
 
 # ---- 5. (Optional) Create a single ZIP of the export folder ----

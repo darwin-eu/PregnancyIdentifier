@@ -20,7 +20,7 @@
 #' Compare runPregnancyIdentifier results with the OMOP Pregnancy Extension Table (PET)
 #'
 #' Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
-#' table and writes comparison summaries to \code{outputFolder}. Comparisons include:
+#' table and writes comparison summaries to \code{exportFolder}. Comparisons include:
 #' pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
 #' person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
 #' Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
@@ -31,8 +31,10 @@
 #' @param cdm A \code{cdm_reference} (from CDMConnector) with a database connection.
 #'   The PET table is read via \code{petSchema} and \code{petTable}.
 #' @param outputFolder \code{character(1)}. Directory containing pipeline outputs
-#'   (\code{final_pregnancy_episodes.rds}) and where comparison CSVs and optional
-#'   plots will be written. Created if it does not exist.
+#'   (\code{final_pregnancy_episodes.rds}), i.e. the episode-level input to the comparison.
+#' @param exportFolder \code{character(1)}. Directory where comparison CSVs and
+#'   \code{log.txt} are written. Created if it does not exist. Log file is appended
+#'   if it already exists.
 #' @param petSchema \code{character(1)}. Schema name of the PET table (e.g.
 #'   \code{"omop_cmbd"}).
 #' @param petTable \code{character(1)}. Table name of the pregnancy episode table
@@ -48,38 +50,42 @@
 #'   matching the code removes overlapping episodes within PET and within the
 #'   algorithm (greedy non-overlapping by start date per person), which can
 #'   reduce many-to-many candidate pairs. Default \code{FALSE}.
-#' @param logger Optional \code{log4r::logger}. If \code{NULL}, a logger is
-#'   created via \code{makeLogger(outputFolder)}.
-#' @param outputLogToConsole \code{logical(1)}. Used only when \code{logger} is
-#'   \code{NULL}. Whether to log to the console as well as to the log file.
+#' @param outputLogToConsole \code{logical(1)}. Whether to log to the console as
+#'   well as to \code{file.path(exportFolder, "log.txt")}.
 #'
 #' @return Nothing. The summarised result is written to
-#'   \code{file.path(outputFolder, "pet_comparison_summarised_result.csv")}.
+#'   \code{file.path(exportFolder, "pet_comparison_summarised_result.csv")}.
 #'   Use \code{omopgenerics::importSummarisedResult()} to read it and
 #'   \code{visOmopResults::visTable()} to display it.
 #' @export
 comparePregnancyIdentifierWithPET <- function(cdm,
                                               outputFolder,
+                                              exportFolder,
                                               petSchema,
                                               petTable,
                                               minOverlapDays = 1L,
                                               removeWithinSourceOverlaps = FALSE,
-                                              logger = NULL,
                                               outputLogToConsole = TRUE) {
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertCharacter(outputFolder, len = 1L, any.missing = FALSE)
+  checkmate::assertCharacter(exportFolder, len = 1L, any.missing = FALSE)
   checkmate::assertCharacter(petSchema, len = 1L, any.missing = FALSE)
   checkmate::assertCharacter(petTable, len = 1L, any.missing = FALSE)
   checkmate::assertIntegerish(minOverlapDays, len = 1L, lower = 0)
   checkmate::assertLogical(removeWithinSourceOverlaps, len = 1L, any.missing = FALSE)
+  checkmate::assertLogical(outputLogToConsole, len = 1L, any.missing = FALSE)
   minOverlapDays <- as.integer(minOverlapDays)
 
-  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   checkmate::assertDirectoryExists(outputFolder)
 
-  if (is.null(logger)) {
-    logger <- makeLogger(outputFolder, outputLogToConsole = outputLogToConsole)
+  dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
+  checkmate::assertDirectoryExists(exportFolder)
+  logFile <- file.path(exportFolder, "log.txt")
+  appenders <- list(log4r::file_appender(logFile, append = TRUE))
+  if (outputLogToConsole) {
+    appenders <- c(log4r::console_appender(), appenders)
   }
+  logger <- log4r::logger(threshold = "INFO", appenders = appenders)
   log4r::info(logger, "Starting PET comparison")
 
   # CDM name for SummarisedResult (all columns character except result_id for settings)
@@ -786,10 +792,10 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   )
   omopgenerics::exportSummarisedResult(
     summarised_result,
-    path = outputFolder,
+    path = exportFolder,
     fileName = "pet_comparison_summarised_result.csv"
   )
-  log4r::info(logger, sprintf("PET comparison written to %s", file.path(outputFolder, "pet_comparison_summarised_result.csv")))
+  log4r::info(logger, sprintf("PET comparison written to %s", file.path(exportFolder, "pet_comparison_summarised_result.csv")))
 
   log4r::info(logger, "PET comparison complete")
 }

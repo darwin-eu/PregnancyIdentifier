@@ -69,24 +69,26 @@ runPregnancyIdentifier(
 )
 
 # -----------------------------------------------------------------------------
-# 4. (Optional) PET comparison — write comparison tables into the export folder
+# 4. (Optional) PET comparison — write comparison results into the export folder
 # -----------------------------------------------------------------------------
 # Run only if the Pregnancy Extension Table (PET) is available in your database.
-# Comparison CSVs are written to exportDir so they sit alongside the other
-# shareable outputs and can be included in the same ZIP and viewed in Shiny.
+# outputFolder = where pipeline wrote episode data (final_pregnancy_episodes.rds).
+# exportFolder = where comparison CSVs and log.txt are written (we use exportDir
+# so they sit alongside the other shareable outputs and can be included in the
+# same ZIP and viewed in Shiny).
 
 petSchema <- "..."   # schema containing the PET table (e.g. "omop_cmbd")
 petTable  <- "..."   # PET table name (e.g. "pregnancy_episode" or "pregnancy_extension")
 
 comparePregnancyIdentifierWithPET(
   cdm                          = cdm,
-  outputFolder                    = outputFolder,
-  outputFolder                 = exportDir,
-  petSchema                    = petSchema,
-  petTable                     = petTable,
-  minOverlapDays               = 1L,
-  removeWithinSourceOverlaps   = FALSE,
-  outputLogToConsole           = TRUE
+  outputFolder                  = outputFolder,
+  exportFolder                  = exportDir,
+  petSchema                     = petSchema,
+  petTable                      = petTable,
+  minOverlapDays                = 1L,
+  removeWithinSourceOverlaps    = FALSE,
+  outputLogToConsole            = TRUE
 )
 
 # -----------------------------------------------------------------------------

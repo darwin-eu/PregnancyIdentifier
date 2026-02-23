@@ -58,11 +58,11 @@ sr_table <- function(sr, var, level_name = "variable_level") {
 ```
 
 ```{r run-pipeline-and-pet, message=FALSE, warning=FALSE}
-# Directories for pipeline output and comparison output
+# Directories: pipeline output (episode data), export (comparison results and log)
 outputDir    <- file.path(tempdir(), "pet_vignette_pipeline")
-outputFolder <- file.path(tempdir(), "pet_vignette_comparison")
+exportDir    <- file.path(tempdir(), "pet_vignette_comparison")
 dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
 
 # 1) Build mock CDM and run the pipeline (export runs by default to outputDir/export)
 cdm <- mockPregnancyCdm()
@@ -153,17 +153,18 @@ DBI::dbWriteTable(
 # a PET from the algorithm output as in the `insert-mock-pet` chunk and use
 # petTable = "pregnancy_episode".)
 
-# 3) Run the PET comparison (writes summarised result to outputFolder; returns nothing)
+# 3) Run the PET comparison (writes summarised result and log to exportDir; returns nothing)
 comparePregnancyIdentifierWithPET(
   cdm = cdm,
   outputFolder = outputDir,
+  exportFolder = exportDir,
   petSchema = "main",
   petTable = "pregnancy_extension",
   minOverlapDays = 1L,
   outputLogToConsole = FALSE
 )
 # Load the written summarised result for display and programmatic use
-res <- omopgenerics::importSummarisedResult(file.path(outputDir, "pet_comparison_summarised_result.csv"))
+res <- omopgenerics::importSummarisedResult(file.path(exportDir, "pet_comparison_summarised_result.csv"))
 ```
 
 # How matching is done
@@ -315,12 +316,12 @@ Duration statistics for the **matched** episodes only (algorithm vs PET).
 
 ---
 
-# Files written to `outputFolder`
+# Files written to `exportFolder`
 
 | File | Content |
 |------|--------|
 | `pet_comparison_summarised_result.csv` | All comparison metrics in \code{omopgenerics} SummarisedResult format (episode counts, protocol summary, person overlap, Venn counts, time overlap, confusion 2x2, PPV/sensitivity, date-difference summary, outcome accuracy, outcome by year, duration summaries). Includes settings (e.g. \code{pet_schema}, \code{pet_table}, \code{min_overlap_days}) for traceability. Use \code{omopgenerics::importSummarisedResult()} to read and \code{visOmopResults::visTable()} to display. |
-| `log.txt` | Run log. |
+| `log.txt` | Run log (appended if file already exists). |
 
 ---
 
@@ -331,8 +332,8 @@ If your CDM already has a PET table (e.g. `omop_cmbd.pregnancy_episode`), call:
 ```{r, eval = FALSE}
 comparePregnancyIdentifierWithPET(
   cdm = your_cdm,
-  outputDir = "/path/to/pipeline/output",
-  outputFolder = "/path/to/comparison/results",
+  outputFolder = "/path/to/pipeline/output",
+  exportFolder = "/path/to/comparison/results",
   petSchema = "omop_cmbd",
   petTable = "pregnancy_episode",
   minOverlapDays = 1L,
@@ -346,5 +347,5 @@ Ensure the PET table has at least: `person_id`, `pregnancy_start_date`, `pregnan
 ```{r cleanup}
 # Clean up temp dirs (optional; disconnect from cdm when done in your session)
 unlink(outputDir, recursive = TRUE)
-unlink(outputFolder, recursive = TRUE)
+unlink(exportDir, recursive = TRUE)
 ```
