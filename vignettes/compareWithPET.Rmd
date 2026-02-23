@@ -185,7 +185,11 @@ The function writes a **single CSV** in \code{omopgenerics} SummarisedResult for
 ```{r import-and-vis, message=FALSE, warning=FALSE}
 # Display as a gt table (optional: requires visOmopResults)
 if (requireNamespace("visOmopResults", quietly = TRUE)) {
-  visOmopResults::visTable(res)
+  visOmopResults::visOmopTable(
+    result = res,
+    header = "cdm_name",
+    rename = c("Data source" = "cdm_name"),
+    hide =  c("result_id", "group_name", "group_level", "strata_name", "strata_level", "pet_comparison"))
 }
 ```
 
