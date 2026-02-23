@@ -68,7 +68,7 @@ dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 cdm <- mockPregnancyCdm()
 runPregnancyIdentifier(
   cdm = cdm,
-  outputDir = outputDir,
+  outputFolder = outputDir,
   outputLogToConsole = FALSE
 )
 ```
@@ -156,15 +156,14 @@ DBI::dbWriteTable(
 # 3) Run the PET comparison (writes summarised result to outputFolder; returns nothing)
 comparePregnancyIdentifierWithPET(
   cdm = cdm,
-  outputDir = outputDir,
-  outputFolder = outputFolder,
+  outputFolder = outputDir,
   petSchema = "main",
   petTable = "pregnancy_extension",
   minOverlapDays = 1L,
   outputLogToConsole = FALSE
 )
 # Load the written summarised result for display and programmatic use
-res <- omopgenerics::importSummarisedResult(file.path(outputFolder, "pet_comparison_summarised_result.csv"))
+res <- omopgenerics::importSummarisedResult(file.path(outputDir, "pet_comparison_summarised_result.csv"))
 ```
 
 # How matching is done

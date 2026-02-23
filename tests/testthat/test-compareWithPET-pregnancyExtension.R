@@ -5,12 +5,9 @@
 
 test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET) from mockPregnancyCdm", {
   cdm <- mockPregnancyCdm()
-  outputFolder <- file.path(tempdir(), "test_compareWithPET_extension")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_extension_out")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -26,7 +23,6 @@ test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET)
   # Run comparison using PET table from mock (main.pregnancy_extension)
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
-    outputFolder = outputFolder,
     outputFolder = outputFolder,
     petSchema = "main",
     petTable = "pregnancy_extension",

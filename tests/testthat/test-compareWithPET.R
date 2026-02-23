@@ -3,12 +3,9 @@
 
 test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   cdm <- mockPregnancyCdm()
-  outputFolder <- file.path(tempdir(), "test_compareWithPET")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_out")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -63,10 +60,9 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
     overwrite = TRUE
   )
 
-  # Run comparison (use same outputFolder for outputs); function writes summarised result only, returns nothing
+  # Run comparison (same outputFolder for pipeline output and comparison CSVs)
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
-    outputFolder = outputFolder,
     outputFolder = outputFolder,
     petSchema = pet_schema,
     petTable = "pregnancy_episode",
@@ -99,12 +95,9 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
 
 test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episodes.rds is missing", {
   cdm <- mockPregnancyCdm()
-  outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile_out")
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
-  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -113,7 +106,6 @@ test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episode
   expect_error(
     comparePregnancyIdentifierWithPET(
       cdm = cdm,
-      outputFolder = outputFolder,
       outputFolder = outputFolder,
       petSchema = "main",
       petTable = "pregnancy_episode",
