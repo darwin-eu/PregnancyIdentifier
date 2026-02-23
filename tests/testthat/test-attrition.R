@@ -1,16 +1,16 @@
 # Unit tests for attrition tracking (initAttrition, appendAttrition, getAttritionPrior,
 # getRecordAndPersonCounts, and pipeline/export integration).
 
-test_that("initPregnancies with outputDir creates attrition.csv with initial counts", {
+test_that("initPregnancies with outputFolder creates attrition.csv with initial counts", {
   cdm <- mockPregnancyCdm()
   logger <- makeLogger(tempdir(), outputLogToConsole = FALSE)
   outDir <- file.path(tempdir(), "test_attrition_init")
   dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 
-  cdm <- initPregnancies(cdm, logger = logger, outputDir = outDir)
+  cdm <- initPregnancies(cdm, logger = logger, outputFolder = outDir)
 
   path <- file.path(outDir, "attrition.csv")
-  expect_true(file.exists(path), info = "attrition.csv should be created when outputDir is provided")
+  expect_true(file.exists(path), info = "attrition.csv should be created when outputFolder is provided")
 
   att <- utils::read.csv(path, stringsAsFactors = FALSE)
   expect_equal(nrow(att), 2L)
@@ -32,7 +32,7 @@ test_that("initPregnancies with outputDir creates attrition.csv with initial cou
   cleanupCdmDb(cdm)
 })
 
-test_that("initPregnancies without outputDir does not create attrition.csv", {
+test_that("initPregnancies without outputFolder does not create attrition.csv", {
   cdm <- mockPregnancyCdm()
   logger <- makeLogger(tempdir(), outputLogToConsole = FALSE)
   outDir <- file.path(tempdir(), "test_attrition_no_dir")
@@ -42,7 +42,7 @@ test_that("initPregnancies without outputDir does not create attrition.csv", {
   dir.create(subDir, recursive = TRUE, showWarnings = FALSE)
 
   cdm <- initPregnancies(cdm, logger = logger)
-  # outputDir was not passed, so no attrition file anywhere; subDir is untouched
+  # outputFolder was not passed, so no attrition file anywhere; subDir is untouched
   expect_false(file.exists(file.path(subDir, "attrition.csv")))
   expect_false(file.exists(file.path(outDir, "attrition.csv")))
 
@@ -57,7 +57,7 @@ test_that("full pipeline produces attrition with expected steps and columns", {
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outDir,
+    outputFolder = outDir,
     outputLogToConsole = FALSE
   )
 
@@ -116,7 +116,7 @@ test_that("attrition prior minus dropped equals post for pipeline steps", {
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outDir,
+    outputFolder = outDir,
     outputLogToConsole = FALSE
   )
 
@@ -153,7 +153,7 @@ test_that("getAttritionPrior returns last post counts for table or NULL", {
   outDir <- file.path(tempdir(), "test_attrition_prior")
   dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 
-  cdm <- initPregnancies(cdm, logger = logger, outputDir = outDir)
+  cdm <- initPregnancies(cdm, logger = logger, outputFolder = outDir)
 
   prior <- PregnancyIdentifier:::getAttritionPrior(outDir, "preg_hip_records")
   expect_type(prior, "list")
@@ -187,7 +187,7 @@ test_that("appendAttrition adds row and getAttritionPrior sees it", {
   outDir <- file.path(tempdir(), "test_attrition_append")
   dir.create(outDir, recursive = TRUE, showWarnings = FALSE)
 
-  cdm <- initPregnancies(cdm, logger = logger, outputDir = outDir)
+  cdm <- initPregnancies(cdm, logger = logger, outputFolder = outDir)
   prior <- PregnancyIdentifier:::getAttritionPrior(outDir, "preg_hip_records")
   expect_false(is.null(prior))
 
@@ -243,31 +243,31 @@ test_that("appendAttrition errors when attrition file does not exist", {
 
 test_that("exportPregnancies copies attrition.csv to exportDir", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_attrition_export_out")
+  outputFolder <- file.path(tempdir(), "test_attrition_export_out")
   exportDir <- file.path(tempdir(), "test_attrition_export_dir")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
-  expect_true(file.exists(file.path(outputDir, "attrition.csv")))
+  expect_true(file.exists(file.path(outputFolder, "attrition.csv")))
 
   exportPregnancies(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     exportDir = exportDir
   )
 
   exportPath <- file.path(exportDir, "attrition.csv")
   expect_true(file.exists(exportPath), info = "attrition.csv should be copied to exportDir")
   attExport <- utils::read.csv(exportPath, stringsAsFactors = FALSE)
-  attOutput <- utils::read.csv(file.path(outputDir, "attrition.csv"), stringsAsFactors = FALSE)
-  expect_equal(attExport, attOutput, info = "exported attrition content should match outputDir")
+  attOutput <- utils::read.csv(file.path(outputFolder, "attrition.csv"), stringsAsFactors = FALSE)
+  expect_equal(attExport, attOutput, info = "exported attrition content should match outputFolder")
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   unlink(exportDir, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
@@ -279,7 +279,7 @@ test_that("final_episodes_by_outcome rows have outcome and post counts", {
 
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outDir,
+    outputFolder = outDir,
     outputLogToConsole = FALSE
   )
 

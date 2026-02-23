@@ -2,9 +2,9 @@ test_that("runHip runs without error", {
   cdm <- mockPregnancyCdm()
   expect_s3_class(cdm, "cdm_reference")
 
-  outputDir <- file.path(tempdir(), "test_runHip")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
+  outputFolder <- file.path(tempdir(), "test_runHip")
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
 
 
 
@@ -29,30 +29,30 @@ test_that("runHip runs without error", {
   # debugonce(attachGestationAndLength)
   cdm <- runHip(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     logger = logger
   )
 
 
-  expect_true(file.exists(file.path(outputDir, "hip_episodes.rds")))
+  expect_true(file.exists(file.path(outputFolder, "hip_episodes.rds")))
 
-  hip <- readRDS(file.path(outputDir, "hip_episodes.rds"))
+  hip <- readRDS(file.path(outputFolder, "hip_episodes.rds"))
   expect_true(is.data.frame(hip))
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
 
 test_that("runHip runs with custom parameters", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_runHip_custom")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
-  logger <- PregnancyIdentifier:::makeLogger(outputDir, outputLogToConsole = FALSE)
+  outputFolder <- file.path(tempdir(), "test_runHip_custom")
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
+  logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
   cdm <- initPregnancies(cdm, logger = logger)
 
   cdm <- runHip(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     startDate = as.Date("2000-01-01"),
     endDate = as.Date("2020-12-31"),
     justGestation = FALSE,
@@ -61,7 +61,7 @@ test_that("runHip runs with custom parameters", {
 
   expect_s3_class(cdm, "cdm_reference")
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
 

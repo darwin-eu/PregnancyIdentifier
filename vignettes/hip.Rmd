@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 
 The **HIP** (outcome-anchored) algorithm identifies pregnancy episodes by combining **high-specificity pregnancy outcomes** (e.g., live birth, stillbirth, abortion) with **gestational-age evidence** (weeks of gestation) when available. It produces one record per inferred pregnancy, including an **episode end date** (`hip_pregnancy_end`), an **estimated start date** (`hip_pregnancy_start`), and a **pregnancy category**.
 
-HIP is run via `runHip()`, which assumes `initPregnancies()` has already been run and that the CDM contains `preg_hip_records` and `preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputDir` and adds the internal table `cdm$preg_hip_episodes` during execution.
+HIP is run via `runHip()`, which assumes `initPregnancies()` has already been run and that the CDM contains `preg_hip_records` and `preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputFolder` and adds the internal table `cdm$preg_hip_episodes` during execution.
 
 # Two-pass structure
 
@@ -101,7 +101,7 @@ cdm <- initPregnancies(cdm, startDate = as.Date("2000-01-01"), endDate = Sys.Dat
 
 cdm <- runHip(
   cdm,
-  outputDir  = "hip_output",
+  outputFolder  = "hip_output",
   startDate  = as.Date("2000-01-01"),
   endDate    = Sys.Date(),
   justGestation = TRUE,

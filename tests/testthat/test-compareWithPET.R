@@ -3,12 +3,12 @@
 
 test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_compareWithPET")
+  outputFolder <- file.path(tempdir(), "test_compareWithPET")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_out")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputDir, recursive = TRUE)
+    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -16,13 +16,13 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Run pipeline to get final_pregnancy_episodes.rds
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
-  expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
+  expect_true(file.exists(file.path(outputFolder, "final_pregnancy_episodes.rds")))
 
   # Load algorithm output and build a simulated PET table (subset with same structure)
-  alg <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+  alg <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
   names(alg) <- tolower(names(alg))
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
   PregnancyIdentifier:::validateEpisodePeriods(
@@ -66,7 +66,7 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   # Run comparison (use same outputFolder for outputs); function writes summarised result only, returns nothing
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputFolder = outputFolder,
     petSchema = pet_schema,
     petTable = "pregnancy_episode",
@@ -99,12 +99,12 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
 
 test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episodes.rds is missing", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_compareWithPET_nofile")
+  outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_nofile_out")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputDir, recursive = TRUE)
+    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -113,7 +113,7 @@ test_that("comparePregnancyIdentifierWithPET errors when final_pregnancy_episode
   expect_error(
     comparePregnancyIdentifierWithPET(
       cdm = cdm,
-      outputDir = outputDir,
+      outputFolder = outputFolder,
       outputFolder = outputFolder,
       petSchema = "main",
       petTable = "pregnancy_episode",

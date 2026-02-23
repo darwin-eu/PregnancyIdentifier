@@ -5,12 +5,12 @@
 
 test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET) from mockPregnancyCdm", {
   cdm <- mockPregnancyCdm()
-  outputDir <- file.path(tempdir(), "test_compareWithPET_extension")
+  outputFolder <- file.path(tempdir(), "test_compareWithPET_extension")
   outputFolder <- file.path(tempdir(), "test_compareWithPET_extension_out")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   on.exit({
-    unlink(outputDir, recursive = TRUE)
+    unlink(outputFolder, recursive = TRUE)
     unlink(outputFolder, recursive = TRUE)
     cleanupCdmDb(cdm)
   }, add = TRUE)
@@ -18,15 +18,15 @@ test_that("comparePregnancyIdentifierWithPET runs with pregnancy_extension (PET)
   # Run pipeline to get final_pregnancy_episodes.rds
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
-  expect_true(file.exists(file.path(outputDir, "final_pregnancy_episodes.rds")))
+  expect_true(file.exists(file.path(outputFolder, "final_pregnancy_episodes.rds")))
 
   # Run comparison using PET table from mock (main.pregnancy_extension)
   comparePregnancyIdentifierWithPET(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputFolder = outputFolder,
     petSchema = "main",
     petTable = "pregnancy_extension",

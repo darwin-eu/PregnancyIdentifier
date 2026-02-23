@@ -6,7 +6,7 @@
 \usage{
 runEsd(
   cdm,
-  outputDir,
+  outputFolder,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
@@ -17,7 +17,7 @@ runEsd(
 \arguments{
 \item{cdm}{A CDM reference, must include all necessary OMOP tables and concept sets for pregnancy inference algorithms.}
 
-\item{outputDir}{Character. Path to directory where input and output RDS files reside.}
+\item{outputFolder}{Character. Path to directory where input and output RDS files reside.}
 
 \item{startDate}{Earliest episode date to include (as.Date). Default: \code{as.Date("1900-01-01")}.}
 
@@ -25,12 +25,12 @@ runEsd(
 
 \item{logger}{A \code{log4r} logger object for info/debug messages.}
 
-\item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputDir? `TRUE` or `FALSE` (default)}
+\item{debugMode}{(`logical(1)`) Should the ESD algorithm write intermediate datasets to the outputFolder? `TRUE` or `FALSE` (default)}
 
 \item{conformToValidation}{(`logical(1)`: `FALSE`) If `TRUE`, modify episodes to conform (remove overlaps and length > 308 days). Validation and logging always run.}
 }
 \value{
-Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputDir}.
+Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputFolder}.
         The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
 }
 \description{
@@ -39,11 +39,11 @@ Runs the Episode Start Date (ESD) algorithm to infer pregnancy episode start dat
 \details{
 This function performs the following major steps:
 \enumerate{
-  \item Loads previously merged HIPPS episode table from \code{outputDir}.
+  \item Loads previously merged HIPPS episode table from \code{outputFolder}.
   \item Extracts gestational timing concept evidence (e.g. gestational week, trimester concepts) for each episode within the specified date range.
   \item Infers episode start and start precision using all available gestational timing evidence, with logging.
   \item Merges inferred start dates, timing evidence, and metadata back onto the merged episodes table and computes final start/end/outcome fields.
   \item Filters episodes to retain only those overlapping the requested \code{startDate}--\code{endDate} study period, including episodes with missing inferred dates.
-  \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{final_pregnancy_episodes.rds}) in \code{outputDir}.
+  \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{final_pregnancy_episodes.rds}) in \code{outputFolder}.
 }
 }

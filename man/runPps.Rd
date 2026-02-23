@@ -6,7 +6,7 @@
 \usage{
 runPps(
   cdm,
-  outputDir,
+  outputFolder,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
@@ -16,7 +16,7 @@ runPps(
 \arguments{
 \item{cdm}{A `cdm_reference` object; must include all OMOP tables and structure needed for pregnancy concept search.}
 
-\item{outputDir}{Character. Directory path where intermediate and output RDS files will be saved.}
+\item{outputFolder}{Character. Directory path where intermediate and output RDS files will be saved.}
 
 \item{startDate}{Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).}
 
@@ -28,7 +28,7 @@ runPps(
 }
 \value{
 Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
-        Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
+        Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputFolder`.
 }
 \description{
 This function executes the Pregnancy Progression Signature (PPS) algorithm against a Common Data Model (CDM) instance.

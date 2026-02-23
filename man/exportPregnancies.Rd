@@ -4,13 +4,13 @@
 \alias{exportPregnancies}
 \title{Export pregnancy results into shareable summary CSVs}
 \usage{
-exportPregnancies(cdm, outputDir, exportDir, minCellCount = 5, res = NULL)
+exportPregnancies(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) CDM reference used to compute exports that require
 database tables (e.g., `person`, `observation_period`).}
 
-\item{outputDir}{(`character(1)`) Directory containing pipeline outputs
+\item{outputFolder}{(`character(1)`) Directory containing pipeline outputs
 (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).}
 
 \item{exportDir}{(`character(1)`) Directory where shareable CSVs will be written.}
@@ -19,7 +19,7 @@ database tables (e.g., `person`, `observation_period`).}
 small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
 
 \item{res}{Optional data frame of pregnancy episodes. If provided, used instead
-of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
+of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used when
 exporting a conformed copy (e.g. \code{conformToValidation = "both"}).}
 }
 \value{
@@ -27,13 +27,17 @@ Invisibly returns `NULL`. Writes CSVs to `exportDir`.
 }
 \description{
 Reads the patient-level pregnancy episode results produced by the pipeline (from
-`outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
-summary tables (counts, age summaries, timing distributions, outcome counts,
-and date completeness checks), and writes them to `exportDir`. Does not create a
-ZIP file; use \code{zipExportFolder()} after export (and optionally after
-writing PET comparison tables to the same folder) to create an archive.
+\code{outputFolder}; see \code{runPregnancyIdentifier()}), generates a set of
+de-identified summary tables (counts, age summaries, timing distributions,
+outcome counts, and date completeness checks), and writes them to \code{exportDir}.
+\code{runPregnancyIdentifier()} runs this step automatically and writes to
+\code{exportFolder} (default \code{file.path(outputDir, "export")}); use
+\code{exportPregnancies()} when you need to re-export or write to a different
+directory. Does not create a ZIP file; use \code{zipExportFolder()} after export
+(and optionally after writing PET comparison tables to the same folder) to create
+an archive.
 }
 \details{
 The export is intended for lightweight QA and sharing across sites. Small cell
-counts can be suppressed via `minCellCount`.
+counts can be suppressed via \code{minCellCount}.
 }

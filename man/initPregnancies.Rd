@@ -10,7 +10,7 @@ initPregnancies(
   endDate = Sys.Date(),
   ageBounds = c(15L, 56L),
   logger,
-  outputDir = NULL
+  outputFolder = NULL
 )
 }
 \arguments{
@@ -26,7 +26,7 @@ c(15, 56) and will include anyone >= 15 and < 56.}
 
 \item{logger}{A log4r logger object that can be created with `makeLogger()`}
 
-\item{outputDir}{Optional directory path. When provided, an \code{attrition.csv}
+\item{outputFolder}{Optional directory path. When provided, an \code{attrition.csv}
 file is created with initial record and person counts for \code{preg_hip_records}
 and \code{preg_pps_records}.}
 }

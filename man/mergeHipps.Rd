@@ -4,19 +4,19 @@
 \alias{mergeHipps}
 \title{Merge HIP and PPS episodes into a unified HIPPS episode table}
 \usage{
-mergeHipps(outputDir, logger)
+mergeHipps(outputFolder, logger)
 }
 \arguments{
-\item{outputDir}{(`character(1)`) Directory containing intermediate RDS artifacts:
+\item{outputFolder}{(`character(1)`) Directory containing intermediate RDS artifacts:
 `pps_episodes.rds`, `hip_episodes.rds`}
 
 \item{logger}{(`logger`) log4r logger created with `makeLogger()`.}
 }
 \value{
-Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputDir`.
+Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputFolder`.
 }
 \description{
-Reads previously-saved HIP and PPS outputs from `outputDir`,
+Reads previously-saved HIP and PPS outputs from `outputFolder`,
 merges HIP and PPS episodes based on temporal overlap, resolves many-to-many overlaps
 by selecting the best-matching pairs, and returns a single per-person episode table
 with standardized columns used downstream by ESD and reporting.
@@ -24,7 +24,7 @@ with standardized columns used downstream by ESD and reporting.
 \details{
 Key steps:
 \itemize{
-  \item Load HIP episodes and PPS episodes from `outputDir`
+  \item Load HIP episodes and PPS episodes from `outputFolder`
   \item Merge HIP + PPS episodes by overlap; flag episodes involved in many-to-many overlaps
   \item Resolve many-to-many overlaps by selecting best-matching pairs (retain best matches by end-date proximity and episode plausibility)
   \item Add standardized columns and per-person episode ordering; write `hipps_episodes.rds`

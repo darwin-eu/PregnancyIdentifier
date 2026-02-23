@@ -1,29 +1,29 @@
 test_that("exportPregnancies runs without error", {
   cdm <- mockPregnancyCdm()
 
-  outputDir <- file.path(tempdir(), "test_exportPregnancies")
+  outputFolder <- file.path(tempdir(), "test_exportPregnancies")
   exportDir <- file.path(tempdir(), "test_exportPregnancies_export")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
 
   # Run full pipeline first to create required files
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
 
   # Now test exportPregnancies
   exportPregnancies(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     exportDir = exportDir
   )
 
   expect_true(dir.exists(exportDir))
   expect_true(file.exists(file.path(exportDir, "cdm_source.csv")))
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   unlink(exportDir, recursive = TRUE)
   cleanupCdmDb(cdm)
 })
@@ -31,22 +31,22 @@ test_that("exportPregnancies runs without error", {
 test_that("exportPregnancies runs with custom minCellCount", {
   cdm <- mockPregnancyCdm()
 
-  outputDir <- file.path(tempdir(), "test_exportPregnancies_custom")
+  outputFolder <- file.path(tempdir(), "test_exportPregnancies_custom")
   exportDir <- file.path(tempdir(), "test_exportPregnancies_export_custom")
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   dir.create(exportDir, recursive = TRUE, showWarnings = FALSE)
 
   # Run full pipeline first
   runPregnancyIdentifier(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     outputLogToConsole = FALSE
   )
 
   # Test with custom minCellCount
   exportPregnancies(
     cdm = cdm,
-    outputDir = outputDir,
+    outputFolder = outputFolder,
     exportDir = exportDir,
     minCellCount = 0
   )
@@ -85,7 +85,7 @@ test_that("exportPregnancies runs with custom minCellCount", {
     "yearly_trend_missing.csv"
   )))
 
-  unlink(outputDir, recursive = TRUE)
+  unlink(outputFolder, recursive = TRUE)
   unlink(exportDir, recursive = TRUE)
   cleanupCdmDb(cdm)
 })

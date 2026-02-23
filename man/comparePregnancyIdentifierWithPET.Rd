@@ -6,7 +6,6 @@
 \usage{
 comparePregnancyIdentifierWithPET(
   cdm,
-  outputDir,
   outputFolder,
   petSchema,
   petTable,
@@ -20,11 +19,9 @@ comparePregnancyIdentifierWithPET(
 \item{cdm}{A \code{cdm_reference} (from CDMConnector) with a database connection.
 The PET table is read via \code{petSchema} and \code{petTable}.}
 
-\item{outputDir}{\code{character(1)}. Directory containing pipeline outputs, in
-particular \code{final_pregnancy_episodes.rds}.}
-
-\item{outputFolder}{\code{character(1)}. Directory where comparison CSVs and
-optional plots will be written. Created if it does not exist.}
+\item{outputFolder}{\code{character(1)}. Directory containing pipeline outputs
+(\code{final_pregnancy_episodes.rds}) and where comparison CSVs and optional
+plots will be written. Created if it does not exist.}
 
 \item{petSchema}{\code{character(1)}. Schema name of the PET table (e.g.
 \code{"omop_cmbd"}).}

@@ -6,6 +6,8 @@
 \alias{PregnancyIdentifier-package}
 \title{PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et al. (2024) \doi{10.1093/jamia/ocae195}.
 }
 \seealso{

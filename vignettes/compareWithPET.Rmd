@@ -64,7 +64,7 @@ outputFolder <- file.path(tempdir(), "pet_vignette_comparison")
 dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 
-# 1) Build mock CDM and run the pipeline
+# 1) Build mock CDM and run the pipeline (export runs by default to outputDir/export)
 cdm <- mockPregnancyCdm()
 runPregnancyIdentifier(
   cdm = cdm,

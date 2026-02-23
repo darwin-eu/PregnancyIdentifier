@@ -4,10 +4,10 @@
 \alias{makeLogger}
 \title{Create a new logger}
 \usage{
-makeLogger(outputDir, outputLogToConsole = TRUE)
+makeLogger(outputFolder, outputLogToConsole = TRUE)
 }
 \arguments{
-\item{outputDir}{The directory where the log should be created}
+\item{outputFolder}{The directory where the log should be created}
 
 \item{outputLogToConsole}{(`logical(1)`) If `TRUE` (default), log messages are
 written to the console as well as the log file. If `FALSE`, only the file
