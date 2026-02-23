@@ -102,7 +102,7 @@ runPregnancyIdentifier <- function(cdm,
                                    debugMode = FALSE,
                                    runExport = FALSE,
                                    outputLogToConsole = TRUE,
-                                   conformToValidation = "both") {
+                                   conformToValidation = FALSE) {
 
   # ---- Validate inputs -------------------------------------------------------
   checkmate::assertClass(cdm, "cdm_reference")
