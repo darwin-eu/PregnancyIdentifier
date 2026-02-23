@@ -20,8 +20,8 @@
 
 #' Attrition file name in output directory
 #' @noRd
-attritionFileName <- function(outputDir) {
-  file.path(outputDir, "attrition.csv")
+attritionFileName <- function(outputFolder) {
+  file.path(outputFolder, "attrition.csv")
 }
 
 #' Get record and person counts from a table (lazy or data frame)
@@ -50,18 +50,18 @@ getRecordAndPersonCounts <- function(tbl) {
 
 #' Create initial attrition CSV with HIP and PPS record/person counts
 #'
-#' Called from \code{initPregnancies()} when \code{outputDir} is provided.
+#' Called from \code{initPregnancies()} when \code{outputFolder} is provided.
 #' Writes \code{attrition.csv} with one row per table (preg_hip_records, preg_pps_records)
 #' with initial post counts; prior and dropped are NA for this step.
 #'
-#' @param outputDir Directory where \code{attrition.csv} will be written.
+#' @param outputFolder Directory where \code{attrition.csv} will be written.
 #' @param cdm CDM reference containing \code{preg_hip_records} and \code{preg_pps_records}.
 #' @return Invisibly the path to the written file.
 #' @noRd
-initAttrition <- function(outputDir, cdm) {
-  checkmate::assertCharacter(outputDir, len = 1)
+initAttrition <- function(outputFolder, cdm) {
+  checkmate::assertCharacter(outputFolder, len = 1)
   checkmate::assertClass(cdm, "cdm_reference")
-  dir.create(outputDir, showWarnings = FALSE, recursive = TRUE)
+  dir.create(outputFolder, showWarnings = FALSE, recursive = TRUE)
 
   hipCounts <- getRecordAndPersonCounts(cdm$preg_hip_records)
   ppsCounts <- getRecordAndPersonCounts(cdm$preg_pps_records)
@@ -78,14 +78,14 @@ initAttrition <- function(outputDir, cdm) {
     post_records = c(hipCounts$records, ppsCounts$records),
     post_persons = c(hipCounts$persons, ppsCounts$persons)
   )
-  path <- attritionFileName(outputDir)
+  path <- attritionFileName(outputFolder)
   utils::write.csv(attrition, path, row.names = FALSE)
   invisible(path)
 }
 
 #' Append one row to the attrition CSV
 #'
-#' @param outputDir Directory containing \code{attrition.csv}.
+#' @param outputFolder Directory containing \code{attrition.csv}.
 #' @param step Character. Pipeline step name (e.g. \code{"preg_hip_episodes"}, \code{"final_episodes"}).
 #' @param table Character. Output table or artifact name.
 #' @param reason Character or NA. Attrition reason (e.g. \code{"In observation at pregnancy start date"}). NA for legacy steps.
@@ -94,7 +94,7 @@ initAttrition <- function(outputDir, cdm) {
 #' @param dropped_records, dropped_persons Number dropped at this step.
 #' @param post_records, post_persons Post step record and person counts.
 #' @noRd
-appendAttrition <- function(outputDir,
+appendAttrition <- function(outputFolder,
                            step,
                            table,
                            outcome = NA_character_,
@@ -105,9 +105,9 @@ appendAttrition <- function(outputDir,
                            post_records,
                            post_persons,
                            reason = NA_character_) {
-  path <- attritionFileName(outputDir)
+  path <- attritionFileName(outputFolder)
   if (!file.exists(path)) {
-    rlang::abort(sprintf("Attrition file not found: %s. Run initPregnancies with outputDir first.", path))
+    rlang::abort(sprintf("Attrition file not found: %s. Run initPregnancies with outputFolder first.", path))
   }
   existing <- utils::read.csv(path, stringsAsFactors = FALSE)
   if (!("reason" %in% names(existing))) {
@@ -139,12 +139,12 @@ appendAttrition <- function(outputDir,
 #'
 #' Used to obtain prior counts for the next pipeline step.
 #'
-#' @param outputDir Directory containing \code{attrition.csv}.
+#' @param outputFolder Directory containing \code{attrition.csv}.
 #' @param table Character. Table name (e.g. \code{"preg_hip_records"}, \code{"hipps_episodes"}).
 #' @return List with \code{post_records} and \code{post_persons}, or NULL if no row found.
 #' @noRd
-getAttritionPrior <- function(outputDir, table) {
-  path <- attritionFileName(outputDir)
+getAttritionPrior <- function(outputFolder, table) {
+  path <- attritionFileName(outputFolder)
   if (!file.exists(path)) {
     return(NULL)
   }

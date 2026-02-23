@@ -257,7 +257,8 @@ Prevalence <- R6::R6Class(
             100 * prevalence, " (", 100 * prevalence_95CI_lower, " to ",
             100 * prevalence_95CI_upper, " )"
           )) %>%
-          select(database, outcome_cohort_name, strata, denominator_age_group, denominator_sex, denominator_days_prior_observation, denominator_start_date, denominator_end_date, denominator_time_at_risk, analysis_type, analysis_complete_database_intervals, analysis_full_contribution, analysis_min_cell_count, analysis_interval, prevalence_start_date, n_cases, n_population, "prevalence (%)")
+          select(database, outcome_cohort_name, strata, denominator_age_group, denominator_sex, denominator_days_prior_observation, denominator_start_date, denominator_end_date, denominator_time_at_risk, analysis_type, analysis_complete_database_intervals, analysis_full_contribution, analysis_min_cell_count, analysis_interval, prevalence_start_date, n_cases, n_population, "prevalence (%)") %>%
+          dplyr::mutate_if(is.character, as.factor)
 
         DT::datatable(
           table,

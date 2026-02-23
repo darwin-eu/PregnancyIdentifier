@@ -241,7 +241,7 @@ GestationalAgeModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          getData(),
+          getData() %>% dplyr::mutate_if(is.character, as.factor),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

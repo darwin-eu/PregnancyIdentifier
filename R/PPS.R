@@ -24,17 +24,17 @@
 #' assembles person-level gestational timing records, and writes intermediate episode and summary files to the specified output directory.
 #'
 #' @param cdm A `cdm_reference` object; must include all OMOP tables and structure needed for pregnancy concept search.
-#' @param outputDir Character. Directory path where intermediate and output RDS files will be saved.
+#' @param outputFolder Character. Directory path where intermediate and output RDS files will be saved.
 #' @param startDate Date (`Date(1)`). Earliest clinical date to be considered for gestational timing evidence (default: `"1900-01-01"`).
 #' @param endDate Date (`Date(1)`). Latest clinical date to be considered for gestational timing evidence (default: `Sys.Date()`).
 #' @param logger `log4r` logger object (required) for emitting information and debug messages.
 #' @param debugMode (`Logical`) Should intermediate datasets be written to the output folder for debugging? TRUE or FALSE (default)
 #'
 #' @return Returns the input `cdm_reference` invisibly, possibly modified with intermediate tables in its environment.
-#'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputDir`.
+#'         Main results are side effects: RDS files with person-level gestational timing episodes and summary statistics are written to `outputFolder`.
 #' @export
 runPps <- function(cdm,
-                   outputDir,
+                   outputFolder,
                    startDate = as.Date("1900-01-01"),
                    endDate   = Sys.Date(),
                    logger,
@@ -42,12 +42,12 @@ runPps <- function(cdm,
 
   # ---- validation ----
   checkmate::assertClass(cdm, "cdm_reference")
-  checkmate::assertCharacter(outputDir, len = 1)
+  checkmate::assertCharacter(outputFolder, len = 1)
   checkmate::assertDate(startDate)
   checkmate::assertDate(endDate)
   checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
-  dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 
   log4r::info(logger, "START Running PPS")
 
@@ -55,7 +55,7 @@ runPps <- function(cdm,
   # Get gestational timing information for each person
   # ----------------------------------------------------------
   log4r::info(logger, "Get gestational timing information")
-  ppsEpisodes <- getPpsEpisodes(cdm, outputDir)
+  ppsEpisodes <- getPpsEpisodes(cdm, outputFolder)
 
   # ----------------------------------------------------------
   # Get min and max dates and outcomes for each episode
@@ -80,7 +80,7 @@ runPps <- function(cdm,
         "person_id", "pps_episode_number", "pps_concept_start_date",
         "pps_concept_id", "pps_concept_name", "pps_min_month", "pps_max_month"
       )
-    saveRDS(ppsGestTimingOut, file.path(outputDir, "pps_gest_timing_episodes.rds"))
+    saveRDS(ppsGestTimingOut, file.path(outputFolder, "pps_gest_timing_episodes.rds"))
     ppsMinMaxOut <- if (nrow(ppsMinMax) == 0) emptyPpsMinMax() else ppsMinMax
     if ("person_episode_number" %in% names(ppsMinMaxOut)) {
       ppsMinMaxOut <- ppsMinMaxOut %>%
@@ -91,7 +91,7 @@ runPps <- function(cdm,
         "person_id", "pps_episode_number", "pps_episode_min_date", "pps_episode_max_date",
         "pps_episode_max_date_plus_two_months", "pps_n_gt_concepts"
       )
-    saveRDS(ppsMinMaxOut, file.path(outputDir, "pps_min_max_episodes.rds"))
+    saveRDS(ppsMinMaxOut, file.path(outputFolder, "pps_min_max_episodes.rds"))
   }
   if ("person_episode_number" %in% names(ppsWithOutcomes)) {
     ppsWithOutcomes <- ppsWithOutcomes %>%
@@ -117,15 +117,15 @@ runPps <- function(cdm,
     endDateCol = "pps_episode_max_date",
     logger = logger
   )
-  saveRDS(ppsWithOutcomes, file.path(outputDir, "pps_episodes.rds"))
+  saveRDS(ppsWithOutcomes, file.path(outputFolder, "pps_episodes.rds"))
 
   # Attrition: pps_episodes from preg_pps_records
-  prior <- getAttritionPrior(outputDir, "preg_pps_records")
+  prior <- getAttritionPrior(outputFolder, "preg_pps_records")
   if (!is.null(prior)) {
     postR <- nrow(ppsWithOutcomes)
     postP <- dplyr::n_distinct(ppsWithOutcomes$person_id)
     appendAttrition(
-      outputDir,
+      outputFolder,
       step = "pps_episodes",
       table = "pps_episodes",
       outcome = NA_character_,
@@ -141,7 +141,7 @@ runPps <- function(cdm,
   cdm
 }
 
-getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
+getPpsEpisodes <- function(cdm, outputFolder, slackMonths = 2) {
 
   # ------------------------------------------------------------------
   # Episode logic (per-person):
@@ -244,7 +244,7 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
    dplyr::collect()
 
   # QA: concept counts (record_count, person_count). initPregnancies() also writes
-  # this when outputDir is provided; runPps overwrites so standalone PPS runs get it.
+  # this when outputFolder is provided; runPps overwrites so standalone PPS runs get it.
   ppsConceptCounts <- patientsDf %>%
     dplyr::group_by(.data$pps_concept_id, .data$pps_concept_name) %>%
     dplyr::summarise(
@@ -253,7 +253,7 @@ getPpsEpisodes <- function(cdm, outputDir, slackMonths = 2) {
       .groups = "drop"
     ) %>%
     dplyr::select("pps_concept_id", "pps_concept_name", "record_count", "person_count")
-  utils::write.csv(ppsConceptCounts, file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
+  utils::write.csv(ppsConceptCounts, file.path(outputFolder, "pps_concept_counts.csv"), row.names = FALSE)
 
   if (nrow(patientsDf) == 0) return(patientsDf)
 

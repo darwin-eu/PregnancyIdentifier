@@ -1,5 +1,9 @@
-# CodeToRun.R — Full workflow: connect, run pipeline with export, optional PET comparison,
+# CodeToRun.R — Full workflow: connect, run pipeline, export, optional PET comparison,
 # optional Shiny viewer, optional ZIP for sharing.
+#
+# runPregnancyIdentifier() parameters:
+#   outputFolder    — person-level and episode-level data (RDS, logs, runStart.csv).
+#   exportFolder — shareable aggregated CSV files (default: outputFolder/export); use as Shiny input.
 #
 # Connection setup follows the same pattern as the PostgreSQL database tests
 # (see tests/testthat/test-db-postgres.R and tests/testthat/helper-db.R).
@@ -44,23 +48,24 @@ cdm <- CDMConnector::cdmFromCon(
 # -----------------------------------------------------------------------------
 # 2. Paths
 # -----------------------------------------------------------------------------
-# Pipeline writes intermediate RDS/logs here; shareable CSVs go to exportDir.
-# The Shiny app expects either ZIP files or one subfolder per database with CSVs,
-# so we pass outputDir (which contains the "export" subfolder) when launching it.
-outputDir  <- "./output/"
-exportDir  <- file.path(outputDir, "export")
+# outputFolder  = person-level and episode-level pipeline outputs (RDS, logs).
+# exportDir  = shareable aggregated CSVs (default: outputFolder/export); Shiny app input.
+# The Shiny app expects either ZIP files or one subfolder per database with CSVs;
+# we pass outputFolder (which contains the "export" subfolder) when launching it.
+outputFolder  <- "./output/"
+exportDir  <- file.path(outputFolder, "export")
 
 # -----------------------------------------------------------------------------
-# 3. Run the pipeline with export
+# 3. Run the pipeline (export always runs; CSVs go to exportFolder)
 # -----------------------------------------------------------------------------
-# Writes shareable summary CSVs to exportDir. No ZIP is created here; use
-# zipExportFolder() later if you want to bundle everything for sharing.
+# exportFolder defaults to outputFolder/export. Override to write shareable CSVs elsewhere.
+# No ZIP is created here; use zipExportFolder() later to bundle for sharing.
 runPregnancyIdentifier(
   cdm                   = cdm,
-  outputDir             = outputDir,
-  runExport             = TRUE,
-  minCellCount          = 5L,
-  conformToValidation   = FALSE
+  outputFolder             = outputFolder,
+  exportFolder           = exportDir,   # default: file.path(outputFolder, "export")
+  minCellCount           = 5L,
+  conformToValidation    = FALSE
 )
 
 # -----------------------------------------------------------------------------
@@ -70,34 +75,30 @@ runPregnancyIdentifier(
 # Comparison CSVs are written to exportDir so they sit alongside the other
 # shareable outputs and can be included in the same ZIP and viewed in Shiny.
 
-runPetComparison <- FALSE   # set to TRUE when PET is available
+petSchema <- "..."   # schema containing the PET table (e.g. "omop_cmbd")
+petTable  <- "..."   # PET table name (e.g. "pregnancy_episode" or "pregnancy_extension")
 
-if (runPetComparison) {
-  petSchema <- "..."   # schema containing the PET table (e.g. "omop_cmbd")
-  petTable  <- "..."   # PET table name (e.g. "pregnancy_episode" or "pregnancy_extension")
-
-  comparePregnancyIdentifierWithPET(
-    cdm                          = cdm,
-    outputDir                    = outputDir,
-    outputFolder                 = exportDir,
-    petSchema                    = petSchema,
-    petTable                     = petTable,
-    minOverlapDays               = 1L,
-    removeWithinSourceOverlaps   = FALSE,
-    outputLogToConsole           = TRUE
-  )
-}
+comparePregnancyIdentifierWithPET(
+  cdm                          = cdm,
+  outputFolder                    = outputFolder,
+  outputFolder                 = exportDir,
+  petSchema                    = petSchema,
+  petTable                     = petTable,
+  minOverlapDays               = 1L,
+  removeWithinSourceOverlaps   = FALSE,
+  outputLogToConsole           = TRUE
+)
 
 # -----------------------------------------------------------------------------
 # 5. (Optional) Launch the Shiny app to explore results
 # -----------------------------------------------------------------------------
-# Pass the parent of the export folder (outputDir) so the app finds the
+# Pass the parent of the export folder (outputFolder) so the app finds the
 # "export" subfolder and loads its CSVs. Launch in browser with launch.browser = TRUE.
 
 launchShiny <- FALSE   # set to TRUE to open the viewer
 
 if (launchShiny) {
-  viewResults(dataFolder = outputDir, launch.browser = TRUE)
+  viewResults(dataFolder = outputFolder, launch.browser = TRUE)
 }
 
 # -----------------------------------------------------------------------------

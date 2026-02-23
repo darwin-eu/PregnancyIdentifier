@@ -251,7 +251,8 @@ Incidence <- R6::R6Class(
             incidence_100000_pys, " (", incidence_100000_pys_95CI_lower, " to ",
             incidence_100000_pys_95CI_upper, " )"
           )) %>%
-          select(database, outcome_cohort_name, strata, denominator_cohort_name, denominator_age_group, denominator_sex, denominator_days_prior_observation, denominator_start_date, denominator_end_date, denominator_time_at_risk, analysis_outcome_washout, analysis_repeated_events, analysis_complete_database_intervals, analysis_min_cell_count, analysis_interval, incidence_start_date, n_events, n_persons, person_years, incidence_100000_pys)
+          select(database, outcome_cohort_name, strata, denominator_cohort_name, denominator_age_group, denominator_sex, denominator_days_prior_observation, denominator_start_date, denominator_end_date, denominator_time_at_risk, analysis_outcome_washout, analysis_repeated_events, analysis_complete_database_intervals, analysis_min_cell_count, analysis_interval, incidence_start_date, n_events, n_persons, person_years, incidence_100000_pys) %>%
+          dplyr::mutate_if(is.character, as.factor)
 
         DT::datatable(
           table,

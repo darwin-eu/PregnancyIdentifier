@@ -30,7 +30,7 @@
 #' represented using a length 2 integer vector. By default this will be
 #' c(15, 56) and will include anyone >= 15 and < 56.
 #' @param logger A log4r logger object that can be created with `makeLogger()`
-#' @param outputDir Optional directory path. When provided, an \code{attrition.csv}
+#' @param outputFolder Optional directory path. When provided, an \code{attrition.csv}
 #'   file is created with initial record and person counts for \code{preg_hip_records}
 #'   and \code{preg_pps_records}.
 #'
@@ -49,7 +49,7 @@ initPregnancies <- function(cdm,
                             endDate    = Sys.Date(),
                             ageBounds  = c(15L, 56L),
                             logger,
-                            outputDir  = NULL) {
+                            outputFolder  = NULL) {
 
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertDate(startDate, any.missing = FALSE)
@@ -173,8 +173,8 @@ initPregnancies <- function(cdm,
   nHipRecords <- cdm$preg_hip_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_hip_records (", nHipRecords," records) to the CDM"))
 
-  # HIP concept counts (record_count, person_count) for outputDir / export
-  if (!is.null(outputDir)) {
+  # HIP concept counts (record_count, person_count) for outputFolder / export
+  if (!is.null(outputFolder)) {
     hipConceptCounts <- cdm$preg_hip_records %>%
       dplyr::group_by(.data$concept_id) %>%
       dplyr::summarise(
@@ -187,8 +187,9 @@ initPregnancies <- function(cdm,
         by = "concept_id"
       ) %>%
       dplyr::collect() %>%
-      dplyr::select("concept_id", "concept_name", "record_count", "person_count")
-    utils::write.csv(hipConceptCounts, file.path(outputDir, "hip_concept_counts.csv"), row.names = FALSE)
+      dplyr::select("concept_id", "concept_name", "record_count", "person_count") %>%
+      dplyr::rename(hip_concept_id = "concept_id", hip_concept_name = "concept_name")
+    utils::write.csv(hipConceptCounts, file.path(outputFolder, "hip_concept_counts.csv"), row.names = FALSE)
   }
 
   # ============================================================
@@ -224,8 +225,8 @@ initPregnancies <- function(cdm,
   nPpsRecords <- cdm$preg_pps_records %>% dplyr::ungroup() %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull("n")
   log4r::info(logger, paste0("Added preg_pps_records (", nPpsRecords," records) to the CDM"))
 
-  # PPS concept counts (record_count, person_count) for outputDir / export
-  if (!is.null(outputDir)) {
+  # PPS concept counts (record_count, person_count) for outputFolder / export
+  if (!is.null(outputFolder)) {
     ppsConceptCounts <- cdm$preg_pps_records %>%
       dplyr::group_by(.data$pps_concept_id, .data$pps_concept_name) %>%
       dplyr::summarise(
@@ -235,12 +236,12 @@ initPregnancies <- function(cdm,
       ) %>%
       dplyr::collect() %>%
       dplyr::select("pps_concept_id", "pps_concept_name", "record_count", "person_count")
-    utils::write.csv(ppsConceptCounts, file.path(outputDir, "pps_concept_counts.csv"), row.names = FALSE)
+    utils::write.csv(ppsConceptCounts, file.path(outputFolder, "pps_concept_counts.csv"), row.names = FALSE)
   }
 
-  if (!is.null(outputDir)) {
-    checkmate::assertCharacter(outputDir, len = 1)
-    initAttrition(outputDir, cdm)
+  if (!is.null(outputFolder)) {
+    checkmate::assertCharacter(outputFolder, len = 1)
+    initAttrition(outputFolder, cdm)
   }
 
   cdm

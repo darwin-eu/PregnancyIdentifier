@@ -134,23 +134,34 @@ AgeSummaryCsvModule <- R6::R6Class(
           dbData <- data %>% dplyr::filter(.data$cdm_name == db)
           dbData <- dbData %>%
             dplyr::mutate(final_outcome_category = factor(.data$final_outcome_category, levels = rev(sort(unique(as.character(.data$final_outcome_category))))))
-          p <- plotly::plot_ly(data = dbData, y = ~ final_outcome_category) %>%
-            plotly::add_boxplot(
-              lowerfence = ~ min,
-              q1 = ~ Q25,
-              median = ~ median,
-              q3 = ~ Q75,
-              upperfence = ~ max,
-              orientation = "h",
-              boxpoints = FALSE
-            ) %>%
+          outcome_levels <- levels(dbData$final_outcome_category)
+          p <- plotly::plot_ly()
+          for (i in seq_along(outcome_levels)) {
+            out <- outcome_levels[i]
+            row <- dbData %>% dplyr::filter(.data$final_outcome_category == out)
+            p <- p %>%
+              plotly::add_boxplot(
+                data = row,
+                y = out,
+                lowerfence = ~ min,
+                q1 = ~ Q25,
+                median = ~ median,
+                q3 = ~ Q75,
+                upperfence = ~ max,
+                orientation = "h",
+                boxpoints = FALSE,
+                name = db,
+                legendgroup = db,
+                showlegend = (i == 1L)
+              )
+          }
+          p %>%
             plotly::layout(
               xaxis = list(title = "Age"),
-              yaxis = list(title = "", categoryorder = "array", categoryarray = levels(dbData$final_outcome_category)),
+              yaxis = list(title = "", categoryorder = "array", categoryarray = outcome_levels),
               title = list(text = db, font = list(size = 12)),
               margin = list(t = 40, b = 40)
             )
-          p
         })
         n <- length(plots)
         if (n == 1) {

@@ -1,37 +1,41 @@
 #' Export pregnancy results into shareable summary CSVs
 #'
 #' Reads the patient-level pregnancy episode results produced by the pipeline (from
-#' `outputDir`; see `runPregnancyIdentifier()`), generates a set of de-identified
-#' summary tables (counts, age summaries, timing distributions, outcome counts,
-#' and date completeness checks), and writes them to `exportDir`. Does not create a
-#' ZIP file; use \code{zipExportFolder()} after export (and optionally after
-#' writing PET comparison tables to the same folder) to create an archive.
+#' \code{outputFolder}; see \code{runPregnancyIdentifier()}), generates a set of
+#' de-identified summary tables (counts, age summaries, timing distributions,
+#' outcome counts, and date completeness checks), and writes them to \code{exportDir}.
+#' \code{runPregnancyIdentifier()} runs this step automatically and writes to
+#' \code{exportFolder} (default \code{file.path(outputDir, "export")}); use
+#' \code{exportPregnancies()} when you need to re-export or write to a different
+#' directory. Does not create a ZIP file; use \code{zipExportFolder()} after export
+#' (and optionally after writing PET comparison tables to the same folder) to create
+#' an archive.
 #'
 #' The export is intended for lightweight QA and sharing across sites. Small cell
-#' counts can be suppressed via `minCellCount`.
+#' counts can be suppressed via \code{minCellCount}.
 #'
 #' @param cdm (`cdm_reference`) CDM reference used to compute exports that require
 #'   database tables (e.g., `person`, `observation_period`).
-#' @param outputDir (`character(1)`) Directory containing pipeline outputs
+#' @param outputFolder (`character(1)`) Directory containing pipeline outputs
 #'   (e.g., `final_pregnancy_episodes.rds`, logs, `pps_concept_counts.csv`).
 #' @param exportDir (`character(1)`) Directory where shareable CSVs will be written.
 #' @param minCellCount (`integer(1)`) Minimum count threshold for suppression of
 #'   small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.
 #' @param res Optional data frame of pregnancy episodes. If provided, used instead
-#'   of reading \code{final_pregnancy_episodes.rds} from \code{outputDir}. Used when
+#'   of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used when
 #'   exporting a conformed copy (e.g. \code{conformToValidation = "both"}).
 #'
 #' @return Invisibly returns `NULL`. Writes CSVs to `exportDir`.
 #' @export
-exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5, res = NULL) {
-  runStart <- utils::read.csv(file.path(outputDir, "runStart.csv"))$start
+exportPregnancies <- function(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL) {
+  runStart <- utils::read.csv(file.path(outputFolder, "runStart.csv"))$start
 
   dir.create(exportDir, showWarnings = FALSE, recursive = TRUE)
   snap <- CDMConnector::snapshot(cdm)
   utils::write.csv(snap, file.path(exportDir, "cdm_source.csv"), row.names = FALSE)
 
   if (is.null(res)) {
-    res <- readRDS(file.path(outputDir, "final_pregnancy_episodes.rds"))
+    res <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
   }
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
   if (!"merge_pregnancy_start" %in% names(res) && "final_episode_start_date" %in% names(res)) {
@@ -40,7 +44,7 @@ exportPregnancies <- function(cdm, outputDir, exportDir, minCellCount = 5, res =
 
   # Copy key raw artifacts (if present)
   for (f in c("hip_concept_counts.csv", "pps_concept_counts.csv", "esd_concept_counts.csv", "log.txt", "attrition.csv")) {
-    src <- file.path(outputDir, f)
+    src <- file.path(outputFolder, f)
     if (file.exists(src)) file.copy(src, file.path(exportDir, f), overwrite = TRUE)
   }
 

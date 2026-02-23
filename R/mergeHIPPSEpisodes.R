@@ -22,35 +22,35 @@
 
 #' Merge HIP and PPS episodes into a unified HIPPS episode table
 #'
-#' Reads previously-saved HIP and PPS outputs from `outputDir`,
+#' Reads previously-saved HIP and PPS outputs from `outputFolder`,
 #' merges HIP and PPS episodes based on temporal overlap, resolves many-to-many overlaps
 #' by selecting the best-matching pairs, and returns a single per-person episode table
 #' with standardized columns used downstream by ESD and reporting.
 #'
 #' Key steps:
 #' \itemize{
-#'   \item Load HIP episodes and PPS episodes from `outputDir`
+#'   \item Load HIP episodes and PPS episodes from `outputFolder`
 #'   \item Merge HIP + PPS episodes by overlap; flag episodes involved in many-to-many overlaps
 #'   \item Resolve many-to-many overlaps by selecting best-matching pairs (retain best matches by end-date proximity and episode plausibility)
 #'   \item Add standardized columns and per-person episode ordering; write `hipps_episodes.rds`
 #' }
 #'
-#' @param outputDir (`character(1)`) Directory containing intermediate RDS artifacts:
+#' @param outputFolder (`character(1)`) Directory containing intermediate RDS artifacts:
 #'   `pps_episodes.rds`, `hip_episodes.rds`
 #' @param logger (`logger`) log4r logger created with `makeLogger()`.
 #'
-#' @return Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputDir`.
+#' @return Invisibly returns `NULL` and writes `hipps_episodes.rds` to `outputFolder`.
 #' @export
-mergeHipps <- function(outputDir, logger) {
-  checkmate::assertDirectoryExists(outputDir)
-  checkmate::assertFileExists(file.path(outputDir, "pps_episodes.rds"))
-  checkmate::assertFileExists(file.path(outputDir, "hip_episodes.rds"))
+mergeHipps <- function(outputFolder, logger) {
+  checkmate::assertDirectoryExists(outputFolder)
+  checkmate::assertFileExists(file.path(outputFolder, "pps_episodes.rds"))
+  checkmate::assertFileExists(file.path(outputFolder, "hip_episodes.rds"))
   checkmate::assertClass(logger, "logger", null.ok = FALSE)
 
   log4r::info(logger, "Merging HIP and PPS into HIPPS")
 
-  ppsWithOutcomesDf <- readRDS(file.path(outputDir, "pps_episodes.rds"))
-  hipDf <- readRDS(file.path(outputDir, "hip_episodes.rds"))
+  ppsWithOutcomesDf <- readRDS(file.path(outputFolder, "pps_episodes.rds"))
+  hipDf <- readRDS(file.path(outputFolder, "hip_episodes.rds"))
 
   mergedDf <- mergeEpisodes(hipDf, ppsWithOutcomesDf, logger) %>%
     dedupeMergedEpisodes(logger) %>%
@@ -78,18 +78,18 @@ mergeHipps <- function(outputDir, logger) {
         "hip_episode_id", "pps_episode_id"
       ))
     )
-  saveRDS(mergedDf, file.path(outputDir, "hipps_episodes.rds"))
+  saveRDS(mergedDf, file.path(outputFolder, "hipps_episodes.rds"))
 
   # Attrition: hipps_episodes from hip_episodes + pps_episodes
-  hipPrior <- getAttritionPrior(outputDir, "preg_hip_episodes")
-  ppsPrior <- getAttritionPrior(outputDir, "pps_episodes")
+  hipPrior <- getAttritionPrior(outputFolder, "preg_hip_episodes")
+  ppsPrior <- getAttritionPrior(outputFolder, "pps_episodes")
   if (!is.null(hipPrior) && !is.null(ppsPrior)) {
     priorR <- hipPrior$post_records + ppsPrior$post_records
     priorP <- dplyr::n_distinct(c(hipDf$person_id, ppsWithOutcomesDf$person_id))
     postR <- nrow(mergedDf)
     postP <- dplyr::n_distinct(mergedDf$person_id)
     appendAttrition(
-      outputDir,
+      outputFolder,
       step = "hipps_episodes",
       table = "hipps_episodes",
       outcome = NA_character_,

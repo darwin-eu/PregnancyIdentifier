@@ -30,10 +30,9 @@
 #'
 #' @param cdm A \code{cdm_reference} (from CDMConnector) with a database connection.
 #'   The PET table is read via \code{petSchema} and \code{petTable}.
-#' @param outputDir \code{character(1)}. Directory containing pipeline outputs, in
-#'   particular \code{final_pregnancy_episodes.rds}.
-#' @param outputFolder \code{character(1)}. Directory where comparison CSVs and
-#'   optional plots will be written. Created if it does not exist.
+#' @param outputFolder \code{character(1)}. Directory containing pipeline outputs
+#'   (\code{final_pregnancy_episodes.rds}) and where comparison CSVs and optional
+#'   plots will be written. Created if it does not exist.
 #' @param petSchema \code{character(1)}. Schema name of the PET table (e.g.
 #'   \code{"omop_cmbd"}).
 #' @param petTable \code{character(1)}. Table name of the pregnancy episode table
@@ -60,7 +59,6 @@
 #'   \code{visOmopResults::visTable()} to display it.
 #' @export
 comparePregnancyIdentifierWithPET <- function(cdm,
-                                              outputDir,
                                               outputFolder,
                                               petSchema,
                                               petTable,
@@ -69,7 +67,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
                                               logger = NULL,
                                               outputLogToConsole = TRUE) {
   checkmate::assertClass(cdm, "cdm_reference")
-  checkmate::assertCharacter(outputDir, len = 1L, any.missing = FALSE)
   checkmate::assertCharacter(outputFolder, len = 1L, any.missing = FALSE)
   checkmate::assertCharacter(petSchema, len = 1L, any.missing = FALSE)
   checkmate::assertCharacter(petTable, len = 1L, any.missing = FALSE)
@@ -93,11 +90,14 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     "unknown"
   }
   result_id_sr <- 1L
+  # Use "all" for group_level (not "overall"): omopgenerics::getLabels() treats
+  # "overall" as a placeholder and returns 0 elements, so splitGroup() would
+  # throw "Column names and levels number does not match" when group_name has 1 element.
   base_row <- list(
     result_id = result_id_sr,
     cdm_name = cdm_name_sr,
     group_name = "pet_comparison",
-    group_level = "overall",
+    group_level = "all",
     strata_name = "overall",
     strata_level = "overall",
     additional_name = "overall",
@@ -132,7 +132,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   }
 
   # Path to algorithm output
-  algPath <- file.path(outputDir, "final_pregnancy_episodes.rds")
+  algPath <- file.path(outputFolder, "final_pregnancy_episodes.rds")
   if (!file.exists(algPath)) {
     log4r::error(logger, sprintf("Algorithm output not found: %s", algPath))
     stop(sprintf("Algorithm output not found: %s", algPath))

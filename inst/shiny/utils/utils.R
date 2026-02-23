@@ -89,6 +89,18 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
 
     if (file == "pet_comparison_summarised_result.csv") {
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
+      # visOmopResults/splitGroup expects group_level to have same number of
+      # elements as group_name; omopgenerics treats "overall" as empty, so
+      # normalise for backward compatibility with CSVs that used group_level = "overall".
+      if (is.data.frame(data) && "group_name" %in% names(data) && "group_level" %in% names(data)) {
+        data <- data %>% dplyr::mutate(
+          group_level = dplyr::if_else(
+            .data$group_name == "pet_comparison" & .data$group_level == "overall",
+            "all",
+            .data$group_level
+          )
+        )
+      }
       camelCaseName <- "petComparisonSummarisedResult"
     } else if (grepl("incidence|prevalence|characteristics", tolower(file))) {
       parts <- unlist(strsplit(tableName, "_"))
@@ -98,9 +110,17 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
       data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
     } else {
       data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"))
+      # Normalise column names: strip leading/trailing quotes and apostrophes (e.g. '"freq"' -> freq)
+      colnames(data) <- gsub("^['\"]*|['\"]*$", "", colnames(data))
       if ("...1" %in% colnames(data)) {
-        data <- data %>%
-          dplyr::select(-"...1")
+        # For frequency tables, first column is the count variable (freq); keep it instead of dropping
+        if (file == "pregnancy_frequency.csv" && !"freq" %in% colnames(data)) {
+          data <- data %>% dplyr::rename(freq = "...1")
+        } else if (file == "episode_frequency.csv" && !"freq" %in% colnames(data)) {
+          data <- data %>% dplyr::rename(freq = "...1")
+        } else {
+          data <- data %>% dplyr::select(-"...1")
+        }
       }
       # make sure there is a column cdm_name
       if (!"cdm_name" %in% colnames(data)) {
@@ -142,24 +162,18 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
 
     if (camelCaseName != "petComparisonSummarisedResult" && !overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
       existingData <- get(camelCaseName, envir = .GlobalEnv)
-      if (nrow(existingData) > 0) {
-        if (nrow(data) > 0 &&
-            all(colnames(existingData) %in% colnames(data)) &&
-            all(colnames(data) %in% colnames(existingData))) {
-          data <- data[, colnames(existingData)]
-        }
-
-        if (!isTRUE(all.equal(colnames(data), colnames(existingData), check.attributes = FALSE))) {
-          stop(
-            "Table columns do no match previously seen columns. Columns in ",
-            file,
-            ":\n",
-            paste(colnames(data), collapse = ", "),
-            "\nPrevious columns:\n",
-            paste(colnames(existingData), collapse = ", ")
-          )
-        }
+      allCols <- union(colnames(existingData), colnames(data))
+      # Align columns: add missing columns as NA so different schema versions can be merged
+      missingInData <- setdiff(allCols, colnames(data))
+      for (col in missingInData) {
+        data[[col]] <- NA
       }
+      data <- data[, allCols, drop = FALSE]
+      missingInExisting <- setdiff(allCols, colnames(existingData))
+      for (col in missingInExisting) {
+        existingData[[col]] <- NA
+      }
+      existingData <- existingData[, allCols, drop = FALSE]
       data <- rbind(existingData, data)
     }
     assign(camelCaseName, data, envir = .GlobalEnv)
