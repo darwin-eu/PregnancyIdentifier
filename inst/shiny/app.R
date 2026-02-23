@@ -957,12 +957,19 @@ if (!hasData) {
     }
 
     # Attrition tab (attrition.csv, attrition_if_cleanup.csv)
+    # Use union of allDP and table cdm_name so mock CDM (or any folder-only source) appears in dropdown and displays when selected
     attritionTabs <- list()
     if (exists("attrition_episodes", envir = .GlobalEnv)) {
       attritionEpisodes <- get("attrition_episodes", envir = .GlobalEnv)
+      attritionDp <- if (nrow(attritionEpisodes) > 0 && "cdm_name" %in% colnames(attritionEpisodes)) {
+        withData <- unique(attritionEpisodes$cdm_name)
+        unique(c(withData, allDP))  # databases with attrition data first so default selection shows data
+      } else {
+        allDP
+      }
       attritionTabs[["Attrition"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = AttritionTableModule$new(data = attritionEpisodes, dp = allDP),
+          object = AttritionTableModule$new(data = attritionEpisodes, dp = attritionDp),
           result = attritionEpisodes
         ),
         "Number of episodes and persons excluded at each pipeline step. Used to document cohort flow and feasibility."
@@ -970,9 +977,15 @@ if (!hasData) {
     }
     if (exists("attritionIfCleanup", envir = .GlobalEnv)) {
       attritionIfCleanup <- get("attritionIfCleanup", envir = .GlobalEnv)
+      attritionIfCleanupDp <- if (nrow(attritionIfCleanup) > 0 && "cdm_name" %in% colnames(attritionIfCleanup)) {
+        withData <- unique(attritionIfCleanup$cdm_name)
+        unique(c(withData, allDP))
+      } else {
+        allDP
+      }
       attritionTabs[["Attrition if cleanup"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = AttritionTableModule$new(data = attritionIfCleanup, dp = allDP),
+          object = AttritionTableModule$new(data = attritionIfCleanup, dp = attritionIfCleanupDp),
           result = attritionIfCleanup
         ),
         "Attrition that would apply if quality-check cleanup were run. Used to assess impact of cleanup on cohort size."
