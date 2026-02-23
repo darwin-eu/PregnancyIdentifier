@@ -15,7 +15,7 @@ pregnancy - "PREG": unspecified/ongoing pregnancy
 ``` r
 runHip(
   cdm,
-  outputDir = NULL,
+  outputFolder = NULL,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   justGestation = TRUE,
@@ -29,7 +29,7 @@ runHip(
 
   (\`cdm_reference\`) A cdm reference object from CDMConnector.
 
-- outputDir:
+- outputFolder:
 
   (\`character(1)\`) Output directory to write output to.
 
@@ -72,6 +72,6 @@ were found in the episode ("yes" or "no"). - \`hip_episode_length\`:
 Length of the pregnancy episode, in days (from \`hip_pregnancy_start\`
 to \`hip_pregnancy_end\`).
 
-A file named \`hip_episodes.rds\` is saved in the \`outputDir\`
+A file named \`hip_episodes.rds\` is saved in the \`outputFolder\`
 directory. This file contains a dataframe with the same columns as
 listed above for the \`cdm\$preg_hip_episodes\` table.

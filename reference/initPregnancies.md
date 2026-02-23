@@ -12,7 +12,7 @@ initPregnancies(
   endDate = Sys.Date(),
   ageBounds = c(15L, 56L),
   logger,
-  outputDir = NULL
+  outputFolder = NULL
 )
 ```
 
@@ -40,7 +40,7 @@ initPregnancies(
 
   A log4r logger object that can be created with \`makeLogger()\`
 
-- outputDir:
+- outputFolder:
 
   Optional directory path. When provided, an `attrition.csv` file is
   created with initial record and person counts for `preg_hip_records`

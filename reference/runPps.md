@@ -13,7 +13,7 @@ directory.
 ``` r
 runPps(
   cdm,
-  outputDir,
+  outputFolder,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
@@ -28,7 +28,7 @@ runPps(
   A \`cdm_reference\` object; must include all OMOP tables and structure
   needed for pregnancy concept search.
 
-- outputDir:
+- outputFolder:
 
   Character. Directory path where intermediate and output RDS files will
   be saved.
@@ -58,4 +58,4 @@ runPps(
 Returns the input \`cdm_reference\` invisibly, possibly modified with
 intermediate tables in its environment. Main results are side effects:
 RDS files with person-level gestational timing episodes and summary
-statistics are written to \`outputDir\`.
+statistics are written to \`outputFolder\`.

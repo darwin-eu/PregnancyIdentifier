@@ -6,6 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>PregnancyIdentifier pipeline overview • PregnancyIdentifier</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -20,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,8 +54,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-
-      <h1>PregnancyIdentifier pipeline overview</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>PregnancyIdentifier pipeline overview</h1>
             
       
 
@@ -86,8 +90,23 @@ and precision. See the <a href="esd.html">ESD vignette</a>.</li>
 <h2 id="running-the-full-pipeline">Running the full pipeline<a class="anchor" aria-label="anchor" href="#running-the-full-pipeline"></a>
 </h2>
 <p>The primary entry point is <code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>,
-which runs all steps end-to-end and writes intermediate artifacts and
-final outputs to <code>outputDir</code>.</p>
+which runs all steps end-to-end: it writes <strong>person-level and
+episode-level data</strong> (RDS, logs) to <code>outputFolder</code>,
+and <strong>shareable aggregated CSV files</strong> to
+<code>exportFolder</code> (default
+<code>file.path(outputFolder, "export")</code>; these CSVs can be used
+as input to the Shiny app).</p>
+<p>Main parameters: - <strong>outputFolder</strong> — Directory for
+pipeline outputs (RDS artifacts, logs, <code>runStart.csv</code>).
+Created if missing. - <strong>exportFolder</strong> — Directory for
+shareable CSVs. Defaults to
+<code>file.path(outputFolder, "export")</code>. Optional; omit to use
+the default. - <strong>startDate</strong>, <strong>endDate</strong> —
+Study window (defaults: 1900-01-01 to today). -
+<strong>minCellCount</strong> — Small-cell suppression in exported
+summaries (default 5). - <strong>conformToValidation</strong> —
+<code>FALSE</code> (default), <code>TRUE</code>, or <code>"both"</code>;
+see step 5 and the Export vignette.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://darwin-eu.github.io/PregnancyIdentifier/" class="external-link">PregnancyIdentifier</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://darwin-eu.github.io/CDMConnector/" class="external-link">CDMConnector</a></span><span class="op">)</span></span>
@@ -97,20 +116,21 @@ final outputs to <code>outputDir</code>.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span></span>
 <span>  cdm                   <span class="op">=</span> <span class="va">cdm</span>,</span>
-<span>  outputDir             <span class="op">=</span> <span class="st">"pregnancy_identifier_output"</span>,</span>
+<span>  outputFolder             <span class="op">=</span> <span class="st">"pregnancy_identifier_output"</span>,</span>
+<span>  <span class="co"># exportFolder         = NULL,   # default: outputFolder/export</span></span>
 <span>  startDate             <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2000-01-01"</span><span class="op">)</span>,</span>
 <span>  endDate               <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  justGestation         <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  minCellCount          <span class="op">=</span> <span class="fl">5L</span>,</span>
-<span>  runExport             <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  conformToValidation   <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="outputs-written-to-disk">Outputs written to disk<a class="anchor" aria-label="anchor" href="#outputs-written-to-disk"></a>
 </h3>
-<p>The pipeline writes intermediate RDS artifacts as it proceeds and
-finishes with a patient-level episode table plus optional shareable
-exports:</p>
+<p>The pipeline writes intermediate RDS artifacts to
+<code>outputFolder</code> and always runs export: shareable CSVs are
+written to <code>exportFolder</code> (default
+<code>outputFolder/export</code>).</p>
 <table class="table">
 <colgroup>
 <col width="30%">
@@ -139,8 +159,7 @@ exports:</p>
 </tr>
 <tr class="odd">
 <td><code>pps_concept_counts.csv</code></td>
-<td>PPS concept record counts per concept (used by export when
-<code>runExport = TRUE</code>).</td>
+<td>PPS concept record counts per concept (used by export).</td>
 </tr>
 <tr class="even">
 <td><code>pps_gest_timing_episodes.rds</code></td>
@@ -169,8 +188,8 @@ inference before merging back to HIPPS.</td>
 </tr>
 <tr class="odd">
 <td><code>export/</code></td>
-<td>De-identified summary CSVs and ZIP archive when
-<code>runExport = TRUE</code>. See the <a href="export.html">Export
+<td>De-identified summary CSVs (default:
+<code>outputFolder/export</code>). See the <a href="export.html">Export
 vignette</a> for file names, columns, and analysis use.</td>
 </tr>
 </tbody>
@@ -207,10 +226,10 @@ precision, harmonizes end and outcome from HIP vs PPS, and writes
 <code>conformToValidation = TRUE</code>, episode output is modified to
 remove overlapping episodes and episodes longer than 308 days.</li>
 <li>
-<strong>exportPregnancies</strong> — (Optional, when
-<code>runExport = TRUE</code>) Reads
-<code>final_pregnancy_episodes.rds</code> and writes shareable CSVs and
-a ZIP to <code>file.path(outputDir, "export")</code>. See the <a href="export.html">Export vignette</a>.</li>
+<strong>exportPregnancies</strong> — Reads
+<code>final_pregnancy_episodes.rds</code> and writes shareable CSVs to
+<code>exportFolder</code> (default
+<code>file.path(outputFolder, "export")</code>). See the <a href="export.html">Export vignette</a>.</li>
 </ol>
 </div>
 <div class="section level2">
@@ -422,28 +441,29 @@ both algorithms contributed to the episode, and one is NA for one-sided
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="op">-</span><span class="st">"type_concept_id"</span>, <span class="op">-</span><span class="st">"domain"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">start_date</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># Source:     SQL [?? x 6]</span></span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/RtmpOeCqYt/file24171e76fa5a.duckdb]</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/RtmpVTxumf/file25176c578fec.duckdb]</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># Ordered by: start_date</span></span></span>
 <span><span class="co">#&gt;   person_id observation_concept_id start_date end_date observation_concept_name </span></span>
 <span><span class="co">#&gt;       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>                  <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                    </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>        24                4<span style="text-decoration: underline;">094</span>910 2023-01-28 <span style="color: #BB0000;">NA</span>       Pregnancy test positive  </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>        24                 <span style="text-decoration: underline;">437</span>611 2023-03-15 <span style="color: #BB0000;">NA</span>       Ectopic pregnancy        </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>        24                4<span style="text-decoration: underline;">132</span>434 2023-03-15 <span style="color: #BB0000;">NA</span>       Gestation period, 8 weeks</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>        24                4<span style="text-decoration: underline;">132</span>434 2023-03-15 <span style="color: #BB0000;">NA</span>       Gestation period, 8 weeks</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>        24                 <span style="text-decoration: underline;">437</span>611 2023-03-15 <span style="color: #BB0000;">NA</span>       Ectopic pregnancy        </span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: type_concept_name &lt;chr&gt;</span></span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">outputDir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"pregnancy_output"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">outputFolder</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"pregnancy_output"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="va">outputDir</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputFolder <span class="op">=</span> <span class="va">outputFolder</span><span class="op">)</span>  <span class="co"># export runs by default to outputFolder/export</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">outputDir</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">outputFolder</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "attrition.csv"                "esd_concept_counts.csv"      </span></span>
-<span><span class="co">#&gt;  [3] "final_pregnancy_episodes.rds" "hip_concept_counts.csv"      </span></span>
-<span><span class="co">#&gt;  [5] "hip_episodes.rds"             "hipps_episodes.rds"          </span></span>
-<span><span class="co">#&gt;  [7] "log.txt"                      "pps_concept_counts.csv"      </span></span>
-<span><span class="co">#&gt;  [9] "pps_episodes.rds"             "runStart.csv"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">outputDir</span>, <span class="st">"final_pregnancy_episodes.rds"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  [3] "export"                       "final_pregnancy_episodes.rds"</span></span>
+<span><span class="co">#&gt;  [5] "hip_concept_counts.csv"       "hip_episodes.rds"            </span></span>
+<span><span class="co">#&gt;  [7] "hipps_episodes.rds"           "log.txt"                     </span></span>
+<span><span class="co">#&gt;  [9] "pps_concept_counts.csv"       "pps_episodes.rds"            </span></span>
+<span><span class="co">#&gt; [11] "runStart.csv"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">outputFolder</span>, <span class="st">"final_pregnancy_episodes.rds"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 39</span></span></span>
 <span><span class="co">#&gt;   person_id merge_episode_number final_episode_start_date final_episode_end_date</span></span>
 <span><span class="co">#&gt;       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>                <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>                </span></span>

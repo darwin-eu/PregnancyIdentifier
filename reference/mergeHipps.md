@@ -1,6 +1,6 @@
 # Merge HIP and PPS episodes into a unified HIPPS episode table
 
-Reads previously-saved HIP and PPS outputs from \`outputDir\`, merges
+Reads previously-saved HIP and PPS outputs from \`outputFolder\`, merges
 HIP and PPS episodes based on temporal overlap, resolves many-to-many
 overlaps by selecting the best-matching pairs, and returns a single
 per-person episode table with standardized columns used downstream by
@@ -9,12 +9,12 @@ ESD and reporting.
 ## Usage
 
 ``` r
-mergeHipps(outputDir, logger)
+mergeHipps(outputFolder, logger)
 ```
 
 ## Arguments
 
-- outputDir:
+- outputFolder:
 
   (\`character(1)\`) Directory containing intermediate RDS artifacts:
   \`pps_episodes.rds\`, \`hip_episodes.rds\`
@@ -26,13 +26,13 @@ mergeHipps(outputDir, logger)
 ## Value
 
 Invisibly returns \`NULL\` and writes \`hipps_episodes.rds\` to
-\`outputDir\`.
+\`outputFolder\`.
 
 ## Details
 
 Key steps:
 
-- Load HIP episodes and PPS episodes from \`outputDir\`
+- Load HIP episodes and PPS episodes from \`outputFolder\`
 
 - Merge HIP + PPS episodes by overlap; flag episodes involved in
   many-to-many overlaps

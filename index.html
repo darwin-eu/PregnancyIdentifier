@@ -6,6 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model) • PregnancyIdentifier</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" sizes="any" href="favicon.ico">
+<link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -13,6 +18,7 @@
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)">
 <meta name="description" content="Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et al. (2024) &lt;doi:10.1093/jamia/ocae195&gt;.">
 <meta property="og:description" content="Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et al. (2024) &lt;doi:10.1093/jamia/ocae195&gt;.">
+<meta property="og:image" content="https://darwin-eu-dev.github.io/PregnancyIdentifier/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -22,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,8 +53,10 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="pregnancyidentifier">PregnancyIdentifier<a class="anchor" aria-label="anchor" href="#pregnancyidentifier"></a>
-</h1></div>
+<div class="page-header">
+<img src="logo.png" class="logo" alt=""><h1 id="pregnancyidentifier">PregnancyIdentifier<a class="anchor" aria-label="anchor" href="#pregnancyidentifier"></a>
+</h1>
+</div>
 <p><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg" alt="Tests (PostgreSQL)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg" alt="Tests (Snowflake)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg" alt="Tests (Spark)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml/badge.svg" alt="Tests (SQLServer)"></a></p>
 <p>Identify pregnancy episodes in OMOP CDM data using the <strong>HIPPS</strong> algorithm (Smith et al. 2024, <a href="https://doi.org/10.1093/jamia/ocae195" class="external-link">doi:10.1093/jamia/ocae195</a>).</p>
 <hr>
@@ -78,17 +86,11 @@
 <span></span>
 <span><span class="fu"><a href="reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span></span>
 <span>  cdm       <span class="op">=</span> <span class="va">cdm</span>,</span>
-<span>  outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>,</span>
+<span>  outputFolder <span class="op">=</span> <span class="st">"pregnancy_output"</span>,</span>
 <span>  startDate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2000-01-01"</span><span class="op">)</span>,</span>
-<span>  endDate   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  runExport <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  endDate   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><strong>Use the result:</strong><br><code>pregnancy_output/final_pregnancy_episodes.rds</code> is a data frame with one row per pregnancy episode: <code>person_id</code>, <code>final_episode_start_date</code>, <code>final_episode_end_date</code>, <code>final_outcome_category</code>, <code>esd_precision_days</code>, and other esd_* QA/concordance columns. Load it for cohort definition, export, or further analysis.</p>
-<p>Optional: set <strong><code>runExport = TRUE</code></strong> to run export automatically after ESD, or run <strong>export</strong> yourself for de-identified summary CSVs and a ZIP:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>, runExport <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co"># or:</span></span>
-<span><span class="fu"><a href="reference/exportPregnancies.html">exportPregnancies</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"pregnancy_output"</span>, exportDir <span class="op">=</span> <span class="st">"pregnancy_output/export"</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Use the result:</strong><br><code>pregnancy_output/final_pregnancy_episodes.rds</code> is a data frame with one row per pregnancy episode: <code>person_id</code>, <code>final_episode_start_date</code>, <code>final_episode_end_date</code>, <code>final_outcome_category</code>, <code>esd_precision_days</code>, and other esd_* QA/concordance columns. Shareable aggregated CSVs are written to <code>pregnancy_output/export</code> by default (override with <code>exportFolder</code>). Use <code><a href="reference/exportPregnancies.html">exportPregnancies()</a></code> separately if you need to re-export to a different folder.</p>
 <hr>
 </div>
 <div class="section level2">

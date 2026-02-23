@@ -5,12 +5,12 @@ Create a new logger
 ## Usage
 
 ``` r
-makeLogger(outputDir, outputLogToConsole = TRUE)
+makeLogger(outputFolder, outputLogToConsole = TRUE)
 ```
 
 ## Arguments
 
-- outputDir:
+- outputFolder:
 
   The directory where the log should be created
 

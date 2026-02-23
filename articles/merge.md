@@ -68,7 +68,7 @@ the pipeline:
 
 ## Inputs
 
-`mergeHipps(outputDir, logger)` reads from `outputDir`:
+`mergeHipps(outputFolder, logger)` reads from `outputFolder`:
 
 | File                 | Source                                                                                | Main columns                                                                                                                                     |
 |----------------------|---------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -284,7 +284,7 @@ After deduplication, `addMergedEpisodeDetails()`:
 ## Output file: hipps_episodes.rds
 
 [`mergeHipps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mergeHipps.md)
-writes a single file to `outputDir`:
+writes a single file to `outputFolder`:
 
 | File                   | Description                                                                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|

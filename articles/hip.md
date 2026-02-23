@@ -15,7 +15,7 @@ HIP is run via
 which assumes
 [`initPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/initPregnancies.md)
 has already been run and that the CDM contains `preg_hip_records` and
-`preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputDir` and
+`preg_hip_concepts`. HIP writes `hip_episodes.rds` to `outputFolder` and
 adds the internal table `cdm$preg_hip_episodes` during execution.
 
 ## Two-pass structure
@@ -144,7 +144,7 @@ cdm <- initPregnancies(cdm, startDate = as.Date("2000-01-01"), endDate = Sys.Dat
 
 cdm <- runHip(
   cdm,
-  outputDir  = "hip_output",
+  outputFolder  = "hip_output",
   startDate  = as.Date("2000-01-01"),
   endDate    = Sys.Date(),
   justGestation = TRUE,

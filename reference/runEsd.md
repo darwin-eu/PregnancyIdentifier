@@ -8,7 +8,7 @@ start dates for merged HIP/PPS episodes.
 ``` r
 runEsd(
   cdm,
-  outputDir,
+  outputFolder,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
   logger,
@@ -24,7 +24,7 @@ runEsd(
   A CDM reference, must include all necessary OMOP tables and concept
   sets for pregnancy inference algorithms.
 
-- outputDir:
+- outputFolder:
 
   Character. Path to directory where input and output RDS files reside.
 
@@ -45,7 +45,7 @@ runEsd(
 - debugMode:
 
   (\`logical(1)\`) Should the ESD algorithm write intermediate datasets
-  to the outputDir? \`TRUE\` or \`FALSE\` (default)
+  to the outputFolder? \`TRUE\` or \`FALSE\` (default)
 
 - conformToValidation:
 
@@ -56,8 +56,8 @@ runEsd(
 ## Value
 
 Invisibly returns `NULL`. Main result is written as an RDS file
-(`final_pregnancy_episodes.rds`) to `outputDir`. The output contains one
-row per inferred pregnancy episode. Columns include:
+(`final_pregnancy_episodes.rds`) to `outputFolder`. The output contains
+one row per inferred pregnancy episode. Columns include:
 `final_episode_start_date`, `final_episode_end_date`,
 `final_outcome_category` (no prefix), and ESD-derived columns with
 `esd_` prefix: `esd_precision_days`, `esd_precision_category`,
@@ -71,7 +71,7 @@ plus merge/HIPPS metadata (e.g. `recorded_episode_start`,
 
 This function performs the following major steps:
 
-1.  Loads previously merged HIPPS episode table from `outputDir`.
+1.  Loads previously merged HIPPS episode table from `outputFolder`.
 
 2.  Extracts gestational timing concept evidence (e.g. gestational week,
     trimester concepts) for each episode within the specified date
@@ -89,4 +89,4 @@ This function performs the following major steps:
     inferred dates.
 
 6.  Writes the resulting cohort of identified pregnancy episodes to an
-    RDS file (`final_pregnancy_episodes.rds`) in `outputDir`.
+    RDS file (`final_pregnancy_episodes.rds`) in `outputFolder`.

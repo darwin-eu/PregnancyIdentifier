@@ -252,7 +252,7 @@ Each episode represents a **reconstructed pregnancy**.
 ## Outputs written by runPps()
 
 [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)
-writes the following files to `outputDir`:
+writes the following files to `outputFolder`:
 
 - **pps_episodes.rds** — Always written. PPS episodes with inferred
   outcomes (used by

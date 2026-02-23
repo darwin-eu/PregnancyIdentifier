@@ -6,6 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Export: shareable summary CSVs • PregnancyIdentifier</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -20,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,8 +54,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-
-      <h1>Export: shareable summary CSVs</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>Export: shareable summary CSVs</h1>
             
       
 
@@ -62,36 +66,41 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>After the pipeline has produced
-<strong>final_pregnancy_episodes.rds</strong> (see the <a href="esd.html">ESD vignette</a>), the <strong>export</strong> step
-turns those results and related artifacts into <strong>shareable CSV
-files</strong> for QA and cross-site comparison. Export is run via
-<code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code> and writes all CSVs (and a ZIP archive)
-to an <strong>export directory</strong>. Small cell counts can be
-suppressed using <code>minCellCount</code>.</p>
+<p>The pipeline writes <strong>person-level and episode-level
+data</strong> (e.g. <code>final_pregnancy_episodes.rds</code>) to
+<code>outputFolder</code>. The <strong>export</strong> step turns those
+results and related artifacts into <strong>shareable aggregated CSV
+files</strong> for QA, cross-site comparison, and use as input to the
+Shiny app. Export runs automatically as part of
+<code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code> and writes to
+<code>exportFolder</code> (default
+<code>file.path(outputFolder, "export")</code>). Small cell counts can
+be suppressed using <code>minCellCount</code>. Alternatively, run
+<code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code> yourself to write to a chosen
+directory.</p>
 <p>This vignette lists every exported CSV: file name, columns, meaning
 of each column, and how each file is used in analysis.</p>
 </div>
 <div class="section level2">
 <h2 id="how-to-run-export">How to run export<a class="anchor" aria-label="anchor" href="#how-to-run-export"></a>
 </h2>
-<p>Export is optional. Run it after the full pipeline (or ensure
-<code>outputDir</code> already contains
-<code>final_pregnancy_episodes.rds</code> and
-<code>runStart.csv</code>):</p>
+<p>Export runs automatically in <code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>.
+Shareable CSVs go to <code>exportFolder</code>; default is
+<code>file.path(outputFolder, "export")</code>. Override with the
+<code>exportFolder</code> argument:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://darwin-eu.github.io/PregnancyIdentifier/" class="external-link">PregnancyIdentifier</a></span><span class="op">)</span></span>
 <span><span class="va">cdm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mockPregnancyCdm.html">mockPregnancyCdm</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputDir <span class="op">=</span> <span class="st">"out"</span>, runExport <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="co"># Then run export explicitly:</span></span>
-<span><span class="fu"><a href="../reference/exportPregnancies.html">exportPregnancies</a></span><span class="op">(</span></span>
-<span>  cdm       <span class="op">=</span> <span class="va">cdm</span>,</span>
-<span>  outputDir <span class="op">=</span> <span class="st">"out"</span>,</span>
-<span>  exportDir <span class="op">=</span> <span class="st">"out/export"</span>,</span>
-<span>  minCellCount <span class="op">=</span> <span class="fl">5L</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Or use <code>runPregnancyIdentifier(..., runExport = TRUE)</code> so
-export runs automatically after ESD.</p>
+<span><span class="co"># Export runs by default; CSVs go to "out/export":</span></span>
+<span><span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputFolder <span class="op">=</span> <span class="st">"out"</span><span class="op">)</span></span>
+<span><span class="co"># Or write export CSVs to a custom folder:</span></span>
+<span><span class="fu"><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier</a></span><span class="op">(</span><span class="va">cdm</span>, outputFolder <span class="op">=</span> <span class="st">"out"</span>, exportFolder <span class="op">=</span> <span class="st">"path/to/my_export"</span><span class="op">)</span></span></code></pre></div>
+<p>To run export alone (e.g. after a previous pipeline run), use
+<code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code> with the same <code>outputFolder</code>
+and your chosen <code>exportDir</code>. The same CSVs are produced;
+<code>exportFolder</code> in <code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>
+corresponds to <code>exportDir</code> in
+<code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code>.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -114,8 +123,8 @@ runs so you can track provenance and CDM version.</p>
 <div class="section level3">
 <h3 id="pps_concept_counts-csv">pps_concept_counts.csv<a class="anchor" aria-label="anchor" href="#pps_concept_counts-csv"></a>
 </h3>
-<p><strong>Source:</strong> Copied from <code>outputDir</code> (written
-by <code><a href="../reference/runPps.html">runPps()</a></code>).</p>
+<p><strong>Source:</strong> Copied from <code>outputFolder</code>
+(written by <code><a href="../reference/runPps.html">runPps()</a></code>).</p>
 <p><strong>Content:</strong> Counts of pregnancy-related concepts used
 by PPS per concept (e.g. concept_id, concept name, count of
 records).</p>
@@ -127,7 +136,7 @@ expected pregnancy concepts are present.</p>
 <div class="section level3">
 <h3 id="hip_concept_counts-csv">hip_concept_counts.csv<a class="anchor" aria-label="anchor" href="#hip_concept_counts-csv"></a>
 </h3>
-<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+<p><strong>Source:</strong> Copied from <code>outputFolder</code> when
 present (written by the pipeline when HIP concept counts are
 produced).</p>
 <p><strong>Content:</strong> Counts of HIP pregnancy-related concepts
@@ -139,7 +148,7 @@ used for concept coverage and cross-site comparison.</p>
 <div class="section level3">
 <h3 id="esd_concept_counts-csv">esd_concept_counts.csv<a class="anchor" aria-label="anchor" href="#esd_concept_counts-csv"></a>
 </h3>
-<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+<p><strong>Source:</strong> Copied from <code>outputFolder</code> when
 present (written by the pipeline when ESD concept counts are
 produced).</p>
 <p><strong>Content:</strong> Counts of ESD timing concepts used per
@@ -151,7 +160,7 @@ and cross-site comparison.</p>
 <div class="section level3">
 <h3 id="attrition-csv">attrition.csv<a class="anchor" aria-label="anchor" href="#attrition-csv"></a>
 </h3>
-<p><strong>Source:</strong> Copied from <code>outputDir</code> when
+<p><strong>Source:</strong> Copied from <code>outputFolder</code> when
 present (written by pipeline steps such as HIP and merge).</p>
 <p><strong>Content:</strong> Step-by-step record and person counts
 (prior/post, dropped) through the pipeline.</p>
@@ -162,8 +171,8 @@ for debugging and cohort flow.</p>
 <div class="section level3">
 <h3 id="log-txt">log.txt<a class="anchor" aria-label="anchor" href="#log-txt"></a>
 </h3>
-<p><strong>Source:</strong> Copied from <code>outputDir</code> (pipeline
-log from <code><a href="../reference/makeLogger.html">makeLogger()</a></code>).</p>
+<p><strong>Source:</strong> Copied from <code>outputFolder</code>
+(pipeline log from <code><a href="../reference/makeLogger.html">makeLogger()</a></code>).</p>
 <p><strong>Content:</strong> Plain-text log of pipeline steps (init,
 HIP, PPS, merge, ESD).</p>
 <p><strong>Purpose:</strong> Audit trail for the run. Used for debugging
@@ -209,17 +218,6 @@ be suppressed by <code>minCellCount</code>.</p>
 <p><strong>Purpose:</strong> Counts and percentages of pregnancies by
 age (by year and by boundary groups &lt;12 and &gt;55). Used for
 age-stratified summaries and checking extreme-age pregnancy counts.</p>
-<hr>
-</div>
-<div class="section level3">
-<h3 id="age-csv">age.csv<a class="anchor" aria-label="anchor" href="#age-csv"></a>
-</h3>
-<p><strong>Columns:</strong> <strong>age_pregnancy_start</strong> (age
-in years at pregnancy start) for each episode, plus
-<strong>cdm_name</strong>, <strong>date_run</strong>,
-<strong>date_export</strong>, <strong>pkg_version</strong>.</p>
-<p><strong>Purpose:</strong> Raw age-at-start values per episode for
-custom analyses.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -390,14 +388,16 @@ sites.</p>
 <div class="section level3">
 <h3 id="pregnancy_overlap_counts-csv">pregnancy_overlap_counts.csv<a class="anchor" aria-label="anchor" href="#pregnancy_overlap_counts-csv"></a>
 </h3>
-<p><strong>Columns:</strong> <strong>n_records_with_previous</strong>
-(number of episode records that have a previous episode for that
-person), <strong>n_overlap_true</strong> (count where episode start ≤
-previous episode end), <strong>n_overlap_false</strong> (count where no
-overlap), <strong>n_persons_with_multiple_episodes</strong>, plus
-<strong>cdm_name</strong>, <strong>date_run</strong>,
-<strong>date_export</strong>, <strong>pkg_version</strong>. Only persons
-with more than one episode are considered.</p>
+<p><strong>Columns:</strong> <strong>colName</strong> (value
+<code>"overlap"</code> for all rows), <strong>overlap</strong> (FALSE,
+TRUE, or NA per row), <strong>n</strong> (count of records in that
+category), <strong>total</strong> (total episode records, same for all
+rows), <strong>pct</strong> (percentage of records in that category),
+plus <strong>cdm_name</strong>, <strong>date_run</strong>,
+<strong>date_export</strong>, <strong>pkg_version</strong>. One row per
+overlap category: FALSE (no temporal overlap with previous episode),
+TRUE (episode start ≤ previous episode end within person), NA (no
+previous episode for that person, e.g. first episode).</p>
 <p><strong>Purpose:</strong> Summary counts of overlapping inferred
 pregnancy intervals. Used for data quality (overlaps may indicate
 algorithm or data issues).</p>
@@ -536,126 +536,121 @@ share or archive a full export.</p>
 <td>Audit, debugging</td>
 </tr>
 <tr class="odd">
-<td>age.csv</td>
-<td>Age-at-start per episode</td>
-<td>Custom age analyses</td>
-</tr>
-<tr class="even">
 <td>age_summary.csv</td>
 <td>Age-at-start distribution (summary stats)</td>
 <td>Cohort description, feasibility</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>age_summary_first_pregnancy.csv</td>
 <td>Age at first LB (summary)</td>
 <td>First-birth age description</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>age_summary_groups.csv</td>
 <td>Age counts (by year and &lt;12, &gt;55)</td>
 <td>Age stratification, boundary checks</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>precision_days.csv</td>
 <td>Density of ESD precision (days)</td>
 <td>Start-date precision, site comparison</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>episode_frequency.csv</td>
 <td>Total episodes, total individuals</td>
 <td>Denominators, site summaries</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>pregnancy_frequency.csv</td>
 <td>Episodes per person (1, 2, 3, …)</td>
 <td>Parity-like distribution</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>episode_frequency_summary.csv</td>
 <td>Summary of episodes per person</td>
 <td>Cohort description</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>gestational_age_days_summary.csv</td>
 <td>Summary of gestational length (days)</td>
 <td>Duration distribution</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>gestational_age_days_counts.csv</td>
 <td>Counts &lt;1 day, &gt;308 days</td>
 <td>Out-of-range duration QA</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>gestational_weeks.csv</td>
 <td>Counts by gestational week</td>
 <td>GA distribution, preterm/term</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>gestational_age_days_per_category_summary.csv</td>
 <td>Gestational length by outcome</td>
 <td>Outcome-specific duration</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>yearly_trend.csv</td>
 <td>Episode count by year and date column</td>
 <td>Temporal trends</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>yearly_trend_missing.csv</td>
 <td>Missing-date count by column/year</td>
 <td>Completeness</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>monthly_trends.csv</td>
 <td>Episode count by month</td>
 <td>Seasonality, completeness</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>monthly_trend_missing.csv</td>
 <td>Missing-date count by column/month</td>
 <td>Completeness</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>observation_period_range.csv</td>
 <td>Min/max observation period years</td>
 <td>Study window, coverage</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>pregnancy_overlap_counts.csv</td>
 <td>Overlap summary (n_overlap_true/false, etc.)</td>
 <td>Overlap QA</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>date_consistency.csv</td>
 <td>Proportion NA per date column</td>
 <td>Completeness by field</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>swapped_dates.csv</td>
 <td>Count of start &gt; end (HIP/PPS)</td>
 <td>Date logic QA</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>outcome_categories_count.csv</td>
 <td>Outcome counts by algorithm</td>
 <td>Outcome mix, algorithm agreement</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>delivery_mode_summary.csv</td>
 <td>Delivery mode by outcome</td>
 <td>Cesarean/vaginal by outcome</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>concept_check.csv</td>
 <td>Concept timing vs episodes</td>
 <td>Concept QA</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>quality_check_cleanup.csv</td>
 <td>Cleanup/validation QA</td>
 <td>Cleanup QA</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>attrition_if_cleanup.csv</td>
 <td>Attrition when cleanup applied</td>
 <td>Cleanup impact (when present)</td>

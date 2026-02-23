@@ -22,11 +22,11 @@ converting that evidence into:
 
 ESD is run via
 [`runEsd()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runEsd.md),
-which reads `hipps_episodes.rds` from `outputDir`, pulls gestational
+which reads `hipps_episodes.rds` from `outputFolder`, pulls gestational
 timing concepts from the CDM, infers start dates and precision, merges
 ESD results back onto HIPPS metadata (including resolving final outcome
 and end date when HIP and PPS disagree), and writes
-**final_pregnancy_episodes.rds** to `outputDir`. Optionally, with
+**final_pregnancy_episodes.rds** to `outputFolder`. Optionally, with
 `debugMode = TRUE`, it also writes **esd.rds** (episode-level start
 inference only, before merging back).
 
@@ -155,7 +155,8 @@ on the row; ESD never uses **merge_episode_end** for the reported end.
 ## Inputs
 
 - **cdm** — CDM reference (for concept and domain tables).
-- **outputDir** — Directory containing `hipps_episodes.rds` (produced by
+- **outputFolder** — Directory containing `hipps_episodes.rds` (produced
+  by
   [`mergeHipps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mergeHipps.md)).
 - **startDate**, **endDate** — Study window for filtering concept dates.
 - **logger** — Optional log4r logger.
@@ -242,7 +243,7 @@ as category `week_poor-support`).
     `endDate` (episodes with missing dates are retained).
 
 5.  **Write** — Saves the final data frame to
-    **final_pregnancy_episodes.rds** in `outputDir`. If
+    **final_pregnancy_episodes.rds** in `outputFolder`. If
     `debugMode = TRUE`, **esd.rds** is written after step 2
     (episode-level start inference only).
 
@@ -256,9 +257,10 @@ as category `week_poor-support`).
 ## Running ESD
 
 ESD is normally run as step 5 of
-[`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md).
-To run it alone (e.g. for debugging), ensure `outputDir` already
-contains `hipps_episodes.rds`:
+[`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md);
+step 6 is export (shareable CSVs to `exportFolder`, default
+`outputDir/export`). To run ESD alone (e.g. for debugging), ensure
+`outputDir` already contains `hipps_episodes.rds`:
 
 ``` r
 library(PregnancyIdentifier)
@@ -266,12 +268,12 @@ cdm <- mockPregnancyCdm()
 # ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
 
 runEsd(
-  cdm       = cdm,
-  outputDir = "pregnancy_output",
-  startDate = as.Date("2000-01-01"),
-  endDate   = Sys.Date(),
-  logger    = makeLogger("pregnancy_output"),
-  debugMode = FALSE
+  cdm          = cdm,
+  outputFolder = "pregnancy_output",
+  startDate    = as.Date("2000-01-01"),
+  endDate      = Sys.Date(),
+  logger       = makeLogger("pregnancy_output"),
+  debugMode    = FALSE
 )
 # final_pregnancy_episodes.rds is written to pregnancy_output/
 ```

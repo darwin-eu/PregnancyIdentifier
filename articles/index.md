@@ -14,3 +14,5 @@
   algorithm](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/esd.md):
 - [Export: shareable summary
   CSVs](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md):
+- [Comparing algorithm output with the Pregnancy Extension Table
+  (PET)](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/compareWithPET.md):

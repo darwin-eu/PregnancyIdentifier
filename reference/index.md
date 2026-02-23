@@ -25,9 +25,11 @@
 - [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)
   : Run the PPS Algorithm to Identify Pregnancy Episodes
 - [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md)
-  : Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD,
-  optionally export)
+  : Run PregnancyIdentifier end-to-end (HIP + PPS + merge + ESD +
+  export)
 - [`validateEpisodePeriods()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/validateEpisodePeriods.md)
   : Validate episode periods: overlaps within person and max duration
 - [`viewResults()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/viewResults.md)
   : View the results in the Shiny app
+- [`zipExportFolder()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/zipExportFolder.md)
+  : Create a ZIP archive of an export folder
