@@ -4,7 +4,13 @@
 \alias{exportPregnancies}
 \title{Export pregnancy results into shareable summary CSVs}
 \usage{
-exportPregnancies(cdm, outputFolder, exportFolder, minCellCount = 5, res = NULL)
+exportPregnancies(
+  cdm,
+  outputFolder,
+  exportFolder,
+  minCellCount = 5,
+  res = NULL
+)
 }
 \arguments{
 \item{cdm}{(`cdm_reference`) CDM reference used to compute exports that require
