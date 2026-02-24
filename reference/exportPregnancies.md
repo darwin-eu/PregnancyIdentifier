@@ -5,7 +5,7 @@ pipeline (from `outputFolder`; see
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md)),
 generates a set of de-identified summary tables (counts, age summaries,
 timing distributions, outcome counts, and date completeness checks), and
-writes them to `exportDir`.
+writes them to `exportFolder`.
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md)
 runs this step automatically and writes to `exportFolder` (default
 `file.path(outputDir, "export")`); use `exportPregnancies()` when you
@@ -18,7 +18,13 @@ same folder) to create an archive.
 ## Usage
 
 ``` r
-exportPregnancies(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL)
+exportPregnancies(
+  cdm,
+  outputFolder,
+  exportFolder,
+  minCellCount = 5,
+  res = NULL
+)
 ```
 
 ## Arguments
@@ -33,7 +39,7 @@ exportPregnancies(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL)
   (\`character(1)\`) Directory containing pipeline outputs (e.g.,
   \`final_pregnancy_episodes.rds\`, logs, \`pps_concept_counts.csv\`).
 
-- exportDir:
+- exportFolder:
 
   (\`character(1)\`) Directory where shareable CSVs will be written.
 
@@ -51,7 +57,7 @@ exportPregnancies(cdm, outputFolder, exportDir, minCellCount = 5, res = NULL)
 
 ## Value
 
-Invisibly returns \`NULL\`. Writes CSVs to \`exportDir\`.
+Invisibly returns \`NULL\`. Writes CSVs to \`exportFolder\`.
 
 ## Details
 

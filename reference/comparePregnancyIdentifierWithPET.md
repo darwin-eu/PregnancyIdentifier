@@ -1,7 +1,7 @@
 # Compare runPregnancyIdentifier results with the OMOP Pregnancy Extension Table (PET)
 
 Compares algorithm output (from `final_pregnancy_episodes.rds`) to the
-PET table and writes comparison summaries to `outputFolder`. Comparisons
+PET table and writes comparison summaries to `exportFolder`. Comparisons
 include: pregnancy episode and person counts; raw and filtered
 (gestation 0-308, end \>= start) person overlap; time-overlap summaries
 (PET-\>IPE and IPE-\>PET, 0 and 1 day); Venn counts (both, PET only,
@@ -17,11 +17,11 @@ and pregnancy duration distributions.
 comparePregnancyIdentifierWithPET(
   cdm,
   outputFolder,
+  exportFolder,
   petSchema,
   petTable,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
-  logger = NULL,
   outputLogToConsole = TRUE
 )
 ```
@@ -36,8 +36,14 @@ comparePregnancyIdentifierWithPET(
 - outputFolder:
 
   `character(1)`. Directory containing pipeline outputs
-  (`final_pregnancy_episodes.rds`) and where comparison CSVs and
-  optional plots will be written. Created if it does not exist.
+  (`final_pregnancy_episodes.rds`), i.e. the episode-level input to the
+  comparison.
+
+- exportFolder:
+
+  `character(1)`. Directory where comparison CSVs and `log.txt` are
+  written. Created if it does not exist. Log file is appended if it
+  already exists.
 
 - petSchema:
 
@@ -65,20 +71,15 @@ comparePregnancyIdentifierWithPET(
   by start date per person), which can reduce many-to-many candidate
   pairs. Default `FALSE`.
 
-- logger:
-
-  Optional [`log4r::logger`](https://rdrr.io/pkg/log4r/man/logger.html).
-  If `NULL`, a logger is created via `makeLogger(outputFolder)`.
-
 - outputLogToConsole:
 
-  `logical(1)`. Used only when `logger` is `NULL`. Whether to log to the
-  console as well as to the log file.
+  `logical(1)`. Whether to log to the console as well as to
+  `file.path(exportFolder, "log.txt")`.
 
 ## Value
 
 Nothing. The summarised result is written to
-`file.path(outputFolder, "pet_comparison_summarised_result.csv")`. Use
+`file.path(exportFolder, "pet_comparison_summarised_result.csv")`. Use
 [`omopgenerics::importSummarisedResult()`](https://darwin-eu.github.io/omopgenerics/reference/importSummarisedResult.html)
 to read it and
 [`visOmopResults::visTable()`](https://darwin-eu.github.io/visOmopResults/reference/visTable.html)

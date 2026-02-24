@@ -13,7 +13,7 @@ CSVs and PET comparison outputs."><meta property="og:image" content="https://dar
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.0.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,21 +47,21 @@ CSVs and PET comparison outputs.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">zipExportFolder</span><span class="op">(</span><span class="va">exportDir</span>, zipPath <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">zipExportFolder</span><span class="op">(</span><span class="va">exportFolder</span>, zipPath <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-exportdir">exportDir<a class="anchor" aria-label="anchor" href="#arg-exportdir"></a></dt>
+<dl><dt id="arg-exportfolder">exportFolder<a class="anchor" aria-label="anchor" href="#arg-exportfolder"></a></dt>
 <dd><p>(<code>character(1)</code>) Path to the export folder (contents will
 be zipped).</p></dd>
 
 
 <dt id="arg-zippath">zipPath<a class="anchor" aria-label="anchor" href="#arg-zippath"></a></dt>
 <dd><p>(<code>character(1)</code> or <code>NULL</code>) Full path for the output ZIP
-file. If <code>NULL</code>, the ZIP is created inside <code>exportDir</code> with a
+file. If <code>NULL</code>, the ZIP is created inside <code>exportFolder</code> with a
 name like <code>YYYY-MM-DD-version-results.zip</code> (using today's date and
 package version). Supply <code>zipPath</code> for a custom name (e.g. including
 your CDM name).</p></dd>

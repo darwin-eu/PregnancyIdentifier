@@ -36,10 +36,10 @@ runPregnancyIdentifier(cdm, outputFolder = "out", exportFolder = "path/to/my_exp
 
 To run export alone (e.g. after a previous pipeline run), use
 [`exportPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.md)
-with the same `outputFolder` and your chosen `exportDir`. The same CSVs
-are produced; `exportFolder` in
+with the same `outputFolder` and your chosen `exportFolder`. The same
+CSVs are produced; `exportFolder` in
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md)
-corresponds to `exportDir` in
+corresponds to `exportFolder` in
 [`exportPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.md).
 
 ------------------------------------------------------------------------

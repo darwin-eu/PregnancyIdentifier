@@ -10,19 +10,19 @@ outputs.
 ## Usage
 
 ``` r
-zipExportFolder(exportDir, zipPath = NULL)
+zipExportFolder(exportFolder, zipPath = NULL)
 ```
 
 ## Arguments
 
-- exportDir:
+- exportFolder:
 
   (`character(1)`) Path to the export folder (contents will be zipped).
 
 - zipPath:
 
   (`character(1)` or `NULL`) Full path for the output ZIP file. If
-  `NULL`, the ZIP is created inside `exportDir` with a name like
+  `NULL`, the ZIP is created inside `exportFolder` with a name like
   `YYYY-MM-DD-version-results.zip` (using today's date and package
   version). Supply `zipPath` for a custom name (e.g. including your CDM
   name).
