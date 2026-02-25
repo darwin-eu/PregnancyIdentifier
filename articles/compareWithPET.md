@@ -147,7 +147,7 @@ kable(sr_table(res, "episode_counts", "source"), format = "html", caption = "Epi
 
 | source    | n_episodes | n_persons |
 |:----------|:-----------|:----------|
-| algorithm | 36         | 32        |
+| algorithm | 34         | 32        |
 | pet       | 33         | 25        |
 
 Episode counts: algorithm vs PET
@@ -163,7 +163,7 @@ kable(sr_table(res, "protocol_summary"), format = "html", caption = "Protocol su
 
 | variable_level | total_pet_episodes | total_algorithm_episodes | total_matched_episodes |
 |:---------------|:-------------------|:-------------------------|:-----------------------|
-| overall        | 33                 | 36                       | 27                     |
+| overall        | 33                 | 34                       | 27                     |
 
 Protocol summary (for reporting)
 
@@ -178,7 +178,7 @@ kable(sr_table(res, "person_overlap", "metric"), format = "html", caption = "Per
 | metric                | n_persons |
 |:----------------------|:----------|
 | raw_person_overlap    | 25        |
-| cohort_person_overlap | 23        |
+| cohort_person_overlap | 21        |
 
 Person overlap
 
@@ -197,7 +197,7 @@ kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn
 |:---------------|:-----------|:--------------|:--------------|
 | both           | 27         | 27            | 27            |
 | pet_only       | 6          | 27            | 27            |
-| algorithm_only | 9          | 27            | 27            |
+| algorithm_only | 7          | 27            | 27            |
 
 Venn counts (one-to-one matching)
 
@@ -211,12 +211,12 @@ Venn counts (one-to-one matching)
 kable(sr_table(res, "time_overlap_summary", "label"), format = "html", caption = "Time overlap (days) per episode")
 ```
 
-| label                              | min | q25 | median | q75 | max | sd               | n_episodes | n_persons |
-|:-----------------------------------|:----|:----|:-------|:----|:----|:-----------------|:-----------|:----------|
-| PET -\> IPE 0 day overlap required | 0   | 54  | 146    | 278 | 378 | 117.734638385471 | 33         | 25        |
-| PET -\> IPE 1 day overlap required | 16  | 139 | 148    | 278 | 378 | 99.8790864437191 | 27         | 25        |
-| IPE -\> PET 0 day overlap required | 0   | 12  | 143    | 278 | 378 | 121.024108840491 | 36         | 32        |
-| IPE -\> PET 1 day overlap required | 16  | 139 | 148    | 278 | 378 | 99.8790864437191 | 27         | 25        |
+| label                              | min | q25  | median | q75    | max | sd               | n_episodes | n_persons |
+|:-----------------------------------|:----|:-----|:-------|:-------|:----|:-----------------|:-----------|:----------|
+| PET -\> IPE 0 day overlap required | 0   | 57   | 147    | 278    | 378 | 116.763869139232 | 33         | 25        |
+| PET -\> IPE 1 day overlap required | 16  | 139  | 165    | 278.75 | 378 | 100.126005269445 | 28         | 25        |
+| IPE -\> PET 0 day overlap required | 0   | 52.5 | 146.5  | 278    | 378 | 121.742199346013 | 34         | 32        |
+| IPE -\> PET 1 day overlap required | 16  | 139  | 182    | 279.5  | 378 | 101.491708782378 | 27         | 25        |
 
 Time overlap (days) per episode
 
@@ -238,7 +238,7 @@ kable(sr_table(res, "confusion_2x2", "cell"), format = "html", caption = "2×2 c
 |:-----|:------|
 | TP   | 27    |
 | FN   | 6     |
-| FP   | 9     |
+| FP   | 7     |
 | TN   | NA    |
 
 2×2 confusion matrix (PET = reference)
@@ -257,7 +257,7 @@ kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Se
 | metric      | value             | numerator | denominator |
 |:------------|:------------------|:----------|:------------|
 | sensitivity | 0.818181818181818 | 27        | 33          |
-| ppv         | 0.75              | 27        | 36          |
+| ppv         | 0.794117647058823 | 27        | 34          |
 
 Sensitivity, specificity, PPV, NPV
 
@@ -282,10 +282,10 @@ if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
 }
 ```
 
-| variable_level  | mean               | median | sd               | min | q25  | q75 | max | n_matched |
-|:----------------|:-------------------|:-------|:-----------------|:----|:-----|:----|:----|:----------|
-| start_diff_days | 1.37037037037037   | 2      | 2.73366685478214 | -5  | -0.5 | 3   | 5   | 27        |
-| end_diff_days   | -0.666666666666667 | 0      | 2.54195563720897 | -5  | -3   | 1   | 4   | 27        |
+| variable_level  | mean              | median | sd               | min   | q25 | q75 | max  | n_matched |
+|:----------------|:------------------|:-------|:-----------------|:------|:----|:----|:-----|:----------|
+| start_diff_days | 54.7407407407407  | 2      | 278.660614173833 | -5    | -1  | 3.5 | 1449 | 27        |
+| end_diff_days   | -53.0740740740741 | 0      | 273.195045276324 | -1420 | -3  | 1   | 4    | 27        |
 
 Date difference summary (PET − algorithm, days)
 
@@ -323,7 +323,7 @@ kable(sr_table(res, "outcome_by_year"), format = "html", caption = "Outcome by y
 
 | variable_level  | overall_equal | overall_diff | lb_lb | lb_miscarriage | lb_ab | lb_sb | lb_unknown | sb_sb | sb_miscarriage | sb_ab | sb_lb | sb_unknown | ab_ab | ab_miscarriage | ab_lb | ab_sb | ab_unknown |
 |:----------------|:--------------|:-------------|:------|:---------------|:------|:------|:-----------|:------|:---------------|:------|:------|:-----------|:------|:---------------|:------|:------|:-----------|
-| same_year_pairs | 12            | 15           | 8     | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         |
+| same_year_pairs | 12            | 14           | 8     | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         |
 
 Outcome by year (same-year pairs)
 
@@ -333,10 +333,10 @@ Outcome by year (same-year pairs)
 kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
 ```
 
-| source    | n   | mean             | median | sd               | min | q25 | q75 | max |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:----|
-| algorithm | 36  | 201.388888888889 | 171.5  | 95.4900975502629 | 21  | 147 | 280 | 380 |
-| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377 |
+| source    | n   | mean             | median | sd               | min | q25 | q75    | max  |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:-------|:-----|
+| algorithm | 34  | 342.147058823529 | 278.5  | 424.284005251553 | 21  | 147 | 297.25 | 1749 |
+| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280    | 377  |
 
 Pregnancy duration (days) by source
 
@@ -354,10 +354,10 @@ if (!is.null(dm) && nrow(dm) > 0) {
 }
 ```
 
-| source    | n   | mean             | median | sd               | min | q25   | q75   | max |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:------|:------|:----|
-| algorithm | 27  | 196              | 147    | 99.401284622561  | 21  | 147   | 280   | 380 |
-| pet       | 27  | 193.962962962963 | 150    | 100.511568978777 | 15  | 138.5 | 279.5 | 377 |
+| source    | n   | mean             | median | sd               | min | q25   | q75   | max  |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:------|:------|:-----|
+| algorithm | 27  | 307.814814814815 | 266    | 385.84582782376  | 21  | 147   | 285.5 | 1606 |
+| pet       | 27  | 200              | 181    | 102.336173016643 | 15  | 138.5 | 283.5 | 377  |
 
 Duration (matched pairs only)
 
