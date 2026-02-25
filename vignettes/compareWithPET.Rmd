@@ -16,6 +16,8 @@ knitr::opts_chunk$set(
   fig.width = 6,
   fig.height = 4
 )
+# Ensure tempdir() exists (avoids build failures when TMPDIR is set but missing)
+if (!dir.exists(tempdir())) dir.create(tempdir(), recursive = TRUE, showWarnings = FALSE)
 ```
 
 # Overview
@@ -59,8 +61,10 @@ sr_table <- function(sr, var, level_name = "variable_level") {
 
 ```{r run-pipeline-and-pet, message=FALSE, warning=FALSE}
 # Directories: pipeline output (episode data), export (comparison results and log)
-outputDir    <- file.path(tempdir(), "pet_vignette_pipeline")
-exportFolder    <- file.path(tempdir(), "pet_vignette_comparison")
+td <- tempdir()
+if (!dir.exists(td)) dir.create(td, recursive = TRUE, showWarnings = FALSE)
+outputDir    <- file.path(td, "pet_vignette_pipeline")
+exportFolder    <- file.path(td, "pet_vignette_comparison")
 dir.create(outputDir, recursive = TRUE, showWarnings = FALSE)
 dir.create(exportFolder, recursive = TRUE, showWarnings = FALSE)
 

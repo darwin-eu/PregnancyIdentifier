@@ -99,10 +99,12 @@ if (!hasData) {
   }
 
   if (length(zipFiles) > 0) {
+    td <- tempdir()
+    if (!dir.exists(td)) dir.create(td, recursive = TRUE, showWarnings = FALSE)
     for (i in seq_along(zipFiles)) {
       writeLines(paste("Processing zip", zipFiles[i]))
-      tempFolder <- tempfile()
-      dir.create(tempFolder)
+      tempFolder <- tempfile(tmpdir = td)
+      dir.create(tempFolder, recursive = TRUE, showWarnings = FALSE)
       unzip(zipFiles[i], exdir = tempFolder, junkpaths = TRUE)
       csvFiles <- list.files(tempFolder, pattern = "\\.csv$")
       zipName <- gsub("\\.zip$", "", basename(zipFiles[i]))

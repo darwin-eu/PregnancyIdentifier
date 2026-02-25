@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE
 )
+# Ensure tempdir() exists (avoids build failures when TMPDIR is set but missing)
+if (!dir.exists(tempdir())) dir.create(tempdir(), recursive = TRUE, showWarnings = FALSE)
 ```
 
 The **PPS** (pregnancy-related concept) algorithm builds pregnancy episodes from **pregnancy-related concepts** across OMOP domains and their **expected gestational timing windows**. It is run via `runPps()` and produces episode-level outputs that are later merged with HIP episodes by `mergeHipps()`. See the [pipeline overview](algorithm.html) and the [Merge vignette](merge.html).

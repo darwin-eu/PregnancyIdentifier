@@ -1,7 +1,7 @@
 Package: PregnancyIdentifier
 Type: Package
 Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
-Version: 3.0.3
+Version: 3.0.4
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
     person("Julieta", "Politi", role = "aut", comment = c(ORCID = "0000-0001-7315-034X")),
@@ -13,7 +13,7 @@ Description: Identify pregnancy episodes in the OMOP CDM, based on
 License: Apache License (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.3.3
-URL: https://darwin-eu.github.io/PregnancyIdentifier/
+URL: https://darwin-eu-dev.github.io/PregnancyIdentifier
 BugReports: https://darwin-eu.github.io/PregnancyIdentifier/issues/
 Config/testthat/edition: 3
 Config/testthat/parallel: true

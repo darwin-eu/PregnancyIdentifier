@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE
 )
+# Ensure tempdir() exists (avoids build failures when TMPDIR is set but missing)
+if (!dir.exists(tempdir())) dir.create(tempdir(), recursive = TRUE, showWarnings = FALSE)
 ```
 
 The **merge** step combines pregnancy episodes from **HIP** (outcome-anchored) and **PPS** (timing-anchored) into a single HIPPS episode table. It is run via `mergeHipps()` and writes `hipps_episodes.rds`, which is the input to the ESD step. See the [pipeline overview](algorithm.html), [HIP](hip.html), [PPS](pps.html), and [ESD](esd.html) vignettes.

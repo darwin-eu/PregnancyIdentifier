@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
   message = FALSE,
   warning = FALSE
 )
+# Ensure tempdir() exists (avoids build failures when TMPDIR is set but missing)
+if (!dir.exists(tempdir())) dir.create(tempdir(), recursive = TRUE, showWarnings = FALSE)
 ```
 
 This vignette describes the **PregnancyIdentifier** pipeline, which implements the HIPPS approach to identify pregnancy episodes in OMOP CDM data. The pipeline has four main algorithm components, run in sequence:
@@ -141,7 +143,10 @@ cdm %>%
 ```
 
 ```{r, cache=TRUE}
-outputFolder <- file.path(tempdir(), "pregnancy_output")
+td <- tempdir()
+if (!dir.exists(td)) dir.create(td, recursive = TRUE, showWarnings = FALSE)
+outputFolder <- file.path(td, "pregnancy_output")
+dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 
 invisible(capture.output(
   runPregnancyIdentifier(cdm, outputFolder = outputFolder)  # export runs by default to outputFolder/export
