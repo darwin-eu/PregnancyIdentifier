@@ -13,7 +13,7 @@ Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm descri
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://darwin-eu.github.io/PregnancyIdentifier/}
+  \item \url{https://darwin-eu-dev.github.io/PregnancyIdentifier}
   \item Report bugs at \url{https://darwin-eu.github.io/PregnancyIdentifier/issues/}
 }
 

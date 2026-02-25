@@ -7,9 +7,8 @@ library(shinydashboard)
 library(shinycssloaders)
 library(plotly)
 library(amVennDiagram5)
-# cleanup environment variables
-
-rm(list = ls())
+# cleanup environment variables (preserve shinySettings when set by viewResults())
+rm(list = setdiff(ls(all.names = TRUE), "shinySettings"))
 
 ############################ Load modules ############################
 
