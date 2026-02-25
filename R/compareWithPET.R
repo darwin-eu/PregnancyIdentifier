@@ -50,6 +50,9 @@
 #'   matching the code removes overlapping episodes within PET and within the
 #'   algorithm (greedy non-overlapping by start date per person), which can
 #'   reduce many-to-many candidate pairs. Default \code{FALSE}.
+#' @param minCellCount \code{integer(1)}. Minimum count threshold for suppression.
+#'   Any record count or person count less than \code{minCellCount} is replaced
+#'   with \code{NA} in the exported summarised result. Default 5.
 #' @param outputLogToConsole \code{logical(1)}. Whether to log to the console as
 #'   well as to \code{file.path(exportFolder, "log.txt")}.
 #'
@@ -65,6 +68,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
                                               petTable,
                                               minOverlapDays = 1L,
                                               removeWithinSourceOverlaps = FALSE,
+                                              minCellCount = 5L,
                                               outputLogToConsole = TRUE) {
   checkmate::assertClass(cdm, "cdm_reference")
   checkmate::assertCharacter(outputFolder, len = 1L, any.missing = FALSE)
@@ -73,8 +77,10 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   checkmate::assertCharacter(petTable, len = 1L, any.missing = FALSE)
   checkmate::assertIntegerish(minOverlapDays, len = 1L, lower = 0)
   checkmate::assertLogical(removeWithinSourceOverlaps, len = 1L, any.missing = FALSE)
+  checkmate::assertIntegerish(minCellCount, len = 1L, lower = 0)
   checkmate::assertLogical(outputLogToConsole, len = 1L, any.missing = FALSE)
   minOverlapDays <- as.integer(minOverlapDays)
+  minCellCount <- as.integer(minCellCount)
 
   checkmate::assertDirectoryExists(outputFolder)
 
@@ -109,6 +115,12 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     additional_name = "overall",
     additional_level = "overall"
   )
+  # Suppress integer counts below minCellCount (return NA so they are exported as NA)
+  suppress_count <- function(x) {
+    if (is.na(x)) return(NA_integer_)
+    x <- as.integer(x)
+    if (x < minCellCount) NA_integer_ else x
+  }
   # Helper: add rows to sr_rows (list of rows) for a variable with one or more estimates
   add_sr_rows <- function(sr_rows, variable_name, variable_level, estimates) {
     for (nm in names(estimates)) {
@@ -651,29 +663,29 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   for (i in seq_len(nrow(episode_counts))) {
     src <- episode_counts$source[i]
     sr_rows <- add_sr_rows(sr_rows, "episode_counts", src, list(
-      n_episodes = list(type = "integer", value = episode_counts$n_episodes[i]),
-      n_persons = list(type = "integer", value = episode_counts$n_persons[i])
+      n_episodes = list(type = "integer", value = suppress_count(episode_counts$n_episodes[i])),
+      n_persons = list(type = "integer", value = suppress_count(episode_counts$n_persons[i]))
     ))
   }
   # Person overlap
   for (i in seq_len(nrow(person_overlap))) {
     sr_rows <- add_sr_rows(sr_rows, "person_overlap", person_overlap$metric[i], list(
-      n_persons = list(type = "integer", value = person_overlap$n_persons[i])
+      n_persons = list(type = "integer", value = suppress_count(person_overlap$n_persons[i]))
     ))
   }
   # Venn counts
   for (i in seq_len(nrow(venn_counts))) {
     sr_rows <- add_sr_rows(sr_rows, "venn_counts", venn_counts$category[i], list(
-      n_episodes = list(type = "integer", value = venn_counts$n_episodes[i]),
-      n_pet_matched = list(type = "integer", value = venn_counts$n_pet_matched[i]),
-      n_alg_matched = list(type = "integer", value = venn_counts$n_alg_matched[i])
+      n_episodes = list(type = "integer", value = suppress_count(venn_counts$n_episodes[i])),
+      n_pet_matched = list(type = "integer", value = suppress_count(venn_counts$n_pet_matched[i])),
+      n_alg_matched = list(type = "integer", value = suppress_count(venn_counts$n_alg_matched[i]))
     ))
   }
   # Protocol summary (single row)
   sr_rows <- add_sr_rows(sr_rows, "protocol_summary", "overall", list(
-    total_pet_episodes = list(type = "integer", value = protocol_summary$total_pet_episodes),
-    total_algorithm_episodes = list(type = "integer", value = protocol_summary$total_algorithm_episodes),
-    total_matched_episodes = list(type = "integer", value = protocol_summary$total_matched_episodes)
+    total_pet_episodes = list(type = "integer", value = suppress_count(protocol_summary$total_pet_episodes)),
+    total_algorithm_episodes = list(type = "integer", value = suppress_count(protocol_summary$total_algorithm_episodes)),
+    total_matched_episodes = list(type = "integer", value = suppress_count(protocol_summary$total_matched_episodes))
   ))
   # Time overlap summary (one row per label)
   for (i in seq_len(nrow(time_overlap_summary))) {
@@ -685,22 +697,26 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       q75 = list(type = "numeric", value = time_overlap_summary$Q75[i]),
       max = list(type = "numeric", value = time_overlap_summary$max[i]),
       sd = list(type = "numeric", value = time_overlap_summary$sd[i]),
-      n_episodes = list(type = "integer", value = time_overlap_summary$n_episodes[i]),
-      n_persons = list(type = "integer", value = time_overlap_summary$n_persons[i])
+      n_episodes = list(type = "integer", value = suppress_count(time_overlap_summary$n_episodes[i])),
+      n_persons = list(type = "integer", value = suppress_count(time_overlap_summary$n_persons[i]))
     ))
   }
   # Confusion 2x2
   for (i in seq_len(nrow(confusion_2x2))) {
     sr_rows <- add_sr_rows(sr_rows, "confusion_2x2", confusion_2x2$cell[i], list(
-      count = list(type = "integer", value = confusion_2x2$count[i])
+      count = list(type = "integer", value = suppress_count(confusion_2x2$count[i]))
     ))
   }
-  # PPV / sensitivity
+  # PPV / sensitivity (suppress percentage when numerator or denominator is suppressed)
   for (i in seq_len(nrow(ppv_sensitivity))) {
+    num_s <- suppress_count(ppv_sensitivity$numerator[i])
+    den_s <- suppress_count(ppv_sensitivity$denominator[i])
+    val_s <- ppv_sensitivity$value[i]
+    if (is.na(num_s) || is.na(den_s)) val_s <- NA_real_
     sr_rows <- add_sr_rows(sr_rows, "ppv_sensitivity", ppv_sensitivity$metric[i], list(
-      value = list(type = "percentage", value = ppv_sensitivity$value[i]),
-      numerator = list(type = "integer", value = ppv_sensitivity$numerator[i]),
-      denominator = list(type = "integer", value = ppv_sensitivity$denominator[i])
+      value = list(type = "percentage", value = val_s),
+      numerator = list(type = "integer", value = num_s),
+      denominator = list(type = "integer", value = den_s)
     ))
   }
   # Date difference summary (if present)
@@ -715,15 +731,19 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         q25 = list(type = "numeric", value = date_summary$Q25[i]),
         q75 = list(type = "numeric", value = date_summary$Q75[i]),
         max = list(type = "numeric", value = date_summary$max[i]),
-        n_matched = list(type = "integer", value = date_summary$n_matched[i])
+        n_matched = list(type = "integer", value = suppress_count(date_summary$n_matched[i]))
       ))
     }
   }
-  # Outcome accuracy
+  # Outcome accuracy (suppress percentage too when counts are suppressed)
+  n_correct_s <- suppress_count(outcome_accuracy$n_correct)
+  n_total_s <- suppress_count(outcome_accuracy$n_total)
+  accuracy_s <- outcome_accuracy$accuracy
+  if (is.na(n_correct_s) || is.na(n_total_s)) accuracy_s <- NA_real_
   sr_rows <- add_sr_rows(sr_rows, "outcome_accuracy", "overall", list(
-    n_correct = list(type = "integer", value = outcome_accuracy$n_correct),
-    n_total = list(type = "integer", value = outcome_accuracy$n_total),
-    accuracy = list(type = "percentage", value = outcome_accuracy$accuracy)
+    n_correct = list(type = "integer", value = n_correct_s),
+    n_total = list(type = "integer", value = n_total_s),
+    accuracy = list(type = "percentage", value = accuracy_s)
   ))
   # Outcome by year (one estimate per column)
   oby <- outcome_by_year[1, ]
@@ -731,7 +751,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     val <- oby[[cn]]
     if (is.numeric(val) || is.integer(val)) {
       lst <- list()
-      lst[[cn]] <- list(type = "integer", value = val)
+      lst[[cn]] <- list(type = "integer", value = suppress_count(val))
       sr_rows <- add_sr_rows(sr_rows, "outcome_by_year", "same_year_pairs", lst)
     }
   }
@@ -739,7 +759,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   for (i in seq_len(nrow(duration_summary))) {
     src <- duration_summary$source[i]
     sr_rows <- add_sr_rows(sr_rows, "duration_summary", src, list(
-      n = list(type = "integer", value = duration_summary$n[i]),
+      n = list(type = "integer", value = suppress_count(duration_summary$n[i])),
       mean = list(type = "numeric", value = duration_summary$mean[i]),
       median = list(type = "numeric", value = duration_summary$median[i]),
       sd = list(type = "numeric", value = duration_summary$sd[i]),
@@ -754,7 +774,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     for (i in seq_len(nrow(duration_matched_summary))) {
       src <- duration_matched_summary$source[i]
       sr_rows <- add_sr_rows(sr_rows, "duration_matched_summary", src, list(
-        n = list(type = "integer", value = duration_matched_summary$n[i]),
+        n = list(type = "integer", value = suppress_count(duration_matched_summary$n[i])),
         mean = list(type = "numeric", value = duration_matched_summary$mean[i]),
         median = list(type = "numeric", value = duration_matched_summary$median[i]),
         sd = list(type = "numeric", value = duration_matched_summary$sd[i]),
@@ -783,7 +803,8 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     pet_schema = petSchema,
     pet_table = petTable,
     min_overlap_days = as.character(minOverlapDays),
-    remove_within_source_overlaps = as.character(removeWithinSourceOverlaps)
+    remove_within_source_overlaps = as.character(removeWithinSourceOverlaps),
+    min_cell_count = as.character(minCellCount)
   )
 
   summarised_result <- omopgenerics::newSummarisedResult(

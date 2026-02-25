@@ -12,6 +12,7 @@ comparePregnancyIdentifierWithPET(
   petTable,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
+  minCellCount = 5L,
   outputLogToConsole = TRUE
 )
 }
@@ -44,6 +45,10 @@ algorithm episode and a PET episode as the same pregnancy (default 1).}
 matching the code removes overlapping episodes within PET and within the
 algorithm (greedy non-overlapping by start date per person), which can
 reduce many-to-many candidate pairs. Default \code{FALSE}.}
+
+\item{minCellCount}{\code{integer(1)}. Minimum count threshold for suppression.
+Any record count or person count less than \code{minCellCount} is replaced
+with \code{NA} in the exported summarised result. Default 5.}
 
 \item{outputLogToConsole}{\code{logical(1)}. Whether to log to the console as
 well as to \code{file.path(exportFolder, "log.txt")}.}
