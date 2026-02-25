@@ -22,6 +22,7 @@ comparePregnancyIdentifierWithPET(
   petTable,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
+  minCellCount = 5L,
   outputLogToConsole = TRUE
 )
 ```
@@ -70,6 +71,12 @@ comparePregnancyIdentifierWithPET(
   episodes within PET and within the algorithm (greedy non-overlapping
   by start date per person), which can reduce many-to-many candidate
   pairs. Default `FALSE`.
+
+- minCellCount:
+
+  `integer(1)`. Minimum count threshold for suppression. Any record
+  count or person count less than `minCellCount` is replaced with `NA`
+  in the exported summarised result. Default 5.
 
 - outputLogToConsole:
 
