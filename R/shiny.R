@@ -22,27 +22,9 @@ viewResults <- function(dataFolder,
                         launch.browser = FALSE) {
   rlang::check_installed("shiny (>= 1.6.0)")
 
-  appDir <- system.file("shiny", package = "PregnancyIdentifier")
-  # When package is run from source (e.g. devtools::load_all()), app lives in inst/shiny
-  if (!nzchar(appDir) || !dir.exists(appDir)) {
-    pkgRoot <- system.file(package = "PregnancyIdentifier")
-    if (!nzchar(pkgRoot)) {
-      descPath <- system.file("DESCRIPTION", package = "PregnancyIdentifier")
-      if (nzchar(descPath)) pkgRoot <- dirname(descPath)
-    }
-    if (nzchar(pkgRoot)) {
-      instShiny <- file.path(pkgRoot, "inst", "shiny")
-      if (dir.exists(instShiny)) appDir <- instShiny
-    }
-  }
-  if (!nzchar(appDir) || !dir.exists(appDir)) {
-    stop("Shiny app directory not found. Install the package (e.g. devtools::install()) so inst/shiny is available.")
-  }
+  appDir <- system.file("shiny", package = "PregnancyIdentifier", mustWork = TRUE)
   # Resolve relative dataFolder against app directory so recursive CSV load finds files (e.g. data/results-ipci/)
   dataFolderPath <- dataFolder
-  if (!grepl("^[/~]", dataFolderPath)) {
-    dataFolderPath <- file.path(appDir, dataFolderPath)
-  }
   dataFolderPath <- normalizePath(dataFolderPath, mustWork = FALSE)
   shinySettings <- list(dataFolder = dataFolderPath)
   .GlobalEnv$shinySettings <- shinySettings
