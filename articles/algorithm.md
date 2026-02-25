@@ -207,18 +207,21 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/Rtmp6TkGRj/file24c15e5cc598.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/RtmpS4Zuvy/file255e67151c66.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    
-#> 1        24                 437611 2023-03-15 NA       Ectopic pregnancy        
-#> 2        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
-#> 3        24                4094910 2023-01-28 NA       Pregnancy test positive  
+#> 1        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
+#> 2        24                4094910 2023-01-28 NA       Pregnancy test positive  
+#> 3        24                 437611 2023-03-15 NA       Ectopic pregnancy        
 #> # ℹ 1 more variable: type_concept_name <chr>
 ```
 
 ``` r
-outputFolder <- file.path(tempdir(), "pregnancy_output")
+td <- tempdir()
+if (!dir.exists(td)) dir.create(td, recursive = TRUE, showWarnings = FALSE)
+outputFolder <- file.path(td, "pregnancy_output")
+dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
 
 invisible(capture.output(
   runPregnancyIdentifier(cdm, outputFolder = outputFolder)  # export runs by default to outputFolder/export

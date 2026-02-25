@@ -15,13 +15,13 @@
 
 Markus A, Politi J, van Kessel M, Black A (2026). *PregnancyIdentifier:
 Identifies Pregnancy Episodes in the OMOP (Observational Medical
-Outcomes Partnership) CDM (Common Data Model)*. R package version 3.0.3,
-<https://darwin-eu.github.io/PregnancyIdentifier/>.
+Outcomes Partnership) CDM (Common Data Model)*. R package version 3.0.4,
+<https://darwin-eu-dev.github.io/PregnancyIdentifier>.
 
     @Manual{,
       title = {PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)},
       author = {Aniek Markus and Julieta Politi and Maarten {van Kessel} and Adam Black},
       year = {2026},
-      note = {R package version 3.0.3},
-      url = {https://darwin-eu.github.io/PregnancyIdentifier/},
+      note = {R package version 3.0.4},
+      url = {https://darwin-eu-dev.github.io/PregnancyIdentifier},
     }

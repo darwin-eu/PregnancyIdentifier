@@ -321,40 +321,49 @@ temporal coverage and to compare study windows across sites.
 ### pregnancy_overlap_counts.csv
 
 **Columns:** **colName** (value `"overlap"` for all rows), **overlap**
-(FALSE, TRUE, or NA per row), **n** (count of records in that category),
+(FALSE or TRUE per row), **n** (count of records in that category),
 **total** (total episode records, same for all rows), **pct**
 (percentage of records in that category), plus **cdm_name**,
 **date_run**, **date_export**, **pkg_version**. One row per overlap
-category: FALSE (no temporal overlap with previous episode), TRUE
-(episode start ≤ previous episode end within person), NA (no previous
-episode for that person, e.g. first episode).
+category: FALSE (episode does not overlap another—no temporal overlap
+with previous episode, or no previous episode for that person,
+e.g. first episode), TRUE (episode overlaps another: episode start ≤
+previous episode end within person).
 
 **Purpose:** Summary counts of overlapping inferred pregnancy intervals.
 Used for data quality (overlaps may indicate algorithm or data issues).
 
 ------------------------------------------------------------------------
 
-### date_consistency.csv
+### missing_dates.csv
 
-**Columns:** One column per date field (**merge_pregnancy_start**,
-**hip_end_date**, **pps_end_date**, **merge_episode_start**,
-**merge_episode_end**, **final_episode_start_date**,
-**final_episode_end_date**, etc.). Each value is the **proportion of
-episodes with NA** in that date (0–1). Plus metadata.
+**Columns:** Number and percentage of missing start and end dates for
+HIP episodes, PPS episodes, and ESD (final) episodes: **hip_start_n**,
+**hip_start_pct**, **hip_end_n**, **hip_end_pct**, **pps_start_n**,
+**pps_start_pct**, **pps_end_n**, **pps_end_pct**, **esd_start_n**,
+**esd_start_pct**, **esd_end_n**, **esd_end_pct**, plus **cdm_name**,
+**date_run**, **date_export**, **pkg_version**. HIP uses
+merge_pregnancy_start (start) and hip_end_date (end); PPS uses
+pps_episode_min_date (start) and pps_episode_max_date (end); ESD uses
+final_episode_start_date and final_episode_end_date.
 
-**Purpose:** Proportion of missing dates by field. Used to assess
-completeness of key dates and to compare across sites.
+**Purpose:** Counts and percentages of missing start/end dates by
+episode type. Used to assess completeness of key dates and to compare
+across sites.
 
 ------------------------------------------------------------------------
 
 ### swapped_dates.csv
 
-**Columns:** **n_rev_hip** (count where merge_pregnancy_start \>
-hip_end_date), **n_rev_pps** (count where merge_pregnancy_start \>
-pps_end_date), plus metadata.
+**Columns:** **source** (hip, pps, or esd), **n_swapped** (count where
+start \> end), **total** (records with both dates for that source),
+**pct** (100 × n_swapped / total), plus **cdm_name**, **date_run**,
+**date_export**, **pkg_version**. One row per source: HIP
+(merge_pregnancy_start \> hip_end_date), PPS (merge_pregnancy_start \>
+pps_end_date), ESD (final_episode_start_date \> final_episode_end_date).
 
-**Purpose:** Count of episodes with reversed start/end (start after
-end). Used for data quality and algorithm validation.
+**Purpose:** Count of episodes with reversed (swapped) start/end by
+source. Used for data quality and algorithm validation.
 
 ------------------------------------------------------------------------
 
@@ -444,7 +453,7 @@ a full export.
 | monthly_trend_missing.csv                     | Missing-date count by column/month           | Completeness                            |
 | observation_period_range.csv                  | Min/max observation period years             | Study window, coverage                  |
 | pregnancy_overlap_counts.csv                  | Overlap summary (n_overlap_true/false, etc.) | Overlap QA                              |
-| date_consistency.csv                          | Proportion NA per date column                | Completeness by field                   |
+| missing_dates.csv                             | N and % missing start/end (HIP, PPS, ESD)    | Completeness by episode type            |
 | swapped_dates.csv                             | Count of start \> end (HIP/PPS)              | Date logic QA                           |
 | outcome_categories_count.csv                  | Outcome counts by algorithm                  | Outcome mix, algorithm agreement        |
 | delivery_mode_summary.csv                     | Delivery mode by outcome                     | Cesarean/vaginal by outcome             |
