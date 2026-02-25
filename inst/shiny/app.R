@@ -36,6 +36,20 @@ if (!exists("shinySettings")) {
 }
 
 dataFolder <- shinySettings$dataFolder
+# When not launched via viewResults(), resolve relative path so data/results-ipci etc. are found (e.g. run from package root or from inst/shiny)
+if (!dir.exists(dataFolder) && !grepl("^[/~]", dataFolder)) {
+  for (prefix in c("inst/shiny", ".", "..")) {
+    candidate <- file.path(prefix, dataFolder)
+    if (dir.exists(candidate)) {
+      dataFolder <- normalizePath(candidate, mustWork = FALSE)
+      break
+    }
+  }
+}
+# Use absolute path for data folder so CSV loading works regardless of working directory when app runs
+if (dir.exists(dataFolder)) {
+  dataFolder <- normalizePath(dataFolder, mustWork = FALSE)
+}
 
 # Data sources: zip files first, then folders that contain CSVs (recursive under data folder)
 zipFiles <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
@@ -144,9 +158,9 @@ if (!hasData) {
     }
   }
 
-  # Load concept_check, precision_days, quality_check_cleanup from data folder root when present and still empty (same as age CSVs)
-  qaCsvs <- c("concept_check.csv", "precision_days.csv", "quality_check_cleanup.csv")
-  qaVars <- c("conceptCheck", "precisionDays", "qualityCheckCleanup")
+  # Load concept_check, precision_days, quality_check_cleanup, missing_dates from data folder root when present and still empty (same as age CSVs)
+  qaCsvs <- c("concept_check.csv", "precision_days.csv", "quality_check_cleanup.csv", "missing_dates.csv")
+  qaVars <- c("conceptCheck", "precisionDays", "qualityCheckCleanup", "missingDates")
   for (j in seq_along(qaCsvs)) {
     path <- file.path(dataFolder, qaCsvs[j])
     if (file.exists(path)) {
@@ -200,6 +214,25 @@ if (!hasData) {
       path <- file.path(d, ccFile)
       if (file.exists(path)) {
         loadFile(file = ccFile, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
+        firstLoad <- FALSE
+      }
+    }
+  }
+
+  # Load outcome_categories_count and delivery_mode_summary from root and each CSV folder (same pattern as concept count / QA)
+  outcomeDeliveryCsvs <- c("outcome_categories_count.csv", "delivery_mode_summary.csv")
+  for (odFile in outcomeDeliveryCsvs) {
+    pathRoot <- file.path(dataFolder, odFile)
+    if (file.exists(pathRoot)) {
+      loadFile(file = odFile, dbName = basename(dataFolder), runDate = "", zipVersion = NULL, folder = dataFolder, overwrite = TRUE)
+    }
+  }
+  for (odFile in outcomeDeliveryCsvs) {
+    firstLoad <- TRUE
+    for (d in csvFolders) {
+      path <- file.path(d, odFile)
+      if (file.exists(path)) {
+        loadFile(file = odFile, dbName = basename(d), runDate = "", zipVersion = NULL, folder = d, overwrite = firstLoad)
         firstLoad <- FALSE
       }
     }
@@ -304,20 +337,18 @@ if (!hasData) {
       out[[i]] <- out[[i]][, allCols, drop = FALSE]
     }
     combined <- dplyr::bind_rows(out)
-    if (nrow(combined) > 0) {
-      if (exists(envVar, envir = .GlobalEnv)) {
-        existing <- get(envVar, envir = .GlobalEnv)
-        if (is.data.frame(existing) && nrow(existing) > 0) {
-          allCols2 <- union(colnames(existing), colnames(combined))
-          for (col in setdiff(allCols2, colnames(combined))) combined[[col]] <- NA
-          combined <- combined[, allCols2, drop = FALSE]
-          for (col in setdiff(allCols2, colnames(existing))) existing[[col]] <- NA
-          existing <- existing[, allCols2, drop = FALSE]
-          combined <- dplyr::bind_rows(existing, combined)
-        }
+    if (exists(envVar, envir = .GlobalEnv)) {
+      existing <- get(envVar, envir = .GlobalEnv)
+      if (is.data.frame(existing) && nrow(existing) > 0) {
+        allCols2 <- union(colnames(existing), colnames(combined))
+        for (col in setdiff(allCols2, colnames(combined))) combined[[col]] <- NA
+        combined <- combined[, allCols2, drop = FALSE]
+        for (col in setdiff(allCols2, colnames(existing))) existing[[col]] <- NA
+        existing <- existing[, allCols2, drop = FALSE]
+        combined <- dplyr::bind_rows(existing, combined)
       }
-      assign(envVar, combined, envir = .GlobalEnv)
     }
+    assign(envVar, combined, envir = .GlobalEnv)
   }
   loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
   loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
@@ -371,8 +402,8 @@ if (!hasData) {
              tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
              envir = .GlobalEnv)
     }
-    if (!exists("dateConsistency", envir = .GlobalEnv) || !is.data.frame(get("dateConsistency", envir = .GlobalEnv)) || nrow(get("dateConsistency", envir = .GlobalEnv)) == 0) {
-      assign("dateConsistency",
+    if (!exists("missingDates", envir = .GlobalEnv) || !is.data.frame(get("missingDates", envir = .GlobalEnv)) || nrow(get("missingDates", envir = .GlobalEnv)) == 0) {
+      assign("missingDates",
              tibble::tibble(cdm_name = character(0)),
              envir = .GlobalEnv)
     }
@@ -383,60 +414,71 @@ if (!hasData) {
       gestationalAgeDaysCounts <- tibble::tibble(name = character(0))
     }
 
-    swappedDatesLong <- dataToLong(swappedDates)
-    swappedDatesDbCols <- setdiff(colnames(swappedDatesLong), "name")
-    swappedDates <- swappedDatesLong %>%
-      dplyr::mutate(across(!name, ~ suppressWarnings(as.numeric(.))))
-
-    episodeCount <- pregnancyOverlapCounts %>%
-      dplyr::mutate(total = as.numeric(total)) %>%
-      dplyr::group_by(cdm_name, total) %>%
-      dplyr::summarise(total = mean(total), .groups = "drop") %>%
-      tidyr::pivot_wider(names_from = "cdm_name", values_from = "total", values_fn = mean) %>%
-      dplyr::mutate(name = "total") %>%
-      dplyr::select(dplyr::any_of(c("name", swappedDatesDbCols)))
-    swappedDates <- rbind(swappedDates, episodeCount)
-    percDF <- rbind(
-      cbind(name = "rev_hip_perc", round(100 * swappedDates[1, -1] / swappedDates[3, -1], 2)),
-      cbind(name = "rev_pps_perc", round(100 * swappedDates[2, -1] / swappedDates[3, -1], 2))
-    )
-    colnames(percDF) <- colnames(swappedDates)
-    swappedDates <- rbind(swappedDates, percDF) %>%
-      dplyr::arrange(match(name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
-
-    # Swapped dates display: one row per metric per database with n and pct in separate columns
-    swappedDatesDisplay <- swappedDates %>%
-      dplyr::filter(.data$name %in% c("n_rev_hip", "n_rev_pps", "total", "rev_hip_perc", "rev_pps_perc")) %>%
-      tidyr::pivot_longer(cols = -"name", names_to = "cdm_name", values_to = "value") %>%
-      dplyr::mutate(value = suppressWarnings(as.numeric(.data$value))) %>%
-      tidyr::pivot_wider(names_from = "name", values_from = "value")
-    if (nrow(swappedDatesDisplay) > 0) {
-      swappedDatesDisplay <- dplyr::bind_rows(
-        swappedDatesDisplay %>%
-          dplyr::transmute(
-            cdm_name,
-            metric = "HIP reversed (start after end)",
-            n = .data$n_rev_hip,
-            pct = .data$rev_hip_perc
-          ),
-        swappedDatesDisplay %>%
-          dplyr::transmute(
-            cdm_name,
-            metric = "PPS reversed (start after end)",
-            n = .data$n_rev_pps,
-            pct = .data$rev_pps_perc
-          ),
-        swappedDatesDisplay %>%
-          dplyr::transmute(
-            cdm_name,
-            metric = "Total episodes",
-            n = .data$total,
-            pct = NA_real_
+    # Swapped dates: new format has source, n_swapped, total, pct; old format has n_rev_hip, n_rev_pps
+    if ("source" %in% colnames(swappedDates) && "n_swapped" %in% colnames(swappedDates)) {
+      swappedDatesDisplay <- swappedDates %>%
+        dplyr::mutate(
+          n_swapped = suppressWarnings(as.integer(.data$n_swapped)),
+          total = suppressWarnings(as.integer(.data$total)),
+          pct = suppressWarnings(as.numeric(.data$pct)),
+          metric = dplyr::case_when(
+            .data$source == "hip" ~ "HIP reversed (start after end)",
+            .data$source == "pps" ~ "PPS reversed (start after end)",
+            .data$source == "esd" ~ "ESD (final episode) reversed (start after end)",
+            TRUE ~ .data$source
           )
-      ) %>%
+        ) %>%
+        dplyr::select("cdm_name", "metric", "n_swapped", "total", "pct") %>%
         dplyr::mutate(pct = round(.data$pct, 2))
     } else {
-      swappedDatesDisplay <- tibble::tibble(cdm_name = character(0), metric = character(0), n = numeric(0), pct = numeric(0))
+      swappedDatesLong <- dataToLong(swappedDates)
+      swappedDatesDbCols <- setdiff(colnames(swappedDatesLong), "name")
+      swappedDatesWide <- swappedDatesLong %>%
+        dplyr::mutate(across(!.data$name, ~ suppressWarnings(as.numeric(.))))
+
+      episodeCount <- pregnancyOverlapCounts %>%
+        dplyr::mutate(total = as.numeric(.data$total)) %>%
+        dplyr::group_by(.data$cdm_name, .data$total) %>%
+        dplyr::summarise(total = mean(.data$total), .groups = "drop") %>%
+        tidyr::pivot_wider(names_from = "cdm_name", values_from = "total", values_fn = mean) %>%
+        dplyr::mutate(name = "total") %>%
+        dplyr::select(dplyr::any_of(c("name", swappedDatesDbCols)))
+      swappedDatesWide <- rbind(swappedDatesWide, episodeCount)
+      percDF <- rbind(
+        cbind(name = "rev_hip_perc", round(100 * swappedDatesWide[1, -1] / swappedDatesWide[3, -1], 2)),
+        cbind(name = "rev_pps_perc", round(100 * swappedDatesWide[2, -1] / swappedDatesWide[3, -1], 2))
+      )
+      colnames(percDF) <- colnames(swappedDatesWide)
+      swappedDatesWide <- rbind(swappedDatesWide, percDF) %>%
+        dplyr::arrange(match(.data$name, c("rev_hip_perc", "rev_pps_perc", "n_rev_hip", "n_rev_pps", "total")))
+
+      swappedDatesDisplay <- swappedDatesWide %>%
+        dplyr::filter(.data$name %in% c("n_rev_hip", "n_rev_pps", "total", "rev_hip_perc", "rev_pps_perc")) %>%
+        tidyr::pivot_longer(cols = -.data$name, names_to = "cdm_name", values_to = "value") %>%
+        dplyr::mutate(value = suppressWarnings(as.numeric(.data$value))) %>%
+        tidyr::pivot_wider(names_from = "name", values_from = "value")
+      if (nrow(swappedDatesDisplay) > 0) {
+        swappedDatesDisplay <- dplyr::bind_rows(
+          swappedDatesDisplay %>%
+            dplyr::transmute(
+              cdm_name = .data$cdm_name,
+              metric = "HIP reversed (start after end)",
+              n_swapped = as.integer(.data$n_rev_hip),
+              total = as.integer(.data$total),
+              pct = round(.data$rev_hip_perc, 2)
+            ),
+          swappedDatesDisplay %>%
+            dplyr::transmute(
+              cdm_name = .data$cdm_name,
+              metric = "PPS reversed (start after end)",
+              n_swapped = as.integer(.data$n_rev_pps),
+              total = as.integer(.data$total),
+              pct = round(.data$rev_pps_perc, 2)
+            )
+        )
+      } else {
+        swappedDatesDisplay <- tibble::tibble(cdm_name = character(0), metric = character(0), n_swapped = integer(0), total = integer(0), pct = numeric(0))
+      }
     }
 
     # Ensure ageSummary exists (from age_summary.csv) so Age tab (Age summary) does not crash
@@ -455,10 +497,10 @@ if (!hasData) {
     } else {
       ageSummary <- tibble::tibble(cdm_name = character(0), name = character(0), value = character(0))
     }
-    # Date consistency: table with N missing and Percent missing by date field (support old and new export format)
-    dateConsistency <- get("dateConsistency", envir = .GlobalEnv)
-    if (nrow(dateConsistency) == 0) {
-      dateConsistency <- tibble::tibble(
+    # Missing dates: table with N missing and Percent missing by date field (HIP, PPS, ESD start/end; support old date_consistency and new missing_dates format)
+    missingDates <- get("missingDates", envir = .GlobalEnv)
+    if (nrow(missingDates) == 0) {
+      missingDates <- tibble::tibble(
         cdm_name = character(0),
         "Date field" = character(0),
         "N missing" = numeric(0),
@@ -466,11 +508,11 @@ if (!hasData) {
       )
     } else {
       metaCols <- c("cdm_name", "date_run", "date_export", "pkg_version")
-      hasNewDateConsistencyFormat <- any(grepl("_n$", colnames(dateConsistency))) && any(grepl("_pct$", colnames(dateConsistency)))
-      if (hasNewDateConsistencyFormat) {
-        dateCols <- setdiff(colnames(dateConsistency), metaCols)
+      hasNewMissingDatesFormat <- any(grepl("_n$", colnames(missingDates))) && any(grepl("_pct$", colnames(missingDates)))
+      if (hasNewMissingDatesFormat) {
+        dateCols <- setdiff(colnames(missingDates), metaCols)
         dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
-        dateConsistency <- dateConsistency %>%
+        missingDates <- missingDates %>%
           dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
           tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
           dplyr::mutate(
@@ -481,16 +523,29 @@ if (!hasData) {
           dplyr::select(-.data$key) %>%
           tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
           dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+        # Prettify labels: hip_start -> HIP start, etc.
+        missingDates <- missingDates %>%
+          dplyr::mutate(
+            name = dplyr::case_when(
+              .data$name == "hip_start" ~ "HIP start",
+              .data$name == "hip_end" ~ "HIP end",
+              .data$name == "pps_start" ~ "PPS start",
+              .data$name == "pps_end" ~ "PPS end",
+              .data$name == "esd_start" ~ "ESD (final) start",
+              .data$name == "esd_end" ~ "ESD (final) end",
+              TRUE ~ .data$name
+            )
+          )
       } else {
-        skipCols <- intersect(metaCols, colnames(dateConsistency))
-        dateConsistency <- dataToLong(dateConsistency, skipCols = skipCols) %>%
+        skipCols <- intersect(metaCols, colnames(missingDates))
+        missingDates <- dataToLong(missingDates, skipCols = skipCols) %>%
           tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
           dplyr::mutate(
             percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
             n_missing = NA_integer_
           )
       }
-      dateConsistency <- dateConsistency %>%
+      missingDates <- missingDates %>%
         dplyr::rename(
           "Date field" = .data$name,
           "N missing" = .data$n_missing,
@@ -673,36 +728,124 @@ if (!hasData) {
     # Re-run recursive load for outcome/delivery so data is found regardless of load order (data folder, all subfolders)
     loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
     loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
-    # outcome categories (ensure we use loaded data from .GlobalEnv)
-    outcomeCategoriesCount <- get("outcomeCategoriesCount", envir = .GlobalEnv)
-    deliveryModeSummary <- get("deliveryModeSummary", envir = .GlobalEnv)
-    outcomeCategoriesCount <- outcomeCategoriesCount %>%
-      dplyr::mutate(
-        n = suppressWarnings(as.numeric(n)),
-        pct = round(suppressWarnings(as.numeric(pct)), 4)
+
+    # Fallback: if still empty, try reading from zip files (data may be zip-only with no CSVs on disk)
+    .oc <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+    .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
+    if ((!is.data.frame(.oc) || nrow(.oc) == 0) || (!is.data.frame(.dm) || nrow(.dm) == 0)) {
+      zipFilesForOutcome <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
+      zipFilesForOutcome <- zipFilesForOutcome[file.exists(zipFilesForOutcome)]
+      for (zf in zipFilesForOutcome) {
+        contents <- utils::unzip(zf, list = TRUE)$Name
+        if (!is.character(contents)) next
+        baseNames <- basename(contents)
+        if ("outcome_categories_count.csv" %in% baseNames && (!is.data.frame(.oc) || nrow(.oc) == 0)) {
+          idx <- which(baseNames == "outcome_categories_count.csv")[1L]
+          conn <- utils::unz(zf, contents[idx], open = "rb")
+          x <- tryCatch(
+            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+            error = function(e) NULL,
+            finally = close(conn)
+          )
+          if (!is.null(x) && nrow(x) >= 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
+            if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
+              assign("outcomeCategoriesCount", x, envir = .GlobalEnv)
+            } else {
+              assign("outcomeCategoriesCount", dplyr::bind_rows(get("outcomeCategoriesCount", envir = .GlobalEnv), x), envir = .GlobalEnv)
+            }
+            .oc <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+          }
+        }
+        if ("delivery_mode_summary.csv" %in% baseNames && (!is.data.frame(.dm) || nrow(.dm) == 0)) {
+          idx <- which(baseNames == "delivery_mode_summary.csv")[1L]
+          conn <- utils::unz(zf, contents[idx], open = "rb")
+          x <- tryCatch(
+            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+            error = function(e) NULL,
+            finally = close(conn)
+          )
+          if (!is.null(x) && nrow(x) >= 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
+            if (!exists("deliveryModeSummary", envir = .GlobalEnv) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
+              assign("deliveryModeSummary", x, envir = .GlobalEnv)
+            } else {
+              assign("deliveryModeSummary", dplyr::bind_rows(get("deliveryModeSummary", envir = .GlobalEnv), x), envir = .GlobalEnv)
+            }
+            .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
+          }
+        }
+      }
+    }
+
+    # Load CSVs from data path by filename (recursive under root); use absolute path so working directory does not matter
+    loadCsvFromDataPath <- function(root, filename) {
+      if (!dir.exists(root)) return(tibble::tibble())
+      rootAbs <- normalizePath(root, mustWork = FALSE)
+      if (!dir.exists(rootAbs)) return(tibble::tibble())
+      files <- list.files(rootAbs, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+      files <- files[basename(files) == filename]
+      if (length(files) == 0) return(tibble::tibble())
+      out <- list()
+      for (f in files) {
+        x <- tryCatch(
+          readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+          error = function(e) NULL
+        )
+        if (!is.null(x) && nrow(x) >= 0) {
+          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = basename(dirname(f)))
+          out[[length(out) + 1L]] <- x
+        }
+      }
+      if (length(out) == 0) return(tibble::tibble())
+      allCols <- Reduce(union, lapply(out, colnames))
+      for (i in seq_along(out)) {
+        for (col in setdiff(allCols, colnames(out[[i]]))) out[[i]][[col]] <- NA
+        out[[i]] <- out[[i]][, allCols, drop = FALSE]
+      }
+      dplyr::bind_rows(out)
+    }
+
+    # outcome categories: load from data path and show in DT
+    outcomeCategoriesCount <- loadCsvFromDataPath(dataFolder, "outcome_categories_count.csv")
+    if (nrow(outcomeCategoriesCount) > 0) {
+      if ("n" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
+      if ("pct" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(pct = round(suppressWarnings(as.numeric(.data$pct)), 4))
+      if ("outcome_category" %in% colnames(outcomeCategoriesCount)) {
+        outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(outcome_category = factor(.data$outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG", "NA")))
+      }
+    }
+
+    # delivery mode: load from data path and show in DT
+    deliveryModeSummary <- loadCsvFromDataPath(dataFolder, "delivery_mode_summary.csv")
+    # Optionally reshape when export-format columns exist; otherwise show raw CSV in DT
+    deliveryModeRequired <- c("final_outcome_category", "n", "cesarean", "vaginal", "cesarean_pct", "vaginal_pct")
+    if (nrow(deliveryModeSummary) > 0 && all(deliveryModeRequired %in% colnames(deliveryModeSummary))) {
+      deliveryModeSummary <- deliveryModeSummary %>%
+        dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
+        dplyr::select(-dplyr::any_of(c("cesarean_count", "vaginal_count"))) %>%
+        dplyr::rename(total = n)
+      deliveryModeSummary <- dplyr::left_join(
+        deliveryModeSummary %>%
+          tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
+        deliveryModeSummary %>%
+          dplyr::select(-dplyr::any_of(c("cesarean", "vaginal"))) %>%
+          dplyr::rename(
+            vaginal = vaginal_pct,
+            cesarean = cesarean_pct
+          ) %>%
+          tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")
       ) %>%
-      dplyr::mutate(outcome_category = factor(outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
-
-    # delivery mode (deliveryModeSummary already retrieved from .GlobalEnv above)
-    deliveryModeSummary <- deliveryModeSummary %>%
-      dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
-      dplyr::select(-c("cesarean_count", "vaginal_count")) %>%
-      dplyr::rename(total = n)
-
-    deliveryModeSummary <- dplyr::left_join(
-      deliveryModeSummary %>%
-        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
-      deliveryModeSummary %>%
-        dplyr::select(-c("cesarean", "vaginal")) %>%
-        dplyr::rename(
-          vaginal = vaginal_pct,
-          cesarean = cesarean_pct
-        ) %>%
-        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")
-    ) %>%
-      dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
-      dplyr::mutate(pct = round(pct, 2)) %>%
-      dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
+        dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
+        dplyr::mutate(pct = round(pct, 2)) %>%
+        dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
+    }
 
     ############################ Shiny app ############################
     allDP <- unique(dbinfo$cdm_name)
@@ -800,16 +943,16 @@ if (!hasData) {
             sep = "\n\n"
           )
         ),
-        "Date consistency" = tabWithHelpText(
+        "Missing dates" = tabWithHelpText(
           handleEmptyResult(
-            object = FilterTableModule$new(data = dateConsistency, dp = allDP),
-            result = dateConsistency,
-            emptyMessage = "No date consistency data available."
+            object = FilterTableModule$new(data = missingDates, dp = allDP),
+            result = missingDates,
+            emptyMessage = "No missing dates data available."
           ),
           paste(
-            "**Counts and percentages of missing dates** by date field.",
+            "**Counts and percentages of missing start and end dates** for HIP episodes, PPS episodes, and ESD (final) episodes.",
             "",
-            "**N missing** = number of records with a missing date; **Percent missing** = percentage of all records.",
+            "**N missing** = number of episodes with a missing date; **Percent missing** = percentage of all episodes.",
             "Used to assess completeness of key dates and to compare across sites.",
             sep = "\n\n"
           )
@@ -1011,12 +1154,12 @@ if (!hasData) {
           "",
           "**Table columns:**",
           "- **concept_id / concept_name:** OMOP concept identifier and name.",
-          "- **n_after_min:** Number of episode–concept pairs where the concept date is on or before the expected window start (min_date).",
-          "- **n_prior_max:** Number of pairs where the concept end date is on or after the expected window end (max_date).",
+          "- **n_on_or_before_min:** Number of episode–concept pairs where the concept date is on or before the expected window start (min_date).",
+          "- **n_on_or_after_max:** Number of pairs where the concept end date is on or after the expected window end (max_date).",
           "- **n_in_span:** Number of pairs where the concept start date falls within the expected window [min_date, max_date] for that concept.",
           "- **n_at_midpoint:** Number of pairs where the concept date is near the midpoint of the expected range.",
           "- **total:** Total number of episode–concept pairs for this concept.",
-          "- **p_after_min, p_prior_max, p_in_span, p_at_midpoint:** Same counts as percentages of all episodes in the database.",
+          "- **p_on_or_before_min, p_on_or_after_max, p_in_span, p_at_midpoint:** Same counts as percentages of all episodes in the database.",
           "- **p_concept:** Percentage of episodes that have at least one record for this concept (concept coverage).",
           "- **cdm_name, date_run, date_export, pkg_version:** Database and export metadata.",
           sep = "\n\n"
@@ -1042,9 +1185,11 @@ if (!hasData) {
         paste(
           "**Distribution of ESD start-date precision (in days).**",
           "",
-          "**What it is:** ESD (Estimated Start Date) precision is the uncertainty in the inferred pregnancy start date for each episode. Lower values mean a more precise start date (e.g. 0–7 days when gestational-week concepts agree); higher values mean the start date is only known to within a wider window (e.g. when only trimester-level information is available).",
+          "**What it is:** ESD (Estimated Start Date) precision is the **uncertainty in the inferred pregnancy start date** for each episode — i.e. how narrow or wide the window of plausible start dates is. It is produced in the ESD step after HIP/PPS merge, using gestational timing concepts (e.g. “gestation 18 weeks”, trimester) that fall within each episode’s evidence window.",
           "",
-          "**How it is calculated:** For each episode, the algorithm derives a start date from ESD concepts (gestational week or trimester). Precision in days is the spread of possible start dates: the range in days between the earliest and latest plausible start date implied by those concepts. The plot shows the **density** of these precision values across all episodes (one curve per database).",
+          "**How it is calculated:** For each episode, ESD pulls gestational-week (GW) and/or trimester-level (GR3m) concepts from the CDM and infers one start date (or a range). **Precision in days** is the **spread** of those plausible start dates: the range in days between the earliest and latest. When multiple gestational-week concepts agree, the spread is small (e.g. 0–7 days → “week” precision). When only trimester-level evidence exists, the spread is the full trimester window (e.g. up to ~84 days → “three-month”). A single GW concept with no overlap support is stored as **−1** (category: week_poor-support).",
+          "",
+          "**How to interpret the plot:** The **x-axis** is precision in days (width of the uncertainty window). **Lower = more precise** (narrower window). The **y-axis** is density (relative frequency). Curves shifted **left** (toward 0–14 days) mean many episodes have week-level precision; curves shifted **right** (e.g. 28–84 days) mean more episodes rely on trimester-level evidence only. Compare curves across databases to see which sites have more precise start-date information.",
           "",
           "**Use:** Compare how precise inferred start dates are within a database and across sites; useful for data quality and for understanding how much timing information is available.",
           sep = "\n\n"

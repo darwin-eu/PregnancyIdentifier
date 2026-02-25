@@ -89,6 +89,15 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
     if (file == "precision-days.csv") {
       camelCaseName <- "precisionDays"
     }
+    if (file == "date_consistency.csv") {
+      camelCaseName <- "missingDates"
+    }
+    if (file == "outcome_categories_count.csv") {
+      camelCaseName <- "outcomeCategoriesCount"
+    }
+    if (file == "delivery_mode_summary.csv") {
+      camelCaseName <- "deliveryModeSummary"
+    }
 
     if (file == "pet_comparison_summarised_result.csv") {
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))

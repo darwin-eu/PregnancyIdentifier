@@ -70,7 +70,7 @@ exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5,
   exportTimeTrends(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportObservationPeriodRange(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportPregnancyOverlapCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportDateConsistency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportMissingDates(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportReversedDatesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportOutcomeCategoriesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportDeliveryModeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
@@ -164,8 +164,8 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
       concept_end = dplyr::coalesce(.data$concept_end, .data$concept_start),
       min_date = .data$merge_pregnancy_start + (.data$min_month * 30),
       max_date = .data$merge_pregnancy_start + (.data$max_month * 30),
-      after_min = .data$min_date >= .data$concept_start,
-      prior_max = .data$max_date <= .data$concept_end,
+      on_or_before_min = .data$min_date >= .data$concept_start,
+      on_or_after_max = .data$max_date <= .data$concept_end,
       in_span = .data$concept_start >= .data$min_date & .data$concept_start <= .data$max_date,
       # NOTE: keeping original behavior (even though this condition looks suspicious)
       at_midpoint = .data$concept_start >= (.data$merge_pregnancy_start + .data$midpoint) &
@@ -176,16 +176,16 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
   conceptsPerEpisode %>%
     dplyr::group_by(.data$concept_id, .data$concept_name) %>%
     dplyr::summarise(
-      n_after_min = sum(.data$after_min, na.rm = TRUE),
-      n_prior_max = sum(.data$prior_max, na.rm = TRUE),
+      n_on_or_before_min = sum(.data$on_or_before_min, na.rm = TRUE),
+      n_on_or_after_max = sum(.data$on_or_after_max, na.rm = TRUE),
       n_in_span = sum(.data$in_span, na.rm = TRUE),
       n_at_midpoint = sum(.data$at_midpoint, na.rm = TRUE),
       total = dplyr::n(),
       .groups = "drop"
     ) %>%
     dplyr::mutate(
-      p_after_min = .data$n_after_min / totalEpisodes * 100,
-      p_prior_max = .data$n_prior_max / totalEpisodes * 100,
+      p_on_or_before_min = .data$n_on_or_before_min / totalEpisodes * 100,
+      p_on_or_after_max = .data$n_on_or_after_max / totalEpisodes * 100,
       p_in_span = .data$n_in_span / totalEpisodes * 100,
       p_at_midpoint = .data$n_at_midpoint / totalEpisodes * 100,
       p_concept = .data$total / totalEpisodes * 100,
@@ -511,8 +511,9 @@ exportObservationPeriodRange <- function(res, cdm, resPath, snap, runStart, pkgV
     utils::write.csv(file.path(resPath, "observation_period_range.csv"), row.names = FALSE)
 }
 
-#' Export overlap counts in long format: one row per overlap category (FALSE, TRUE, NA)
-#' with colName, overlap, n, total, pct, and metadata (cdm_name, date_run, date_export, pkg_version).
+#' Export overlap counts in long format: one row per overlap category (FALSE, TRUE).
+#' FALSE = episode does not overlap another (including no previous episode); TRUE = episode overlaps another.
+#' Output has colName, overlap, n, total, pct, and metadata (cdm_name, date_run, date_export, pkg_version).
 #' @noRd
 exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersion) {
   total_n <- nrow(res)
@@ -536,21 +537,20 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
         prev_end = dplyr::lag(.data$final_episode_end_date),
         overlap = dplyr::if_else(
           is.na(.data$prev_end),
-          NA,
+          FALSE,
           as.Date(.data$final_episode_start_date) <= as.Date(.data$prev_end)
         )
       ) %>%
       dplyr::ungroup()
 
-    n_false <- as.integer(sum(overlap_by_record$overlap == FALSE, na.rm = TRUE))
-    n_true <- as.integer(sum(overlap_by_record$overlap == TRUE, na.rm = TRUE))
-    n_na <- as.integer(sum(is.na(overlap_by_record$overlap)))
+    n_false <- as.integer(sum(overlap_by_record$overlap == FALSE))
+    n_true <- as.integer(sum(overlap_by_record$overlap == TRUE))
     counts <- tibble::tibble(
       colName = "overlap",
-      overlap = c(FALSE, TRUE, NA),
-      n = c(n_false, n_true, n_na),
+      overlap = c(FALSE, TRUE),
+      n = c(n_false, n_true),
       total = total_n,
-      pct = as.numeric(c(n_false, n_true, n_na)) / total_n * 100
+      pct = as.numeric(c(n_false, n_true)) / total_n * 100
     )
 
     summary_overlap <- counts %>%
@@ -566,7 +566,7 @@ exportPregnancyOverlapCounts <- function(res, resPath, snap, runStart, pkgVersio
 }
 
 # Maximum episode length in days (same as ESD/utils cleanup). Episodes longer are dropped.
-.cleanupMaxDays <- 322L
+.cleanupMaxDays <- 308L
 
 #' Count records and persons with overlapping episodes (start_a < end_b and end_a > start_b within person)
 #' @noRd
@@ -750,48 +750,83 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   utils::write.csv(attrition_if_cleanup, file.path(resPath, "attrition_if_cleanup.csv"), row.names = FALSE)
 }
 
+#' Export number and percentage of missing start and end dates for HIP, PPS, and ESD (final) episodes.
 #' @noRd
-exportDateConsistency <- function(res, resPath, snap, runStart, pkgVersion) {
-  dateCols <- c(
-    "merge_pregnancy_start", "hip_end_date", "pps_end_date", "pps_episode_min_date", "pps_episode_max_date",
-    "merge_episode_start", "merge_episode_end", "final_episode_start_date", "final_episode_end_date"
-  )
+exportMissingDates <- function(res, resPath, snap, runStart, pkgVersion) {
+  n <- nrow(res)
+  summariseMissing <- function(col) {
+    if (!col %in% names(res)) return(list(n = NA_integer_, pct = NA_real_))
+    n_miss <- sum(is.na(res[[col]]))
+    list(n = as.integer(n_miss), pct = if (n > 0) round(100 * n_miss / n, 2) else NA_real_)
+  }
+  hip_start <- summariseMissing("merge_pregnancy_start")
+  hip_end <- summariseMissing("hip_end_date")
+  pps_start <- summariseMissing("pps_episode_min_date")
+  pps_end <- summariseMissing("pps_episode_max_date")
+  esd_start <- summariseMissing("final_episode_start_date")
+  esd_end <- summariseMissing("final_episode_end_date")
 
-  res %>%
-    dplyr::summarise(dplyr::across(
-      dplyr::any_of(dateCols),
-      list(
-        n = ~ sum(is.na(.), na.rm = TRUE),
-        pct = ~ round(100 * mean(is.na(.), na.rm = TRUE), 2)
-      )
-    )) %>%
-    dplyr::mutate(
-      cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date,
-      pkg_version = pkgVersion
-    ) %>%
-    utils::write.csv(file.path(resPath, "date_consistency.csv"), row.names = FALSE)
+  out <- tibble::tibble(
+    hip_start_n = hip_start$n,
+    hip_start_pct = hip_start$pct,
+    hip_end_n = hip_end$n,
+    hip_end_pct = hip_end$pct,
+    pps_start_n = pps_start$n,
+    pps_start_pct = pps_start$pct,
+    pps_end_n = pps_end$n,
+    pps_end_pct = pps_end$pct,
+    esd_start_n = esd_start$n,
+    esd_start_pct = esd_start$pct,
+    esd_end_n = esd_end$n,
+    esd_end_pct = esd_end$pct,
+    cdm_name = snap$cdm_name,
+    date_run = runStart,
+    date_export = snap$snapshot_date,
+    pkg_version = pkgVersion
+  )
+  utils::write.csv(out, file.path(resPath, "missing_dates.csv"), row.names = FALSE)
 }
 
+#' Export swapped (reversed) date counts: HIP, PPS, and ESD (final episode).
+#' One row per source (hip, pps, esd) with n_swapped, total, pct, and metadata.
 #' @noRd
 exportReversedDatesCounts <- function(res, resPath, snap, runStart, pkgVersion) {
-  res %>%
-    dplyr::mutate(
-      rev_hip = .data$merge_pregnancy_start > .data$hip_end_date,
-      rev_pps = .data$merge_pregnancy_start > .data$pps_end_date
-    ) %>%
-    dplyr::summarise(
-      n_rev_hip = sum(.data$rev_hip, na.rm = TRUE),
-      n_rev_pps = sum(.data$rev_pps, na.rm = TRUE)
-    ) %>%
-    dplyr::mutate(
+  if (nrow(res) == 0) {
+    out <- tibble::tibble(
+      source = character(0),
+      n_swapped = integer(0),
+      total = integer(0),
+      pct = numeric(0),
+      cdm_name = character(0),
+      date_run = character(0),
+      date_export = character(0),
+      pkg_version = character(0)
+    )
+  } else {
+    rev_hip <- as.Date(res$merge_pregnancy_start) > as.Date(res$hip_end_date)
+    rev_pps <- as.Date(res$merge_pregnancy_start) > as.Date(res$pps_end_date)
+    rev_esd <- as.Date(res$final_episode_start_date) > as.Date(res$final_episode_end_date)
+    n_hip <- sum(!is.na(res$merge_pregnancy_start) & !is.na(res$hip_end_date))
+    n_pps <- sum(!is.na(res$merge_pregnancy_start) & !is.na(res$pps_end_date))
+    n_esd <- sum(!is.na(res$final_episode_start_date) & !is.na(res$final_episode_end_date))
+    n_rev_hip <- as.integer(sum(rev_hip, na.rm = TRUE))
+    n_rev_pps <- as.integer(sum(rev_pps, na.rm = TRUE))
+    n_rev_esd <- as.integer(sum(rev_esd, na.rm = TRUE))
+    pct_hip <- if (n_hip > 0) as.numeric(n_rev_hip) / n_hip * 100 else NA_real_
+    pct_pps <- if (n_pps > 0) as.numeric(n_rev_pps) / n_pps * 100 else NA_real_
+    pct_esd <- if (n_esd > 0) as.numeric(n_rev_esd) / n_esd * 100 else NA_real_
+    out <- tibble::tibble(
+      source = c("hip", "pps", "esd"),
+      n_swapped = c(n_rev_hip, n_rev_pps, n_rev_esd),
+      total = c(n_hip, n_pps, n_esd),
+      pct = c(pct_hip, pct_pps, pct_esd),
       cdm_name = snap$cdm_name,
-      date_run = runStart,
-      date_export = snap$snapshot_date,
-      pkg_version = pkgVersion
-    ) %>%
-    utils::write.csv(file.path(resPath, "swapped_dates.csv"), row.names = FALSE)
+      date_run = as.character(runStart),
+      date_export = as.character(snap$snapshot_date),
+      pkg_version = as.character(pkgVersion)
+    )
+  }
+  utils::write.csv(out, file.path(resPath, "swapped_dates.csv"), row.names = FALSE)
 }
 
 #' @noRd

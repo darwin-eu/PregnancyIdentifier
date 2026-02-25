@@ -45,7 +45,7 @@ GestationalAgeModule <- R6::R6Class(
                                                     args = list(final_outcome_category = list(
                                                       inputId = "final_outcome_category", label = "Outcome",
                                                       choices = private$.outcomeChoices,
-                                                      selected = private$.outcomeChoices,
+                                                      selected = "Overall",
                                                       multiple = TRUE,
                                                       options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
                                                     growDirection = "horizontal")
@@ -55,6 +55,13 @@ GestationalAgeModule <- R6::R6Class(
       }
 
       if (private$.maxWeeksFilter) {
+        private$.inputPanelMinWeeks <- InputPanel$new(fun = list(min_weeks = shiny::numericInput),
+                                                 args = list(min_weeks = list(
+                                                   inputId = "min_weeks",
+                                                   label = "Min weeks",
+                                                   value = 0)),
+                                                 growDirection = "horizontal")
+        private$.inputPanelMinWeeks$parentNamespace <- self$namespace
         private$.inputPanelMaxWeeks <- InputPanel$new(fun = list(max_weeks = shiny::numericInput),
                                                  args = list(max_weeks = list(
                                                    inputId = "max_weeks",
@@ -77,6 +84,7 @@ GestationalAgeModule <- R6::R6Class(
     .inputPanelCDM = NULL,
     .inputPanelOutput = NULL,
     .inputPanelOutcome = NULL,
+    .inputPanelMinWeeks = NULL,
     .inputPanelMaxWeeks = NULL,
 
 
@@ -100,7 +108,7 @@ GestationalAgeModule <- R6::R6Class(
         controls <- c(controls, list(private$.inputPanelOutcome$UI()))
       }
       if (private$.maxWeeksFilter) {
-        controls <- c(controls, list(private$.inputPanelMaxWeeks$UI()))
+        controls <- c(controls, list(private$.inputPanelMinWeeks$UI(), private$.inputPanelMaxWeeks$UI()))
       }
       result <- shiny::tagList(
         controls,
@@ -116,6 +124,9 @@ GestationalAgeModule <- R6::R6Class(
       if (!is.null(private$.inputPanelOutcome)) {
         private$.inputPanelOutcome$server(input, output, session)
       }
+      if (!is.null(private$.inputPanelMinWeeks)) {
+        private$.inputPanelMinWeeks$server(input, output, session)
+      }
       if (!is.null(private$.inputPanelMaxWeeks)) {
         private$.inputPanelMaxWeeks$server(input, output, session)
       }
@@ -126,11 +137,13 @@ GestationalAgeModule <- R6::R6Class(
         if (is.null(cdmSel) || length(cdmSel) == 0) cdmSel <- private$.dp
 
         if (private$.maxWeeksFilter) {
+          minWeeks <- private$.inputPanelMinWeeks$inputValues$min_weeks
+          if (is.null(minWeeks)) minWeeks <- 0
           maxWeeks <- private$.inputPanelMaxWeeks$inputValues$max_weeks
           if (is.null(maxWeeks)) maxWeeks <- 50
           data <- private$.data %>%
             dplyr::mutate(gestational_weeks = as.numeric(.data$gestational_weeks)) %>%
-            dplyr::filter(.data$gestational_weeks <= maxWeeks)
+            dplyr::filter(.data$gestational_weeks >= minWeeks, .data$gestational_weeks <= maxWeeks)
         }
 
         if ("cdm_name" %in% colnames(data)) {

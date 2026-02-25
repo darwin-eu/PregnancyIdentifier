@@ -43,7 +43,7 @@ TemporalPatternsModule <- R6::R6Class(
                                                   args = list(column = list(
                                                     inputId = "column", label = "Columns",
                                                     choices = columnChoices,
-                                                    selected = columnChoices[1:min(4L, length(columnChoices))],
+                                                    selected = 'final_episode_end_date',
                                                     multiple = TRUE,
                                                     options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
                                                   growDirection = "horizontal")

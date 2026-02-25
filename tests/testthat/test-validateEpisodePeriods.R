@@ -47,7 +47,7 @@ test_that("no overlaps and no long periods produces no warnings and logs validat
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
 
-  # Two people, one episode each; spans under 322 days
+  # Two people, one episode each; spans under 308 days
   df <- data.frame(
     person_id = c(1L, 2L),
     start = as.Date(c("2020-01-01", "2021-01-01")),
@@ -89,7 +89,7 @@ test_that("periods longer than maxDays produce long-period warning", {
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
 
-  # One episode of 400 days (> 322)
+  # One episode of 400 days (> 308)
   df <- data.frame(
     person_id = 1L,
     start = as.Date("2020-01-01"),
@@ -109,7 +109,7 @@ test_that("custom maxDays is respected", {
   dir.create(outputFolder, recursive = TRUE, showWarnings = FALSE)
   logger <- PregnancyIdentifier:::makeLogger(outputFolder, outputLogToConsole = FALSE)
 
-  # 100 days: over 50, under 322
+  # 100 days: over 50, under 308
   df <- data.frame(
     person_id = 1L,
     start = as.Date("2020-01-01"),
