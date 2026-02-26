@@ -207,7 +207,7 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.11.0-1018-azure:R 4.5.2//tmp/Rtmpe4ATJM/file253360f79858.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/Rtmp89rfNN/file258f7418524d.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    
