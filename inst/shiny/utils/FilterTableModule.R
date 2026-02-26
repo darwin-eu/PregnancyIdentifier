@@ -35,10 +35,12 @@ FilterTableModule <- R6::R6Class(
     .server = function(input, output, session) {
       # handle updates
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
-        cdmSel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
-        data <- private$.data %>%
-          dplyr::filter(.data$cdm_name %in% cdmSel)
-
+        data <- private$.data
+        if (is.null(data)) data <- data.frame()
+        if (is.data.frame(data) && nrow(data) > 0 && "cdm_name" %in% colnames(data)) {
+          cdmSel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
+          data <- data %>% dplyr::filter(.data$cdm_name %in% cdmSel)
+        }
         private$.table$data <- data
         private$.table$server(input, output, session)
       }, ignoreNULL = FALSE)

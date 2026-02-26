@@ -7,6 +7,8 @@ library(shinydashboard)
 library(shinycssloaders)
 library(plotly)
 library(amVennDiagram5)
+# cleanup environment variables (preserve shinySettings when set by viewResults())
+rm(list = setdiff(ls(all.names = TRUE), "shinySettings"))
 
 ############################ Load modules ############################
 
@@ -284,15 +286,73 @@ if (!hasData) {
       }
     }
     if (length(out) == 0) return()
-    bound <- do.call(bindRowsAligned, out)
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    bound <- dplyr::bind_rows(out)
     if (exists(envVar, envir = .GlobalEnv)) {
       existing <- get(envVar, envir = .GlobalEnv)
-      bound <- bindRowsAligned(existing, bound)
+      allCols <- union(colnames(existing), colnames(bound))
+      missingInBound <- setdiff(allCols, colnames(bound))
+      for (col in missingInBound) bound[[col]] <- NA
+      bound <- bound[, allCols, drop = FALSE]
+      missingInExisting <- setdiff(allCols, colnames(existing))
+      for (col in missingInExisting) existing[[col]] <- NA
+      existing <- existing[, allCols, drop = FALSE]
+      bound <- rbind(existing, bound)
     }
     assign(envVar, bound, envir = .GlobalEnv)
   }
   loadAttritionFromCsv("^attrition\\.csv$", "attrition_episodes")
   loadAttritionFromCsv("^attrition_if_cleanup\\.csv$", "attritionIfCleanup")
+
+  # Load outcome_categories_count and delivery_mode_summary recursively from entire data folder (all subfolders)
+  loadResultCsvRecursive <- function(pattern, envVar) {
+    if (!dir.exists(dataFolder)) return()
+    root <- normalizePath(dataFolder, mustWork = FALSE)
+    if (!dir.exists(root)) return()
+    files <- list.files(root, pattern = pattern, recursive = TRUE, full.names = TRUE)
+    if (length(files) == 0) return()
+    out <- list()
+    for (f in files) {
+      x <- tryCatch(
+        readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+        error = function(e) NULL
+      )
+      if (!is.null(x) && nrow(x) >= 0) {
+        colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+        if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+        parentDir <- basename(dirname(f))
+        if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+        out[[length(out) + 1L]] <- x
+      }
+    }
+    if (length(out) == 0) return()
+    allCols <- Reduce(union, lapply(out, colnames))
+    for (i in seq_along(out)) {
+      missingCols <- setdiff(allCols, colnames(out[[i]]))
+      for (col in missingCols) out[[i]][[col]] <- NA
+      out[[i]] <- out[[i]][, allCols, drop = FALSE]
+    }
+    combined <- dplyr::bind_rows(out)
+    if (exists(envVar, envir = .GlobalEnv)) {
+      existing <- get(envVar, envir = .GlobalEnv)
+      if (is.data.frame(existing) && nrow(existing) > 0) {
+        allCols2 <- union(colnames(existing), colnames(combined))
+        for (col in setdiff(allCols2, colnames(combined))) combined[[col]] <- NA
+        combined <- combined[, allCols2, drop = FALSE]
+        for (col in setdiff(allCols2, colnames(existing))) existing[[col]] <- NA
+        existing <- existing[, allCols2, drop = FALSE]
+        combined <- dplyr::bind_rows(existing, combined)
+      }
+    }
+    assign(envVar, combined, envir = .GlobalEnv)
+  }
+  loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+  loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
 
   # Formatting (requires cdmSource from at least one source)
   if (!exists("cdmSource") || is.null(cdmSource) || nrow(cdmSource) == 0) {
@@ -306,7 +366,7 @@ if (!hasData) {
     shiny::shinyApp(ui = ui, server = server)
   } else {
     dbinfo <- cdmSource %>%
-      dplyr::select(dplyr::where(~ !all(is.na(.)))) %>%
+      dplyr::select_if(~ !all(is.na(.))) %>%
       dplyr::arrange(cdm_name)
 
     allDP <- unique(dbinfo$cdm_name)
@@ -511,6 +571,34 @@ if (!hasData) {
     episodeFrequencySummary <- get("episodeFrequencySummary", envir = .GlobalEnv)
     episodeFrequency <- get("episodeFrequency", envir = .GlobalEnv)
 
+    # Direct load of pregnancy_frequency.csv: recursively find all under data folder and combine
+    loadPregnancyFrequencyFromCsv <- function() {
+      if (!dir.exists(dataFolder)) return(NULL)
+      files <- list.files(dataFolder, pattern = "pregnancy_frequency\\.csv$", recursive = TRUE, full.names = TRUE)
+      if (length(files) == 0) return(NULL)
+      out <- list()
+      for (f in files) {
+        x <- tryCatch(
+          readr::read_csv(f, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
+          error = function(e) NULL
+        )
+        if (!is.null(x) && nrow(x) > 0) {
+          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+          if ("...1" %in% colnames(x) && !"freq" %in% colnames(x)) x <- x %>% dplyr::rename(freq = "...1")
+          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-"...1")
+          parentDir <- basename(dirname(f))
+          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = parentDir)
+          out[[length(out) + 1L]] <- x
+        }
+      }
+      if (length(out) == 0) return(NULL)
+      dplyr::bind_rows(out)
+    }
+    pregnancyFrequencyFromFile <- loadPregnancyFrequencyFromCsv()
+    if (!is.null(pregnancyFrequencyFromFile) && nrow(pregnancyFrequencyFromFile) > 0) {
+      pregnancyFrequency <- pregnancyFrequencyFromFile
+    }
+
     # Keep long format (freq, cdm_name, number_individuals) so pregnancy frequency is faceted by cdm_name
     if (nrow(pregnancyFrequency) > 0 && !"freq" %in% colnames(pregnancyFrequency)) {
       firstCol <- setdiff(colnames(pregnancyFrequency), c("cdm_name", "number_individuals", "date_run", "date_export", "pkg_version"))[1]
@@ -537,7 +625,7 @@ if (!hasData) {
       gestationalAgeDaysSummary <- tibble::tibble(name = character(0))
     }
     gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
-      dplyr::mutate(dplyr::across(-dplyr::all_of(c("cdm_name", "final_outcome_category", "colName")), as.numeric)) %>%
+      dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric) %>%
       dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
 
     minObservationPeriod <- observationPeriodRange %>%
@@ -638,8 +726,95 @@ if (!hasData) {
     trendData <- rbind(yearlyTrend, monthlyTrends)
     trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
 
-    # outcome categories: retrieve data loaded by loadFile() above
-    outcomeCategoriesCount <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+    # Re-run recursive load for outcome/delivery so data is found regardless of load order (data folder, all subfolders)
+    loadResultCsvRecursive("^outcome_categories_count\\.csv$", "outcomeCategoriesCount")
+    loadResultCsvRecursive("^delivery_mode_summary\\.csv$", "deliveryModeSummary")
+
+    # Fallback: if still empty, try reading from zip files (data may be zip-only with no CSVs on disk)
+    .oc <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+    .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
+    if ((!is.data.frame(.oc) || nrow(.oc) == 0) || (!is.data.frame(.dm) || nrow(.dm) == 0)) {
+      zipFilesForOutcome <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
+      zipFilesForOutcome <- zipFilesForOutcome[file.exists(zipFilesForOutcome)]
+      for (zf in zipFilesForOutcome) {
+        contents <- utils::unzip(zf, list = TRUE)$Name
+        if (!is.character(contents)) next
+        baseNames <- basename(contents)
+        if ("outcome_categories_count.csv" %in% baseNames && (!is.data.frame(.oc) || nrow(.oc) == 0)) {
+          idx <- which(baseNames == "outcome_categories_count.csv")[1L]
+          conn <- utils::unz(zf, contents[idx], open = "rb")
+          x <- tryCatch(
+            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+            error = function(e) NULL,
+            finally = close(conn)
+          )
+          if (!is.null(x) && nrow(x) >= 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
+            if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
+              assign("outcomeCategoriesCount", x, envir = .GlobalEnv)
+            } else {
+              assign("outcomeCategoriesCount", dplyr::bind_rows(get("outcomeCategoriesCount", envir = .GlobalEnv), x), envir = .GlobalEnv)
+            }
+            .oc <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+          }
+        }
+        if ("delivery_mode_summary.csv" %in% baseNames && (!is.data.frame(.dm) || nrow(.dm) == 0)) {
+          idx <- which(baseNames == "delivery_mode_summary.csv")[1L]
+          conn <- utils::unz(zf, contents[idx], open = "rb")
+          x <- tryCatch(
+            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+            error = function(e) NULL,
+            finally = close(conn)
+          )
+          if (!is.null(x) && nrow(x) >= 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
+            if (!exists("deliveryModeSummary", envir = .GlobalEnv) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
+              assign("deliveryModeSummary", x, envir = .GlobalEnv)
+            } else {
+              assign("deliveryModeSummary", dplyr::bind_rows(get("deliveryModeSummary", envir = .GlobalEnv), x), envir = .GlobalEnv)
+            }
+            .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
+          }
+        }
+      }
+    }
+
+    # Load CSVs from data path by filename (recursive under root); use absolute path so working directory does not matter
+    loadCsvFromDataPath <- function(root, filename) {
+      if (!dir.exists(root)) return(tibble::tibble())
+      rootAbs <- normalizePath(root, mustWork = FALSE)
+      if (!dir.exists(rootAbs)) return(tibble::tibble())
+      files <- list.files(rootAbs, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+      files <- files[basename(files) == filename]
+      if (length(files) == 0) return(tibble::tibble())
+      out <- list()
+      for (f in files) {
+        x <- tryCatch(
+          readr::read_csv(f, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+          error = function(e) NULL
+        )
+        if (!is.null(x) && nrow(x) >= 0) {
+          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = basename(dirname(f)))
+          out[[length(out) + 1L]] <- x
+        }
+      }
+      if (length(out) == 0) return(tibble::tibble())
+      allCols <- Reduce(union, lapply(out, colnames))
+      for (i in seq_along(out)) {
+        for (col in setdiff(allCols, colnames(out[[i]]))) out[[i]][[col]] <- NA
+        out[[i]] <- out[[i]][, allCols, drop = FALSE]
+      }
+      dplyr::bind_rows(out)
+    }
+
+    # outcome categories: load from data path and show in DT
+    outcomeCategoriesCount <- loadCsvFromDataPath(dataFolder, "outcome_categories_count.csv")
     if (nrow(outcomeCategoriesCount) > 0) {
       if ("n" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
       if ("pct" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(pct = round(suppressWarnings(as.numeric(.data$pct)), 4))
@@ -648,8 +823,8 @@ if (!hasData) {
       }
     }
 
-    # delivery mode: retrieve data loaded by loadFile() above
-    deliveryModeSummary <- get("deliveryModeSummary", envir = .GlobalEnv)
+    # delivery mode: load from data path and show in DT
+    deliveryModeSummary <- loadCsvFromDataPath(dataFolder, "delivery_mode_summary.csv")
     # Optionally reshape when export-format columns exist; otherwise show raw CSV in DT
     deliveryModeRequired <- c("final_outcome_category", "n", "cesarean", "vaginal", "cesarean_pct", "vaginal_pct")
     if (nrow(deliveryModeSummary) > 0 && all(deliveryModeRequired %in% colnames(deliveryModeSummary))) {
@@ -668,7 +843,7 @@ if (!hasData) {
           ) %>%
           tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")
       ) %>%
-        dplyr::mutate(dplyr::across(-dplyr::all_of(c("cdm_name", "final_outcome_category", "mode")), ~ suppressWarnings(as.numeric(.)))) %>%
+        dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
         dplyr::mutate(pct = round(pct, 2)) %>%
         dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
     }
@@ -706,16 +881,7 @@ if (!hasData) {
       )
     }
 
-    # Build data availability summary for Overview tab
-    dataSummary <- buildDataSummary(allDP)
-
     appStructure <- list(
-      "Overview" = list(OverviewModule$new(
-        dbinfo = dbinfo,
-        allDP = allDP,
-        episodeCounts = if (exists("pregnancyOverlapCounts")) pregnancyOverlapCounts else NULL,
-        dataSummary = dataSummary
-      )),
       "Study background" = list(StudyBackground$new(
         background = "./background.md",
         EUPAS = "EUPAS"
@@ -757,7 +923,7 @@ if (!hasData) {
         ),
         "Swapped dates" = tabWithHelpText(
           handleEmptyResult(
-            object = SwappedDatesModule$new(
+            object = FilterTableModule$new(
               data = swappedDatesDisplay,
               dp = unique(swappedDatesDisplay$cdm_name)
             ),
@@ -867,7 +1033,7 @@ if (!hasData) {
       esdDp <- if (is.data.frame(esdConceptCounts) && "cdm_name" %in% names(esdConceptCounts)) unique(esdConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["ESD concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = ConceptCountsModule$new(data = esdConceptCounts, dp = esdDp, title = "ESD concept counts"),
+          object = FilterTableModule$new(data = esdConceptCounts, dp = esdDp),
           result = esdConceptCounts
         ),
         "Counts of ESD (Estimated Start Date) concept usage. Used to describe concept coverage and compare across sites."
@@ -878,7 +1044,7 @@ if (!hasData) {
       hipDp <- if (is.data.frame(hipConceptCounts) && "cdm_name" %in% names(hipConceptCounts)) unique(hipConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["HIP concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = ConceptCountsModule$new(data = hipConceptCounts, dp = hipDp, title = "HIP concept counts"),
+          object = FilterTableModule$new(data = hipConceptCounts, dp = hipDp),
           result = hipConceptCounts
         ),
         "Counts of HIP (Hierarchical Identification of Pregnancy) concept usage. Used to compare concept coverage across sites."
@@ -889,7 +1055,7 @@ if (!hasData) {
       ppsDp <- if (is.data.frame(ppsConceptCounts) && "cdm_name" %in% names(ppsConceptCounts)) unique(ppsConceptCounts$cdm_name) else allDP
       conceptCountsTabs[["PPS concept counts"]] <- tabWithHelpText(
         handleEmptyResult(
-          object = ConceptCountsModule$new(data = ppsConceptCounts, dp = ppsDp, title = "PPS concept counts"),
+          object = FilterTableModule$new(data = ppsConceptCounts, dp = ppsDp),
           result = ppsConceptCounts
         ),
         "Counts of pregnancy-related concepts used by PPS per concept. Used to check that expected pregnancy concepts are present."

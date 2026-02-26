@@ -70,6 +70,9 @@ Table <- R6::R6Class(
       if (missing(data)) {
         return(private$.data)
       } else {
+        if (is.null(data)) {
+          data <- data.frame()
+        }
         checkmate::assertDataFrame(data)
         private$.data <- data
         self$reactiveValues$data <- data
