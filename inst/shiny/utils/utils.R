@@ -235,7 +235,7 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
     if (exists("OUTCOME_COLOURS") && fillVar %in% c("final_outcome_category", "outcome_category")) {
       availCats <- intersect(names(OUTCOME_COLOURS), unique(as.character(data[[fillVar]])))
       if (length(availCats) > 0) {
-        p <- p + scale_fill_manual(values = OUTCOME_COLOURS, na.value = "#CCCCCC")
+        p <- p + scale_fill_manual(values = OUTCOME_COLOURS[availCats], na.value = "#CCCCCC")
       }
     }
   }

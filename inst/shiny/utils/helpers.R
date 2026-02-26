@@ -217,7 +217,7 @@ normaliseCdmName <- function(df) {
   if (!is.data.frame(df) || nrow(df) == 0 || !"cdm_name" %in% colnames(df)) return(df)
   version <- ""
   if ("pkg_version" %in% colnames(df)) {
-    version <- paste0("_v", as.numeric(substr(df$pkg_version, 1, 1)))
+    version <- paste0("_v", as.numeric(sub("^([0-9]+).*", "\\1", as.character(df$pkg_version))))
     df <- df %>% dplyr::select(-"pkg_version")
   }
   df %>%

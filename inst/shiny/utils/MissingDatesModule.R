@@ -64,7 +64,6 @@ MissingDatesModule <- R6::R6Class(
 
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
         private$.table$data <- getData()
-        private$.table$server(input, output, session)
       }, ignoreNULL = FALSE)
 
       output$missingPlot <- plotly::renderPlotly({

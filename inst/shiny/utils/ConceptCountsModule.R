@@ -13,6 +13,14 @@ ConceptCountsModule <- R6::R6Class(
     initialize = function(data, dp = if ("cdm_name" %in% colnames(data)) unique(data$cdm_name) else character(0),
                           title = "Concept counts", height = "500px") {
       super$initialize()
+      # Coerce numeric-looking columns so Table formatting and sorting work correctly
+      numericCols <- c("record_count", "person_count", "concept_id",
+                       "esd_concept_id", "pps_concept_id",
+                       "n_after_min", "n_prior_max", "n_in_span", "n_at_midpoint",
+                       "p_after_min", "p_prior_max", "p_in_span", "p_at_midpoint", "p_concept")
+      for (col in intersect(numericCols, colnames(data))) {
+        data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
+      }
       private$.data <- data
       private$.dp <- dp
       private$.title <- title
@@ -78,7 +86,6 @@ ConceptCountsModule <- R6::R6Class(
       if (!is.null(private$.inputPanelCDM)) {
         shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
           private$.table$data <- getData()
-          private$.table$server(input, output, session)
         }, ignoreNULL = FALSE)
       }
 

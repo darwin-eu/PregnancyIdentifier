@@ -82,7 +82,7 @@ PrecisionDaysModule <- R6::R6Class(
             dplyr::summarise(
               `N Points` = dplyr::n(),
               `Min` = round(min(.data$esd_precision_days), 1),
-              `Median` = round(stats::weighted.mean(.data$esd_precision_days, .data$density), 1),
+              `Weighted Mean` = round(stats::weighted.mean(.data$esd_precision_days, .data$density), 1),
               `Max` = round(max(.data$esd_precision_days), 1),
               `Peak Density At` = round(.data$esd_precision_days[which.max(.data$density)], 1),
               .groups = "drop"
