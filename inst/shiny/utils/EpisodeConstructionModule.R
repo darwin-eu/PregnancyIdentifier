@@ -23,15 +23,7 @@ EpisodeConstructionModule <- R6::R6Class(
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -70,11 +62,6 @@ EpisodeConstructionModule <- R6::R6Class(
             dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name) %>%
             dplyr::arrange(cdm_name) %>%
             dplyr::mutate(cdm_name = factor(cdm_name, levels = rev(private$.dp)))
-        } else {
-          nameCols <- setdiff(colnames(private$.data), private$.dp)
-
-          data <-  private$.data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
         }
       return(data)
       })

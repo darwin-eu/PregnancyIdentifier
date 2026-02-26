@@ -78,9 +78,9 @@ snakeCaseToCamelCase <- function(string) {
   return(string)
 }
 
-loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
+loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir = .GlobalEnv) {
   if (endsWith(file, ".csv")) {
-    print(file)
+    message("Loading: ", file)
     tableName <- gsub(".csv$", "", file)
     camelCaseName <- snakeCaseToCamelCase(tableName)
     if (camelCaseName == "attrition") {
@@ -172,23 +172,11 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite) {
         dplyr::mutate(cdm_name = tolower(cdm_name))
     }
 
-    if (camelCaseName != "petComparisonSummarisedResult" && !overwrite && exists(camelCaseName, envir = .GlobalEnv)) {
-      existingData <- get(camelCaseName, envir = .GlobalEnv)
-      allCols <- union(colnames(existingData), colnames(data))
-      # Align columns: add missing columns as NA so different schema versions can be merged
-      missingInData <- setdiff(allCols, colnames(data))
-      for (col in missingInData) {
-        data[[col]] <- NA
-      }
-      data <- data[, allCols, drop = FALSE]
-      missingInExisting <- setdiff(allCols, colnames(existingData))
-      for (col in missingInExisting) {
-        existingData[[col]] <- NA
-      }
-      existingData <- existingData[, allCols, drop = FALSE]
-      data <- rbind(existingData, data)
+    if (camelCaseName != "petComparisonSummarisedResult" && !overwrite && exists(camelCaseName, envir = envir)) {
+      existingData <- get(camelCaseName, envir = envir)
+      data <- bindRowsAligned(existingData, data)
     }
-    assign(camelCaseName, data, envir = .GlobalEnv)
+    assign(camelCaseName, data, envir = envir)
     invisible(NULL)
   }
 }
@@ -243,6 +231,13 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
     p <- p + geom_bar(stat = "identity",
                       position = position,
                       mapping = aes(fill = .data[[fillVar]]))
+    # Apply fixed outcome colours when fillVar matches a known outcome/mode variable
+    if (exists("OUTCOME_COLOURS") && fillVar %in% c("final_outcome_category", "outcome_category")) {
+      availCats <- intersect(names(OUTCOME_COLOURS), unique(as.character(data[[fillVar]])))
+      if (length(availCats) > 0) {
+        p <- p + scale_fill_manual(values = OUTCOME_COLOURS, na.value = "#CCCCCC")
+      }
+    }
   }
   if (!is.null(facetVar)) {
     if (is.null(labelFunction)) {
@@ -263,11 +258,18 @@ barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunc
   if (!is.null(title)) {
     p <- p + ggtitle(title)
   }
-  if (!is.null(yLim) && length(yLim) == 2L) {
-    p <- p + coord_cartesian(ylim = yLim)
-  }
+  # Apply theme_minimal for cleaner visuals
+  p <- p + theme_minimal()
+
+  # Fix coord conflict: coord_flip and coord_cartesian are mutually exclusive
   if (flipCoordinates) {
-    p <- p + coord_flip()
+    if (!is.null(yLim) && length(yLim) == 2L) {
+      p <- p + coord_flip(ylim = yLim)
+    } else {
+      p <- p + coord_flip()
+    }
+  } else if (!is.null(yLim) && length(yLim) == 2L) {
+    p <- p + coord_cartesian(ylim = yLim)
   }
   if (!is.null(verticalLinesPos)) {
     for (pos in verticalLinesPos) {
@@ -345,7 +347,7 @@ customDarwinFooter <- function() {
     style = "padding: 3px 0px 0px 0px; text-align: center; bottom: 0; width: 100%;",
     shiny::h6(
       sprintf(
-        "Generated with DarwinShinyModules %s | Deployed on: %s | (c) %s - 2023 European Medicines Agency. All rights reserved. Certain parts are licensed under conditions to the European Medicines Agency.",
+        "Generated with DarwinShinyModules %s | Deployed on: %s | (c) 2023-%s European Medicines Agency. All rights reserved. Certain parts are licensed under conditions to the European Medicines Agency.",
         utils::packageVersion("DarwinShinyModules"),
         Sys.Date(),
         substr(Sys.Date(), start = 1, stop = 4)

@@ -13,15 +13,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
       private$.dp <- dp
       private$.height <- height
       # input pickers
-      private$.cdmInputPanel <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.cdmInputPanel$parentNamespace <- self$namespace
+      private$.cdmInputPanel <- createDatabasePicker(private$.dp, self$namespace)
 
       allOutcomes <- unique(private$.data$final_outcome_category)
       private$.outcomeInputPanel <- InputPanel$new(fun = list(outcome = shinyWidgets::pickerInput),
@@ -244,7 +236,7 @@ GestationalAgeDaysPerCategoryModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          private$.data %>% dplyr::mutate_if(is.character, as.factor),
+          private$.data %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor)),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

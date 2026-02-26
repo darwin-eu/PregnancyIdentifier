@@ -16,15 +16,7 @@ EpisodeFrequencyModule <- R6::R6Class(
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -71,11 +63,6 @@ EpisodeFrequencyModule <- R6::R6Class(
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
             dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
-        } else {
-          nameCols <- setdiff(colnames(private$.data), private$.dp)
-
-          data <-  private$.data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
         }
         return(data)
       })
@@ -84,7 +71,14 @@ EpisodeFrequencyModule <- R6::R6Class(
         getData() %>%
           dplyr::filter(name %in% c("total_episodes", "total_individuals")) %>%
           tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
-          dplyr::mutate(value = as.numeric(value))
+          dplyr::mutate(
+            value = as.numeric(value),
+            name = dplyr::case_when(
+              .data$name == "total_episodes" ~ "Total Episodes",
+              .data$name == "total_individuals" ~ "Total Individuals",
+              TRUE ~ .data$name
+            )
+          )
       })
 
       # handle updates: show table with display names for statistics

@@ -16,15 +16,7 @@ PregnancyFrequencyModule <- R6::R6Class(
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -62,11 +54,6 @@ PregnancyFrequencyModule <- R6::R6Class(
         if ("cdm_name" %in% colnames(private$.data)) {
           data <-  private$.data %>%
             dplyr::filter(.data$cdm_name %in% cdmSel)
-        } else {
-          nameCols <- setdiff(colnames(private$.data), private$.dp)
-
-          data <-  private$.data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
         return(data)
       })

@@ -1,9 +1,8 @@
-# Copyright (c) 2024–2025 DARWIN EU®
-# Quality check cleanup table: transposed (Metric in rows, databases in columns), rendered with gt.
+# Copyright (c) 2024-2025 DARWIN EU
+# Quality check cleanup: transposed gt table + horizontal bar chart.
 
 library(DarwinShinyModules)
 
-#' R6 module for the quality check cleanup table: transposed layout (Metric, then one column per CDM), rendered with gt.
 QualityCheckCleanupModule <- R6::R6Class(
   classname = "QualityCheckCleanupModule",
   inherit = ShinyModule,
@@ -14,19 +13,7 @@ QualityCheckCleanupModule <- R6::R6Class(
       private$.data <- data
       private$.dp <- dp
 
-      private$.inputPanelCDM <- InputPanel$new(
-        fun = list(cdm_name = shinyWidgets::pickerInput),
-        args = list(cdm_name = list(
-          inputId = "cdm_name",
-          label = "Database",
-          choices = private$.dp,
-          selected = private$.dp,
-          multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -38,14 +25,27 @@ QualityCheckCleanupModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        gt::gt_output(shiny::NS(private$.namespace, "qualityTable")) %>% shinycssloaders::withSpinner()
+        shiny::tabsetPanel(
+          id = shiny::NS(private$.namespace, "qcTabs"),
+          shiny::tabPanel(
+            "Plot",
+            plotly::plotlyOutput(shiny::NS(private$.namespace, "qcPlot"), height = "420px") %>%
+              shinycssloaders::withSpinner()
+          ),
+          shiny::tabPanel(
+            "Data",
+            gt::gt_output(shiny::NS(private$.namespace, "qualityTable")) %>%
+              shinycssloaders::withSpinner()
+          )
+        )
       )
     },
 
     .server = function(input, output, session) {
+      private$.inputPanelCDM$server(input, output, session)
+
       tableData <- shiny::reactive({
-        sel <- private$.inputPanelCDM$inputValues$cdm_name
-        if (is.null(sel) || length(sel) == 0) sel <- private$.dp
+        sel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
         d <- private$.data
         if (!is.data.frame(d) || nrow(d) == 0 || !"cdm_name" %in% colnames(d)) {
           return(NULL)
@@ -53,13 +53,18 @@ QualityCheckCleanupModule <- R6::R6Class(
         d <- d %>% dplyr::filter(.data$cdm_name %in% sel)
         metric_cols <- setdiff(colnames(d), "cdm_name")
         if (length(metric_cols) == 0) return(NULL)
-        # Transpose: long by cdm_name, then wide so Metric is first column, CDMs are columns
+        # Apply human-readable metric labels
         long <- d %>%
           tidyr::pivot_longer(
             cols = dplyr::all_of(metric_cols),
             names_to = "Metric",
             values_to = "value"
-          )
+          ) %>%
+          dplyr::mutate(Metric = ifelse(
+            .data$Metric %in% names(PRETTY_NAMES),
+            PRETTY_NAMES[.data$Metric],
+            .data$Metric
+          ))
         wide <- long %>%
           tidyr::pivot_wider(names_from = "cdm_name", values_from = "value")
         wide
@@ -72,12 +77,64 @@ QualityCheckCleanupModule <- R6::R6Class(
         }
         gt::gt(d) %>%
           gt::tab_options(
-            table.font.size = gt::px(12),
-            data_row.padding = gt::px(6)
+            table.font.size = gt::px(13),
+            data_row.padding = gt::px(8),
+            column_labels.font.weight = "bold"
+          ) %>%
+          gt::tab_style(
+            style = gt::cell_text(weight = "bold"),
+            locations = gt::cells_body(columns = "Metric")
           )
       })
 
-      private$.inputPanelCDM$server(input, output, session)
+      # Plot: horizontal grouped bar chart of cleanup metrics per database
+      output$qcPlot <- plotly::renderPlotly({
+        sel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
+        d <- private$.data
+        if (!is.data.frame(d) || nrow(d) == 0 || !"cdm_name" %in% colnames(d)) {
+          return(emptyPlotlyMessage("No quality check cleanup data."))
+        }
+        d <- d %>% dplyr::filter(.data$cdm_name %in% sel)
+
+        # Select key count metrics for the bar chart
+        countCols <- intersect(
+          c("n_records_overlapping", "n_records_too_long", "n_records_after_cleanup"),
+          colnames(d)
+        )
+        if (length(countCols) == 0) {
+          return(emptyPlotlyMessage("No count metrics available for plotting."))
+        }
+
+        plotData <- d %>%
+          dplyr::select(dplyr::all_of(c("cdm_name", countCols))) %>%
+          tidyr::pivot_longer(-"cdm_name", names_to = "metric", values_to = "value") %>%
+          dplyr::mutate(
+            value = suppressWarnings(as.numeric(.data$value)),
+            metric = ifelse(
+              .data$metric %in% names(PRETTY_NAMES),
+              PRETTY_NAMES[.data$metric],
+              .data$metric
+            ),
+            metric = factor(.data$metric, levels = rev(unique(.data$metric)))
+          )
+
+        p <- ggplot2::ggplot(plotData, ggplot2::aes(
+          x = .data$metric, y = .data$value,
+          fill = .data$cdm_name,
+          text = paste0(.data$cdm_name, "\n",
+                        .data$metric, ": ",
+                        format(.data$value, big.mark = ","))
+        )) +
+          ggplot2::geom_bar(stat = "identity", position = "dodge") +
+          ggplot2::coord_flip() +
+          ggplot2::labs(x = NULL, y = "Count", fill = "Database") +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            legend.position = "bottom",
+            axis.text.y = ggplot2::element_text(size = 11)
+          )
+        plotly::ggplotly(p, tooltip = "text")
+      })
     }
   )
 )

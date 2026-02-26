@@ -19,15 +19,7 @@ GestationalAgeModule <- R6::R6Class(
       }
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
 
       outputChoices <- c("n", "pct", "log(n)")
       selectedOutputChoice <- ifelse(private$.maxWeeksFilter, "log(n)", "n")
@@ -149,10 +141,6 @@ GestationalAgeModule <- R6::R6Class(
         if ("cdm_name" %in% colnames(data)) {
           data <- data %>%
             dplyr::filter(.data$cdm_name %in% cdmSel)
-        } else {
-          nameCols <- setdiff(colnames(data), private$.dp)
-          data <- data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, cdmSel)))
         }
 
         # Add "Overall" group (sum of n across all outcome categories) when outcome column exists
@@ -254,7 +242,7 @@ GestationalAgeModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          getData() %>% dplyr::mutate_if(is.character, as.factor),
+          getData() %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor)),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

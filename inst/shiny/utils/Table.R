@@ -235,11 +235,34 @@ Table <- R6::R6Class(
           rowsToColor <- data %>% dplyr::filter(overlap == TRUE) %>% dplyr::pull(rowId)
           data <- data %>% dplyr::select(-rowId)
         }
-        data <- data %>% dplyr::mutate_if(is.character, as.factor)
+        data <- data %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor))
+
+        # Detect percentage and numeric columns for formatting
+        pctCols <- grep("pct$|percent|Percent|^%$", colnames(data), value = TRUE)
+        numCols <- colnames(data)[vapply(data, is.numeric, logical(1))]
+        numCols <- setdiff(numCols, pctCols)
+
+        # Apply human-readable column headers
+        displayNames <- colnames(data)
+        if (exists("PRETTY_NAMES")) {
+          matched <- displayNames %in% names(PRETTY_NAMES)
+          displayNames[matched] <- PRETTY_NAMES[displayNames[matched]]
+        }
+
         result <- DT::datatable(
           data = data,
+          colnames = displayNames,
           filter = private$.filter,
           options = private$.options)
+
+        # Format percentages and numbers
+        if (length(pctCols) > 0) {
+          result <- result %>% DT::formatRound(pctCols, digits = 2)
+        }
+        if (length(numCols) > 0) {
+          result <- result %>% DT::formatRound(numCols, digits = 0, mark = ",")
+        }
+
         if (!is.null(rowsToColor)) {
           result <- result %>%
             DT::formatStyle(0, target='row', backgroundColor = DT::styleEqual(c(rowsToColor), c('red')))
