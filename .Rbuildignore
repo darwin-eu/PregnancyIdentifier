@@ -15,7 +15,6 @@ work/*
 ^README\.Rmd$
 ^STYLE\.md$
 .vscode/
-^inst/shiny$
 ^export$
 ^output$
 ^vignettes/algorithm_cache
