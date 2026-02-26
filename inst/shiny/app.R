@@ -682,7 +682,7 @@ if (!hasData) {
     # Episode frequency: include "Incidence rate" only when incidence data exists
     episodeFreqItems <- list(
       "Episode frequency" = tabWithHelpText(
-        handleEmptyResult(object = EpisodeFrequencyModule$new(data = episodeFrequency, dp = allDP), result = episodeFrequency),
+        handleEmptyResult(object = EpisodeFrequencyModule$new(data = episodeFrequency, dp = if (nrow(episodeFrequency) > 0 && "cdm_name" %in% colnames(episodeFrequency)) unique(c(episodeFrequency$cdm_name, allDP)) else allDP), result = episodeFrequency),
         "Total pregnancy episodes and total individuals. Used as the main denominator for rates and site-level summaries."
       ),
       "Pregnancy frequency" = tabWithHelpText(
@@ -780,7 +780,7 @@ if (!hasData) {
         ),
         "Missing dates" = tabWithHelpText(
           handleEmptyResult(
-            object = MissingDatesModule$new(data = missingDates, dp = allDP),
+            object = MissingDatesModule$new(data = missingDates, dp = if (nrow(missingDates) > 0 && "cdm_name" %in% colnames(missingDates)) unique(c(missingDates$cdm_name, allDP)) else allDP),
             result = missingDates,
             emptyMessage = "No missing dates data available."
           ),
@@ -798,7 +798,7 @@ if (!hasData) {
           handleEmptyResult(
             object = DeliveryModeModule$new(
               data = deliveryModeSummary,
-              dp = allDP,
+              dp = if (nrow(deliveryModeSummary) > 0 && "cdm_name" %in% colnames(deliveryModeSummary)) unique(c(deliveryModeSummary$cdm_name, allDP)) else allDP,
               yVar = "pct",
               label = "n",
               fillVar = "mode",
@@ -819,7 +819,7 @@ if (!hasData) {
         ),
         "Outcome categories" = tabWithHelpText(
           handleEmptyResult(
-            object = OutcomeCategoriesModule$new(data = outcomeCategoriesCount, dp = allDP),
+            object = OutcomeCategoriesModule$new(data = outcomeCategoriesCount, dp = if (nrow(outcomeCategoriesCount) > 0 && "cdm_name" %in% colnames(outcomeCategoriesCount)) unique(c(outcomeCategoriesCount$cdm_name, allDP)) else allDP),
             result = outcomeCategoriesCount,
             emptyMessage = "No outcome categories data available."
           ),
@@ -854,7 +854,7 @@ if (!hasData) {
     }
     appStructure[["Observation Period"]] <- list(
       "Observation period range" = tabWithHelpText(
-        handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = allDP), result = observationPeriodRange),
+        handleEmptyResult(object = FilterTableModule$new(data = observationPeriodRange, dp = if (nrow(observationPeriodRange) > 0 && "cdm_name" %in% colnames(observationPeriodRange)) unique(c(observationPeriodRange$cdm_name, allDP)) else allDP), result = observationPeriodRange),
         "Range of observation periods in the CDM. Used to interpret temporal coverage and compare study windows across sites."
       )
     )
