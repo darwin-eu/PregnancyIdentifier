@@ -226,7 +226,11 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       "final_episode_start_date",
       "final_episode_end_date",
       "final_outcome_category",
-      dplyr::any_of("esd_gestational_age_days_calculated")
+      dplyr::any_of(c(
+        "esd_gestational_age_days_calculated",
+        "hip_flag", "pps_flag",
+        "esd_precision_days", "esd_precision_category"
+      ))
     ) %>%
     dplyr::mutate(
       alg_start = as.Date(.data$final_episode_start_date),
@@ -341,6 +345,222 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     total_algorithm_episodes = n_episodes_alg,
     total_matched_episodes = n_both
   )
+
+  # ---- 2a) Group characterization (matched, algorithm-only, PET-only) ----
+  log4r::info(logger, "Characterizing episode groups (matched, algorithm-only, PET-only)")
+
+  # Split episodes into 3 groups
+  matched_alg_idx <- one_to_one_matches$.alg_idx
+  matched_pet_idx <- one_to_one_matches$.pet_idx
+
+  matched_alg <- alg %>% dplyr::filter(.data$.alg_idx %in% matched_alg_idx)
+  alg_only_df <- alg %>% dplyr::filter(!(.data$.alg_idx %in% matched_alg_idx))
+  pet_only_df <- pet %>% dplyr::filter(!(.data$.pet_idx %in% matched_pet_idx))
+
+  # Helper: compute gestational time summary for a group
+  summarise_gestational_time <- function(gest_days) {
+    gest_days <- gest_days[!is.na(gest_days)]
+    if (length(gest_days) == 0) {
+      return(list(
+        n = 0L, mean = NA_real_, median = NA_real_, sd = NA_real_,
+        min = NA_real_, q25 = NA_real_, q75 = NA_real_, max = NA_real_
+      ))
+    }
+    list(
+      n = length(gest_days),
+      mean = mean(gest_days),
+      median = stats::median(gest_days),
+      sd = stats::sd(gest_days),
+      min = min(gest_days),
+      q25 = unname(stats::quantile(gest_days, 0.25)),
+      q75 = unname(stats::quantile(gest_days, 0.75)),
+      max = max(gest_days)
+    )
+  }
+
+  # Helper: compute outcome distribution for a group
+  summarise_outcomes <- function(df, outcome_col) {
+    if (nrow(df) == 0 || !(outcome_col %in% colnames(df))) return(list())
+    counts <- df %>%
+      dplyr::count(.data[[outcome_col]], name = "n") %>%
+      dplyr::mutate(pct = .data$n / sum(.data$n) * 100)
+    stats::setNames(
+      lapply(seq_len(nrow(counts)), function(i) {
+        list(category = as.character(counts[[outcome_col]][i]), n = counts$n[i], pct = counts$pct[i])
+      }),
+      counts[[outcome_col]]
+    )
+  }
+
+  # Helper: compute HIP/PPS source distribution for algorithm episodes
+  summarise_hip_pps <- function(df) {
+    if (nrow(df) == 0 || !all(c("hip_flag", "pps_flag") %in% colnames(df))) return(list())
+    df <- df %>%
+      dplyr::mutate(
+        source_type = dplyr::case_when(
+          .data$hip_flag == 1 & .data$pps_flag == 1 ~ "both",
+          .data$hip_flag == 1 & (.data$pps_flag == 0 | is.na(.data$pps_flag)) ~ "hip_only",
+          (.data$hip_flag == 0 | is.na(.data$hip_flag)) & .data$pps_flag == 1 ~ "pps_only",
+          TRUE ~ "neither"
+        )
+      )
+    counts <- df %>%
+      dplyr::count(.data$source_type, name = "n") %>%
+      dplyr::mutate(pct = .data$n / sum(.data$n) * 100)
+    stats::setNames(
+      lapply(seq_len(nrow(counts)), function(i) {
+        list(source_type = counts$source_type[i], n = counts$n[i], pct = counts$pct[i])
+      }),
+      counts$source_type
+    )
+  }
+
+  # PET outcome concept_id to label mapping
+  pet_outcome_label <- function(x) {
+    dplyr::case_when(
+      x == 4092289L ~ "LB",
+      x == 4067106L ~ "SA",
+      x == 4081422L ~ "AB",
+      x == 443213L ~ "SB",
+      is.na(x) | x == 0L ~ "Unknown",
+      TRUE ~ paste0("Other_", x)
+    )
+  }
+
+  # Compute gestational time for each group
+  gest_matched <- summarise_gestational_time(
+    as.numeric(matched_alg$esd_gestational_age_days_calculated)
+  )
+  gest_alg_only <- summarise_gestational_time(
+    as.numeric(alg_only_df$esd_gestational_age_days_calculated)
+  )
+  gest_pet_only <- summarise_gestational_time(
+    as.numeric(pet_only_df$pet_end - pet_only_df$pet_start)
+  )
+
+  # Compute outcome distribution for each group
+  outcome_matched <- summarise_outcomes(matched_alg, "final_outcome_category")
+  outcome_alg_only <- summarise_outcomes(alg_only_df, "final_outcome_category")
+  # For PET-only, map concept_id to label
+  pet_only_with_label <- pet_only_df %>%
+    dplyr::mutate(pet_outcome_label = pet_outcome_label(as.integer(.data$pregnancy_outcome)))
+  outcome_pet_only <- summarise_outcomes(pet_only_with_label, "pet_outcome_label")
+
+  # Compute HIP/PPS source distribution (algorithm groups only)
+  source_matched <- summarise_hip_pps(matched_alg)
+  source_alg_only <- summarise_hip_pps(alg_only_df)
+
+  # ---- 2a-ii) HIP/PPS records in PET-only episodes ----
+  # Look up whether PET-only episodes have any HIP/PPS concept records in the CDM
+  has_hip_records <- "preg_hip_records" %in% names(cdm)
+  has_pps_records <- "preg_pps_records" %in% names(cdm)
+
+  # Per-episode record counts (initialise empty; populated below if CDM tables exist)
+  pet_only_episode_records <- pet_only_df %>%
+    dplyr::select(".pet_idx", "person_id", "pet_start", "pet_end") %>%
+    dplyr::mutate(n_hip = 0L, n_pps = 0L)
+
+  if (nrow(pet_only_df) > 0 && (has_hip_records || has_pps_records)) {
+    log4r::info(logger, "Looking up HIP/PPS records for PET-only episodes")
+    pet_only_person_ids <- unique(pet_only_df$person_id)
+
+    # --- HIP records within PET-only episode windows ---
+    if (has_hip_records) {
+      hip_for_pet_only <- cdm$preg_hip_records %>%
+        dplyr::filter(.data$person_id %in% !!pet_only_person_ids) %>%
+        dplyr::select("person_id", "visit_date", "category", "concept_id") %>%
+        dplyr::collect() %>%
+        dplyr::mutate(visit_date = as.Date(.data$visit_date))
+
+      hip_in_pet <- hip_for_pet_only %>%
+        dplyr::inner_join(
+          pet_only_df %>% dplyr::select("person_id", "pet_start", "pet_end", ".pet_idx"),
+          by = "person_id",
+          relationship = "many-to-many"
+        ) %>%
+        dplyr::filter(.data$visit_date >= .data$pet_start, .data$visit_date <= .data$pet_end)
+
+      hip_per_episode <- hip_in_pet %>%
+        dplyr::group_by(.data$.pet_idx) %>%
+        dplyr::summarise(
+          n_hip = dplyr::n(),
+          hip_categories = paste(sort(unique(.data$category)), collapse = ","),
+          .groups = "drop"
+        )
+
+      pet_only_episode_records <- pet_only_episode_records %>%
+        dplyr::select(-"n_hip") %>%
+        dplyr::left_join(hip_per_episode %>% dplyr::select(".pet_idx", "n_hip"), by = ".pet_idx") %>%
+        dplyr::mutate(n_hip = dplyr::coalesce(.data$n_hip, 0L))
+    }
+
+    # --- PPS records within PET-only episode windows ---
+    if (has_pps_records) {
+      pps_for_pet_only <- cdm$preg_pps_records %>%
+        dplyr::filter(.data$person_id %in% !!pet_only_person_ids) %>%
+        dplyr::select("person_id", "pps_concept_start_date", "pps_concept_id", "pps_concept_name") %>%
+        dplyr::collect() %>%
+        dplyr::mutate(pps_concept_start_date = as.Date(.data$pps_concept_start_date))
+
+      pps_in_pet <- pps_for_pet_only %>%
+        dplyr::inner_join(
+          pet_only_df %>% dplyr::select("person_id", "pet_start", "pet_end", ".pet_idx"),
+          by = "person_id",
+          relationship = "many-to-many"
+        ) %>%
+        dplyr::filter(.data$pps_concept_start_date >= .data$pet_start, .data$pps_concept_start_date <= .data$pet_end)
+
+      pps_per_episode <- pps_in_pet %>%
+        dplyr::group_by(.data$.pet_idx) %>%
+        dplyr::summarise(n_pps = dplyr::n(), .groups = "drop")
+
+      pet_only_episode_records <- pet_only_episode_records %>%
+        dplyr::select(-"n_pps") %>%
+        dplyr::left_join(pps_per_episode %>% dplyr::select(".pet_idx", "n_pps"), by = ".pet_idx") %>%
+        dplyr::mutate(n_pps = dplyr::coalesce(.data$n_pps, 0L))
+    }
+  } else if (nrow(pet_only_df) > 0) {
+    log4r::warn(logger, "preg_hip_records / preg_pps_records not found in CDM; skipping PET-only record lookup")
+  }
+
+  # Summarise HIP/PPS coverage for PET-only episodes
+  n_pet_only_total <- nrow(pet_only_df)
+  pet_only_has_hip <- sum(pet_only_episode_records$n_hip > 0)
+  pet_only_has_pps <- sum(pet_only_episode_records$n_pps > 0)
+  pet_only_has_any <- sum(pet_only_episode_records$n_hip > 0 | pet_only_episode_records$n_pps > 0)
+
+  # HIP record count distribution (among all PET-only episodes, including zeros)
+  pet_only_hip_dist <- summarise_gestational_time(pet_only_episode_records$n_hip)
+  pet_only_pps_dist <- summarise_gestational_time(pet_only_episode_records$n_pps)
+
+  # HIP category distribution: how many PET-only episodes have each category
+  pet_only_hip_cat_counts <- if (has_hip_records && exists("hip_in_pet") && nrow(hip_in_pet) > 0) {
+    hip_in_pet %>%
+      dplyr::distinct(.data$.pet_idx, .data$category) %>%
+      dplyr::count(.data$category, name = "n") %>%
+      dplyr::mutate(pct = .data$n / n_pet_only_total * 100)
+  } else {
+    tibble::tibble(category = character(0), n = integer(0), pct = numeric(0))
+  }
+
+  # Cross-tabulation: PET outcome x most common HIP category per episode
+  pet_only_outcome_vs_hip <- if (has_hip_records && exists("hip_in_pet") && nrow(hip_in_pet) > 0) {
+    # Find dominant HIP category per episode (most records)
+    dominant_hip <- hip_in_pet %>%
+      dplyr::count(.data$.pet_idx, .data$category, name = "cnt") %>%
+      dplyr::group_by(.data$.pet_idx) %>%
+      dplyr::slice_max(.data$cnt, n = 1, with_ties = FALSE) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(".pet_idx", dominant_hip_category = "category")
+
+    pet_only_df %>%
+      dplyr::mutate(pet_outcome_label = pet_outcome_label(as.integer(.data$pregnancy_outcome))) %>%
+      dplyr::inner_join(dominant_hip, by = ".pet_idx") %>%
+      dplyr::count(.data$pet_outcome_label, .data$dominant_hip_category, name = "n") %>%
+      dplyr::mutate(pct = .data$n / sum(.data$n) * 100)
+  } else {
+    tibble::tibble(pet_outcome_label = character(0), dominant_hip_category = character(0), n = integer(0), pct = numeric(0))
+  }
 
   # ---- 2b) Time overlap summaries (PET->IPE and IPE->PET, 0 and 1 day) ----
   log4r::info(logger, "Computing time overlap summaries")
@@ -783,6 +1003,115 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         q75 = list(type = "numeric", value = duration_matched_summary$Q75[i]),
         max = list(type = "numeric", value = duration_matched_summary$max[i])
       ))
+    }
+  }
+
+  # ---- Group characterization SR rows ----
+  # Gestational time distribution per group
+  group_gest_list <- list(matched = gest_matched, algorithm_only = gest_alg_only, pet_only = gest_pet_only)
+  for (grp in names(group_gest_list)) {
+    g <- group_gest_list[[grp]]
+    sr_rows <- add_sr_rows(sr_rows, "group_gestational_time", grp, list(
+      n = list(type = "integer", value = suppress_count(g$n)),
+      mean = list(type = "numeric", value = g$mean),
+      median = list(type = "numeric", value = g$median),
+      sd = list(type = "numeric", value = g$sd),
+      min = list(type = "numeric", value = g$min),
+      q25 = list(type = "numeric", value = g$q25),
+      q75 = list(type = "numeric", value = g$q75),
+      max = list(type = "numeric", value = g$max)
+    ))
+  }
+
+  # Outcome distribution per group
+  group_outcome_list <- list(matched = outcome_matched, algorithm_only = outcome_alg_only, pet_only = outcome_pet_only)
+  for (grp in names(group_outcome_list)) {
+    outcomes <- group_outcome_list[[grp]]
+    for (cat_name in names(outcomes)) {
+      o <- outcomes[[cat_name]]
+      sr_rows <- add_sr_rows(sr_rows, "group_outcome", paste0(grp, ":", cat_name), list(
+        n = list(type = "integer", value = suppress_count(o$n)),
+        pct = list(type = "numeric", value = o$pct)
+      ))
+    }
+  }
+
+  # HIP/PPS source distribution per algorithm group (not applicable for PET-only)
+  group_source_list <- list(matched = source_matched, algorithm_only = source_alg_only)
+  for (grp in names(group_source_list)) {
+    sources <- group_source_list[[grp]]
+    for (src_name in names(sources)) {
+      s <- sources[[src_name]]
+      sr_rows <- add_sr_rows(sr_rows, "group_source", paste0(grp, ":", src_name), list(
+        n = list(type = "integer", value = suppress_count(s$n)),
+        pct = list(type = "numeric", value = s$pct)
+      ))
+    }
+  }
+
+  # ---- PET-only HIP/PPS record characterization SR rows ----
+  if (n_pet_only_total > 0) {
+    # Coverage: how many PET-only episodes have HIP, PPS, or any records
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_hip_coverage", "overall", list(
+      n_total = list(type = "integer", value = suppress_count(n_pet_only_total)),
+      n_with_hip = list(type = "integer", value = suppress_count(pet_only_has_hip)),
+      n_without_hip = list(type = "integer", value = suppress_count(n_pet_only_total - pet_only_has_hip)),
+      pct_with_hip = list(type = "numeric", value = if (n_pet_only_total > 0) pet_only_has_hip / n_pet_only_total * 100 else NA_real_)
+    ))
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_pps_coverage", "overall", list(
+      n_with_pps = list(type = "integer", value = suppress_count(pet_only_has_pps)),
+      n_without_pps = list(type = "integer", value = suppress_count(n_pet_only_total - pet_only_has_pps)),
+      pct_with_pps = list(type = "numeric", value = if (n_pet_only_total > 0) pet_only_has_pps / n_pet_only_total * 100 else NA_real_)
+    ))
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_any_record_coverage", "overall", list(
+      n_with_any = list(type = "integer", value = suppress_count(pet_only_has_any)),
+      n_without_any = list(type = "integer", value = suppress_count(n_pet_only_total - pet_only_has_any)),
+      pct_with_any = list(type = "numeric", value = if (n_pet_only_total > 0) pet_only_has_any / n_pet_only_total * 100 else NA_real_)
+    ))
+
+    # HIP record count distribution per episode
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_hip_record_count", "overall", list(
+      n = list(type = "integer", value = suppress_count(pet_only_hip_dist$n)),
+      mean = list(type = "numeric", value = pet_only_hip_dist$mean),
+      median = list(type = "numeric", value = pet_only_hip_dist$median),
+      sd = list(type = "numeric", value = pet_only_hip_dist$sd),
+      min = list(type = "numeric", value = pet_only_hip_dist$min),
+      q25 = list(type = "numeric", value = pet_only_hip_dist$q25),
+      q75 = list(type = "numeric", value = pet_only_hip_dist$q75),
+      max = list(type = "numeric", value = pet_only_hip_dist$max)
+    ))
+
+    # PPS record count distribution per episode
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_pps_record_count", "overall", list(
+      n = list(type = "integer", value = suppress_count(pet_only_pps_dist$n)),
+      mean = list(type = "numeric", value = pet_only_pps_dist$mean),
+      median = list(type = "numeric", value = pet_only_pps_dist$median),
+      sd = list(type = "numeric", value = pet_only_pps_dist$sd),
+      min = list(type = "numeric", value = pet_only_pps_dist$min),
+      q25 = list(type = "numeric", value = pet_only_pps_dist$q25),
+      q75 = list(type = "numeric", value = pet_only_pps_dist$q75),
+      max = list(type = "numeric", value = pet_only_pps_dist$max)
+    ))
+
+    # HIP category distribution: number of PET-only episodes with each HIP category
+    if (nrow(pet_only_hip_cat_counts) > 0) {
+      for (i in seq_len(nrow(pet_only_hip_cat_counts))) {
+        sr_rows <- add_sr_rows(sr_rows, "pet_only_hip_category", pet_only_hip_cat_counts$category[i], list(
+          n = list(type = "integer", value = suppress_count(pet_only_hip_cat_counts$n[i])),
+          pct = list(type = "numeric", value = pet_only_hip_cat_counts$pct[i])
+        ))
+      }
+    }
+
+    # Cross-tabulation: PET outcome x dominant HIP category
+    if (nrow(pet_only_outcome_vs_hip) > 0) {
+      for (i in seq_len(nrow(pet_only_outcome_vs_hip))) {
+        level <- paste0(pet_only_outcome_vs_hip$pet_outcome_label[i], ":", pet_only_outcome_vs_hip$dominant_hip_category[i])
+        sr_rows <- add_sr_rows(sr_rows, "pet_only_outcome_vs_hip", level, list(
+          n = list(type = "integer", value = suppress_count(pet_only_outcome_vs_hip$n[i])),
+          pct = list(type = "numeric", value = pet_only_outcome_vs_hip$pct[i])
+        ))
+      }
     }
   }
 

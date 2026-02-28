@@ -264,17 +264,17 @@ runEsd <- function(cdm,
   pp <- postP
 
   # 4) Pregnancy end date > pregnancy start date (fix first so we only drop truly invalid)
-  if (conformToValidation) {
-    fixResult <- fixStartBeforeEnd(
-      mergedDf,
-      termMaxMin,
-      startDateCol = "final_episode_start_date",
-      endDateCol = "final_episode_end_date",
-      outcomeCol = "final_outcome_category"
-    )
-    mergedDf <- fixResult$df
-    log4r::info(logger, sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
-  }
+  # Always correct inverted dates (start >= end) by recalculating start as end - max_term.
+  # This preserves episodes that would otherwise be dropped by the filter below.
+  fixResult <- fixStartBeforeEnd(
+    mergedDf,
+    termMaxMin,
+    startDateCol = "final_episode_start_date",
+    endDateCol = "final_episode_end_date",
+    outcomeCol = "final_outcome_category"
+  )
+  mergedDf <- fixResult$df
+  log4r::info(logger, sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
   mergedDf <- mergedDf %>%
     dplyr::filter(
       is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
