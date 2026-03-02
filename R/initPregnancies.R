@@ -75,29 +75,11 @@ initPregnancies <- function(cdm,
     dplyr::mutate(concept_id = suppressWarnings(as.integer(.data$concept_id))) %>%
     dplyr::mutate(gest_value = as.numeric(.data$gest_value))
 
-  # Only include concepts that are used for episode definition: outcome categories (LB, SB, DELIV, ECT, AB, SA),
-  # concepts with gest_value set (gestation weeks from condition/procedure/observation), or concepts in
-  # gestational_age_concepts.csv (used with value_as_number for gestation episodes).
-  hipOutcomeCategories <- c("LB", "SB", "DELIV", "ECT", "AB", "SA")
-  gestationalAgeConcepts <- utils::read.csv(
-    system.file("concepts", "gestational_age_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE),
-    colClasses = c(concept_id = "integer")
-  )
-  gestationalAgeConceptIds <- as.integer(gestationalAgeConcepts$concept_id)
-  hipConceptsUsed <- hipConcepts |>
-    dplyr::filter(
-      .data$category %in% .env$hipOutcomeCategories |
-        !is.na(.data$gest_value) |
-        .data$concept_id %in% .env$gestationalAgeConceptIds
-    )
-  nHipDropped <- nrow(hipConcepts) - nrow(hipConceptsUsed)
-  if (nHipDropped > 0) {
-    log4r::info(logger, sprintf(
-      "HIP concepts: using %d of %d (dropped %d PREG-only concepts not used for episode definition)",
-      nrow(hipConceptsUsed), nrow(hipConcepts), nHipDropped
-    ))
-  }
-  hipConcepts <- hipConceptsUsed
+  # Use all HIP concepts (including PREG-only) to build the initial cohort.
+  # PREG-only concepts without gest_value don't directly define outcome or gestation
+  # episodes, but including them preserves the v2 behavior where they contribute to
+  # the initial pregnant cohort and may indirectly affect downstream episode construction.
+  log4r::info(logger, sprintf("HIP concepts: using all %d concepts", nrow(hipConcepts)))
 
   ppsConcepts <- suppressMessages(readxl::read_excel(
     system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier")
