@@ -43,10 +43,24 @@ This section compares **pregnancy episodes from the PregnancyIdentifier algorith
 
 ---
 
+## Person-level comparison
+
+Persons are classified into three groups:
+- **Both HIPPS and PET**: Persons who have episodes in both sources.
+- **HIPPS only**: Persons who have algorithm episodes but no PET episodes at all.
+- **PET only**: Persons who have PET episodes but no algorithm episodes at all.
+
+For each group, the Person-level tab shows:
+- Number of distinct persons (Venn diagram)
+- Distribution of pregnancies per person (mean, median, min, max, IQR)
+
+---
+
 ## Sub-tabs in this section
 
 - **Overview** (this page): Methodology and interpretation.
 - **Plot:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both).
+- **Person-level:** Person-level Venn diagram and episodes-per-person summary.
 - **Table:** Formatted table of all comparison metrics (visOmopResults), with a **Database** filter.
 - **Summarised result:** Raw summarised result table (download as CSV).
 "
@@ -74,11 +88,11 @@ pet_venn_data_from_counts <- function(both, pet_only, algorithm_only) {
 }
 
 #' Extract Venn counts (both, pet_only, algorithm_only) per cdm_name from summarised result.
-extract_venn_data_from_sr <- function(sr) {
+extract_venn_data_from_sr <- function(sr, variable = "venn_counts", estimate = "n_episodes") {
   tbl <- as.data.frame(sr)
   if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
   vennWide <- tbl %>%
-    dplyr::filter(.data$variable_name == "venn_counts", .data$estimate_name == "n_episodes") %>%
+    dplyr::filter(.data$variable_name == variable, .data$estimate_name == estimate) %>%
     dplyr::select("cdm_name", "variable_level", "estimate_value")
   if (nrow(vennWide) == 0) return(NULL)
   pw <- vennWide %>%
@@ -95,6 +109,29 @@ extract_venn_data_from_sr <- function(sr) {
     dplyr::select("cdm_name", "both", "pet_only", "algorithm_only")
 }
 
+#' Extract person-level episodes-per-person summary from summarised result.
+extract_person_epp_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  epp <- tbl %>%
+    dplyr::filter(.data$variable_name == "person_episodes_per_person") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(epp) == 0) return(NULL)
+  epp %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value") %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("mean", "median", "sd", "min", "q25", "q75", "max")),
+                                ~ suppressWarnings(as.numeric(.x)))) %>%
+    dplyr::mutate(
+      group = dplyr::case_when(
+        .data$variable_level == "both:algorithm" ~ "Both (HIPPS episodes)",
+        .data$variable_level == "both:pet" ~ "Both (PET episodes)",
+        .data$variable_level == "algorithm_only" ~ "HIPPS only",
+        .data$variable_level == "pet_only" ~ "PET only",
+        TRUE ~ .data$variable_level
+      )
+    )
+}
+
 # ---- Main PET comparison module (Overview + Plot + Table + Summarised result) ----
 #' Single PET comparison module: Overview, Plot (Venn), Table (visOmopTable), Summarised result (raw).
 PetComparisonModule <- R6::R6Class(
@@ -106,7 +143,9 @@ PetComparisonModule <- R6::R6Class(
     initialize = function(result) {
       super$initialize()
       private$.result <- result
-      private$.venn_data <- extract_venn_data_from_sr(result)
+      private$.venn_data <- extract_venn_data_from_sr(result, "venn_counts", "n_episodes")
+      private$.person_venn_data <- extract_venn_data_from_sr(result, "person_venn_counts", "n_persons")
+      private$.person_epp_data <- extract_person_epp_from_sr(result)
       tbl <- as.data.frame(result)
       private$.cdm_names <- if (is.data.frame(tbl) && "cdm_name" %in% names(tbl)) unique(tbl$cdm_name) else character(0)
       private$.overview_text <- DarwinShinyModules::Text$new(markdown = PET_COMPARISON_OVERVIEW_MD)
@@ -136,6 +175,8 @@ PetComparisonModule <- R6::R6Class(
   private = list(
     .result = NULL,
     .venn_data = NULL,
+    .person_venn_data = NULL,
+    .person_epp_data = NULL,
     .cdm_names = NULL,
     .overview_text = NULL,
     .raw_table = NULL,
@@ -191,11 +232,34 @@ PetComparisonModule <- R6::R6Class(
 
       summarised_ui <- private$.raw_table$UI()
 
+      # Person-level tab
+      has_person_venn <- !is.null(private$.person_venn_data) && nrow(private$.person_venn_data) > 0
+      person_ui <- if (has_person_venn) {
+        shiny::tagList(
+          if (length(private$.cdm_names) > 1) {
+            shiny::fluidRow(
+              shiny::column(12, shiny::selectInput(ns("person_database"), "Database", choices = db_choices, selected = db_choices[1]))
+            )
+          },
+          shiny::h4("Person-level Venn diagram"),
+          shiny::p("Persons grouped by whether they have episodes in both HIPPS and PET, HIPPS only, or PET only."),
+          shiny::fluidRow(
+            shiny::column(12, amVennDiagram5::amVennDiagramOutput(ns("person_venn"), width = "100%", height = "400px") %>% shinycssloaders::withSpinner())
+          ),
+          shiny::hr(),
+          shiny::h4("Episodes per person by group"),
+          DT::DTOutput(ns("person_epp_table")) %>% shinycssloaders::withSpinner()
+        )
+      } else {
+        shiny::p("No person-level comparison data available. Re-run the PET comparison to generate this data.")
+      }
+
       shiny::tabsetPanel(
         id = ns("petTabs"),
         type = "tabs",
         shiny::tabPanel("Overview", overview_ui),
         shiny::tabPanel("Plot", plot_ui),
+        shiny::tabPanel("Person-level", person_ui),
         shiny::tabPanel("Table", table_ui),
         shiny::tabPanel("Summarised result", summarised_ui)
       )
@@ -226,6 +290,36 @@ PetComparisonModule <- R6::R6Class(
           vd <- venn_plot_data()
           if (is.null(vd)) return(NULL)
           amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
+        })
+      }
+
+      # Person-level: Venn + EPP table
+      if (!is.null(private$.person_venn_data) && nrow(private$.person_venn_data) > 0) {
+        person_venn_data <- private$.person_venn_data
+        person_epp_data <- private$.person_epp_data
+        cdm_names_local <- private$.cdm_names
+        chosen_person_db <- shiny::reactive({
+          if (length(cdm_names_local) == 1) cdm_names_local[1] else input$person_database
+        })
+        person_venn_plot_data <- shiny::reactive({
+          db <- chosen_person_db()
+          row <- person_venn_data %>% dplyr::filter(.data$cdm_name == .env$db)
+          if (nrow(row) == 0) return(NULL)
+          pet_venn_data_from_counts(row$both[1], row$pet_only[1], row$algorithm_only[1])
+        })
+        output$person_venn <- amVennDiagram5::renderAmVennDiagram({
+          vd <- person_venn_plot_data()
+          if (is.null(vd)) return(NULL)
+          amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
+        })
+        output$person_epp_table <- DT::renderDT({
+          db <- chosen_person_db()
+          if (is.null(person_epp_data)) return(NULL)
+          tbl <- person_epp_data %>%
+            dplyr::filter(.data$cdm_name == .env$db) %>%
+            dplyr::select("group", dplyr::any_of(c("mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
+            dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 2)))
+          DT::datatable(tbl, rownames = FALSE, options = list(dom = "t", pageLength = 10))
         })
       }
 

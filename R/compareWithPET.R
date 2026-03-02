@@ -450,6 +450,62 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   source_matched <- summarise_hip_pps(matched_alg)
   source_alg_only <- summarise_hip_pps(alg_only_df)
 
+  # ---- 2a-i) Person-level Venn characterization ----
+  log4r::info(logger, "Computing person-level Venn characterization")
+
+  all_alg_persons <- unique(alg$person_id)
+  all_pet_persons <- unique(pet$person_id)
+
+  persons_in_both <- intersect(all_alg_persons, all_pet_persons)
+  persons_alg_only <- setdiff(all_alg_persons, all_pet_persons)
+  persons_pet_only <- setdiff(all_pet_persons, all_alg_persons)
+
+  # Helper: compute episodes-per-person distribution
+  summarise_episodes_per_person <- function(df) {
+    if (nrow(df) == 0) {
+      return(list(
+        n_persons = 0L, n_episodes = 0L,
+        mean = NA_real_, median = NA_real_, sd = NA_real_,
+        min = NA_real_, q25 = NA_real_, q75 = NA_real_, max = NA_real_
+      ))
+    }
+    epp <- df %>%
+      dplyr::count(.data$person_id, name = "n_ep") %>%
+      dplyr::pull("n_ep")
+    list(
+      n_persons = length(epp),
+      n_episodes = sum(epp),
+      mean = mean(epp),
+      median = stats::median(epp),
+      sd = if (length(epp) > 1) stats::sd(epp) else NA_real_,
+      min = min(epp),
+      q25 = unname(stats::quantile(epp, 0.25)),
+      q75 = unname(stats::quantile(epp, 0.75)),
+      max = max(epp)
+    )
+  }
+
+  # "Both" group: persons with episodes in both sources
+  person_both_alg <- summarise_episodes_per_person(
+    alg %>% dplyr::filter(.data$person_id %in% persons_in_both)
+  )
+  person_both_pet <- summarise_episodes_per_person(
+    pet %>% dplyr::filter(.data$person_id %in% persons_in_both)
+  )
+  # "Algorithm only" group
+  person_alg_only <- summarise_episodes_per_person(
+    alg %>% dplyr::filter(.data$person_id %in% persons_alg_only)
+  )
+  # "PET only" group
+  person_pet_only <- summarise_episodes_per_person(
+    pet %>% dplyr::filter(.data$person_id %in% persons_pet_only)
+  )
+
+  log4r::info(logger, sprintf(
+    "Person-level Venn: both=%d, algorithm_only=%d, pet_only=%d",
+    length(persons_in_both), length(persons_alg_only), length(persons_pet_only)
+  ))
+
   # ---- 2a-ii) HIP/PPS records in PET-only episodes ----
   # Look up whether PET-only episodes have any HIP/PPS concept records in the CDM
   has_hip_records <- "preg_hip_records" %in% names(cdm)
@@ -1047,6 +1103,41 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         pct = list(type = "numeric", value = s$pct)
       ))
     }
+  }
+
+  # ---- Person-level Venn SR rows ----
+  # Person Venn counts
+  sr_rows <- add_sr_rows(sr_rows, "person_venn_counts", "both", list(
+    n_persons = list(type = "integer", value = suppress_count(person_both_alg$n_persons)),
+    n_alg_episodes = list(type = "integer", value = suppress_count(person_both_alg$n_episodes)),
+    n_pet_episodes = list(type = "integer", value = suppress_count(person_both_pet$n_episodes))
+  ))
+  sr_rows <- add_sr_rows(sr_rows, "person_venn_counts", "algorithm_only", list(
+    n_persons = list(type = "integer", value = suppress_count(person_alg_only$n_persons)),
+    n_episodes = list(type = "integer", value = suppress_count(person_alg_only$n_episodes))
+  ))
+  sr_rows <- add_sr_rows(sr_rows, "person_venn_counts", "pet_only", list(
+    n_persons = list(type = "integer", value = suppress_count(person_pet_only$n_persons)),
+    n_episodes = list(type = "integer", value = suppress_count(person_pet_only$n_episodes))
+  ))
+  # Episodes-per-person distribution
+  person_epp_list <- list(
+    "both:algorithm" = person_both_alg,
+    "both:pet" = person_both_pet,
+    "algorithm_only" = person_alg_only,
+    "pet_only" = person_pet_only
+  )
+  for (grp in names(person_epp_list)) {
+    g <- person_epp_list[[grp]]
+    sr_rows <- add_sr_rows(sr_rows, "person_episodes_per_person", grp, list(
+      mean = list(type = "numeric", value = g$mean),
+      median = list(type = "numeric", value = g$median),
+      sd = list(type = "numeric", value = g$sd),
+      min = list(type = "numeric", value = g$min),
+      q25 = list(type = "numeric", value = g$q25),
+      q75 = list(type = "numeric", value = g$q75),
+      max = list(type = "numeric", value = g$max)
+    ))
   }
 
   # ---- PET-only HIP/PPS record characterization SR rows ----
