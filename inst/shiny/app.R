@@ -1209,7 +1209,7 @@ if (!hasData) {
           result = qualityCheckCleanup,
           emptyMessage = "No quality check cleanup data available."
         ),
-        "Summary of episodes that would be removed by quality-check cleanup. Used for data quality and algorithm tuning."
+        "Summary of episode quality characterization and cleanup. Includes counts of episodes flagged as: start/end outside observation period, start >= end, zero-length, too long (>= 308 days), and overlapping. When the pipeline runs with conformToValidation=FALSE (default), these episodes are retained but flagged; when conformToValidation=TRUE, flagged episodes are removed. Also shows what the optional cleanup pipeline would produce."
       )
     )
 

@@ -19,3 +19,4 @@ vignettes/algorithm_cache
 ..Rcheck/
 export/
 output/
+inst/shiny/version_comparison/

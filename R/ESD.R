@@ -220,8 +220,8 @@ runEsd <- function(cdm,
   pr <- postR
   pp <- postP
 
-  # 2) In observation at pregnancy start date
-  if ("observation_period" %in% names(cdm)) {
+  # 2) In observation at pregnancy start date (only when conformToValidation)
+  if (conformToValidation && "observation_period" %in% names(cdm)) {
     op <- cdm$observation_period %>%
       dplyr::select("person_id", "observation_period_start_date", "observation_period_end_date") %>%
       dplyr::collect()
@@ -243,8 +243,13 @@ runEsd <- function(cdm,
   pr <- postR
   pp <- postP
 
-  # 3) In observation at pregnancy end date
-  if ("observation_period" %in% names(cdm)) {
+  # 3) In observation at pregnancy end date (only when conformToValidation)
+  if (conformToValidation && "observation_period" %in% names(cdm)) {
+    if (!exists("op", inherits = FALSE)) {
+      op <- cdm$observation_period %>%
+        dplyr::select("person_id", "observation_period_start_date", "observation_period_end_date") %>%
+        dplyr::collect()
+    }
     keepEnd <- mergedDf %>%
       dplyr::filter(!is.na(.data$final_episode_end_date)) %>%
       dplyr::inner_join(op, by = "person_id") %>%
@@ -263,23 +268,25 @@ runEsd <- function(cdm,
   pr <- postR
   pp <- postP
 
-  # 4) Pregnancy end date > pregnancy start date (fix first so we only drop truly invalid)
-  # Always correct inverted dates (start >= end) by recalculating start as end - max_term.
-  # This preserves episodes that would otherwise be dropped by the filter below.
-  fixResult <- fixStartBeforeEnd(
-    mergedDf,
-    termMaxMin,
-    startDateCol = "final_episode_start_date",
-    endDateCol = "final_episode_end_date",
-    outcomeCol = "final_outcome_category"
-  )
-  mergedDf <- fixResult$df
-  log4r::info(logger, sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
-  mergedDf <- mergedDf %>%
-    dplyr::filter(
-      is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
-        as.Date(.data$final_episode_end_date) > as.Date(.data$final_episode_start_date)
+  # 4) Pregnancy end date > pregnancy start date
+  # Only fix inverted dates and drop remaining bad episodes when conformToValidation is enabled.
+  # When disabled, episodes with start >= end are left as-is and characterized via quality flags.
+  if (conformToValidation) {
+    fixResult <- fixStartBeforeEnd(
+      mergedDf,
+      termMaxMin,
+      startDateCol = "final_episode_start_date",
+      endDateCol = "final_episode_end_date",
+      outcomeCol = "final_outcome_category"
     )
+    mergedDf <- fixResult$df
+    log4r::info(logger, sprintf("fix_start_before_end: episodes with start >= end before fix: %d", fixResult$n_corrected))
+    mergedDf <- mergedDf %>%
+      dplyr::filter(
+        is.na(.data$final_episode_start_date) | is.na(.data$final_episode_end_date) |
+          as.Date(.data$final_episode_end_date) > as.Date(.data$final_episode_start_date)
+      )
+  }
   postR <- .nRec(mergedDf)
   postP <- .nPer(mergedDf)
   .appendCohortStep(pr, pp, postR, postP, cohortReasons[4L])
@@ -304,16 +311,18 @@ runEsd <- function(cdm,
   pr <- postR
   pp <- postP
 
-  # 6) Gestational length days != 0
-  mergedDf <- mergedDf %>%
-    dplyr::mutate(
-      .gest_days = dplyr::coalesce(
-        as.numeric(.data$esd_gestational_age_days_calculated),
-        as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
-      )
-    ) %>%
-    dplyr::filter(is.na(.data$.gest_days) | .data$.gest_days != 0) %>%
-    dplyr::select(-".gest_days")
+  # 6) Gestational length days != 0 (only when conformToValidation)
+  if (conformToValidation) {
+    mergedDf <- mergedDf %>%
+      dplyr::mutate(
+        .gest_days = dplyr::coalesce(
+          as.numeric(.data$esd_gestational_age_days_calculated),
+          as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+        )
+      ) %>%
+      dplyr::filter(is.na(.data$.gest_days) | .data$.gest_days != 0) %>%
+      dplyr::select(-".gest_days")
+  }
   postR <- .nRec(mergedDf)
   postP <- .nPer(mergedDf)
   .appendCohortStep(pr, pp, postR, postP, cohortReasons[6L])
@@ -332,6 +341,95 @@ runEsd <- function(cdm,
   postR <- .nRec(mergedDf)
   postP <- .nPer(mergedDf)
   .appendCohortStep(pr, pp, postR, postP, cohortReasons[7L])
+
+  # ---- Per-record quality flags ----
+  # Characterize each episode without removing any records. These flags indicate
+
+  # what cleanup (conformToValidation=TRUE) would remove.
+
+  # Observation period flags
+  if ("observation_period" %in% names(cdm)) {
+    if (!exists("op", inherits = FALSE)) {
+      op <- cdm$observation_period %>%
+        dplyr::select("person_id", "observation_period_start_date", "observation_period_end_date") %>%
+        dplyr::collect()
+    }
+    startInObs <- mergedDf %>%
+      dplyr::filter(!is.na(.data$final_episode_start_date)) %>%
+      dplyr::inner_join(op, by = "person_id") %>%
+      dplyr::filter(
+        .data$final_episode_start_date >= .data$observation_period_start_date,
+        .data$final_episode_start_date <= .data$observation_period_end_date
+      ) %>%
+      dplyr::select("person_id", "merge_episode_number") %>%
+      dplyr::distinct() %>%
+      dplyr::mutate(.start_in_obs = TRUE)
+    endInObs <- mergedDf %>%
+      dplyr::filter(!is.na(.data$final_episode_end_date)) %>%
+      dplyr::inner_join(op, by = "person_id") %>%
+      dplyr::filter(
+        .data$final_episode_end_date >= .data$observation_period_start_date,
+        .data$final_episode_end_date <= .data$observation_period_end_date
+      ) %>%
+      dplyr::select("person_id", "merge_episode_number") %>%
+      dplyr::distinct() %>%
+      dplyr::mutate(.end_in_obs = TRUE)
+    mergedDf <- mergedDf %>%
+      dplyr::left_join(startInObs, by = c("person_id", "merge_episode_number")) %>%
+      dplyr::mutate(
+        is_start_outside_observation_period = dplyr::if_else(
+          is.na(.data$final_episode_start_date), FALSE,
+          dplyr::coalesce(!.data$.start_in_obs, TRUE)
+        )
+      ) %>%
+      dplyr::select(-".start_in_obs") %>%
+      dplyr::left_join(endInObs, by = c("person_id", "merge_episode_number")) %>%
+      dplyr::mutate(
+        is_end_outside_observation_period = dplyr::if_else(
+          is.na(.data$final_episode_end_date), FALSE,
+          dplyr::coalesce(!.data$.end_in_obs, TRUE)
+        )
+      ) %>%
+      dplyr::select(-".end_in_obs")
+  } else {
+    mergedDf$is_start_outside_observation_period <- NA
+    mergedDf$is_end_outside_observation_period <- NA
+  }
+
+  # Date / length flags
+  mergedDf <- mergedDf %>%
+    dplyr::mutate(
+      .gest_days_flag = dplyr::coalesce(
+        as.numeric(.data$esd_gestational_age_days_calculated),
+        as.numeric(as.Date(.data$final_episode_end_date) - as.Date(.data$final_episode_start_date))
+      ),
+      is_start_gte_end = dplyr::if_else(
+        !is.na(.data$final_episode_start_date) & !is.na(.data$final_episode_end_date),
+        as.Date(.data$final_episode_start_date) >= as.Date(.data$final_episode_end_date),
+        FALSE
+      ),
+      is_zero_length = dplyr::if_else(
+        !is.na(.data$.gest_days_flag), .data$.gest_days_flag == 0, FALSE
+      ),
+      is_too_long = dplyr::if_else(
+        !is.na(.data$.gest_days_flag), .data$.gest_days_flag >= 308, FALSE
+      )
+    ) %>%
+    dplyr::select(-".gest_days_flag")
+
+  # Overlap flag: mark episodes that overlap with another episode for the same person
+  mergedDf <- mergedDf %>%
+    dplyr::arrange(.data$person_id, .data$final_episode_start_date, .data$final_episode_end_date) %>%
+    dplyr::group_by(.data$person_id) %>%
+    dplyr::mutate(
+      .end_num = as.numeric(as.Date(.data$final_episode_end_date)),
+      .start_num = as.numeric(as.Date(.data$final_episode_start_date)),
+      .prev_max_end = dplyr::lag(cummax(dplyr::coalesce(.data$.end_num, -Inf)), default = NA_real_),
+      is_overlapping = !is.na(.data$.prev_max_end) & !is.na(.data$.start_num) &
+        .data$.start_num < .data$.prev_max_end
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-".end_num", -".start_num", -".prev_max_end")
 
   saveRDS(mergedDf, outputPath)
   log4r::info(logger, sprintf("Wrote output to %s", outputPath))

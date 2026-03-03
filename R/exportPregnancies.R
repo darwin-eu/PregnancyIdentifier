@@ -717,6 +717,26 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   dropped_overlap_records <- n_after_long_records - n_after_records
   dropped_overlap_persons <- n_after_long_persons - n_after_persons
 
+  # ---- Per-record quality flag counts (from ESD quality flags) ----
+  # These flags are computed by runEsd() and characterize each episode.
+  # When conformToValidation=FALSE (default), flagged records are retained and
+
+  # counted here so users can see what cleanup would affect.
+  .countFlag <- function(df, flagCol) {
+    if (!flagCol %in% names(df)) return(list(records = NA_integer_, persons = NA_integer_))
+    flagged <- df[!is.na(df[[flagCol]]) & df[[flagCol]] == TRUE, , drop = FALSE]
+    list(
+      records = as.integer(nrow(flagged)),
+      persons = as.integer(dplyr::n_distinct(flagged$person_id))
+    )
+  }
+  flag_start_obs  <- .countFlag(res, "is_start_outside_observation_period")
+  flag_end_obs    <- .countFlag(res, "is_end_outside_observation_period")
+  flag_start_gte  <- .countFlag(res, "is_start_gte_end")
+  flag_zero       <- .countFlag(res, "is_zero_length")
+  flag_too_long   <- .countFlag(res, "is_too_long")
+  flag_overlap    <- .countFlag(res, "is_overlapping")
+
   # Quality check summary CSV (report what was actually done)
   quality <- tibble::tibble(
     n_records_start_geq_end_before_fix = n_start_geq_end_before,
@@ -727,6 +747,19 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
     n_persons_too_long = too_long_counts$persons,
     n_records_after_cleanup = n_after_records,
     n_persons_after_cleanup = n_after_persons,
+    # Quality flag counts (from ESD per-record flags)
+    n_flagged_start_outside_obs_records = flag_start_obs$records,
+    n_flagged_start_outside_obs_persons = flag_start_obs$persons,
+    n_flagged_end_outside_obs_records = flag_end_obs$records,
+    n_flagged_end_outside_obs_persons = flag_end_obs$persons,
+    n_flagged_start_gte_end_records = flag_start_gte$records,
+    n_flagged_start_gte_end_persons = flag_start_gte$persons,
+    n_flagged_zero_length_records = flag_zero$records,
+    n_flagged_zero_length_persons = flag_zero$persons,
+    n_flagged_too_long_records = flag_too_long$records,
+    n_flagged_too_long_persons = flag_too_long$persons,
+    n_flagged_overlapping_records = flag_overlap$records,
+    n_flagged_overlapping_persons = flag_overlap$persons,
     max_episode_days = maxDays,
     cdm_name = snap$cdm_name,
     date_run = runStart,
@@ -736,17 +769,66 @@ exportCleanupQualityCheck <- function(res, resPath, snap, runStart, pkgVersion) 
   utils::write.csv(quality, file.path(resPath, "quality_check_cleanup.csv"), row.names = FALSE)
 
   # Attrition from the single pipeline run (fix does not drop rows; long and overlap steps do)
-  attrition_if_cleanup <- tibble::tibble(
-    step = c("final_episodes_before_cleanup", "fix_start_before_end", "remove_long_episodes", "remove_overlaps"),
-    table = c("final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes", "final_pregnancy_episodes"),
-    outcome = c(NA_character_, NA_character_, NA_character_, NA_character_),
-    prior_records = c(n_before_records, n_before_records, n_after_fix_records, n_after_long_records),
-    prior_persons = c(n_before_persons, n_before_persons, n_after_fix_persons, n_after_long_persons),
-    dropped_records = c(NA_integer_, 0L, dropped_long_records, dropped_overlap_records),
-    dropped_persons = c(NA_integer_, 0L, dropped_long_persons, dropped_overlap_persons),
-    post_records = c(n_before_records, n_after_fix_records, n_after_long_records, n_after_records),
-    post_persons = c(n_before_persons, n_after_fix_persons, n_after_long_persons, n_after_persons)
-  )
+  # Also includes obs-period and zero-length steps when flag columns exist.
+  has_flags <- "is_start_outside_observation_period" %in% names(res)
+  if (has_flags) {
+    # Build a comprehensive attrition table showing all cleanup steps
+    # Obs period and zero-length steps show how many records WOULD be affected
+    attrition_if_cleanup <- tibble::tibble(
+      step = c(
+        "final_episodes_before_cleanup",
+        "remove_start_outside_obs_period",
+        "remove_end_outside_obs_period",
+        "fix_start_before_end",
+        "remove_start_gte_end",
+        "remove_long_episodes",
+        "remove_zero_length_episodes",
+        "remove_overlaps"
+      ),
+      table = rep("final_pregnancy_episodes", 8L),
+      outcome = rep(NA_character_, 8L),
+      flagged_records = c(
+        NA_integer_,
+        flag_start_obs$records,
+        flag_end_obs$records,
+        as.integer(n_fix_corrected),
+        flag_start_gte$records,
+        flag_too_long$records,
+        flag_zero$records,
+        flag_overlap$records
+      ),
+      flagged_persons = c(
+        NA_integer_,
+        flag_start_obs$persons,
+        flag_end_obs$persons,
+        NA_integer_,
+        flag_start_gte$persons,
+        flag_too_long$persons,
+        flag_zero$persons,
+        flag_overlap$persons
+      ),
+      prior_records = c(n_before_records, rep(NA_integer_, 7L)),
+      prior_persons = c(n_before_persons, rep(NA_integer_, 7L)),
+      dropped_records = c(NA_integer_, rep(NA_integer_, 2L), 0L, NA_integer_, dropped_long_records, NA_integer_, dropped_overlap_records),
+      dropped_persons = c(NA_integer_, rep(NA_integer_, 2L), 0L, NA_integer_, dropped_long_persons, NA_integer_, dropped_overlap_persons),
+      post_records = c(n_before_records, rep(NA_integer_, 2L), n_after_fix_records, NA_integer_, n_after_long_records, NA_integer_, n_after_records),
+      post_persons = c(n_before_persons, rep(NA_integer_, 2L), n_after_fix_persons, NA_integer_, n_after_long_persons, NA_integer_, n_after_persons)
+    )
+  } else {
+    attrition_if_cleanup <- tibble::tibble(
+      step = c("final_episodes_before_cleanup", "fix_start_before_end", "remove_long_episodes", "remove_overlaps"),
+      table = rep("final_pregnancy_episodes", 4L),
+      outcome = rep(NA_character_, 4L),
+      flagged_records = c(NA_integer_, as.integer(n_fix_corrected), too_long_counts$records, overlap_counts$records),
+      flagged_persons = c(NA_integer_, NA_integer_, too_long_counts$persons, overlap_counts$persons),
+      prior_records = c(n_before_records, n_before_records, n_after_fix_records, n_after_long_records),
+      prior_persons = c(n_before_persons, n_before_persons, n_after_fix_persons, n_after_long_persons),
+      dropped_records = c(NA_integer_, 0L, dropped_long_records, dropped_overlap_records),
+      dropped_persons = c(NA_integer_, 0L, dropped_long_persons, dropped_overlap_persons),
+      post_records = c(n_before_records, n_after_fix_records, n_after_long_records, n_after_records),
+      post_persons = c(n_before_persons, n_after_fix_persons, n_after_long_persons, n_after_persons)
+    )
+  }
   utils::write.csv(attrition_if_cleanup, file.path(resPath, "attrition_if_cleanup.csv"), row.names = FALSE)
 }
 
