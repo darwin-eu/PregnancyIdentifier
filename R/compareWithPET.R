@@ -1233,6 +1233,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   )
   omopgenerics::exportSummarisedResult(
     summarised_result,
+    minCellCount = 0,
     path = exportFolder,
     fileName = "pet_comparison_summarised_result.csv"
   )
