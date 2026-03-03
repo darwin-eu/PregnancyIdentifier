@@ -12,20 +12,7 @@ PrecisionDaysModule <- R6::R6Class(
       private$.dp <- dp
       private$.height <- height
 
-      # cdm_name filter: multiple selection, default all
-      private$.inputPanelCDM <- InputPanel$new(
-        fun = list(cdm_name = shinyWidgets::pickerInput),
-        args = list(cdm_name = list(
-          inputId = "cdm_name",
-          label = "Database",
-          choices = private$.dp,
-          selected = private$.dp,
-          multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -38,8 +25,19 @@ PrecisionDaysModule <- R6::R6Class(
     .UI = function() {
       shiny::tagList(
         private$.inputPanelCDM$UI(),
-        plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>%
-          shinycssloaders::withSpinner()
+        shiny::tabsetPanel(
+          id = shiny::NS(private$.namespace, "precisionTabs"),
+          shiny::tabPanel(
+            "Plot",
+            plotly::plotlyOutput(shiny::NS(private$.namespace, "plot"), height = private$.height) %>%
+              shinycssloaders::withSpinner()
+          ),
+          shiny::tabPanel(
+            "Summary",
+            DT::DTOutput(shiny::NS(private$.namespace, "summaryTable")) %>%
+              shinycssloaders::withSpinner()
+          )
+        )
       )
     },
 
@@ -47,24 +45,84 @@ PrecisionDaysModule <- R6::R6Class(
       private$.inputPanelCDM$server(input, output, session)
 
       getData <- shiny::reactive({
-        sel <- private$.inputPanelCDM$inputValues$cdm_name
-        if (is.null(sel) || length(sel) == 0) sel <- private$.dp
+        sel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
         if (!"cdm_name" %in% colnames(private$.data)) return(private$.data)
         private$.data %>%
           dplyr::filter(.data$cdm_name %in% sel)
       })
 
+      # Summary table: descriptive statistics per database
+      output$summaryTable <- DT::renderDT({
+        data <- getData()
+        if (is.null(data) || nrow(data) == 0) {
+          return(DT::datatable(
+            data.frame(Message = "No precision days data available."),
+            options = list(dom = "t"), rownames = FALSE
+          ))
+        }
+
+        data <- data %>%
+          dplyr::mutate(esd_precision_days = suppressWarnings(as.numeric(.data$esd_precision_days))) %>%
+          dplyr::filter(!is.na(.data$esd_precision_days))
+
+        if (nrow(data) == 0 || !"cdm_name" %in% colnames(data)) {
+          return(DT::datatable(
+            data.frame(Message = "No valid numeric data."),
+            options = list(dom = "t"), rownames = FALSE
+          ))
+        }
+
+        # If we have pre-computed density (not raw observations), compute weighted stats
+        hasDensity <- "density" %in% colnames(data) && any(!is.na(suppressWarnings(as.numeric(data$density))))
+        if (hasDensity) {
+          summary_df <- data %>%
+            dplyr::mutate(density = suppressWarnings(as.numeric(.data$density))) %>%
+            dplyr::filter(!is.na(.data$density)) %>%
+            dplyr::group_by(.data$cdm_name) %>%
+            dplyr::summarise(
+              `N Points` = dplyr::n(),
+              `Min` = round(min(.data$esd_precision_days), 1),
+              `Weighted Mean` = round(stats::weighted.mean(.data$esd_precision_days, .data$density), 1),
+              `Max` = round(max(.data$esd_precision_days), 1),
+              `Peak Density At` = round(.data$esd_precision_days[which.max(.data$density)], 1),
+              .groups = "drop"
+            ) %>%
+            dplyr::rename(Database = .data$cdm_name)
+        } else {
+          summary_df <- data %>%
+            dplyr::group_by(.data$cdm_name) %>%
+            dplyr::summarise(
+              N = dplyr::n(),
+              Min = round(min(.data$esd_precision_days), 1),
+              `Q1 (25th)` = round(stats::quantile(.data$esd_precision_days, 0.25), 1),
+              Median = round(stats::median(.data$esd_precision_days), 1),
+              `Q3 (75th)` = round(stats::quantile(.data$esd_precision_days, 0.75), 1),
+              Max = round(max(.data$esd_precision_days), 1),
+              Mean = round(mean(.data$esd_precision_days), 1),
+              `Std Dev` = round(stats::sd(.data$esd_precision_days), 1),
+              .groups = "drop"
+            ) %>%
+            dplyr::rename(Database = .data$cdm_name)
+        }
+
+        DT::datatable(
+          summary_df,
+          options = list(dom = "t", paging = FALSE, scrollX = TRUE),
+          filter = "none",
+          rownames = FALSE
+        ) %>%
+          DT::formatRound(
+            columns = setdiff(colnames(summary_df), "Database"),
+            digits = 1
+          )
+      })
+
       output$plot <- plotly::renderPlotly({
         data <- getData()
         if (is.null(data) || nrow(data) == 0) {
-          return(plotly::plot_ly() %>%
-            plotly::layout(
-              title = list(text = "No precision days data available.", font = list(size = 14)),
-              xaxis = list(title = "ESD precision (days)"),
-              yaxis = list(title = "Density")
-            ))
+          return(emptyPlotlyMessage("No precision days data available."))
         }
-        # Ensure numeric; require cdm_name and esd_precision_days
+        # Ensure numeric
         hasDensityCol <- "density" %in% colnames(data)
         data <- data %>%
           dplyr::mutate(
@@ -73,22 +131,16 @@ PrecisionDaysModule <- R6::R6Class(
           ) %>%
           dplyr::filter(!is.na(.data$esd_precision_days))
         if (!"cdm_name" %in% colnames(data)) {
-          return(plotly::plot_ly() %>%
-            plotly::layout(
-              title = list(text = "No valid data for selected filters.", font = list(size = 14)),
-              xaxis = list(title = "ESD precision (days)"),
-              yaxis = list(title = "Density")
-            ))
+          return(emptyPlotlyMessage("No valid data for selected filters."))
         }
 
-        # If we have pre-computed density (from precision_days.csv), use it; otherwise compute per database
+        # If we have pre-computed density, use it; otherwise compute per database
         hasDensity <- "density" %in% colnames(data) && any(!is.na(data$density))
         if (hasDensity) {
           plotData <- data %>%
             dplyr::filter(!is.na(.data$density)) %>%
             dplyr::arrange(.data$cdm_name, .data$esd_precision_days)
         } else {
-          # Compute density per cdm_name from raw esd_precision_days
           plotData <- data %>%
             dplyr::filter(!is.na(.data$esd_precision_days)) %>%
             dplyr::group_by(.data$cdm_name) %>%
@@ -106,15 +158,9 @@ PrecisionDaysModule <- R6::R6Class(
         }
 
         if (nrow(plotData) == 0) {
-          return(plotly::plot_ly() %>%
-            plotly::layout(
-              title = list(text = "No valid data for selected filters.", font = list(size = 14)),
-              xaxis = list(title = "ESD precision (days)"),
-              yaxis = list(title = "Density")
-            ))
+          return(emptyPlotlyMessage("No valid data for selected filters."))
         }
 
-        # One line per database: use color = ~cdm_name with type = "scatter", mode = "lines"
         plotly::plot_ly(
           data = plotData,
           x = ~esd_precision_days,
@@ -122,10 +168,10 @@ PrecisionDaysModule <- R6::R6Class(
           color = ~cdm_name,
           type = "scatter",
           mode = "lines",
-          hovertemplate = "ESD precision: %{x}<br>Density: %{y}<extra></extra>"
+          hovertemplate = "Precision: %{x:.0f} days<br>Density: %{y:.4f}<extra></extra>"
         ) %>%
           plotly::layout(
-            xaxis = list(title = "ESD precision (days)"),
+            xaxis = list(title = "ESD Precision (days)"),
             yaxis = list(title = "Density"),
             showlegend = TRUE,
             legend = list(title = list(text = "Database"))

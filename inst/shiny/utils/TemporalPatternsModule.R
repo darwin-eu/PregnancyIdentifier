@@ -17,15 +17,7 @@ TemporalPatternsModule <- R6::R6Class(
       private$.missingTable$parentNamespace <- self$namespace
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
 
       private$.inputPanelPeriod <- InputPanel$new(fun = list(period = shinyWidgets::pickerInput),
                                                args = list(period = list(
@@ -235,14 +227,14 @@ TemporalPatternsModule <- R6::R6Class(
 
       output$dataTable <- DT::renderDT({
         DT::datatable(
-          private$.data %>% dplyr::mutate_if(is.character, as.factor),
+          private$.data %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor)),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )
       })
       output$missingDataTable <- DT::renderDT({
         DT::datatable(
-          private$.missingData %>% dplyr::mutate_if(is.character, as.factor),
+          private$.missingData %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor)),
           options = list(scrollX = TRUE, pageLength = 25),
           filter = "top"
         )

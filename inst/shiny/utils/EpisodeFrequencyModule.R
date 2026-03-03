@@ -16,15 +16,7 @@ EpisodeFrequencyModule <- R6::R6Class(
       private$.table$parentNamespace <- self$namespace
 
       # input pickers
-      private$.inputPanelCDM <- InputPanel$new(fun = list(cdm_name = shinyWidgets::pickerInput),
-                                               args = list(cdm_name = list(
-                                                 inputId = "cdm_name", label = "Database",
-                                                 choices = private$.dp,
-                                                 selected = private$.dp,
-                                                 multiple = TRUE,
-                                                 options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3"))),
-                                               growDirection = "horizontal")
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -67,29 +59,40 @@ EpisodeFrequencyModule <- R6::R6Class(
       private$.inputPanelCDM$server(input, output, session)
 
       getData <- shiny::reactive({
-        data <- NULL
-        if ("cdm_name" %in% colnames(private$.data)) {
-          data <-  private$.data %>%
-            dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
-        } else {
-          nameCols <- setdiff(colnames(private$.data), private$.dp)
-
-          data <-  private$.data %>%
-            dplyr::select(dplyr::any_of(c(nameCols, private$.inputPanelCDM$inputValues$cdm_name)))
+        if (!is.data.frame(private$.data) || nrow(private$.data) == 0) {
+          return(data.frame())
         }
-        return(data)
+        if (!"cdm_name" %in% colnames(private$.data)) {
+          return(private$.data)
+        }
+        cdmSel <- private$.inputPanelCDM$inputValues$cdm_name
+        if (is.null(cdmSel) || length(cdmSel) == 0) cdmSel <- private$.dp
+        private$.data %>%
+          dplyr::filter(.data$cdm_name %in% cdmSel)
       })
 
       getPlotData <- shiny::reactive({
-        getData() %>%
-          dplyr::filter(name %in% c("total_episodes", "total_individuals")) %>%
+        data <- getData()
+        if (!is.data.frame(data) || nrow(data) == 0 || !"name" %in% colnames(data)) {
+          return(data.frame())
+        }
+        data %>%
+          dplyr::filter(.data$name %in% c("total_episodes", "total_individuals")) %>%
           tidyr::pivot_longer(cols = setdiff(colnames(.), c("name")), names_to = "cdm_name") %>%
-          dplyr::mutate(value = as.numeric(value))
+          dplyr::mutate(
+            value = as.numeric(value),
+            name = dplyr::case_when(
+              .data$name == "total_episodes" ~ "Total Episodes",
+              .data$name == "total_individuals" ~ "Total Individuals",
+              TRUE ~ .data$name
+            )
+          )
       })
 
       # handle updates: show table with display names for statistics
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
         tableData <- getData()
+        if (is.null(tableData)) tableData <- data.frame()
         if (nrow(tableData) > 0 && "name" %in% colnames(tableData)) {
           tableData <- tableData %>%
             dplyr::mutate(name = ifelse(

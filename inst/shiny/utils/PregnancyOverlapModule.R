@@ -18,19 +18,7 @@ PregnancyOverlapModule <- R6::R6Class(
       )
       private$.table$parentNamespace <- self$namespace
 
-      private$.inputPanelCDM <- InputPanel$new(
-        fun = list(cdm_name = shinyWidgets::pickerInput),
-        args = list(cdm_name = list(
-          inputId = "cdm_name",
-          label = "Database",
-          choices = private$.dp,
-          selected = private$.dp,
-          multiple = TRUE,
-          options = list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-        )),
-        growDirection = "horizontal"
-      )
-      private$.inputPanelCDM$parentNamespace <- self$namespace
+      private$.inputPanelCDM <- createDatabasePicker(private$.dp, self$namespace)
     }
   ),
 
@@ -47,22 +35,22 @@ PregnancyOverlapModule <- R6::R6Class(
           cdm_name = character(0),
           overlap_status = character(0),
           N = integer(0),
-          Percent = numeric(0)
+          pct = numeric(0)
         ))
       }
       data %>%
         dplyr::group_by(.data$cdm_name, .data$overlap) %>%
         dplyr::summarise(N = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
         dplyr::group_by(.data$cdm_name) %>%
-        dplyr::mutate(Percent = round(100 * .data$N / sum(.data$N), 1)) %>%
+        dplyr::mutate(pct = round(100 * .data$N / sum(.data$N), 1)) %>%
         dplyr::ungroup() %>%
         dplyr::mutate(overlap_status = dplyr::case_when(
           .data$overlap == TRUE ~ "Overlapping",
           .data$overlap == FALSE ~ "Non-overlapping",
-          is.na(.data$overlap) ~ "Not applicable (single episode)",
+          is.na(.data$overlap) ~ "Single episode (N/A)",
           TRUE ~ as.character(.data$overlap)
         )) %>%
-        dplyr::select("cdm_name", "overlap_status", "N", "Percent")
+        dplyr::select("cdm_name", "overlap_status", "N", "pct")
     },
 
     .UI = function() {
@@ -81,14 +69,25 @@ PregnancyOverlapModule <- R6::R6Class(
                 " This pregnancy episode does not overlap with any other episode for the same person."
               ),
               shiny::tags$li(
-                strong("Not applicable (single episode):"),
+                strong("Single episode (N/A):"),
                 " The person has only one pregnancy episode, so overlap is not defined."
               )
             )
           )
         ),
         private$.inputPanelCDM$UI(),
-        private$.table$UI()
+        shiny::tabsetPanel(
+          id = shiny::NS(private$.namespace, "overlapTabs"),
+          shiny::tabPanel(
+            "Plot",
+            plotly::plotlyOutput(shiny::NS(private$.namespace, "overlapPlot"), height = "420px") %>%
+              shinycssloaders::withSpinner()
+          ),
+          shiny::tabPanel(
+            "Data",
+            private$.table$UI()
+          )
+        )
       )
     },
 
@@ -100,14 +99,45 @@ PregnancyOverlapModule <- R6::R6Class(
         if (is.null(private$.summary) || nrow(private$.summary) == 0) {
           return(private$.summary)
         }
+        cdmSel <- getSelectedCdm(private$.inputPanelCDM, private$.dp)
         private$.summary %>%
-          dplyr::filter(.data$cdm_name %in% private$.inputPanelCDM$inputValues$cdm_name)
+          dplyr::filter(.data$cdm_name %in% cdmSel)
       })
 
       shiny::observeEvent(private$.inputPanelCDM$inputValues$cdm_name, {
         private$.table$data <- getData()
-        private$.table$server(input, output, session)
       }, ignoreNULL = FALSE)
+
+      output$overlapPlot <- plotly::renderPlotly({
+        d <- getData()
+        if (is.null(d) || nrow(d) == 0) {
+          return(emptyPlotlyMessage("No pregnancy overlap data for selected filters."))
+        }
+        # Stacked bar chart: x = database, y = %, fill = overlap status
+        overlapColours <- c(
+          "Overlapping"         = "#E41A1C",
+          "Non-overlapping"     = "#4DAF4A",
+          "Single episode (N/A)" = "#999999"
+        )
+        d <- d %>%
+          dplyr::mutate(overlap_status = factor(
+            .data$overlap_status,
+            levels = c("Overlapping", "Non-overlapping", "Single episode (N/A)")
+          ))
+        p <- ggplot2::ggplot(d, ggplot2::aes(
+          x = .data$cdm_name, y = .data$pct,
+          fill = .data$overlap_status,
+          text = paste0(.data$overlap_status, "\n",
+                        "N: ", format(.data$N, big.mark = ","), "\n",
+                        round(.data$pct, 1), "%")
+        )) +
+          ggplot2::geom_bar(stat = "identity", position = "stack") +
+          ggplot2::scale_fill_manual(values = overlapColours, name = "Overlap Status") +
+          ggplot2::labs(x = "Database", y = "Percentage (%)") +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
+        plotly::ggplotly(p, tooltip = "text")
+      })
     }
   )
 )
