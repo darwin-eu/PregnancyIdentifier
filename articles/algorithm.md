@@ -207,7 +207,7 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/RtmpDa2nF7/file2351205deeaf.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/RtmpArAPAI/file23774ff31c51.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    
@@ -235,11 +235,11 @@ list.files(outputFolder)
 #>  [9] "pps_concept_counts.csv"       "pps_episodes.rds"            
 #> [11] "runStart.csv"
 readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
-#> # A tibble: 1 × 39
+#> # A tibble: 1 × 45
 #>   person_id merge_episode_number final_episode_start_date final_episode_end_date
 #>       <int>                <int> <date>                   <date>                
 #> 1        24                    1 2023-01-18               2023-03-15            
-#> # ℹ 35 more variables: final_outcome_category <chr>,
+#> # ℹ 41 more variables: final_outcome_category <chr>,
 #> #   merge_episode_start <date>, merge_episode_end <date>, hip_end_date <date>,
 #> #   pps_end_date <date>, hip_outcome_category <chr>,
 #> #   pps_outcome_category <chr>, esd_precision_days <dbl>,

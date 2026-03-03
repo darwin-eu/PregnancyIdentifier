@@ -32,6 +32,23 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.0.5" id="pregnancyidentifier-305">PregnancyIdentifier 3.0.5<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-305"></a></h2>
+<ul><li>Default output now matches v2 episode counts: ESD filters for observation period, start &gt;= end, and zero-length episodes are no longer applied by default. Set <code>conformToValidation = TRUE</code> to enable cleanup, or use <code>conformToValidation = "both"</code> to export both versions.</li>
+<li>Added per-record quality flags to <code>final_pregnancy_episodes.rds</code>: <code>is_start_outside_observation_period</code>, <code>is_end_outside_observation_period</code>, <code>is_start_gte_end</code>, <code>is_zero_length</code>, <code>is_too_long</code>, <code>is_overlapping</code>. Flags characterize episode quality without removing records.</li>
+<li>Enriched <code>quality_check_cleanup.csv</code> with flag-based counts (records and persons for each quality flag category).</li>
+<li>Extended <code>attrition_if_cleanup.csv</code> with observation period and zero-length steps when quality flags are present.</li>
+<li>Restored PREG-only concepts in <code><a href="../reference/initPregnancies.html">initPregnancies()</a></code> (reverted v3.0.0 filter that dropped PREG-category concepts without gestational age values).</li>
+<li>Added person-level summary to PET comparison output.</li>
+<li>Added PET-only HIP/PPS record characterization to PET comparison.</li>
+<li>
+<code>fixStartBeforeEnd()</code> only runs when <code>conformToValidation = TRUE</code>. By default, episodes with inverted start/end dates are left as-is and characterized via the <code>is_start_gte_end</code> quality flag.</li>
+</ul></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.0.4" id="pregnancyidentifier-304">PregnancyIdentifier 3.0.4<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-304"></a></h2>
+<ul><li>Shiny app updates and fixes.</li>
+<li>Added min cell count to PET comparison.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="3.0.3" id="pregnancyidentifier-303">PregnancyIdentifier 3.0.3<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-303"></a></h2>
 <ul><li>Shiny app updates</li>
 <li>API changes</li>
