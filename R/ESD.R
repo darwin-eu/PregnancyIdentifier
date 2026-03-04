@@ -65,6 +65,14 @@ runEsd <- function(cdm,
     .var.name = "hipps_episodes.rds column names"
   )
 
+  # Term durations: read from package Excel (no DB needed; HIP uses cdm$preg_matcho_term_durations from init)
+  termMaxMin <- readxl::read_excel(
+    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
+  )
+
+  # ESD concept counts (record_count, person_count) for outputDir / export
+  writeEsdConceptCounts(cdm, startDate, endDate, outputDir)
+
   # 1) Pull gestational timing concepts (GW / GR3m candidates) for HIP episodes
   timingConceptsDf <- getTimingConcepts(
     cdm = cdm,
@@ -99,16 +107,16 @@ runEsd <- function(cdm,
     saveRDS(esdOut, file.path(outputDir, "esd.rds"))
   }
 
-  # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes
+  # 3) Merge timing output back onto HIP/PPS metadata + derive final dates/outcomes (no DB: uses termMaxMin)
   mergedDf <- mergedEpisodesWithMetadata(
     episodesWithGestationalTimingInfoDf = esdDf,
     hippsEpisodes = hippsEpisodes,
-    cdm = cdm,
+    termMaxMin = termMaxMin,
     logger = logger
   )
 
   # 4) Add delivery mode
-  mergedDf <- addDeliveryMode(cdm, mergedDf)
+  mergedDf <- addDeliveryMode(cdm, mergedDf, logger = logger)
 
   # 5) Apply study period: retain episodes that end on or before endDate and start on or after startDate;
   #    episodes with NA inferred_episode_start or inferred_episode_end are retained.
@@ -440,6 +448,66 @@ removeOverlaps <- function(esdDf,
     dplyr::select(dplyr::all_of(originalCols))
 
   dplyr::as_tibble(kept)
+}
+
+# ============================================================
+# ESD concept counts (record_count, person_count) for export
+# ============================================================
+
+#' Write ESD concept counts (records and persons per concept) to CSV.
+#' Pulls records from condition, observation, measurement, procedure in the
+#' study window and aggregates by ESD concept ID.
+#' @noRd
+writeEsdConceptCounts <- function(cdm, startDate, endDate, outputDir) {
+  esdConcepts <-
+    system.file("concepts", "ESD_concepts.xlsx", package = "PregnancyIdentifier", mustWork = TRUE) %>%
+    readxl::read_xlsx() %>%
+    dplyr::rename_with(tolower) %>%
+    dplyr::mutate(esd_concept_id = as.integer(.data$esd_concept_id))
+  conceptIds <- as.integer(esdConcepts$esd_concept_id)
+  conceptsToSearch <- dplyr::tibble(concept_id = conceptIds)
+
+  pullDomainCounts <- function(domainDf, domainIdCol, domainDateCol) {
+    domainDf %>%
+      dplyr::filter(
+        .data[[domainIdCol]] %in% .env$conceptIds,
+        .data[[domainDateCol]] >= .env$startDate,
+        .data[[domainDateCol]] <= .env$endDate
+      ) %>%
+      dplyr::transmute(
+        person_id = .data$person_id,
+        concept_id = .data[[domainIdCol]]
+      )
+  }
+
+  esdRecords <- list(
+    pullDomainCounts(cdm$condition_occurrence, "condition_concept_id", "condition_start_date"),
+    pullDomainCounts(cdm$procedure_occurrence, "procedure_concept_id", "procedure_date"),
+    pullDomainCounts(cdm$observation, "observation_concept_id", "observation_date"),
+    pullDomainCounts(cdm$measurement, "measurement_concept_id", "measurement_date")
+  ) %>%
+    purrr::reduce(dplyr::union_all)
+
+  esdCounts <- esdRecords %>%
+    dplyr::group_by(.data$concept_id) %>%
+    dplyr::summarise(
+      record_count = dplyr::n(),
+      person_count = dplyr::n_distinct(.data$person_id),
+      .groups = "drop"
+    ) %>%
+    dplyr::collect() %>%
+    dplyr::rename(esd_concept_id = "concept_id") %>%
+    dplyr::left_join(
+      dplyr::select(esdConcepts, "esd_concept_id", dplyr::any_of("esd_concept_name")),
+      by = "esd_concept_id"
+    )
+  if (!"esd_concept_name" %in% names(esdCounts)) {
+    esdCounts$esd_concept_name <- NA_character_
+  }
+  esdCounts <- esdCounts %>%
+    dplyr::select("esd_concept_id", "esd_concept_name", "record_count", "person_count")
+  utils::write.csv(esdCounts, file.path(outputDir, "esd_concept_counts.csv"), row.names = FALSE)
+  invisible(NULL)
 }
 
 # ============================================================
@@ -969,9 +1037,10 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
 
 mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
                                        hippsEpisodes,
-                                       cdm,
+                                       termMaxMin,
                                        logger) {
   # Add other pregnancy and demographic related info for each episode.
+  # termMaxMin: collected preg_matcho_term_durations (no DB access).
   if (nrow(hippsEpisodes) == 0) {
     log4r::info(logger, "No HIPPS episodes; returning 0-row final schema.")
     return(emptyFinalPregnancyEpisodes())
@@ -979,7 +1048,6 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
 
   timingDf <- episodesWithGestationalTimingInfoDf %>%
     dplyr::select(-"gt_info_list")
-  termMaxMin <- cdm$preg_matcho_term_durations %>% dplyr::collect()
 
   finalDf <- hippsEpisodes %>%
     dplyr::left_join(timingDf, by = c("person_id", "merge_episode_number")) %>%
@@ -1132,35 +1200,103 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
   finalDf
 }
 
-addDeliveryMode <- function(cdm, df, intersectWindow = c(-30, 30)) {
+# Validate and normalize minimal cohort (person_id, inferred_episode_end) before upload.
+# Ensures date column is Date type and within [dateMin, dateMax]; person_id integer.
+# Rows with dates outside the range are dropped and a WARN log entry is written; returns validated tibble.
+validateDeliveryModeCohort <- function(df,
+                                      logger,
+                                      dateCol = "inferred_episode_end",
+                                      dateMin = as.Date("1900-01-01"),
+                                      dateMax = Sys.Date()) {
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
+  checkmate::assertDate(dateMin, len = 1)
+  checkmate::assertDate(dateMax, len = 1)
+  if (dateMin > dateMax) {
+    rlang::abort("validateDeliveryModeCohort: dateMin must be <= dateMax")
+  }
+  out <- dplyr::as_tibble(df)
+  if (!"person_id" %in% names(out)) {
+    rlang::abort("validateDeliveryModeCohort: required column 'person_id' is missing")
+  }
+  if (!dateCol %in% names(out)) {
+    rlang::abort(sprintf("validateDeliveryModeCohort: required column '%s' is missing", dateCol))
+  }
+  personIdOrig <- out$person_id
+  out <- out %>%
+    dplyr::mutate(
+      person_id = as.integer(.data$person_id),
+      "{dateCol}" := as.Date(.data[[dateCol]])
+    )
+  if (any(is.na(out$person_id) & !is.na(personIdOrig), na.rm = TRUE)) {
+    rlang::abort("validateDeliveryModeCohort: person_id must be coercible to integer")
+  }
+  dateVals <- out[[dateCol]]
+  outOfRange <- !is.na(dateVals) & (dateVals < dateMin | dateVals > dateMax)
+  if (any(outOfRange, na.rm = TRUE)) {
+    n <- sum(outOfRange, na.rm = TRUE)
+    invalidDates <- sort(unique(dateVals[outOfRange]))
+    invalidStr <- paste(format(invalidDates), collapse = ", ")
+    if (length(invalidDates) > 10) {
+      invalidStr <- paste0(paste(format(invalidDates[1:10]), collapse = ", "), " ... and ", length(invalidDates) - 10, " more")
+    }
+    log4r::warn(logger, sprintf(
+      "%d row(s) dropped with %s outside [%s, %s]. Invalid dates: %s",
+      n, dateCol, format(dateMin), format(dateMax), invalidStr
+    ))
+    out <- out[!outOfRange, ]
+  }
+  out
+}
+
+# Add delivery-mode flag/count columns. Uses a minimal cohort table (person_id + index date
+# only) so we do not re-upload the full merged data; the DB does the concept intersect and we
+# only pull back the aggregated result (no record-level domain download).
+addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
+  checkmate::assertClass(logger, "logger", null.ok = FALSE)
   dfColNames <- colnames(df)
   colnames(df) <- tolower(dfColNames)
 
-  # create cdm table to be able to use conceptIntersectFlag
-  tableName = "merged_episodes_with_metadata_df"
-  cdm <- omopgenerics::insertTable(cdm = cdm,
-                                   name = tableName,
-                                   table = df)
+  minimalCohort <- df %>%
+    dplyr::select("person_id", "inferred_episode_end") %>%
+    dplyr::filter(!is.na(.data$inferred_episode_end)) %>%
+    dplyr::distinct()
+  if (nrow(minimalCohort) > 0) {
+    minimalCohort <- validateDeliveryModeCohort(minimalCohort, logger = logger)
+  }
+  tableName <- "esd_delivery_mode_cohort"
+  cdm <- omopgenerics::insertTable(cdm = cdm, name = tableName, table = minimalCohort, overwrite = TRUE)
 
   conceptSet <- omopgenerics::importConceptSetExpression(
     path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
   )
   conceptSet <- omopgenerics::validateConceptSetArgument(conceptSet, cdm = cdm)
-  # remove leading id prefix from names (e.g. "3861-cesarean" -> "cesarean")
   names(conceptSet) <- unlist(lapply(names(conceptSet), FUN = function(name) {
     unlist(strsplit(name, "^\\d+-"))[2]
   }))
 
-  result <- cdm[[tableName]] %>%
-    PatientProfiles::addConceptIntersectFlag(conceptSet = conceptSet,
-                                             indexDate = "inferred_episode_end",
-                                             window = intersectWindow,
-                                             nameStyle = '{concept_name}_{window_name}') %>%
-    PatientProfiles::addConceptIntersectCount(conceptSet = conceptSet,
-                                              indexDate = "inferred_episode_end",
-                                              window = intersectWindow,
-                                              nameStyle = '{concept_name}_{window_name}_count') %>%
+  deliveryResult <- cdm[[tableName]] %>%
+    PatientProfiles::addConceptIntersectFlag(
+      conceptSet = conceptSet,
+      indexDate = "inferred_episode_end",
+      window = intersectWindow,
+      nameStyle = "{concept_name}_{window_name}"
+    ) %>%
+    PatientProfiles::addConceptIntersectCount(
+      conceptSet = conceptSet,
+      indexDate = "inferred_episode_end",
+      window = intersectWindow,
+      nameStyle = "{concept_name}_{window_name}_count"
+    ) %>%
     dplyr::collect()
-  colnames(result)[1:length(dfColNames)] <- dfColNames
-  return(result)
+
+  deliveryCols <- setdiff(names(deliveryResult), c("person_id", "inferred_episode_end"))
+  mergedDf <- df %>%
+    dplyr::left_join(
+      deliveryResult %>% dplyr::select("person_id", "inferred_episode_end", dplyr::all_of(deliveryCols)),
+      by = c("person_id", "inferred_episode_end")
+    ) %>%
+    dplyr::mutate(dplyr::across(dplyr::all_of(deliveryCols), ~ dplyr::coalesce(.x, 0)))
+  mergedDf <- dplyr::as_tibble(mergedDf)
+  colnames(mergedDf)[1:length(dfColNames)] <- dfColNames
+  mergedDf
 }
