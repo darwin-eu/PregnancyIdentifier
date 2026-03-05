@@ -175,7 +175,7 @@ initPregnancies <- function(cdm,
   }
 
   # ============================================================
-  # PPS records (condition/procedure/measurement)
+  # PPS records (condition/procedure/observation/measurement/visit_occurrence)
   # ============================================================
   log4r::info(logger, "Pulling PPS concept records from OMOP domain tables")
 
@@ -183,7 +183,9 @@ initPregnancies <- function(cdm,
     ~tbl,                     ~conceptCol,              ~dateCol,
     cdm$condition_occurrence, "condition_concept_id",    "condition_start_date",
     cdm$procedure_occurrence, "procedure_concept_id",    "procedure_date",
-    cdm$measurement,          "measurement_concept_id",  "measurement_date"
+    cdm$observation,          "observation_concept_id",  "observation_date",
+    cdm$measurement,          "measurement_concept_id",  "measurement_date",
+    cdm$visit_occurrence,     "visit_concept_id",        "visit_start_date"
   )
 
   # Single pipeline to preg_pps_records (no staging table) so prefixed write-schema works on all DBs
