@@ -13,7 +13,14 @@ precisionDaysUI <- function(id) {
     ),
     tabsetPanel(
       tabPanel("Plot",
-               plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner()),
+               plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
+               h4("Download figure"),
+               fluidRow(
+                 column(3, textInput(ns("download_height"), "Height (cm)", value = "10")),
+                 column(3, textInput(ns("download_width"), "Width (cm)", value = "20")),
+                 column(3, textInput(ns("download_dpi"), "Resolution (dpi)", value = "300"))
+               ),
+               downloadButton(ns("download_plot"), "Download plot (PNG)")),
       tabPanel("Summary",
                downloadButton(ns("download_summary_csv"), "Download table (.csv)"),
                DT::DTOutput(ns("summaryTable")) %>% withSpinner())
@@ -108,13 +115,10 @@ precisionDaysServer <- function(id) {
       }
     )
 
-    output$plot <- plotly::renderPlotly({
+    precision_plot_ggplot <- reactive({
       data <- getData()
-      if (is.null(data) || nrow(data) == 0) {
-        return(emptyPlotlyMessage("No precision days data available."))
-      }
+      if (is.null(data) || nrow(data) == 0) return(NULL)
 
-      # Ensure numeric
       hasDensityCol <- "density" %in% colnames(data)
       data <- data %>%
         dplyr::mutate(
@@ -123,11 +127,8 @@ precisionDaysServer <- function(id) {
         ) %>%
         dplyr::filter(!is.na(.data$esd_precision_days))
 
-      if (!"cdm_name" %in% colnames(data)) {
-        return(emptyPlotlyMessage("No valid data for selected filters."))
-      }
+      if (!"cdm_name" %in% colnames(data)) return(NULL)
 
-      # If we have pre-computed density, use it; otherwise compute per database
       hasDensity <- "density" %in% colnames(data) && any(!is.na(data$density))
       if (hasDensity) {
         plotData <- data %>%
@@ -150,25 +151,39 @@ precisionDaysServer <- function(id) {
           dplyr::arrange(.data$cdm_name, .data$esd_precision_days)
       }
 
-      if (nrow(plotData) == 0) {
-        return(emptyPlotlyMessage("No valid data for selected filters."))
-      }
+      if (nrow(plotData) == 0) return(NULL)
 
-      plotly::plot_ly(
-        data = plotData,
-        x = ~esd_precision_days,
-        y = ~density,
-        color = ~cdm_name,
-        type = "scatter",
-        mode = "lines",
-        hovertemplate = "Precision: %{x:.0f} days<br>Density: %{y:.4f}<extra></extra>"
-      ) %>%
-        plotly::layout(
-          xaxis = list(title = "ESD Precision (days)"),
-          yaxis = list(title = "Density"),
-          showlegend = TRUE,
-          legend = list(title = list(text = "Database"))
-        )
+      ggplot2::ggplot(plotData, ggplot2::aes(
+        x = .data$esd_precision_days,
+        y = .data$density,
+        colour = .data$cdm_name
+      )) +
+        ggplot2::geom_line(linewidth = 0.8) +
+        ggplot2::labs(x = "ESD Precision (days)", y = "Density", colour = "Database") +
+        ggplot2::theme_minimal()
     })
+
+    output$plot <- plotly::renderPlotly({
+      p <- precision_plot_ggplot()
+      if (is.null(p)) return(emptyPlotlyMessage("No precision days data available."))
+      plotly::ggplotly(p)
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() { "precisionDaysPlot.png" },
+      content = function(file) {
+        p <- precision_plot_ggplot()
+        if (!is.null(p)) {
+          ggplot2::ggsave(
+            filename = file,
+            plot = p,
+            width = as.numeric(input$download_width),
+            height = as.numeric(input$download_height),
+            dpi = as.numeric(input$download_dpi),
+            units = "cm"
+          )
+        }
+      }
+    )
   })
 }

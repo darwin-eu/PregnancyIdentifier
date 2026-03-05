@@ -1,5 +1,5 @@
 # 06-gestational-age-days-per-category.R - Gestational age days per category module (standard Shiny module)
-# Native plotly boxplot with pre-computed quartiles (ggplotly does not support geom_boxplot(stat="identity")).
+# ggplot2 boxplots with pre-computed quartiles, rendered with plotly::ggplotly(), with PNG download.
 
 gestationalAgeDaysPerCategoryUI <- function(id) {
 
@@ -40,6 +40,13 @@ gestationalAgeDaysPerCategoryUI <- function(id) {
       column(3, checkboxInput(ns("iqrOnly"), "IQR only", value = TRUE))
     ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% shinycssloaders::withSpinner(),
+    h4("Download figure"),
+    fluidRow(
+      column(3, textInput(ns("download_height"), "Height (cm)", value = "10")),
+      column(3, textInput(ns("download_width"), "Width (cm)", value = "20")),
+      column(3, textInput(ns("download_dpi"), "Resolution (dpi)", value = "300"))
+    ),
+    downloadButton(ns("download_plot"), "Download plot (PNG)"),
     p(),
     dataTableOut
   )
@@ -63,26 +70,14 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
         dplyr::filter(.data$final_outcome_category %in% outcomeSel)
     })
 
-    output$plot <- plotly::renderPlotly({
+    plot_ggplot <- reactive({
       data <- getData()
-      if (is.null(data) || nrow(data) == 0) {
-        msg <- if (!is.data.frame(gestationalAgeDaysPerCategorySummary) || nrow(gestationalAgeDaysPerCategorySummary) == 0) {
-          "Results files are empty."
-        } else {
-          "No data for selected filters."
-        }
-        return(emptyPlotlyMessage(msg))
-      }
+      if (is.null(data) || nrow(data) == 0) return(NULL)
 
       iqrOnly <- input$iqrOnly
       if (is.null(iqrOnly)) iqrOnly <- TRUE
 
-      facetBy <- "cdm_name"
-      fill_var <- "final_outcome_category"
-
       outcomeLevels <- c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")
-      has_count_cols <- all(c("person_count", "episode_count") %in% colnames(data))
-
       plot_data <- data %>%
         dplyr::group_by(.data$cdm_name, .data$final_outcome_category) %>%
         dplyr::slice(1L) %>%
@@ -94,93 +89,65 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
           median = as.numeric(.data$median),
           Q75 = as.numeric(.data$Q75),
           max = as.numeric(.data$max),
-          lowerfence = if (iqrOnly) .data$Q25 else .data$min,
-          upperfence = if (iqrOnly) .data$Q75 else .data$max
+          ymin = if (iqrOnly) .data$Q25 else .data$min,
+          ymax = if (iqrOnly) .data$Q75 else .data$max
         )
 
-      if (has_count_cols) {
-        plot_data <- plot_data %>%
-          dplyr::mutate(
-            person_count = suppressWarnings(as.integer(.data$person_count)),
-            episode_count = suppressWarnings(as.integer(.data$episode_count))
-          )
-      }
+      if (nrow(plot_data) == 0) return(NULL)
 
-      if (nrow(plot_data) == 0) return(emptyPlotlyMessage("No data for selected filters."))
-
-      n_cats <- length(unique(plot_data[[fill_var]]))
-      pal <- scales::hue_pal()(max(1L, n_cats))
-      if (n_cats >= 1) names(pal) <- sort(unique(as.character(plot_data[[fill_var]])))
-
-      facet_levels <- sort(unique(as.character(plot_data[[facetBy]])))
-
-      plot_list <- lapply(facet_levels, function(facet_val) {
-        pd <- plot_data %>% dplyr::filter(.data[[facetBy]] == .env$facet_val)
-        p <- plotly::plot_ly()
-
-        for (i in seq_len(nrow(pd))) {
-          row <- pd[i, ]
-          cat_val <- as.character(row$final_outcome_category)
-          clr <- pal[as.character(row[[fill_var]])]
-          if (is.na(clr)) clr <- "gray"
-
-          hover_lines <- c(
-            paste0("Outcome: ", cat_val),
-            paste0("Median: ", round(row$median, 1), " days"),
-            paste0("IQR: ", round(row$Q25, 1), " - ", round(row$Q75, 1))
-          )
-          if (has_count_cols && "person_count" %in% colnames(row) && "episode_count" %in% colnames(row)) {
-            hover_lines <- c(hover_lines,
-              paste0("Person count: ", format(row$person_count, big.mark = ",")),
-              paste0("Episode count: ", format(row$episode_count, big.mark = ","))
-            )
-          }
-
-          trace_args <- list(
-            type = "box",
-            q1 = row$Q25,
-            median = row$median,
-            q3 = row$Q75,
-            lowerfence = row$lowerfence,
-            upperfence = row$upperfence,
-            name = cat_val,
-            line = list(color = clr),
-            fillcolor = clr,
-            showlegend = (facet_val == facet_levels[1]),
-            hoverinfo = "text",
-            text = paste(hover_lines, collapse = "<br>")
-          )
-          trace_args$y <- cat_val
-          trace_args$orientation <- "h"
-          p <- do.call(plotly::add_trace, c(list(p), trace_args))
-        }
-
-        p <- plotly::layout(
-          p,
-          title = list(text = facet_val, font = list(size = 12)),
-          xaxis = list(title = "Gestational age (days)", tickangle = 0),
-          yaxis = list(title = "Final outcome category"),
-          showlegend = (facet_val == facet_levels[1]),
-          legend = list(title = list(text = "Outcome category"))
+      ggplot2::ggplot(plot_data, ggplot2::aes(
+        x = .data$final_outcome_category,
+        ymin = .data$ymin,
+        lower = .data$Q25,
+        middle = .data$median,
+        upper = .data$Q75,
+        ymax = .data$ymax,
+        fill = .data$final_outcome_category
+      )) +
+        ggplot2::geom_boxplot(stat = "identity") +
+        ggplot2::coord_flip() +
+        ggplot2::facet_wrap(ggplot2::vars(.data$cdm_name), scales = "free_y") +
+        ggplot2::labs(
+          x = "Final outcome category",
+          y = "Gestational age (days)",
+          fill = "Outcome category"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          axis.text.y = ggplot2::element_text(size = 9),
+          legend.position = "bottom"
         )
-        p
-      })
-
-      if (length(plot_list) == 1) {
-        out <- plot_list[[1]]
-      } else {
-        nrows <- ceiling(sqrt(length(plot_list)))
-        out <- do.call(plotly::subplot, c(plot_list, list(
-          nrows = nrows,
-          margin = 0.05,
-          shareX = TRUE,
-          shareY = TRUE,
-          titleX = TRUE,
-          titleY = TRUE
-        )))
-      }
-      out
     })
+
+    output$plot <- plotly::renderPlotly({
+      p <- plot_ggplot()
+      if (is.null(p)) {
+        msg <- if (!is.data.frame(gestationalAgeDaysPerCategorySummary) || nrow(gestationalAgeDaysPerCategorySummary) == 0) {
+          "Results files are empty."
+        } else {
+          "No data for selected filters."
+        }
+        return(emptyPlotlyMessage(msg))
+      }
+      plotly::ggplotly(p)
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() { "gestationalAgeDaysPerCategoryPlot.png" },
+      content = function(file) {
+        p <- plot_ggplot()
+        if (!is.null(p)) {
+          ggplot2::ggsave(
+            filename = file,
+            plot = p,
+            width = as.numeric(input$download_width),
+            height = as.numeric(input$download_height),
+            dpi = as.numeric(input$download_dpi),
+            units = "cm"
+          )
+        }
+      }
+    )
 
     output$dataTable <- DT::renderDT({
       renderPrettyDT(gestationalAgeDaysPerCategorySummary)

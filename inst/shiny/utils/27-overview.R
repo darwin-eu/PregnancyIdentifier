@@ -8,7 +8,7 @@ overviewUI <- function(id) {
       style = "max-width: 960px; margin: 0 auto; padding: 20px;",
       h2("PregnancyIdentifier Results Overview"),
       hr(),
-      uiOutput(ns("summary")),
+      uiOutput(ns("summary")) %>% withSpinner(),
       hr(),
       h3("Data availability"),
       p(style = "color: #555;", "Which result tables have data for each database."),

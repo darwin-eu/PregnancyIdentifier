@@ -85,17 +85,14 @@ ageGroupsServer <- function(id) {
       data
     })
 
-    output$plot <- plotly::renderPlotly({
+    plot_ggplot <- reactive({
       data <- getData()
       ac <- ageCol()
-      if (is.null(data) || nrow(data) == 0 || is.null(ac) || !ac %in% colnames(data)) {
-        return(emptyPlotlyMessage("No data for selected filters."))
-      }
+      if (is.null(data) || nrow(data) == 0 || is.null(ac) || !ac %in% colnames(data)) return(NULL)
 
       yChoice <- input$yAxis
       if (is.null(yChoice) || !yChoice %in% c("n", "pct")) yChoice <- "n"
 
-      # Prepare plot data
       plotData <- data %>%
         dplyr::mutate(
           n = suppressWarnings(as.numeric(.data$n)),
@@ -104,11 +101,9 @@ ageGroupsServer <- function(id) {
         ) %>%
         dplyr::filter(!is.na(.data$age_num))
 
-      if (nrow(plotData) == 0) return(emptyPlotlyMessage("No numeric age data available."))
+      if (nrow(plotData) == 0) return(NULL)
 
       yLab <- if (yChoice == "pct") "Percent" else "Count (n)"
-
-      # Aggregate by age and cdm_name
       hasMultiDb <- "cdm_name" %in% colnames(plotData) && dplyr::n_distinct(plotData$cdm_name) > 1
 
       if (hasMultiDb) {
@@ -131,45 +126,42 @@ ageGroupsServer <- function(id) {
 
       dPlot$y_plot <- dPlot[[yChoice]]
 
+      p <- ggplot2::ggplot(dPlot, ggplot2::aes(x = .data$age_num, y = .data$y_plot))
       if (hasMultiDb) {
-        p <- plotly::plot_ly() %>%
-          plotly::layout(
-            barmode = "overlay",
-            bargap = 0,
-            xaxis = list(title = "Age (years)", type = "linear", dtick = 5),
-            yaxis = list(title = yLab),
-            showlegend = TRUE
-          )
-        for (db in unique(dPlot$cdm_name)) {
-          dDb <- dplyr::filter(dPlot, .data$cdm_name == !!db)
-          p <- p %>%
-            plotly::add_trace(
-              data = dDb,
-              x = ~age_num,
-              y = ~y_plot,
-              type = "bar",
-              name = db,
-              opacity = 0.7,
-              hovertemplate = paste0("Age: %{x}<br>", yLab, ": %{y:.2f}<extra></extra>")
-            )
-        }
+        p <- p +
+          ggplot2::geom_col(ggplot2::aes(fill = .data$cdm_name), position = "dodge", alpha = 0.8) +
+          ggplot2::labs(x = "Age (years)", y = yLab, fill = "Database")
       } else {
-        p <- plotly::plot_ly(
-          data = dPlot,
-          x = ~age_num,
-          y = ~y_plot,
-          type = "bar",
-          hovertemplate = paste0("Age: %{x}<br>", yLab, ": %{y:.2f}<extra></extra>")
-        ) %>%
-          plotly::layout(
-            xaxis = list(title = "Age (years)", type = "linear", dtick = 5),
-            yaxis = list(title = yLab),
-            showlegend = FALSE,
-            bargap = 0
-          )
+        p <- p +
+          ggplot2::geom_col(fill = "#377EB8") +
+          ggplot2::labs(x = "Age (years)", y = yLab)
       }
-      p
+      p + ggplot2::scale_x_continuous(breaks = seq(0, 100, 5)) +
+        ggplot2::theme_minimal()
     })
+
+    output$plot <- plotly::renderPlotly({
+      p <- plot_ggplot()
+      if (is.null(p)) return(emptyPlotlyMessage("No data for selected filters."))
+      plotly::ggplotly(p)
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() { "ageGroupsPlot.png" },
+      content = function(file) {
+        p <- plot_ggplot()
+        if (!is.null(p)) {
+          ggplot2::ggsave(
+            filename = file,
+            plot = p,
+            width = as.numeric(input$download_width),
+            height = as.numeric(input$download_height),
+            dpi = as.numeric(input$download_dpi),
+            units = "cm"
+          )
+        }
+      }
+    )
 
     output$table <- DT::renderDT({
       data <- getData()

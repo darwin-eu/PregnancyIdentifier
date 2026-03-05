@@ -3,7 +3,7 @@
 backgroundUI <- function(id) {
   ns <- NS(id)
   fluidPage(
-    uiOutput(ns("backgroundContent"))
+    uiOutput(ns("backgroundContent")) %>% withSpinner()
   )
 }
 

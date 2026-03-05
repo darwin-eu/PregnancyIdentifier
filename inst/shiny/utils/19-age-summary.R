@@ -21,6 +21,13 @@ ageSummaryUI <- function(id) {
                                             multiple = TRUE, options = opt))
     ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
+    h4("Download figure"),
+    fluidRow(
+      column(3, textInput(ns("download_height"), "Height (cm)", value = "10")),
+      column(3, textInput(ns("download_width"), "Width (cm)", value = "20")),
+      column(3, textInput(ns("download_dpi"), "Resolution (dpi)", value = "300"))
+    ),
+    downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
     downloadButton(ns("download_table_csv"), "Download table (.csv)"),
     DT::DTOutput(ns("table")) %>% withSpinner()
@@ -72,18 +79,13 @@ ageSummaryServer <- function(id) {
         dplyr::filter(dplyr::if_all(dplyr::all_of(intersect(ageMetrics, colnames(data))), ~ !is.na(.)))
     })
 
-    output$plot <- plotly::renderPlotly({
+    plot_ggplot <- reactive({
       data <- getPlotData()
-      if (is.null(data) || nrow(data) == 0) {
-        return(emptyPlotlyMessage("No age summary data for selected filters."))
-      }
+      if (is.null(data) || nrow(data) == 0) return(NULL)
 
       ageMetrics <- c("min", "Q25", "median", "Q75", "max")
-      if (!all(ageMetrics %in% colnames(data))) {
-        return(emptyPlotlyMessage("Age summary columns (min, Q25, median, Q75, max) not found."))
-      }
+      if (!all(ageMetrics %in% colnames(data))) return(NULL)
 
-      # Determine the group column for y-axis within each subplot
       groupCol <- if (hasOutcome && "final_outcome_category" %in% colnames(data)) {
         "final_outcome_category"
       } else if ("colName" %in% colnames(data)) {
@@ -93,59 +95,52 @@ ageSummaryServer <- function(id) {
         "group__"
       }
 
-      # One subplot per database: horizontal boxplot with y = outcome group
-      databases <- sort(unique(as.character(data$cdm_name)))
-      plots <- lapply(databases, function(db) {
-        dbData <- data %>% dplyr::filter(.data$cdm_name == db)
-        groupLevels <- rev(sort(unique(as.character(dbData[[groupCol]]))))
-        dbData[[groupCol]] <- factor(dbData[[groupCol]], levels = groupLevels)
+      data[[groupCol]] <- factor(
+        data[[groupCol]],
+        levels = rev(sort(unique(as.character(data[[groupCol]]))))
+      )
 
-        p <- plotly::plot_ly()
-        for (i in seq_along(groupLevels)) {
-          grp <- groupLevels[i]
-          row <- dbData %>% dplyr::filter(.data[[groupCol]] == grp)
-          if (nrow(row) == 0) next
-          p <- p %>%
-            plotly::add_trace(
-              type = "box",
-              y = grp,
-              q1 = row$Q25[1],
-              median = row$median[1],
-              q3 = row$Q75[1],
-              lowerfence = row$min[1],
-              upperfence = row$max[1],
-              orientation = "h",
-              boxpoints = FALSE,
-              name = db,
-              legendgroup = db,
-              showlegend = (i == 1L),
-              hoverinfo = "text",
-              text = paste0(
-                grp, "<br>",
-                "Median: ", round(row$median[1], 1), "<br>",
-                "IQR: ", round(row$Q25[1], 1), " - ", round(row$Q75[1], 1), "<br>",
-                "Range: ", round(row$min[1], 1), " - ", round(row$max[1], 1)
-              )
-            )
-        }
-        p %>%
-          plotly::layout(
-            xaxis = list(title = "Age"),
-            yaxis = list(title = "", categoryorder = "array", categoryarray = groupLevels),
-            title = list(text = db, font = list(size = 12)),
-            margin = list(t = 40, b = 40)
-          )
-      })
-
-      n <- length(plots)
-      if (n == 0) return(emptyPlotlyMessage("No valid data for plotting."))
-      if (n == 1) return(plots[[1]])
-
-      plotly::subplot(plots, nrows = n, shareX = TRUE, titleY = TRUE, margin = 0.05) %>%
-        plotly::layout(
-          title = list(text = "Age at pregnancy start by outcome group", font = list(size = 14))
+      ggplot2::ggplot(data, ggplot2::aes(
+        x = .data[[groupCol]],
+        ymin = .data$min,
+        lower = .data$Q25,
+        middle = .data$median,
+        upper = .data$Q75,
+        ymax = .data$max
+      )) +
+        ggplot2::geom_boxplot(stat = "identity") +
+        ggplot2::coord_flip() +
+        ggplot2::facet_wrap(ggplot2::vars(.data$cdm_name), scales = "free_y") +
+        ggplot2::labs(x = NULL, y = "Age", title = "Age at pregnancy start by outcome group") +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(hjust = 0.5),
+          axis.text.y = ggplot2::element_text(size = 9)
         )
     })
+
+    output$plot <- plotly::renderPlotly({
+      p <- plot_ggplot()
+      if (is.null(p)) return(emptyPlotlyMessage("No age summary data for selected filters."))
+      plotly::ggplotly(p)
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() { "ageSummaryPlot.png" },
+      content = function(file) {
+        p <- plot_ggplot()
+        if (!is.null(p)) {
+          ggplot2::ggsave(
+            filename = file,
+            plot = p,
+            width = as.numeric(input$download_width),
+            height = as.numeric(input$download_height),
+            dpi = as.numeric(input$download_dpi),
+            units = "cm"
+          )
+        }
+      }
+    )
 
     output$table <- DT::renderDT({
       data <- getData()
