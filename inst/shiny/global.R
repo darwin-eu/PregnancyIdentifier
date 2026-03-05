@@ -382,6 +382,37 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
     dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric) %>%
     dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
+  # Ensure total records (episodes) and person count per cdm–outcome exist for table display
+  if (!"episode_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) {
+    gestationalAgeDaysPerCategorySummary$episode_count <- NA_integer_
+  }
+  if (!"person_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) {
+    gestationalAgeDaysPerCategorySummary$person_count <- NA_integer_
+  }
+  gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
+    dplyr::mutate(
+      episode_count = suppressWarnings(as.integer(.data$episode_count)),
+      person_count = suppressWarnings(as.integer(.data$person_count))
+    )
+  # When CSV lacks episode_count/person_count (e.g. old export), fill episode_count from gestational_weeks (sum n per cdm–outcome)
+  if (nrow(gestationalAgeDaysPerCategorySummary) > 0 && nrow(gestationalWeeks) > 0 &&
+      "final_outcome_category" %in% colnames(gestationalWeeks) &&
+      "n" %in% colnames(gestationalWeeks)) {
+    episodeFromWeeks <- gestationalWeeks %>%
+      dplyr::mutate(n = suppressWarnings(as.numeric(.data$n))) %>%
+      dplyr::group_by(.data$cdm_name, .data$final_outcome_category) %>%
+      dplyr::summarise(episode_count_weeks = sum(.data$n, na.rm = TRUE), .groups = "drop")
+    gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
+      dplyr::left_join(episodeFromWeeks, by = c("cdm_name", "final_outcome_category")) %>%
+      dplyr::mutate(
+        episode_count = dplyr::if_else(
+          is.na(.data$episode_count) | .data$episode_count == 0L,
+          as.integer(.data$episode_count_weeks),
+          .data$episode_count
+        )
+      ) %>%
+      dplyr::select(-dplyr::any_of("episode_count_weeks"))
+  }
 
   minObservationPeriod <- observationPeriodRange %>%
     dplyr::filter(name == "min_obs") %>%

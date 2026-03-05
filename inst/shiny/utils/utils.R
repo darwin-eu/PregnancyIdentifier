@@ -108,6 +108,17 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
       if (file == "cdm_source.csv" && "cdm_data_hash" %in% colnames(data)) {
         data <- data %>% dplyr::select(-"cdm_data_hash")
       }
+      # Normalise count column names for gestational_age_days_per_category_summary (preserve episode_count, person_count)
+      if (file == "gestational_age_days_per_category_summary.csv") {
+        nc <- colnames(data)
+        nc_lower <- tolower(trimws(gsub("[^a-z0-9]", "", nc)))
+        epCol <- nc[nc_lower == "episodecount" | tolower(nc) == "episode_count"][1L]
+        pcCol <- nc[nc_lower == "personcount" | tolower(nc) == "person_count"][1L]
+        renames <- character(0)
+        if (length(epCol) == 1L && !is.na(epCol) && epCol != "episode_count") renames["episode_count"] <- epCol
+        if (length(pcCol) == 1L && !is.na(pcCol) && pcCol != "person_count") renames["person_count"] <- pcCol
+        if (length(renames) > 0) data <- dplyr::rename(data, dplyr::all_of(renames))
+      }
     }
 
     {
@@ -143,8 +154,14 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
         data <- data %>%
           dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
           dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
-          dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
-          dplyr::mutate(cdm_name = tolower(cdm_name))
+          dplyr::mutate(cdm_name = sub("_v[0-9]+$", "", .data$cdm_name)) %>%
+          dplyr::mutate(cdm_name = paste0(.data$cdm_name, version)) %>%
+          dplyr::mutate(cdm_name = tolower(.data$cdm_name))
+      }
+      # Ensure episode_count and person_count are integer for gestational_age_days_per_category_summary
+      if (file == "gestational_age_days_per_category_summary.csv" && !isSR) {
+        if ("episode_count" %in% colnames(data)) data$episode_count <- suppressWarnings(as.integer(data$episode_count))
+        if ("person_count" %in% colnames(data)) data$person_count <- suppressWarnings(as.integer(data$person_count))
       }
     }
 
