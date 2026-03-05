@@ -60,6 +60,9 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
     if (file == "precision-days.csv") {
       camelCaseName <- "precisionDays"
     }
+    if (file == "precision_days_denominators.csv") {
+      camelCaseName <- "precisionDaysDenominators"
+    }
     if (file == "date_consistency.csv") {
       camelCaseName <- "missingDates"
     }

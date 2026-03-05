@@ -24,6 +24,15 @@ pregnancyOverlapUI <- function(id) {
             " The person has only one pregnancy episode, so overlap is not defined."
           )
         )
+      ),
+      p(
+        strong("Note:"),
+        " This tab uses a sequential (lag-based) overlap check: episodes are sorted by start date within each person,",
+        " and an episode is flagged as overlapping only if its start date falls on or before the",
+        " immediately preceding episode's end date. This means non-consecutive overlaps (e.g. episode C",
+        " overlaps episode A but not the adjacent episode B) are not detected here.",
+        " The ", strong("Quality Check Cleanup"), " tab uses an all-pairs overlap check that catches",
+        " any overlap between any two episodes for the same person, and may therefore report higher overlap counts."
       )
     ),
     fluidRow(

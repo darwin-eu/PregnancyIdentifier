@@ -3,7 +3,7 @@
 deliveryModeUI <- function(id) {
   ns <- NS(id)
   tagList(
-    div(class = "tab-help-text", "Delivery mode rates by outcome category and database."),
+    div(class = "tab-help-text", "Delivery mode: % cesarean and % vaginal among those with known delivery mode, by outcome category and database."),
     fluidRow(
       column(3, pickerInput(ns("cdm"), "Database", choices = allDP, selected = allDP, multiple = TRUE, options = opt))
     ),

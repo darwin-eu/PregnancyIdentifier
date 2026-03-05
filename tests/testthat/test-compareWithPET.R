@@ -87,7 +87,7 @@ test_that("comparePregnancyIdentifierWithPET runs and writes output", {
   expect_true("venn_counts" %in% vars)
   expect_true("ppv_sensitivity" %in% vars)
   expect_true("person_overlap" %in% vars)
-  expect_true("time_overlap_summary" %in% vars)
+  expect_true("date_difference_summary" %in% vars)
   expect_true("duration_summary" %in% vars)
   expect_true("protocol_summary" %in% vars)
 

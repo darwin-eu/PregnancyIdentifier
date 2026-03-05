@@ -22,9 +22,10 @@
 #' Compares algorithm output (from \code{final_pregnancy_episodes.rds}) to the PET
 #' table and writes comparison summaries to \code{exportFolder}. Comparisons include:
 #' pregnancy episode and person counts; raw and filtered (gestation 0-308, end >= start)
-#' person overlap; time-overlap summaries (PET->IPE and IPE->PET, 0 and 1 day);
-#' Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN)
-#' with sensitivity and PPV (no gold-standard negatives, so specificity and NPV are not defined); outcome confusion matrix and accuracy;
+#' person overlap; Venn counts (both, PET only, algorithm only); a 2x2 confusion matrix
+#' (TP, FN, FP, TN) with sensitivity and PPV (no gold-standard negatives, so specificity
+#' and NPV are not defined); date differences for matched pairs (start, end, duration,
+#' overall and stratified by outcome); outcome confusion matrix and accuracy;
 #' outcome comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
 #' and pregnancy duration distributions.
 #'
@@ -618,74 +619,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     tibble::tibble(pet_outcome_label = character(0), dominant_hip_category = character(0), n = integer(0), pct = numeric(0))
   }
 
-  # ---- 2b) Time overlap summaries (PET->IPE and IPE->PET, 0 and 1 day) ----
-  log4r::info(logger, "Computing time overlap summaries")
-  pet_max <- all_pairs %>%
-    dplyr::group_by(.data$person_id, .data$.pet_idx) %>%
-    dplyr::summarise(n_ipe_overlap = safe_max(.data$.overlap), .groups = "drop")
-  pet_with_max_overlap <- pet %>%
-    dplyr::select("person_id", ".pet_idx") %>%
-    dplyr::left_join(pet_max, by = c("person_id", ".pet_idx")) %>%
-    dplyr::mutate(n_ipe_overlap = dplyr::coalesce(.data$n_ipe_overlap, 0))
-  alg_max <- all_pairs %>%
-    dplyr::group_by(.data$person_id, .data$.alg_idx) %>%
-    dplyr::summarise(n_pet_overlap = safe_max(.data$.overlap), .groups = "drop")
-  alg_with_max_overlap <- alg %>%
-    dplyr::select("person_id", ".alg_idx") %>%
-    dplyr::left_join(alg_max, by = c("person_id", ".alg_idx")) %>%
-    dplyr::mutate(n_pet_overlap = dplyr::coalesce(.data$n_pet_overlap, 0))
-  res1 <- pet_with_max_overlap %>%
-    dplyr::summarise(
-      min = safe_min(.data$n_ipe_overlap),
-      Q25 = stats::quantile(.data$n_ipe_overlap, 0.25, na.rm = TRUE),
-      median = stats::median(.data$n_ipe_overlap, na.rm = TRUE),
-      Q75 = stats::quantile(.data$n_ipe_overlap, 0.75, na.rm = TRUE),
-      max = safe_max(.data$n_ipe_overlap),
-      sd = stats::sd(.data$n_ipe_overlap, na.rm = TRUE),
-      n_episodes = dplyr::n(),
-      n_persons = dplyr::n_distinct(.data$person_id)
-    ) %>%
-    dplyr::mutate(label = "PET -> IPE 0 day overlap required")
-  res2 <- pet_with_max_overlap %>%
-    dplyr::filter(.data$n_ipe_overlap > 0) %>%
-    dplyr::summarise(
-      min = safe_min(.data$n_ipe_overlap),
-      Q25 = stats::quantile(.data$n_ipe_overlap, 0.25, na.rm = TRUE),
-      median = stats::median(.data$n_ipe_overlap, na.rm = TRUE),
-      Q75 = stats::quantile(.data$n_ipe_overlap, 0.75, na.rm = TRUE),
-      max = safe_max(.data$n_ipe_overlap),
-      sd = stats::sd(.data$n_ipe_overlap, na.rm = TRUE),
-      n_episodes = dplyr::n(),
-      n_persons = dplyr::n_distinct(.data$person_id)
-    ) %>%
-    dplyr::mutate(label = "PET -> IPE 1 day overlap required")
-  res3 <- alg_with_max_overlap %>%
-    dplyr::summarise(
-      min = safe_min(.data$n_pet_overlap),
-      Q25 = stats::quantile(.data$n_pet_overlap, 0.25, na.rm = TRUE),
-      median = stats::median(.data$n_pet_overlap, na.rm = TRUE),
-      Q75 = stats::quantile(.data$n_pet_overlap, 0.75, na.rm = TRUE),
-      max = safe_max(.data$n_pet_overlap),
-      sd = stats::sd(.data$n_pet_overlap, na.rm = TRUE),
-      n_episodes = dplyr::n(),
-      n_persons = dplyr::n_distinct(.data$person_id)
-    ) %>%
-    dplyr::mutate(label = "IPE -> PET 0 day overlap required")
-  res4 <- alg_with_max_overlap %>%
-    dplyr::filter(.data$n_pet_overlap > 0) %>%
-    dplyr::summarise(
-      min = safe_min(.data$n_pet_overlap),
-      Q25 = stats::quantile(.data$n_pet_overlap, 0.25, na.rm = TRUE),
-      median = stats::median(.data$n_pet_overlap, na.rm = TRUE),
-      Q75 = stats::quantile(.data$n_pet_overlap, 0.75, na.rm = TRUE),
-      max = safe_max(.data$n_pet_overlap),
-      sd = stats::sd(.data$n_pet_overlap, na.rm = TRUE),
-      n_episodes = dplyr::n(),
-      n_persons = dplyr::n_distinct(.data$person_id)
-    ) %>%
-    dplyr::mutate(label = "IPE -> PET 1 day overlap required")
-  time_overlap_summary <- dplyr::bind_rows(res1, res2, res3, res4)
-
   # 2x2 confusion matrix (PET = reference, Algorithm = test)
   # TP = PET episode has matching algorithm episode; FN = PET episode, no match; FP = algorithm episode, no match; TN = N/A (no negative population at episode level)
   tp <- pet_matched
@@ -720,26 +653,130 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         start_diff_days = as.numeric(.data$pet_start - .data$alg_start),
         end_diff_days = as.numeric(.data$pet_end - .data$alg_end),
         duration_alg_days = as.numeric(.data$alg_end - .data$alg_start),
-        duration_pet_days = as.numeric(.data$pet_end - .data$pet_start)
+        duration_pet_days = as.numeric(.data$pet_end - .data$pet_start),
+        duration_diff_days = .data$duration_pet_days - .data$duration_alg_days,
+        alg_outcome = .data$final_outcome_category
       ) %>%
       dplyr::select(
         "person_id",
         "start_diff_days",
         "end_diff_days",
         "duration_alg_days",
-        "duration_pet_days"
+        "duration_pet_days",
+        "duration_diff_days",
+        "alg_outcome"
       )
 
-    date_summary <- tibble::tibble(
-      measure = c("start_diff_days", "end_diff_days"),
-      mean = c(mean(date_diff$start_diff_days, na.rm = TRUE), mean(date_diff$end_diff_days, na.rm = TRUE)),
-      median = c(stats::median(date_diff$start_diff_days, na.rm = TRUE), stats::median(date_diff$end_diff_days, na.rm = TRUE)),
-      sd = c(stats::sd(date_diff$start_diff_days, na.rm = TRUE), stats::sd(date_diff$end_diff_days, na.rm = TRUE)),
-      min = c(safe_min(date_diff$start_diff_days), safe_min(date_diff$end_diff_days)),
-      Q25 = c(stats::quantile(date_diff$start_diff_days, 0.25, na.rm = TRUE), stats::quantile(date_diff$end_diff_days, 0.25, na.rm = TRUE)),
-      Q75 = c(stats::quantile(date_diff$start_diff_days, 0.75, na.rm = TRUE), stats::quantile(date_diff$end_diff_days, 0.75, na.rm = TRUE)),
-      max = c(safe_max(date_diff$start_diff_days), safe_max(date_diff$end_diff_days)),
-      n_matched = nrow(date_diff)
+    # Helper: summarise a numeric column into the standard stats row
+    .summarise_diff <- function(df, col, label, n = nrow(df)) {
+      vals <- df[[col]]
+      tibble::tibble(
+        measure = label,
+        mean = mean(vals, na.rm = TRUE),
+        median = stats::median(vals, na.rm = TRUE),
+        sd = stats::sd(vals, na.rm = TRUE),
+        min = safe_min(vals),
+        Q25 = stats::quantile(vals, 0.25, na.rm = TRUE),
+        Q75 = stats::quantile(vals, 0.75, na.rm = TRUE),
+        max = safe_max(vals),
+        n_matched = n
+      )
+    }
+
+    # Overall date difference summary (start, end, duration)
+    date_summary <- dplyr::bind_rows(
+      .summarise_diff(date_diff, "start_diff_days", "Start date difference (PET - Algorithm, days)"),
+      .summarise_diff(date_diff, "end_diff_days", "End date difference (PET - Algorithm, days)"),
+      .summarise_diff(date_diff, "duration_diff_days", "Duration difference (PET - Algorithm, days)")
+    )
+
+    # Outcome-stratified date difference summary
+    outcomes_in_data <- sort(unique(date_diff$alg_outcome))
+    date_summary_by_outcome <- dplyr::bind_rows(purrr::map(outcomes_in_data, function(oc) {
+      sub <- date_diff %>% dplyr::filter(.data$alg_outcome == .env$oc)
+      if (nrow(sub) == 0) return(NULL)
+      dplyr::bind_rows(
+        .summarise_diff(sub, "start_diff_days", paste0("Start date difference (PET - Algorithm, days) [", oc, "]")),
+        .summarise_diff(sub, "end_diff_days", paste0("End date difference (PET - Algorithm, days) [", oc, "]")),
+        .summarise_diff(sub, "duration_diff_days", paste0("Duration difference (PET - Algorithm, days) [", oc, "]"))
+      )
+    }))
+  }
+
+  # ---- 2d) Binned date-difference distributions (for alignment visualisation) ----
+  # Bins: ≤-30, (-30,-14], (-14,-7], (-7,-1], 0, [1,7), [7,14), [14,30), ≥30
+  .bin_diff <- function(x) {
+    breaks <- c(-Inf, -30, -14, -7, -1, 0, 1, 7, 14, 30, Inf)
+    labels <- c("\u2264 -30", "-29 to -15", "-14 to -8", "-7 to -1",
+                "0", "1 to 7", "8 to 14", "15 to 29", "\u2265 30")
+    # cut with right = TRUE: (-Inf,-30] maps to "≤ -30", (-30,-14] maps to "-29 to -15", ...
+    # But we need 0 to be its own bin. Adjust: use right = FALSE for half-open [a, b) intervals
+    # Actually, let's use a simpler approach with dplyr::case_when for clarity
+    dplyr::case_when(
+      x <= -30        ~ "\u2264 -30",
+      x >= -29 & x <= -15 ~ "-29 to -15",
+      x >= -14 & x <= -8  ~ "-14 to -8",
+      x >= -7  & x <= -1  ~ "-7 to -1",
+      x == 0              ~ "0",
+      x >= 1   & x <= 7   ~ "1 to 7",
+      x >= 8   & x <= 14  ~ "8 to 14",
+      x >= 15  & x <= 29  ~ "15 to 29",
+      x >= 30             ~ "\u2265 30",
+      TRUE               ~ NA_character_
+    )
+  }
+
+  .bin_order <- c("\u2264 -30", "-29 to -15", "-14 to -8", "-7 to -1",
+                  "0", "1 to 7", "8 to 14", "15 to 29", "\u2265 30")
+
+  date_diff_distribution <- NULL
+  date_diff_distribution_by_outcome <- NULL
+
+  if (nrow(best_match) > 0 && exists("date_diff")) {
+    # Overall binned distribution
+    date_diff_distribution <- dplyr::bind_rows(
+      date_diff %>%
+        dplyr::mutate(bin = .bin_diff(.data$start_diff_days)) %>%
+        dplyr::count(.data$bin, name = "n") %>%
+        dplyr::mutate(measure = "start_diff", bin = factor(.data$bin, levels = .bin_order)),
+      date_diff %>%
+        dplyr::mutate(bin = .bin_diff(.data$end_diff_days)) %>%
+        dplyr::count(.data$bin, name = "n") %>%
+        dplyr::mutate(measure = "end_diff", bin = factor(.data$bin, levels = .bin_order)),
+      date_diff %>%
+        dplyr::mutate(bin = .bin_diff(.data$duration_diff_days)) %>%
+        dplyr::count(.data$bin, name = "n") %>%
+        dplyr::mutate(measure = "duration_diff", bin = factor(.data$bin, levels = .bin_order))
+    ) %>%
+      # Ensure all bins present (fill zeros) so the plot is uniform
+      tidyr::complete(.data$measure, bin = factor(.bin_order, levels = .bin_order),
+                      fill = list(n = 0L))
+
+    # Outcome-stratified binned distribution
+    date_diff_distribution_by_outcome <- dplyr::bind_rows(
+      purrr::map(outcomes_in_data, function(oc) {
+        sub <- date_diff %>% dplyr::filter(.data$alg_outcome == .env$oc)
+        if (nrow(sub) == 0) return(NULL)
+        dplyr::bind_rows(
+          sub %>%
+            dplyr::mutate(bin = .bin_diff(.data$start_diff_days)) %>%
+            dplyr::count(.data$bin, name = "n") %>%
+            dplyr::mutate(measure = "start_diff", outcome = oc,
+                          bin = factor(.data$bin, levels = .bin_order)),
+          sub %>%
+            dplyr::mutate(bin = .bin_diff(.data$end_diff_days)) %>%
+            dplyr::count(.data$bin, name = "n") %>%
+            dplyr::mutate(measure = "end_diff", outcome = oc,
+                          bin = factor(.data$bin, levels = .bin_order)),
+          sub %>%
+            dplyr::mutate(bin = .bin_diff(.data$duration_diff_days)) %>%
+            dplyr::count(.data$bin, name = "n") %>%
+            dplyr::mutate(measure = "duration_diff", outcome = oc,
+                          bin = factor(.data$bin, levels = .bin_order))
+        ) %>%
+          tidyr::complete(.data$measure, bin = factor(.bin_order, levels = .bin_order),
+                          fill = list(n = 0L, outcome = oc))
+      })
     )
   }
 
@@ -963,20 +1000,6 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     total_algorithm_episodes = list(type = "integer", value = suppress_count(protocol_summary$total_algorithm_episodes)),
     total_matched_episodes = list(type = "integer", value = suppress_count(protocol_summary$total_matched_episodes))
   ))
-  # Time overlap summary (one row per label)
-  for (i in seq_len(nrow(time_overlap_summary))) {
-    lab <- time_overlap_summary$label[i]
-    sr_rows <- add_sr_rows(sr_rows, "time_overlap_summary", lab, list(
-      min = list(type = "numeric", value = time_overlap_summary$min[i]),
-      q25 = list(type = "numeric", value = time_overlap_summary$Q25[i]),
-      median = list(type = "numeric", value = time_overlap_summary$median[i]),
-      q75 = list(type = "numeric", value = time_overlap_summary$Q75[i]),
-      max = list(type = "numeric", value = time_overlap_summary$max[i]),
-      sd = list(type = "numeric", value = time_overlap_summary$sd[i]),
-      n_episodes = list(type = "integer", value = suppress_count(time_overlap_summary$n_episodes[i])),
-      n_persons = list(type = "integer", value = suppress_count(time_overlap_summary$n_persons[i]))
-    ))
-  }
   # Confusion 2x2
   for (i in seq_len(nrow(confusion_2x2))) {
     sr_rows <- add_sr_rows(sr_rows, "confusion_2x2", confusion_2x2$cell[i], list(
@@ -995,7 +1018,7 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       denominator = list(type = "integer", value = den_s)
     ))
   }
-  # Date difference summary (if present)
+  # Date difference summary: overall (if present)
   if (nrow(best_match) > 0 && exists("date_summary")) {
     for (i in seq_len(nrow(date_summary))) {
       m <- date_summary$measure[i]
@@ -1008,6 +1031,44 @@ comparePregnancyIdentifierWithPET <- function(cdm,
         q75 = list(type = "numeric", value = date_summary$Q75[i]),
         max = list(type = "numeric", value = date_summary$max[i]),
         n_matched = list(type = "integer", value = suppress_count(date_summary$n_matched[i]))
+      ))
+    }
+  }
+  # Date difference summary: stratified by algorithm outcome (if present)
+  if (nrow(best_match) > 0 && exists("date_summary_by_outcome") && nrow(date_summary_by_outcome) > 0) {
+    for (i in seq_len(nrow(date_summary_by_outcome))) {
+      m <- date_summary_by_outcome$measure[i]
+      sr_rows <- add_sr_rows(sr_rows, "date_difference_by_outcome", m, list(
+        mean = list(type = "numeric", value = date_summary_by_outcome$mean[i]),
+        median = list(type = "numeric", value = date_summary_by_outcome$median[i]),
+        sd = list(type = "numeric", value = date_summary_by_outcome$sd[i]),
+        min = list(type = "numeric", value = date_summary_by_outcome$min[i]),
+        q25 = list(type = "numeric", value = date_summary_by_outcome$Q25[i]),
+        q75 = list(type = "numeric", value = date_summary_by_outcome$Q75[i]),
+        max = list(type = "numeric", value = date_summary_by_outcome$max[i]),
+        n_matched = list(type = "integer", value = suppress_count(date_summary_by_outcome$n_matched[i]))
+      ))
+    }
+  }
+  # Date difference distribution: binned counts for alignment visualisation
+  if (!is.null(date_diff_distribution) && nrow(date_diff_distribution) > 0) {
+    for (i in seq_len(nrow(date_diff_distribution))) {
+      bin_label <- paste0(date_diff_distribution$measure[i], "::", as.character(date_diff_distribution$bin[i]))
+      sr_rows <- add_sr_rows(sr_rows, "date_difference_distribution", bin_label, list(
+        n = list(type = "integer", value = suppress_count(date_diff_distribution$n[i]))
+      ))
+    }
+  }
+  # Date difference distribution by outcome
+  if (!is.null(date_diff_distribution_by_outcome) && nrow(date_diff_distribution_by_outcome) > 0) {
+    for (i in seq_len(nrow(date_diff_distribution_by_outcome))) {
+      bin_label <- paste0(
+        date_diff_distribution_by_outcome$measure[i], "::",
+        date_diff_distribution_by_outcome$outcome[i], "::",
+        as.character(date_diff_distribution_by_outcome$bin[i])
+      )
+      sr_rows <- add_sr_rows(sr_rows, "date_difference_distribution_by_outcome", bin_label, list(
+        n = list(type = "integer", value = suppress_count(date_diff_distribution_by_outcome$n[i]))
       ))
     }
   }

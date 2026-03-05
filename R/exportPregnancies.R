@@ -60,6 +60,7 @@ exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5,
 
   exportAgeSummary(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
   exportPrecisionDays(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  exportPrecisionDaysDenominators(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
   exportEpisodeFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
   exportPregnancyFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
   exportEpisodeFrequencySummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
@@ -184,16 +185,19 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
       .groups = "drop"
     ) %>%
     dplyr::mutate(
-      p_on_or_before_min = .data$n_on_or_before_min / totalEpisodes * 100,
-      p_on_or_after_max = .data$n_on_or_after_max / totalEpisodes * 100,
-      p_in_span = .data$n_in_span / totalEpisodes * 100,
-      p_at_midpoint = .data$n_at_midpoint / totalEpisodes * 100,
+      # Timing %: denominator = row total (occurrences in pregnancy episodes for this concept)
+      p_on_or_before_min = dplyr::if_else(.data$total > 0, .data$n_on_or_before_min / .data$total * 100, NA_real_),
+      p_on_or_after_max = dplyr::if_else(.data$total > 0, .data$n_on_or_after_max / .data$total * 100, NA_real_),
+      p_in_span = dplyr::if_else(.data$total > 0, .data$n_in_span / .data$total * 100, NA_real_),
+      p_at_midpoint = dplyr::if_else(.data$total > 0, .data$n_at_midpoint / .data$total * 100, NA_real_),
+      # % of pregnancies with at least one occurrence of this concept (denominator = total episodes)
       p_concept = .data$total / totalEpisodes * 100,
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
     ) %>%
+    dplyr::rename(n_occurrences_in_episodes = "total") %>%
     utils::write.csv(file.path(resPath, "concept_check.csv"), row.names = FALSE)
 }
 
@@ -258,13 +262,13 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
-  # summarise age at pregnancy start at birth first child
+  # summarise age at first pregnancy start (first LB by episode start date)
   resAge %>%
     dplyr::filter(.data$final_outcome_category == "LB") %>%
     dplyr::group_by(.data$person_id) %>%
     dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
     dplyr::ungroup() %>%
-    summariseColumn("age_pregnancy_end") %>%
+    summariseColumn("age_pregnancy_start") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -340,6 +344,29 @@ exportPrecisionDays <- function(res, resPath, snap, runStart, pkgVersion) {
       )
   }
   utils::write.csv(out, file.path(resPath, "precision_days.csv"), row.names = FALSE)
+}
+
+#' @noRd
+exportPrecisionDaysDenominators <- function(res, resPath, snap, runStart, pkgVersion) {
+  total_episodes <- nrow(res)
+  with_precision <- sum(!is.na(suppressWarnings(as.numeric(res$esd_precision_days))))
+  pct_precision <- if (total_episodes > 0) round(100 * with_precision / total_episodes, 1) else NA_real_
+  out <- data.frame(
+    cdm_name = as.character(snap$cdm_name)[1],
+    total_episodes = total_episodes,
+    episodes_with_precision_days = with_precision,
+    pct_with_precision_days = pct_precision,
+    date_run = as.character(runStart)[1],
+    date_export = as.character(snap$snapshot_date)[1],
+    pkg_version = as.character(pkgVersion)[1]
+  )
+  if ("esd_gw_flag" %in% names(res)) {
+    gw_ok <- suppressWarnings(as.numeric(res$esd_gw_flag))
+    with_gw <- sum(!is.na(gw_ok) & gw_ok > 0)
+    out$episodes_with_gw_timing <- with_gw
+    out$pct_with_gw_timing <- if (total_episodes > 0) round(100 * with_gw / total_episodes, 1) else NA_real_
+  }
+  utils::write.csv(out, file.path(resPath, "precision_days_denominators.csv"), row.names = FALSE)
 }
 
 #' @noRd
@@ -957,8 +984,9 @@ exportDeliveryModeSummary <- function(res, resPath, snap, runStart, pkgVersion) 
       vaginal_count = sum(.data$vaginal_m30_to_30_count)
     ) %>%
     dplyr::mutate(
-      cesarean_pct = 100 * .data$cesarean / .data$n,
-      vaginal_pct = 100 * .data$vaginal / .data$n
+      n_known = .data$cesarean + .data$vaginal,
+      cesarean_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$cesarean / .data$n_known, NA_real_),
+      vaginal_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$vaginal / .data$n_known, NA_real_)
     ) %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,

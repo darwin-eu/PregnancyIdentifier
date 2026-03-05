@@ -35,7 +35,10 @@ This section compares **pregnancy episodes from the PregnancyIdentifier algorith
 | **Venn counts** | Number of episodes in **both**, **PET only**, and **algorithm only** (from the one-to-one matching). |
 | **Sensitivity** | Among all PET episodes, the proportion that have a matched algorithm episode: *TP / (TP + FN)*. |
 | **PPV** | Among all algorithm episodes, the proportion that are matched to a PET episode (true positives): *TP / (TP + FP)*, where FP = algorithm-only episodes. |
-| **Time overlap** | For each PET (or algorithm) episode, the maximum overlap in days with any algorithm (or PET) episode; summarized (min, quartiles, max). |
+| **Start date difference** | For matched pairs: PET start minus algorithm start (days). Positive = algorithm starts too early, negative = algorithm starts too late. Reported as min/q25/median/q75/max. |
+| **End date difference** | For matched pairs: PET end minus algorithm end (days). Positive = algorithm ends too early, negative = algorithm ends too late. |
+| **Duration difference** | For matched pairs: PET duration minus algorithm duration (days). Positive = algorithm episodes are shorter, negative = algorithm episodes are longer. |
+| **Date differences by outcome** | Same start/end/duration differences stratified by algorithm outcome category (LB, SB, SA, AB, PREG, etc.). Useful because different outcomes have very different expected durations. |
 | **Confusion 2x2** | Counts for TP, FN, FP; TN is not defined (no gold-standard negatives). |
 | **Outcome accuracy** | Among matched pairs, how often the algorithm outcome category agrees with the PET outcome. |
 | **Duration** | Distribution of pregnancy duration (days) for PET and algorithm episodes; for matched pairs, duration of PET vs algorithm. |
@@ -59,10 +62,53 @@ For each group, the Person-level tab shows:
 
 - **Overview** (this page): Methodology and interpretation.
 - **Plot:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both).
+- **Alignment:** Distribution of date differences between matched PET and algorithm episodes. Shows how well start dates, end dates, and durations align, with an option to stratify by algorithm outcome. Requires result files generated with v3.0.6+.
 - **Person-level:** Person-level Venn diagram and episodes-per-person summary.
 - **Table:** Formatted table of all comparison metrics (visOmopResults), with a **Database** filter.
 - **Summarised result:** Raw summarised result table (download as CSV).
 "
+
+# ---- Display label remapping (shiny only, does not affect exports) ----
+# Backward compatibility: old result files (pre-v3.0.6) used short labels for
+# time_overlap_summary and date_difference_summary. New output files already use
+# descriptive labels in the source. This mapping ensures old files display correctly.
+PET_LEGACY_LABELS <- c(
+  # Time overlap labels (removed from new output, but old files may still have them)
+  "PET -> IPE 0 day overlap required"  = "PET -> Algorithm: All PET episodes (incl. unmatched)",
+  "PET -> IPE 1 day overlap required"  = "PET -> Algorithm: Matched PET episodes only",
+  "IPE -> PET 0 day overlap required"  = "Algorithm -> PET: All algorithm episodes (incl. unmatched)",
+  "IPE -> PET 1 day overlap required"  = "Algorithm -> PET: Matched algorithm episodes only",
+  # Date difference labels (old files used short names)
+  "start_diff_days"    = "Start date difference (PET - Algorithm, days)",
+  "end_diff_days"      = "End date difference (PET - Algorithm, days)",
+  "duration_diff_days" = "Duration difference (PET - Algorithm, days)"
+)
+
+#' Remap legacy labels for display in shiny. Ensures old result files
+#' (with short variable_level names) display with descriptive labels.
+#' New result files already have descriptive labels and pass through unchanged.
+remap_pet_display_labels <- function(sr) {
+  if (!"variable_level" %in% names(sr)) return(sr)
+  # Exact matches for legacy labels
+  sr <- sr %>%
+    dplyr::mutate(
+      variable_level = dplyr::if_else(
+        .data$variable_level %in% names(PET_LEGACY_LABELS),
+        PET_LEGACY_LABELS[.data$variable_level],
+        .data$variable_level
+      )
+    )
+  # Legacy outcome-stratified: "start_diff_days__LB" -> "Start date difference (PET - Algorithm, days) [LB]"
+  outcome_pattern <- "^(start_diff_days|end_diff_days|duration_diff_days)__(.+)$"
+  has_outcome <- grepl(outcome_pattern, sr$variable_level)
+  if (any(has_outcome)) {
+    base <- sub(outcome_pattern, "\\1", sr$variable_level[has_outcome])
+    outcome <- sub(outcome_pattern, "\\2", sr$variable_level[has_outcome])
+    pretty_base <- dplyr::if_else(base %in% names(PET_LEGACY_LABELS), PET_LEGACY_LABELS[base], base)
+    sr$variable_level[has_outcome] <- paste0(pretty_base, " [", outcome, "]")
+  }
+  sr
+}
 
 # ---- Venn helper ----
 #' Build Venn diagram data for amVennDiagram5 from counts.
@@ -133,6 +179,66 @@ extract_person_epp_from_sr <- function(sr) {
     )
 }
 
+#' Extract binned date-difference distributions from summarised result.
+#' Returns a data.frame with columns: cdm_name, measure, bin, n
+#' @param sr summarised_result
+#' @param variable_name "date_difference_distribution" or "date_difference_distribution_by_outcome"
+extract_date_diff_distribution_from_sr <- function(sr, variable_name = "date_difference_distribution") {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == .env$variable_name,
+                  .data$estimate_name == "n") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+
+  bin_order <- c("\u2264 -30", "-29 to -15", "-14 to -8", "-7 to -1",
+                 "0", "1 to 7", "8 to 14", "15 to 29", "\u2265 30")
+  measure_labels <- c(
+    "start_diff" = "Start date difference",
+    "end_diff" = "End date difference",
+    "duration_diff" = "Duration difference"
+  )
+
+  if (variable_name == "date_difference_distribution") {
+    # Format: "measure::bin"
+    parsed <- rows %>%
+      dplyr::mutate(
+        measure = sub("^(.*?)::(.*?)$", "\\1", .data$variable_level),
+        bin = sub("^(.*?)::(.*?)$", "\\2", .data$variable_level),
+        n = suppressWarnings(as.integer(.data$estimate_value))
+      ) %>%
+      dplyr::mutate(
+        measure_label = dplyr::if_else(
+          .data$measure %in% names(measure_labels),
+          measure_labels[.data$measure],
+          .data$measure
+        ),
+        bin = factor(.data$bin, levels = bin_order)
+      ) %>%
+      dplyr::select("cdm_name", "measure", "measure_label", "bin", "n")
+  } else {
+    # Format: "measure::outcome::bin"
+    parsed <- rows %>%
+      dplyr::mutate(
+        measure = sub("^(.*?)::(.*?)::(.*?)$", "\\1", .data$variable_level),
+        outcome = sub("^(.*?)::(.*?)::(.*?)$", "\\2", .data$variable_level),
+        bin = sub("^(.*?)::(.*?)::(.*?)$", "\\3", .data$variable_level),
+        n = suppressWarnings(as.integer(.data$estimate_value))
+      ) %>%
+      dplyr::mutate(
+        measure_label = dplyr::if_else(
+          .data$measure %in% names(measure_labels),
+          measure_labels[.data$measure],
+          .data$measure
+        ),
+        bin = factor(.data$bin, levels = bin_order)
+      ) %>%
+      dplyr::select("cdm_name", "measure", "measure_label", "outcome", "bin", "n")
+  }
+  parsed
+}
+
 # ---- Main PET comparison module ----
 petComparisonUI <- function(id) {
   ns <- NS(id)
@@ -140,6 +246,7 @@ petComparisonUI <- function(id) {
   # Pre-compute data availability for conditional UI
   has_venn <- FALSE
   has_person_venn <- FALSE
+  has_alignment <- FALSE
   cdm_names <- character(0)
 
   if (exists("petComparisonSummarisedResult") && !is.null(petComparisonSummarisedResult) &&
@@ -148,6 +255,8 @@ petComparisonUI <- function(id) {
     has_venn <- !is.null(venn_data) && nrow(venn_data) > 0
     person_venn_data <- extract_venn_data_from_sr(petComparisonSummarisedResult, "person_venn_counts", "n_persons")
     has_person_venn <- !is.null(person_venn_data) && nrow(person_venn_data) > 0
+    alignment_data <- extract_date_diff_distribution_from_sr(petComparisonSummarisedResult, "date_difference_distribution")
+    has_alignment <- !is.null(alignment_data) && nrow(alignment_data) > 0
     tbl <- as.data.frame(petComparisonSummarisedResult)
     if ("cdm_name" %in% names(tbl)) cdm_names <- unique(tbl$cdm_name)
   }
@@ -227,6 +336,39 @@ petComparisonUI <- function(id) {
     gt::gt_output(ns("visTable")) %>% withSpinner()
   )
 
+  # Alignment tab
+  alignment_ui <- if (has_alignment) {
+    tagList(
+      div(class = "tab-help-text",
+          "Distribution of date differences (PET \u2212 Algorithm) for matched episode pairs.",
+          " Bars centred at 0 indicate perfect alignment; negative = algorithm date is later",
+          " than PET; positive = algorithm date is earlier than PET."),
+      fluidRow(
+        column(3, if (length(cdm_names) > 1) {
+          selectInput(ns("align_database"), "Database",
+                      choices = db_choices, selected = db_choices[1])
+        }),
+        column(3, selectInput(ns("align_measure"), "Measure",
+                              choices = c("Start date" = "start_diff",
+                                          "End date" = "end_diff",
+                                          "Duration" = "duration_diff",
+                                          "All (faceted)" = "all"),
+                              selected = "all")),
+        column(3, checkboxInput(ns("align_by_outcome"), "Stratify by outcome", value = FALSE))
+      ),
+      plotly::plotlyOutput(ns("alignmentPlot"), height = "520px") %>% withSpinner(),
+      h4("Download figure"),
+      fluidRow(
+        column(3, textInput(ns("align_download_height"), "Height (cm)", value = "14")),
+        column(3, textInput(ns("align_download_width"), "Width (cm)", value = "24")),
+        column(3, textInput(ns("align_download_dpi"), "Resolution (dpi)", value = "300"))
+      ),
+      downloadButton(ns("download_alignment_plot"), "Download plot (PNG)")
+    )
+  } else {
+    p("No episode alignment data available. Re-run the PET comparison (v3.0.6+) to generate alignment distributions.")
+  }
+
   # Summarised result tab
   summarised_ui <- tagList(
     downloadButton(ns("download_raw_csv"), "Download table (.csv)"),
@@ -238,6 +380,7 @@ petComparisonUI <- function(id) {
     type = "tabs",
     tabPanel("Overview", overview_ui),
     tabPanel("Plot", plot_ui),
+    tabPanel("Alignment", alignment_ui),
     tabPanel("Person-level", person_ui),
     tabPanel("Table", table_ui),
     tabPanel("Summarised result", summarised_ui)
@@ -248,7 +391,13 @@ petComparisonServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
     result <- petComparisonSummarisedResult
-    tbl <- as.data.frame(result)
+    # Remap labels for display only (exports keep original labels)
+    display_result <- remap_pet_display_labels(as.data.frame(result))
+    display_result <- tryCatch(
+      omopgenerics::newSummarisedResult(tibble::as_tibble(display_result), omopgenerics::settings(result)),
+      error = function(e) display_result
+    )
+    tbl <- as.data.frame(display_result)
     cdm_names <- if (is.data.frame(tbl) && "cdm_name" %in% names(tbl)) unique(tbl$cdm_name) else character(0)
 
     venn_data <- extract_venn_data_from_sr(result, "venn_counts", "n_episodes")
@@ -313,16 +462,128 @@ petComparisonServer <- function(id) {
       )
     }
 
-    # Table: visOmopTable with database filter
+    # Alignment: butterfly histogram of date difference distributions
+    alignment_overall <- extract_date_diff_distribution_from_sr(result, "date_difference_distribution")
+    alignment_by_outcome <- extract_date_diff_distribution_from_sr(result, "date_difference_distribution_by_outcome")
+
+    chosen_align_db <- reactive({
+      if (length(cdm_names) == 1) cdm_names[1] else input$align_database
+    })
+
+    alignment_ggplot <- reactive({
+      db <- chosen_align_db()
+      by_outcome <- isTRUE(input$align_by_outcome)
+      measure_filter <- input$align_measure
+
+      src <- if (by_outcome && !is.null(alignment_by_outcome)) {
+        alignment_by_outcome
+      } else if (!is.null(alignment_overall)) {
+        alignment_overall
+      } else {
+        return(NULL)
+      }
+
+      if (!is.null(db)) src <- src %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(src) == 0) return(NULL)
+
+      # Filter to selected measure(s)
+      if (!is.null(measure_filter) && measure_filter != "all") {
+        src <- src %>% dplyr::filter(.data$measure == .env$measure_filter)
+      }
+
+      if (nrow(src) == 0) return(NULL)
+
+      # Compute percentage within each measure (and outcome if present)
+      group_cols <- c("measure_label")
+      if ("outcome" %in% names(src) && by_outcome) group_cols <- c(group_cols, "outcome")
+
+      src <- src %>%
+        dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) %>%
+        dplyr::mutate(
+          total = sum(.data$n, na.rm = TRUE),
+          pct = dplyr::if_else(.data$total > 0, round(100 * .data$n / .data$total, 1), 0)
+        ) %>%
+        dplyr::ungroup()
+
+      # Colour palette: gradient from red (far from 0) through yellow to green (at 0)
+      bin_colours <- c(
+        "\u2264 -30"    = "#d73027",
+        "-29 to -15" = "#f46d43",
+        "-14 to -8"  = "#fdae61",
+        "-7 to -1"   = "#fee08b",
+        "0"          = "#66bd63",
+        "1 to 7"     = "#fee08b",
+        "8 to 14"    = "#fdae61",
+        "15 to 29"   = "#f46d43",
+        "\u2265 30"     = "#d73027"
+      )
+
+      p <- ggplot2::ggplot(src, ggplot2::aes(
+        x = .data$bin, y = .data$pct, fill = .data$bin,
+        text = paste0(.data$measure_label,
+                      if ("outcome" %in% names(src) && by_outcome) paste0(" [", .data$outcome, "]") else "",
+                      "\nBin: ", .data$bin,
+                      "\nN: ", format(.data$n, big.mark = ","),
+                      "\n", round(.data$pct, 1), "%")
+      )) +
+        ggplot2::geom_col(show.legend = FALSE) +
+        ggplot2::scale_fill_manual(values = bin_colours, drop = FALSE) +
+        ggplot2::labs(
+          x = "Date difference (PET \u2212 Algorithm, days)",
+          y = "Percentage of matched episodes (%)"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 9),
+          strip.text = ggplot2::element_text(face = "bold", size = 10),
+          panel.grid.minor = ggplot2::element_blank()
+        )
+
+      # Faceting
+      if (measure_filter == "all" && by_outcome && "outcome" %in% names(src)) {
+        p <- p + ggplot2::facet_grid(outcome ~ measure_label)
+      } else if (measure_filter == "all") {
+        p <- p + ggplot2::facet_wrap(~ measure_label, ncol = 1)
+      } else if (by_outcome && "outcome" %in% names(src)) {
+        p <- p + ggplot2::facet_wrap(~ outcome, ncol = 2)
+      }
+
+      p
+    })
+
+    output$alignmentPlot <- plotly::renderPlotly({
+      p <- alignment_ggplot()
+      if (is.null(p)) return(emptyPlotlyMessage("No alignment data available for selected filters."))
+      plotly::ggplotly(p, tooltip = "text")
+    })
+
+    output$download_alignment_plot <- downloadHandler(
+      filename = function() { "pet_alignment_plot.png" },
+      content = function(file) {
+        p <- alignment_ggplot()
+        if (!is.null(p)) {
+          ggplot2::ggsave(
+            filename = file,
+            plot = p,
+            width = as.numeric(input$align_download_width),
+            height = as.numeric(input$align_download_height),
+            dpi = as.numeric(input$align_download_dpi),
+            units = "cm"
+          )
+        }
+      }
+    )
+
+    # Table: visOmopTable with database filter (uses display_result for renamed labels)
     filtered_result <- reactive({
       sel <- input$tableCdm
       if (is.null(sel) || length(sel) == 0) sel <- cdm_names
-      res <- result %>% dplyr::filter(.data$cdm_name %in% sel)
-      if (!inherits(res, "summarised_result") && inherits(result, "summarised_result")) {
+      res <- display_result %>% dplyr::filter(.data$cdm_name %in% sel)
+      if (!inherits(res, "summarised_result") && inherits(display_result, "summarised_result")) {
         res <- tryCatch(
           omopgenerics::newSummarisedResult(
             tibble::as_tibble(res),
-            omopgenerics::settings(result)
+            omopgenerics::settings(display_result)
           ),
           error = function(e) res
         )
@@ -360,9 +621,9 @@ petComparisonServer <- function(id) {
       }
     )
 
-    # Summarised result: raw data table
+    # Summarised result: display with renamed labels, download with original labels
     output$rawTable <- DT::renderDT({
-      renderPrettyDT(as.data.frame(result))
+      renderPrettyDT(as.data.frame(display_result))
     })
     output$download_raw_csv <- downloadHandler(
       filename = function() { "pet_comparison_summarised_result.csv" },

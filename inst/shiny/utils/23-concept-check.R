@@ -5,8 +5,9 @@ conceptCheckUI <- function(id) {
   ns <- NS(id)
   tagList(
     div(class = "tab-help-text", HTML(paste(
-      "Concept-level checks for pregnancy-related concepts.",
-      "Validates concept presence and timing relative to each pregnancy episode."
+      "Concept-level checks for pregnancy-related concepts: validates concept presence and timing relative to each pregnancy episode.",
+      "Counts are restricted to concept occurrences linked to pregnancy episodes (study population/period).",
+      "Row totals are the number of occurrences in pregnancy episodes; timing percentages use that row total as denominator."
     ))),
     fluidRow(
       column(3, pickerInput(ns("cdm"), "Database",

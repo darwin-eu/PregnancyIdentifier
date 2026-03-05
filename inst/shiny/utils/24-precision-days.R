@@ -22,6 +22,11 @@ precisionDaysUI <- function(id) {
                ),
                downloadButton(ns("download_plot"), "Download plot (PNG)")),
       tabPanel("Summary",
+               h4("Episodes assessed"),
+               p("Number of episodes for which precision (ESD start-date) could be assessed."),
+               DT::DTOutput(ns("denominatorsTable")) %>% withSpinner(),
+               br(),
+               h4("Precision statistics"),
                downloadButton(ns("download_summary_csv"), "Download table (.csv)"),
                DT::DTOutput(ns("summaryTable")) %>% withSpinner())
     )
@@ -45,6 +50,57 @@ precisionDaysServer <- function(id) {
       data <- precisionDays
       if (!"cdm_name" %in% colnames(data)) return(data)
       filterByCdm(data, input$cdm, dp)
+    })
+
+    # Denominators: total episodes, episodes with precision-days, % with precision-days (and GW timing if present)
+    denominatorsTableData <- reactive({
+      denom <- precisionDaysDenominators
+      if (is.null(denom) || nrow(denom) == 0 || !"cdm_name" %in% colnames(denom)) return(NULL)
+      denom <- filterByCdm(denom, input$cdm, dp)
+      if (nrow(denom) == 0) return(NULL)
+      out <- denom %>%
+        dplyr::mutate(
+          total_episodes = suppressWarnings(as.integer(.data$total_episodes)),
+          episodes_with_precision_days = suppressWarnings(as.integer(.data$episodes_with_precision_days)),
+          pct_with_precision_days = suppressWarnings(as.numeric(.data$pct_with_precision_days))
+        ) %>%
+        dplyr::select(.data$cdm_name, .data$total_episodes, .data$episodes_with_precision_days, .data$pct_with_precision_days, dplyr::any_of(c("episodes_with_gw_timing", "pct_with_gw_timing")))
+      if ("episodes_with_gw_timing" %in% colnames(out)) {
+        out <- out %>% dplyr::mutate(
+          episodes_with_gw_timing = suppressWarnings(as.integer(.data$episodes_with_gw_timing)),
+          pct_with_gw_timing = suppressWarnings(as.numeric(.data$pct_with_gw_timing))
+        )
+      }
+      out <- out %>%
+        dplyr::rename(
+          Database = .data$cdm_name,
+          `Total episodes` = .data$total_episodes,
+          `Episodes with precision-days` = .data$episodes_with_precision_days,
+          `% with precision-days` = .data$pct_with_precision_days
+        )
+      if ("episodes_with_gw_timing" %in% colnames(out)) {
+        out <- out %>% dplyr::rename(
+          `Episodes with GW timing` = .data$episodes_with_gw_timing,
+          `% with GW timing` = .data$pct_with_gw_timing
+        )
+      }
+      out
+    })
+    output$denominatorsTable <- DT::renderDT({
+      d <- denominatorsTableData()
+      if (is.null(d) || nrow(d) == 0) {
+        return(DT::datatable(
+          data.frame(Message = "No episode denominators available. Re-export with the latest PregnancyIdentifier to get total episodes and episodes with precision-days."),
+          options = list(dom = "t"), rownames = FALSE
+        ))
+      }
+      DT::datatable(
+        d,
+        options = list(dom = "t", paging = FALSE, scrollX = TRUE),
+        filter = "none",
+        rownames = FALSE
+      ) %>%
+        DT::formatRound(columns = intersect(c("% with precision-days", "% with GW timing"), colnames(d)), digits = 1)
     })
 
     # Summary table: descriptive statistics per database

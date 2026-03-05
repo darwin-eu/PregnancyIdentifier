@@ -7,6 +7,17 @@ qualityCheckCleanupUI <- function(id) {
   tagList(
     div(class = "tab-help-text",
         "Summary of episode quality characterization and cleanup. Includes counts of episodes flagged as overlapping, too long, and records after cleanup."),
+    div(
+      class = "well",
+      p(
+        strong("Note on overlap counts:"),
+        " The overlap count here uses an all-pairs check: every episode is compared against every other",
+        " episode for the same person, and any pair where start_a < end_b and end_a > start_b is flagged",
+        " as overlapping. This is more comprehensive than the ", strong("Pregnancy Overlap"), " tab,",
+        " which only checks each episode against its immediately preceding episode (sequential/lag-based).",
+        " As a result, the overlap count reported here may be higher than what is shown in the Pregnancy Overlap tab."
+      )
+    ),
     fluidRow(
       column(3, pickerInput(ns("cdm"), "Database",
                            choices = character(0), selected = character(0),

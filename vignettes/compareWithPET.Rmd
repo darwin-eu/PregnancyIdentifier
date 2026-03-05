@@ -235,14 +235,6 @@ kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn
 - **pet_only:** PET episodes with no matched algorithm episode.
 - **algorithm_only:** algorithm episodes with no matched PET episode.
 
-## Time overlap summary
-
-```{r time-overlap}
-kable(sr_table(res, "time_overlap_summary", "label"), format = "html", caption = "Time overlap (days) per episode")
-```
-
-For each PET episode, the **maximum** overlap (in days) with any algorithm episode; and for each algorithm episode, the maximum overlap with any PET episode. Summaries are shown when requiring **0 day** overlap (all episodes) and **1 day** overlap (only episodes with at least 1 day overlap). **PET → IPE** = per-PET max overlap with algorithm; **IPE → PET** = per-algorithm max overlap with PET. Columns: min, Q25, median, Q75, max, sd, n_episodes, n_persons.
-
 ## 2×2 confusion matrix (PET as reference)
 
 ```{r confusion-2x2}
@@ -266,7 +258,11 @@ kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Se
 
 ## Date differences (matched pairs only)
 
-For each matched pair, date differences are **PET − algorithm** (positive = PET is later). The summarised result may include \code{date_difference_summary} when there are matched pairs.
+For each matched pair, date differences are **PET − algorithm** (positive = PET is later, i.e. algorithm starts/ends too early). Three measures are reported:
+
+- **Start date difference**: PET start − algorithm start. Positive = algorithm starts too early; negative = algorithm starts too late.
+- **End date difference**: PET end − algorithm end. Same sign convention.
+- **Duration difference**: PET duration − algorithm duration. Positive = algorithm episodes are shorter; negative = longer.
 
 ```{r date-diff-summary}
 dd_summary <- sr_table(res, "date_difference_summary")
@@ -276,6 +272,29 @@ if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
   cat("No matched pairs; date differences not computed.\n")
 }
 ```
+
+### Date differences by outcome
+
+The same start/end/duration differences are also reported stratified by algorithm outcome category (LB, SB, SA, AB, PREG, etc.), since different outcomes have very different expected durations.
+
+```{r date-diff-by-outcome}
+dd_by_outcome <- sr_table(res, "date_difference_by_outcome")
+if (!is.null(dd_by_outcome) && nrow(dd_by_outcome) > 0) {
+  kable(dd_by_outcome, format = "html", caption = "Date differences by algorithm outcome (PET − algorithm, days)")
+} else {
+  cat("No outcome-stratified date differences available.\n")
+}
+```
+
+### Alignment distribution
+
+The date differences can also be viewed as a **binned distribution** (histogram),
+which shows at a glance what fraction of matched episodes are perfectly aligned (bin = 0),
+close (within ±7 days), or far off (±30+ days). The bins are coloured on a
+red-yellow-green gradient where green = exact match and red = large discrepancy.
+
+This visualisation is available interactively in the Shiny app's **Alignment** tab.
+It can be filtered by measure (start/end/duration) and stratified by outcome.
 
 ## Outcome confusion (matched pairs)
 

@@ -141,8 +141,18 @@ buildDataAvailabilitySummary <- function(allDP) {
     "Concept check"         = "conceptCheck",
     "Precision days"        = "precisionDays",
     "Quality check cleanup" = "qualityCheckCleanup",
-    "Age summary"           = "ageSummary"
+    "Age summary"           = "ageSummary",
+    "Incidence"             = "incidence",
+    "Prevalence"            = "prevalence",
+    "PET comparison"        = "petComparisonSummarisedResult"
   )
+  # Optional (legacy) PET comparison tables
+  if (exists("petComparisonSpec", envir = .GlobalEnv)) {
+    spec <- get("petComparisonSpec", envir = .GlobalEnv)
+    for (varName in names(spec)) {
+      tableSpecs[[spec[[varName]]]] <- varName
+    }
+  }
 
   rows <- lapply(allDP, function(dp) {
     available <- vapply(names(tableSpecs), function(label) {
@@ -150,7 +160,10 @@ buildDataAvailabilitySummary <- function(allDP) {
       if (!exists(varName, envir = .GlobalEnv)) return("\u2014")
       tbl <- get(varName, envir = .GlobalEnv)
       if (!is.data.frame(tbl) || nrow(tbl) == 0) return("\u2014")
-      if ("cdm_name" %in% colnames(tbl) && dp %in% tbl$cdm_name) "\u2713" else "\u2014"
+      if ("cdm_name" %in% colnames(tbl) && dp %in% tbl$cdm_name) return("\u2713")
+      # Tables without cdm_name (e.g. legacy PET): show as available when table has data
+      if (!("cdm_name" %in% colnames(tbl))) return("\u2713")
+      "\u2014"
     }, character(1))
     c(Database = dp, available)
   })

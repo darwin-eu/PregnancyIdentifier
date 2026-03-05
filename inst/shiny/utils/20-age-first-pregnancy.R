@@ -4,7 +4,7 @@
 ageFirstPregnancyUI <- function(id) {
   ns <- NS(id)
   tagList(
-    div(class = "tab-help-text", "Summary of maternal age at first pregnancy."),
+    div(class = "tab-help-text", "Summary of maternal age at first pregnancy start."),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
     h4("Download figure"),
     fluidRow(
@@ -47,7 +47,7 @@ ageFirstPregnancyServer <- function(id) {
       )) +
         ggplot2::geom_boxplot(stat = "identity") +
         ggplot2::coord_flip() +
-        ggplot2::labs(x = NULL, y = "Age at first pregnancy (end)") +
+        ggplot2::labs(x = NULL, y = "Age at first pregnancy (start)") +
         ggplot2::theme_minimal()
     })
 

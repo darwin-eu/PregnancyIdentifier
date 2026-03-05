@@ -192,11 +192,11 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
       if (is.null(pd) || nrow(pd) == 0) return(NULL)
       ggplot2::ggplot(pd, ggplot2::aes(
         x = .data$final_outcome_category,
-        ymin = .data$ymin,
-        lower = .data$lower,
-        middle = .data$middle,
-        upper = .data$upper,
-        ymax = .data$ymax,
+        ymin = ymin,
+        lower = lower,
+        middle = middle,
+        upper = upper,
+        ymax = ymax,
         fill = .data$final_outcome_category
       )) +
         ggplot2::geom_boxplot(stat = "identity") +

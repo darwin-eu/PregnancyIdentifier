@@ -90,6 +90,9 @@ if (hasData) {
   if (!exists("precisionDays", envir = .GlobalEnv)) {
     assign("precisionDays", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
   }
+  if (!exists("precisionDaysDenominators", envir = .GlobalEnv)) {
+    assign("precisionDaysDenominators", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
+  }
   if (!exists("qualityCheckCleanup", envir = .GlobalEnv)) {
     assign("qualityCheckCleanup", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
   }
@@ -583,6 +586,11 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
       dplyr::select(-dplyr::any_of(c("cesarean_count", "vaginal_count"))) %>%
       dplyr::rename(total = n)
+    if ("n_known" %in% colnames(deliveryModeSummary)) {
+      deliveryModeSummary <- deliveryModeSummary %>% dplyr::mutate(n_known = suppressWarnings(as.numeric(.data$n_known)))
+    } else {
+      deliveryModeSummary <- deliveryModeSummary %>% dplyr::mutate(n_known = .data$cesarean + .data$vaginal)
+    }
     deliveryModeSummary <- dplyr::left_join(
       deliveryModeSummary %>%
         tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
@@ -596,7 +604,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     ) %>%
       dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
       dplyr::mutate(pct = round(pct, 2)) %>%
-      dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n", "pct"))
+      dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
   }
 
   # Get incidence/prevalence/characteristics (already proper summarised_result objects)
@@ -618,6 +626,11 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
 
   # Precision days
   precisionDays <- get("precisionDays", envir = .GlobalEnv)
+  if (exists("precisionDaysDenominators", envir = .GlobalEnv)) {
+    precisionDaysDenominators <- get("precisionDaysDenominators", envir = .GlobalEnv)
+  } else {
+    precisionDaysDenominators <- tibble::tibble(cdm_name = character(0))
+  }
 
   # Concept check
   conceptCheck <- get("conceptCheck", envir = .GlobalEnv)
