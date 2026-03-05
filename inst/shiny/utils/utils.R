@@ -1,17 +1,6 @@
-handleEmptyResult <- function(object, result, emptyMessage = "No data available") {
-  if (is.null(result)) {
-    return(DarwinShinyModules::Text$new(markdown = emptyMessage))
-  }
-  if (nrow(result) == 0) {
-    return(DarwinShinyModules::Text$new(markdown = emptyMessage))
-  } else {
-    return(object)
-  }
-}
+# utils.R - Shared utility functions (no R6, no DarwinShinyModules)
 
 #' Plotly placeholder when there is no data to display
-#' @param message Text to show (e.g. "Results files are empty." or "No data for selected filters.")
-#' @return A plotly object with the message as annotation
 emptyPlotlyMessage <- function(message = "No data to display.") {
   plotly::plot_ly() %>%
     plotly::add_annotations(
@@ -22,52 +11,6 @@ emptyPlotlyMessage <- function(message = "No data to display.") {
     plotly::layout(xaxis = list(visible = FALSE), yaxis = list(visible = FALSE))
 }
 
-#' Wrap a Shiny module with short helper text shown at the top of the tab.
-#' @param module Module object with UI() and server() (e.g. from handleEmptyResult).
-#' @param text One or two sentences explaining what the tab shows.
-#' @return An object that can be used in appStructure in place of the module.
-tabWithHelpText <- function(module, text) {
-  if (is.null(text) || !nzchar(trimws(text))) {
-    return(module)
-  }
-  inner <- module
-  desc <- trimws(text)
-  helpUi <- if (requireNamespace("markdown", quietly = TRUE)) {
-    shiny::div(
-      class = "tab-help-text",
-      style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
-      htmltools::HTML(markdown::mark(text = desc))
-    )
-  } else {
-    shiny::div(
-      class = "tab-help-text",
-      style = "margin-bottom: 1em; color: #555; font-size: 0.95em;",
-      shiny::p(desc)
-    )
-  }
-  wrapper <- R6::R6Class(
-    "TabWithHelpText",
-    portable = TRUE,
-    public = list(
-      UI = function() {
-        shiny::tagList(helpUi, inner$UI())
-      },
-      server = function(input, output, session) {
-        if (is.function(inner$server)) {
-          inner$server(input, output, session)
-        }
-      }
-    ),
-    active = list(
-      namespace = function() inner$namespace,
-      parentNamespace = function(value) {
-        if (missing(value)) inner$parentNamespace else inner$parentNamespace <- value
-      }
-    )
-  )
-  wrapper$new()
-}
-
 # copied from SQLRender, so we don't need to include this dependency (and rJava)
 snakeCaseToCamelCase <- function(string) {
   string <- tolower(string)
@@ -76,6 +19,34 @@ snakeCaseToCamelCase <- function(string) {
   }
   string <- gsub("_([0-9])", "\\1", string)
   return(string)
+}
+
+#' Flatten list columns in a data frame by taking the first element of each list.
+flattenListCols <- function(data) {
+  if (!is.data.frame(data) || nrow(data) == 0) return(data)
+  list_cols <- names(data)[vapply(data, is.list, logical(1))]
+  for (col in list_cols) {
+    data[[col]] <- vapply(data[[col]], function(x) {
+      if (is.null(x) || length(x) == 0) return(NA_character_)
+      x <- unlist(x, use.names = FALSE)
+      if (length(x) == 0) return(NA_character_)
+      as.character(x[1])
+    }, FUN.VALUE = NA_character_)
+  }
+  data
+}
+
+#' Deduplicate a long-format summarised_result so pivotEstimates does not create list-cols.
+deduplicateSummarisedResult <- function(data) {
+  if (!is.data.frame(data) || nrow(data) == 0) return(data)
+  if (!"estimate_name" %in% names(data) || !"estimate_value" %in% names(data)) return(data)
+  key_cols <- setdiff(names(data), "estimate_value")
+  key_cols <- key_cols[!vapply(data[key_cols], is.list, logical(1))]
+  if (length(key_cols) == 0) return(data)
+  data %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
+    dplyr::slice(1L) %>%
+    dplyr::ungroup()
 }
 
 loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir = .GlobalEnv) {
@@ -101,9 +72,8 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
 
     if (file == "pet_comparison_summarised_result.csv") {
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-      # visOmopResults/splitGroup expects group_level to have same number of
-      # elements as group_name; omopgenerics treats "overall" as empty, so
-      # normalise for backward compatibility with CSVs that used group_level = "overall".
+      data <- flattenListCols(data)
+      data <- deduplicateSummarisedResult(data)
       if (is.data.frame(data) && "group_name" %in% names(data) && "group_level" %in% names(data)) {
         data <- data %>% dplyr::mutate(
           group_level = dplyr::if_else(
@@ -119,13 +89,11 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
       tableName <- parts[length(parts)]
       camelCaseName <- snakeCaseToCamelCase(tableName)
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-      data <- data %>% dplyr::mutate(across(where(lubridate::is.Date), as.character))
+      # Preserve summarised_result class — don't flatten or deduplicate
     } else {
       data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"))
-      # Normalise column names: strip leading/trailing quotes and apostrophes (e.g. '"freq"' -> freq)
       colnames(data) <- gsub("^['\"]*|['\"]*$", "", colnames(data))
       if ("...1" %in% colnames(data)) {
-        # For frequency tables, first column is the count variable (freq); keep it instead of dropping
         if (file == "pregnancy_frequency.csv" && !"freq" %in% colnames(data)) {
           data <- data %>% dplyr::rename(freq = "...1")
         } else if (file == "episode_frequency.csv" && !"freq" %in% colnames(data)) {
@@ -134,7 +102,6 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
           data <- data %>% dplyr::select(-"...1")
         }
       }
-      # make sure there is a column cdm_name
       if (!"cdm_name" %in% colnames(data)) {
         data <- data %>% dplyr::mutate(cdm_name = dbName)
       }
@@ -143,15 +110,16 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
       }
     }
 
-    # add version number to cdm_name (skip for PET SummarisedResult)
-    if (camelCaseName != "petComparisonSummarisedResult") {
+    {
+      isSR <- inherits(data, "summarised_result")
+
       version <- NULL
       if (!is.null(zipVersion)) {
         version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
       } else if ("pkg_version" %in% colnames(data)) {
         version <- data %>% dplyr::pull("pkg_version") %>% unique()
         version <- paste0("_v", as.numeric(substr(version, 1, 1)))
-        data <- data %>% dplyr::select(-"pkg_version")
+        if (!isSR) data <- data %>% dplyr::select(-"pkg_version")
       } else if (nzchar(trimws(runDate))) {
         runDateParsed <- suppressWarnings(as.Date(runDate))
         if (!is.na(runDateParsed)) {
@@ -165,16 +133,28 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
         }
       }
 
-      data <- data %>%
-        dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
-        dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
-        dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
-        dplyr::mutate(cdm_name = tolower(cdm_name))
+      if (isSR) {
+        # Use base R assignment to preserve summarised_result class
+        data$cdm_name <- tolower(paste0(
+          ifelse(data$cdm_name == "cdm", "EMBD-ULSGE", data$cdm_name),
+          version
+        ))
+      } else {
+        data <- data %>%
+          dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
+          dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
+          dplyr::mutate(cdm_name = paste0(cdm_name, version)) %>%
+          dplyr::mutate(cdm_name = tolower(cdm_name))
+      }
     }
 
-    if (camelCaseName != "petComparisonSummarisedResult" && !overwrite && exists(camelCaseName, envir = envir)) {
+    if (!overwrite && exists(camelCaseName, envir = envir)) {
       existingData <- get(camelCaseName, envir = envir)
-      data <- bindRowsAligned(existingData, data)
+      if (isSR && inherits(existingData, "summarised_result")) {
+        data <- omopgenerics::bind(existingData, data)
+      } else {
+        data <- bindRowsAligned(existingData, data)
+      }
     }
     assign(camelCaseName, data, envir = envir)
     invisible(NULL)
@@ -182,7 +162,6 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
 }
 
 dataToLong <- function(data, skipCols = c("cdm_name")) {
-  # Only skip columns that exist (e.g. age_summary has no colName)
   skipCols <- intersect(skipCols, colnames(data))
   do.call(cbind, lapply(unique(data$cdm_name), FUN = function(db) {
     dbData <- data %>% dplyr::filter(cdm_name == db)
@@ -193,96 +172,90 @@ dataToLong <- function(data, skipCols = c("cdm_name")) {
   })) %>% dplyr::select(unique(colnames(.)))
 }
 
-trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL) {
-  # Ensure xLabel is a single string for labs()
+trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL, return_ggplot = FALSE) {
   if (length(xLabel) > 1) xLabel <- xLabel[1]
   xLabel <- as.character(xLabel)
   if (!nzchar(xLabel)) xLabel <- "Period"
-  p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[["count"]], color = .data[["column"]], group = .data[["column"]])) +
-    geom_line() +
-    geom_point() +
-    labs(x = xLabel, y = "Count (N)") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 6))
+  p <- ggplot2::ggplot(data = data, mapping = ggplot2::aes(x = .data[[xVar]], y = .data[["count"]], color = .data[["column"]], group = .data[["column"]])) +
+    ggplot2::geom_line() +
+    ggplot2::geom_point() +
+    ggplot2::labs(x = xLabel, y = "Count (N)") +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, size = 6))
 
   if (!is.null(facetVar)) {
-    p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+    p <- p + ggplot2::facet_wrap(as.formula(paste("~", facetVar)))
   }
 
   if (!is.null(xIntercept)) {
-    p <- p + geom_vline(mapping = aes(xintercept = xIntercept), linetype = "dashed")
+    p <- p + ggplot2::geom_vline(mapping = ggplot2::aes(xintercept = xIntercept), linetype = "dashed")
   }
+  if (return_ggplot) return(p)
   plotly::ggplotly(p)
 }
 
 barPlot <- function(data, xVar, yVar, fillVar = NULL, facetVar = NULL, labelFunction = NULL,
                     label = NULL, position = "dodge", xLabel = NULL, yLabel = NULL, title = NULL,
                     rotateAxisText = FALSE, flipCoordinates = FALSE, facetTextSize = 8, verticalLinesPos = NULL,
-                    yLim = NULL) {
+                    yLim = NULL, return_ggplot = FALSE) {
   if (!is.null(label)) {
-    p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[[yVar]], label = .data[[label]]))
+    p <- ggplot2::ggplot(data = data, mapping = ggplot2::aes(x = .data[[xVar]], y = .data[[yVar]], label = .data[[label]]))
   } else {
-    p <- ggplot(data = data, mapping = aes(x = .data[[xVar]], y = .data[[yVar]]))
+    p <- ggplot2::ggplot(data = data, mapping = ggplot2::aes(x = .data[[xVar]], y = .data[[yVar]]))
   }
 
   if (is.null(fillVar)) {
-    p <- p + geom_bar(stat = "identity",
-                      position = position)
+    p <- p + ggplot2::geom_bar(stat = "identity", position = position)
   } else {
-    p <- p + geom_bar(stat = "identity",
-                      position = position,
-                      mapping = aes(fill = .data[[fillVar]]))
-    # Apply fixed outcome colours when fillVar matches a known outcome/mode variable
+    p <- p + ggplot2::geom_bar(stat = "identity", position = position,
+                                mapping = ggplot2::aes(fill = .data[[fillVar]]))
     if (exists("OUTCOME_COLOURS") && fillVar %in% c("final_outcome_category", "outcome_category")) {
       availCats <- intersect(names(OUTCOME_COLOURS), unique(as.character(data[[fillVar]])))
       if (length(availCats) > 0) {
-        p <- p + scale_fill_manual(values = OUTCOME_COLOURS[availCats], na.value = "#CCCCCC")
+        p <- p + ggplot2::scale_fill_manual(values = OUTCOME_COLOURS[availCats], na.value = "#CCCCCC")
       }
     }
   }
   if (!is.null(facetVar)) {
     if (is.null(labelFunction)) {
-      p <- p + facet_wrap(as.formula(paste("~", facetVar)))
+      p <- p + ggplot2::facet_wrap(as.formula(paste("~", facetVar)))
     } else {
-      p <- p + facet_wrap(as.formula(paste("~", facetVar)), labeller = labelFunction)
+      p <- p + ggplot2::facet_wrap(as.formula(paste("~", facetVar)), labeller = labelFunction)
     }
   }
-
   if (!is.null(xLabel) && !is.null(yLabel)) {
-    p <- p + labs(x = xLabel, y = yLabel)
+    p <- p + ggplot2::labs(x = xLabel, y = yLabel)
   }
   if (rotateAxisText) {
-    p <- p + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-                   plot.title = element_text(hjust = 0.5),
-                   strip.text = element_text(size = facetTextSize))
+    p <- p + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1),
+                             plot.title = ggplot2::element_text(hjust = 0.5),
+                             strip.text = ggplot2::element_text(size = facetTextSize))
   }
   if (!is.null(title)) {
-    p <- p + ggtitle(title)
+    p <- p + ggplot2::ggtitle(title)
   }
-  # Apply theme_minimal for cleaner visuals
-  p <- p + theme_minimal()
+  p <- p + ggplot2::theme_minimal()
 
-  # Fix coord conflict: coord_flip and coord_cartesian are mutually exclusive
   if (flipCoordinates) {
     if (!is.null(yLim) && length(yLim) == 2L) {
-      p <- p + coord_flip(ylim = yLim)
+      p <- p + ggplot2::coord_flip(ylim = yLim)
     } else {
-      p <- p + coord_flip()
+      p <- p + ggplot2::coord_flip()
     }
   } else if (!is.null(yLim) && length(yLim) == 2L) {
-    p <- p + coord_cartesian(ylim = yLim)
+    p <- p + ggplot2::coord_cartesian(ylim = yLim)
   }
   if (!is.null(verticalLinesPos)) {
     for (pos in verticalLinesPos) {
-      p <- p + geom_vline(xintercept = pos, colour = "red")
+      p <- p + ggplot2::geom_vline(xintercept = pos, colour = "red")
     }
   }
+  if (return_ggplot) return(p)
   plotly::ggplotly(p)
 }
 
 boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, gg_plot = FALSE, horizontal = FALSE) {
   plotData <- data
   if (transform) {
-    # assume we have a column per DP, next to the first column
     nameColumn <- colnames(data)[1]
     dpCols <- colnames(data)[-1]
     plotData <- do.call(rbind, lapply(dpCols, FUN = function(dp) {
@@ -301,17 +274,15 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, g
                     Q75 = as.numeric(Q75),
                     max = as.numeric(max),
                     x = 1)
-
-    ggplot(plotData, aes(x)) +
-      geom_boxplot(aes(ymin = min, lower = Q25, middle = mean, upper = Q75, ymax = max),
+    ggplot2::ggplot(plotData, ggplot2::aes(x)) +
+      ggplot2::geom_boxplot(ggplot2::aes(ymin = min, lower = Q25, middle = mean, upper = Q75, ymax = max),
                    stat = "identity") +
-      facet_wrap(~ cdm_name)
+      ggplot2::facet_wrap(~ cdm_name)
   } else {
     p <- NULL
     if (horizontal) {
-      # y = cdm_name (one row per CDM), x = age metric (box extent)
-      p <- plot_ly(data = plotData, y = ~ cdm_name) %>%
-        add_boxplot(
+      p <- plotly::plot_ly(data = plotData, y = ~ cdm_name) %>%
+        plotly::add_boxplot(
           lowerfence = ~ min,
           q1 = ~ Q25,
           median = ~ median,
@@ -321,15 +292,12 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, g
           upperfence = ~ max)
     } else {
       if (is.null(colorVar)) {
-        p <- plot_ly(data = plotData,
-                     x = ~ cdm_name)
+        p <- plotly::plot_ly(data = plotData, x = ~ cdm_name)
       } else {
-        p <- plot_ly(data = plotData,
-                     x = ~ cdm_name,
-                     color = ~ get(colorVar))
+        p <- plotly::plot_ly(data = plotData, x = ~ cdm_name, color = ~ get(colorVar))
       }
       p <- p %>%
-        add_boxplot(
+        plotly::add_boxplot(
           lowerfence = ~ min,
           q1 = ~ Q25,
           median = ~ median,
@@ -342,26 +310,11 @@ boxPlot <- function(data, facetVar = NULL, colorVar = NULL, transform = FALSE, g
   }
 }
 
-customDarwinFooter <- function() {
-  shiny::tags$footer(
-    style = "padding: 3px 0px 0px 0px; text-align: center; bottom: 0; width: 100%;",
-    shiny::h6(
-      sprintf(
-        "Generated with DarwinShinyModules %s | Deployed on: %s | (c) 2023-%s European Medicines Agency. All rights reserved. Certain parts are licensed under conditions to the European Medicines Agency.",
-        utils::packageVersion("DarwinShinyModules"),
-        Sys.Date(),
-        substr(Sys.Date(), start = 1, stop = 4)
-      )
-    )
-  )
-}
-
 suppressCounts <- function(result, colNames, minCellCount = 5) {
   suppressCountCol <- function(values) {
     values[values > 0 & values < minCellCount] <- NA
     return(values)
   }
-  # Match columns that exist (case-insensitive: data may have "ipci", allDP may have "IPCI")
   resultNames <- colnames(result)
   colNamesPresent <- resultNames[tolower(resultNames) %in% tolower(colNames)]
   if (length(colNamesPresent) == 0) {

@@ -1,8 +1,9 @@
-# helpers.R - Shared utility functions to reduce boilerplate across modules
-# These extract patterns that were repeated 15+ times across the codebase.
+# helpers.R - Shared utility constants and functions used across modules
+
+# Picker options used throughout the app
+opt <- list("actions-box" = TRUE, size = 10, "selected-text-format" = "count > 3")
 
 #' Fixed colour palette for pregnancy outcome categories.
-#' Used by barPlot() and modules to ensure consistent colours across all tabs.
 OUTCOME_COLOURS <- c(
   ECT  = "#E41A1C",
   AB   = "#377EB8",
@@ -14,8 +15,6 @@ OUTCOME_COLOURS <- c(
 )
 
 #' Human-readable column name lookup.
-#' Applied to DT tables so users see "Database" instead of "cdm_name".
-#' Covers all standard columns across all CSVs produced by PregnancyIdentifier.
 PRETTY_NAMES <- c(
   # --- Identifiers & metadata ---
   cdm_name                              = "Database",
@@ -42,6 +41,7 @@ PRETTY_NAMES <- c(
   total_individuals                     = "Total Individuals",
   record_count                          = "Record Count",
   person_count                          = "Person Count",
+  episode_count                         = "Episode Count",
   observation_period_count              = "Observation Periods",
   earliest_observation_period_start_date = "Earliest Obs Start",
   latest_observation_period_end_date    = "Latest Obs End",
@@ -144,9 +144,6 @@ PRETTY_NAMES <- c(
 )
 
 #' Apply human-readable column names to a data.frame for DT display.
-#' Only renames columns that exist in the lookup; leaves others unchanged.
-#' @param df A data.frame
-#' @return A data.frame with prettier column names
 prettyColNames <- function(df) {
   nms <- colnames(df)
   matched <- nms %in% names(PRETTY_NAMES)
@@ -155,48 +152,7 @@ prettyColNames <- function(df) {
   df
 }
 
-#' Create a standard database picker InputPanel.
-#' Extracts the 10-line boilerplate that was identical across 15+ modules.
-#' @param dp Character vector of database names (choices).
-#' @param parentNamespace The parent module's namespace.
-#' @param multiple Allow multiple selection (default TRUE).
-#' @return An InputPanel object ready to use.
-createDatabasePicker <- function(dp, parentNamespace, multiple = TRUE) {
-  opts <- if (multiple) {
-    list(`actions-box` = TRUE, size = 10, `selected-text-format` = "count > 3")
-  } else {
-    list(size = 10)
-  }
-  panel <- InputPanel$new(
-    fun = list(cdm_name = shinyWidgets::pickerInput),
-    args = list(cdm_name = list(
-      inputId = "cdm_name",
-      label = "Database",
-      choices = dp,
-      selected = if (multiple) dp else dp[1],
-      multiple = multiple,
-      options = opts
-    )),
-    growDirection = "horizontal"
-  )
-  panel$parentNamespace <- parentNamespace
-  panel
-}
-
-#' Get selected databases from a picker, falling back to all choices.
-#' @param picker An InputPanel with a cdm_name picker.
-#' @param allChoices Character vector of all available choices.
-#' @return Character vector of selected database names.
-getSelectedCdm <- function(picker, allChoices) {
-  sel <- picker$inputValues$cdm_name
-  if (is.null(sel) || length(sel) == 0) allChoices else sel
-}
-
 #' Bind rows from data.frames with potentially different columns.
-#' Adds missing columns as NA so rbind works across schema versions.
-#' Replaces 4+ copies of the same loop pattern.
-#' @param ... Data frames to bind.
-#' @return A combined data.frame.
 bindRowsAligned <- function(...) {
   dfs <- list(...)
   dfs <- dfs[!vapply(dfs, is.null, logical(1))]
@@ -210,9 +166,6 @@ bindRowsAligned <- function(...) {
 }
 
 #' Normalise cdm_name to match the format used by allDP.
-#' Mirrors the transformation in loadFile(): version suffix + lowercase.
-#' @param df A data.frame with cdm_name column.
-#' @return The data.frame with normalised cdm_name (and date/version columns removed).
 normaliseCdmName <- function(df) {
   if (!is.data.frame(df) || nrow(df) == 0 || !"cdm_name" %in% colnames(df)) return(df)
   version <- ""
@@ -224,4 +177,60 @@ normaliseCdmName <- function(df) {
     dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
     dplyr::mutate(cdm_name = dplyr::if_else(.data$cdm_name == "cdm", "EMBD-ULSGE", .data$cdm_name)) %>%
     dplyr::mutate(cdm_name = tolower(paste0(.data$cdm_name, version)))
+}
+
+#' Render a DT datatable with PRETTY_NAMES, standard formatting, and optional overlap highlighting.
+renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE) {
+  rowsToColor <- NULL
+  if ("overlap" %in% colnames(data)) {
+    data$rowId <- as.numeric(rownames(data))
+    rowsToColor <- data %>% dplyr::filter(overlap == TRUE) %>% dplyr::pull(rowId)
+    data <- data %>% dplyr::select(-rowId)
+  }
+  data <- data %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor))
+
+  pctCols <- grep("pct$|percent|Percent|^%$", colnames(data), value = TRUE)
+  numCols <- colnames(data)[vapply(data, is.numeric, logical(1))]
+  numCols <- setdiff(numCols, pctCols)
+
+  displayNames <- colnames(data)
+  matched <- displayNames %in% names(PRETTY_NAMES)
+  displayNames[matched] <- PRETTY_NAMES[displayNames[matched]]
+
+  result <- DT::datatable(
+    data = data,
+    colnames = displayNames,
+    filter = filter,
+    options = list(scrollX = scrollX, pageLength = pageLength)
+  )
+
+  if (length(pctCols) > 0) result <- result %>% DT::formatRound(pctCols, digits = 2)
+  if (length(numCols) > 0) result <- result %>% DT::formatRound(numCols, digits = 0, mark = ",")
+
+  if (!is.null(rowsToColor)) {
+    result <- result %>%
+      DT::formatStyle(0, target = "row", backgroundColor = DT::styleEqual(rowsToColor, rep("red", length(rowsToColor))))
+  }
+  result
+}
+
+#' Darwin footer without DarwinShinyModules dependency
+customDarwinFooter <- function() {
+  shiny::tags$footer(
+    class = "darwin-footer",
+    shiny::h6(
+      sprintf(
+        "PregnancyIdentifier | Deployed on: %s | %s European Medicines Agency. All rights reserved.",
+        Sys.Date(),
+        substr(Sys.Date(), start = 1, stop = 4)
+      )
+    )
+  )
+}
+
+#' Helper to filter data by selected databases; used in all modules.
+filterByCdm <- function(data, selected, allChoices) {
+  if (is.null(selected) || length(selected) == 0) selected <- allChoices
+  if (!"cdm_name" %in% colnames(data)) return(data)
+  data %>% dplyr::filter(.data$cdm_name %in% selected)
 }

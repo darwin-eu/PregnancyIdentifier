@@ -438,10 +438,18 @@ exportGestationalWeeksCounts <- function(res, resPath, snap, runStart, pkgVersio
 
 #' @noRd
 exportGestationalDurationCounts <- function(res, resPath, snap, runStart, pkgVersion) {
+  counts <- res %>%
+    dplyr::group_by(.data$final_outcome_category) %>%
+    dplyr::summarise(
+      episode_count = dplyr::n(),
+      person_count = dplyr::n_distinct(.data$person_id),
+      .groups = "drop"
+    )
   res %>%
     dplyr::group_by(.data$final_outcome_category) %>%
     summariseColumn("esd_gestational_age_days_calculated") %>%
     dplyr::ungroup() %>%
+    dplyr::left_join(counts, by = "final_outcome_category") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
