@@ -3,13 +3,13 @@
 Compares algorithm output (from `final_pregnancy_episodes.rds`) to the
 PET table and writes comparison summaries to `exportFolder`. Comparisons
 include: pregnancy episode and person counts; raw and filtered
-(gestation 0-308, end \>= start) person overlap; time-overlap summaries
-(PET-\>IPE and IPE-\>PET, 0 and 1 day); Venn counts (both, PET only,
-algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN) with
+(gestation 0-308, end \>= start) person overlap; Venn counts (both, PET
+only, algorithm only); a 2x2 confusion matrix (TP, FN, FP, TN) with
 sensitivity and PPV (no gold-standard negatives, so specificity and NPV
-are not defined); outcome confusion matrix and accuracy; outcome
-comparison by year (same-year pairs, cross-tab LB/SB/AB vs PET outcome);
-and pregnancy duration distributions.
+are not defined); date differences for matched pairs (start, end,
+duration, overall and stratified by outcome); outcome confusion matrix
+and accuracy; outcome comparison by year (same-year pairs, cross-tab
+LB/SB/AB vs PET outcome); and pregnancy duration distributions.
 
 ## Usage
 

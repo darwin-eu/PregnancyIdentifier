@@ -147,7 +147,7 @@ kable(sr_table(res, "episode_counts", "source"), format = "html", caption = "Epi
 
 | source    | n_episodes | n_persons |
 |:----------|:-----------|:----------|
-| algorithm | 35         | 32        |
+| algorithm | 36         | 32        |
 | pet       | 33         | 25        |
 
 Episode counts: algorithm vs PET
@@ -163,7 +163,7 @@ kable(sr_table(res, "protocol_summary"), format = "html", caption = "Protocol su
 
 | variable_level | total_pet_episodes | total_algorithm_episodes | total_matched_episodes |
 |:---------------|:-------------------|:-------------------------|:-----------------------|
-| overall        | 33                 | 35                       | 27                     |
+| overall        | 33                 | 36                       | 27                     |
 
 Protocol summary (for reporting)
 
@@ -197,36 +197,13 @@ kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn
 |:---------------|:-----------|:--------------|:--------------|
 | both           | 27         | 27            | 27            |
 | pet_only       | 6          | 27            | 27            |
-| algorithm_only | 8          | 27            | 27            |
+| algorithm_only | 9          | 27            | 27            |
 
 Venn counts (one-to-one matching)
 
 - **both:** number of matched episode pairs.
 - **pet_only:** PET episodes with no matched algorithm episode.
 - **algorithm_only:** algorithm episodes with no matched PET episode.
-
-### Time overlap summary
-
-``` r
-kable(sr_table(res, "time_overlap_summary", "label"), format = "html", caption = "Time overlap (days) per episode")
-```
-
-| label                              | min | q25 | median | q75 | max | sd               | n_episodes | n_persons |
-|:-----------------------------------|:----|:----|:-------|:----|:----|:-----------------|:-----------|:----------|
-| PET -\> IPE 0 day overlap required | 0   | 54  | 146    | 278 | 378 | 117.734638385471 | 33         | 25        |
-| PET -\> IPE 1 day overlap required | 16  | 139 | 148    | 278 | 378 | 99.8790864437191 | 27         | 25        |
-| IPE -\> PET 0 day overlap required | 0   | 34  | 145    | 278 | 378 | 120.162949588388 | 35         | 32        |
-| IPE -\> PET 1 day overlap required | 16  | 139 | 148    | 278 | 378 | 99.8790864437191 | 27         | 25        |
-
-Time overlap (days) per episode
-
-For each PET episode, the **maximum** overlap (in days) with any
-algorithm episode; and for each algorithm episode, the maximum overlap
-with any PET episode. Summaries are shown when requiring **0 day**
-overlap (all episodes) and **1 day** overlap (only episodes with at
-least 1 day overlap). **PET → IPE** = per-PET max overlap with
-algorithm; **IPE → PET** = per-algorithm max overlap with PET. Columns:
-min, Q25, median, Q75, max, sd, n_episodes, n_persons.
 
 ### 2×2 confusion matrix (PET as reference)
 
@@ -238,7 +215,7 @@ kable(sr_table(res, "confusion_2x2", "cell"), format = "html", caption = "2×2 c
 |:-----|:------|
 | TP   | 27    |
 | FN   | 6     |
-| FP   | 8     |
+| FP   | 9     |
 | TN   | NA    |
 
 2×2 confusion matrix (PET = reference)
@@ -257,7 +234,7 @@ kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Se
 | metric      | value             | numerator | denominator |
 |:------------|:------------------|:----------|:------------|
 | sensitivity | 0.818181818181818 | 27        | 33          |
-| ppv         | 0.771428571428571 | 27        | 35          |
+| ppv         | 0.75              | 27        | 36          |
 
 Sensitivity, specificity, PPV, NPV
 
@@ -270,8 +247,15 @@ Sensitivity, specificity, PPV, NPV
 ### Date differences (matched pairs only)
 
 For each matched pair, date differences are **PET − algorithm**
-(positive = PET is later). The summarised result may include when there
-are matched pairs.
+(positive = PET is later, i.e. algorithm starts/ends too early). Three
+measures are reported:
+
+- **Start date difference**: PET start − algorithm start. Positive =
+  algorithm starts too early; negative = algorithm starts too late.
+- **End date difference**: PET end − algorithm end. Same sign
+  convention.
+- **Duration difference**: PET duration − algorithm duration. Positive =
+  algorithm episodes are shorter; negative = longer.
 
 ``` r
 dd_summary <- sr_table(res, "date_difference_summary")
@@ -282,12 +266,63 @@ if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
 }
 ```
 
-| variable_level  | mean               | median | sd               | min | q25  | q75 | max | n_matched |
-|:----------------|:-------------------|:-------|:-----------------|:----|:-----|:----|:----|:----------|
-| start_diff_days | 1.37037037037037   | 2      | 2.73366685478214 | -5  | -0.5 | 3   | 5   | 27        |
-| end_diff_days   | -0.666666666666667 | 0      | 2.54195563720897 | -5  | -3   | 1   | 4   | 27        |
+| variable_level                                | mean               | median | sd               | min | q25  | q75 | max | n_matched |
+|:----------------------------------------------|:-------------------|:-------|:-----------------|:----|:-----|:----|:----|:----------|
+| Start date difference (PET - Algorithm, days) | 1.37037037037037   | 2      | 2.73366685478214 | -5  | -0.5 | 3   | 5   | 27        |
+| End date difference (PET - Algorithm, days)   | -0.666666666666667 | 0      | 2.54195563720897 | -5  | -3   | 1   | 4   | 27        |
+| Duration difference (PET - Algorithm, days)   | -2.03703703703704  | -2     | 4.16470039075194 | -9  | -4.5 | -1  | 8   | 27        |
 
 Date difference summary (PET − algorithm, days)
+
+#### Date differences by outcome
+
+The same start/end/duration differences are also reported stratified by
+algorithm outcome category (LB, SB, SA, AB, PREG, etc.), since different
+outcomes have very different expected durations.
+
+``` r
+dd_by_outcome <- sr_table(res, "date_difference_by_outcome")
+if (!is.null(dd_by_outcome) && nrow(dd_by_outcome) > 0) {
+  kable(dd_by_outcome, format = "html", caption = "Date differences by algorithm outcome (PET − algorithm, days)")
+} else {
+  cat("No outcome-stratified date differences available.\n")
+}
+```
+
+| variable_level                                         | mean              | median | sd                | min | q25   | q75   | max | n_matched |
+|:-------------------------------------------------------|:------------------|:-------|:------------------|:----|:------|:------|:----|:----------|
+| Start date difference (PET - Algorithm, days) \[AB\]   | 3                 | 3      | NA                | 3   | 3     | 3     | 3   | NA        |
+| End date difference (PET - Algorithm, days) \[AB\]     | 1                 | 1      | NA                | 1   | 1     | 1     | 1   | NA        |
+| Duration difference (PET - Algorithm, days) \[AB\]     | -2                | -2     | NA                | -2  | -2    | -2    | -2  | NA        |
+| Start date difference (PET - Algorithm, days) \[ECT\]  | 0                 | 0      | NA                | 0   | 0     | 0     | 0   | NA        |
+| End date difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA                | 0   | 0     | 0     | 0   | NA        |
+| Duration difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA                | 0   | 0     | 0     | 0   | NA        |
+| Start date difference (PET - Algorithm, days) \[LB\]   | -0.25             | -0.5   | 3.15096357144468  | -5  | -1.75 | 3     | 3   | 8         |
+| End date difference (PET - Algorithm, days) \[LB\]     | 0.125             | 1.5    | 3.27053949241231  | -5  | -3    | 3     | 3   | 8         |
+| Duration difference (PET - Algorithm, days) \[LB\]     | 0.375             | -1.5   | 5.0972681759098   | -6  | -2.5  | 4     | 8   | 8         |
+| Start date difference (PET - Algorithm, days) \[PREG\] | 2.21428571428571  | 3      | 2.607048771447    | -2  | 0     | 4.75  | 5   | 14        |
+| End date difference (PET - Algorithm, days) \[PREG\]   | -1.07142857142857 | -1     | 2.3358176204584   | -5  | -2.75 | 0     | 4   | 14        |
+| Duration difference (PET - Algorithm, days) \[PREG\]   | -3.28571428571429 | -1.5   | 3.79125656921638  | -9  | -6.75 | -1    | 3   | 14        |
+| Start date difference (PET - Algorithm, days) \[SA\]   | 1.5               | 1.5    | 0.707106781186548 | 1   | 1.25  | 1.75  | 2   | NA        |
+| End date difference (PET - Algorithm, days) \[SA\]     | -2.5              | -2.5   | 2.12132034355964  | -4  | -3.25 | -1.75 | -1  | NA        |
+| Duration difference (PET - Algorithm, days) \[SA\]     | -4                | -4     | 1.4142135623731   | -5  | -4.5  | -3.5  | -3  | NA        |
+| Start date difference (PET - Algorithm, days) \[SB\]   | 2                 | 2      | NA                | 2   | 2     | 2     | 2   | NA        |
+| End date difference (PET - Algorithm, days) \[SB\]     | 0                 | 0      | NA                | 0   | 0     | 0     | 0   | NA        |
+| Duration difference (PET - Algorithm, days) \[SB\]     | -2                | -2     | NA                | -2  | -2    | -2    | -2  | NA        |
+
+Date differences by algorithm outcome (PET − algorithm, days)
+
+#### Alignment distribution
+
+The date differences can also be viewed as a **binned distribution**
+(histogram), which shows at a glance what fraction of matched episodes
+are perfectly aligned (bin = 0), close (within ±7 days), or far off
+(±30+ days). The bins are coloured on a red-yellow-green gradient where
+green = exact match and red = large discrepancy.
+
+This visualisation is available interactively in the Shiny app’s
+**Alignment** tab. It can be filtered by measure (start/end/duration)
+and stratified by outcome.
 
 ### Outcome confusion (matched pairs)
 
@@ -333,10 +368,10 @@ Outcome by year (same-year pairs)
 kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
 ```
 
-| source    | n   | mean             | median | sd               | min | q25 | q75 | max  |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:-----|
-| algorithm | 35  | 250.514285714286 | 224    | 277.22568544828  | 21  | 147 | 280 | 1749 |
-| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377  |
+| source    | n   | mean             | median | sd               | min | q25 | q75 | max |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:----|
+| algorithm | 36  | 201.388888888889 | 171.5  | 95.4900975502629 | 21  | 147 | 280 | 380 |
+| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377 |
 
 Pregnancy duration (days) by source
 

@@ -2,9 +2,6 @@
 
 ## All functions
 
-- [`cdmCommentContents()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/cdmCommentContents.md)
-  : Insert flattened CDM records as an aligned R comment in the active
-  editor
 - [`comparePregnancyIdentifierWithPET()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/comparePregnancyIdentifierWithPET.md)
   : Compare runPregnancyIdentifier results with the OMOP Pregnancy
   Extension Table (PET)

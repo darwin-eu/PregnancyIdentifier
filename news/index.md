@@ -1,5 +1,74 @@
 # Changelog
 
+## PregnancyIdentifier 3.1.0
+
+### Algorithm changes
+
+- Restored all 5 PPS source domains (condition_occurrence,
+  procedure_occurrence, observation, measurement, visit_occurrence).
+  v3.0.0 had dropped observation and visit_occurrence; they are now
+  included again as a precaution even though current PPS concepts do not
+  map to those domains. (Just to be on the safe side.)
+
+### PET comparison improvements
+
+- Replaced time-overlap summary metric with three directional
+  date-difference measures (PET minus algorithm): start date difference,
+  end date difference, and duration difference. Reported as
+  mean/median/SD/min/Q25/Q75/max.
+- Added outcome-stratified date differences (same start/end/duration
+  differences broken down by algorithm outcome category: LB, SB, SA, AB,
+  etc.).
+- Added binned date-difference distributions for episode alignment
+  visualisation (bins from “≤ -30 days” through “0” to “≥ 30 days”),
+  both overall and stratified by outcome.
+- Removed the `time_overlap_summary` metric from new output (overlap
+  days was confounded by episode length). Old result files with this
+  metric are still supported in the Shiny app.
+
+### Shiny app
+
+- Complete rewrite of the Shiny app: replaced legacy single-file `app.R`
+  with modular architecture using `global.R`, `ui.R`, `server.R`, and
+  per-tab modules in `utils/`.
+- Added new **Alignment** tab to PET comparison: interactive histogram
+  showing the distribution of start/end/duration date differences
+  between matched PET and algorithm episodes, with colour-coded bins
+  (green = exact match, red = large discrepancy). Supports filtering by
+  measure and stratification by outcome.
+- Added descriptive labels to PET comparison: all variable names in the
+  summarised result now use human-readable labels (e.g. “Start date
+  difference (PET - Algorithm, days)”). Legacy short labels from older
+  result files are automatically remapped for display.
+- Added backward-compatible display label remapping so the app works
+  with both old (pre-v3.1.0) and new result files.
+- Added explanatory notes to the **Pregnancy Overlap** tab
+  (sequential/lag-based check) and the **Quality Check Cleanup** tab
+  (all-pairs check) explaining why overlap counts may differ between
+  them.
+- Added **Overview** tab with markdown methodology description for PET
+  comparison.
+- Added episode and person count denominators to the precision days
+  export.
+- Various UI improvements: formatted tables, interactive plotly charts,
+  download buttons for plots and tables.
+
+### Export changes
+
+- `gestational_duration_counts.csv` now includes `episode_count` and
+  `person_count` columns per outcome category.
+- Added `precision_days_denominators.csv` to the export folder.
+
+### Documentation
+
+- Updated PET comparison vignette: removed time-overlap section, added
+  sections for date differences, date differences by outcome, and
+  alignment distributions.
+- Added `extras/algorithm_improvements_v2_v3.md` summarising
+  episode-count differences between v2 and v3.
+- Added `extras/v2_vs_v3_episode_drop.md` with detailed analysis of why
+  episode/person counts differ.
+
 ## PregnancyIdentifier 3.0.5
 
 - Default output now matches v2 episode counts: ESD filters for
