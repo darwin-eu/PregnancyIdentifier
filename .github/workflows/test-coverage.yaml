@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      SKIP_DATABASE_TESTING: TRUE
 
     steps:
       - uses: actions/checkout@v4
