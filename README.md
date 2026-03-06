@@ -3,6 +3,8 @@
 
 # PregnancyIdentifier
 
+<!-- badges: start -->
+
 [![Tests
 (PostgreSQL)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml)
 [![Tests
@@ -11,6 +13,9 @@
 (Spark)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml)
 [![Tests
 (SQLServer)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml/badge.svg)](https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/darwin-eu/PregnancyIdentifier/graph/badge.svg)](https://app.codecov.io/gh/darwin-eu/PregnancyIdentifier)
+<!-- badges: end -->
 
 Identify pregnancy episodes in OMOP CDM data using the **HIPPS**
 algorithm (Smith et al. 2024,

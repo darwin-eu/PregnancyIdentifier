@@ -24,3 +24,4 @@ inst/concepts/~\$
 inst/shiny/data/
 inst/shiny/rsconnect
 inst/shiny/.claude
+inst/shiny/.rscignore

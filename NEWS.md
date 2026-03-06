@@ -1,3 +1,18 @@
+# PregnancyIdentifier 3.1.1
+
+## Export changes
+
+* Age at first pregnancy export (`age_summary_first_pregnancy.csv`) now includes
+  all episodes, not just live births. Output is stratified by
+  `final_outcome_category`: **overall** (any outcome), each individual outcome
+  (LB, SB, AB, SA, ECT, DELIV, PREG), and a combined **LB or PREG** group.
+
+## Shiny app
+
+* Age at first pregnancy tab now shows an outcome picker and displays
+  side-by-side boxplots coloured by outcome category. Backwards-compatible with
+  older export files that lack the `final_outcome_category` column.
+
 # PregnancyIdentifier 3.1.0
 
 ## Algorithm changes
