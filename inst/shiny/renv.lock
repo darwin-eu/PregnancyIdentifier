@@ -483,6 +483,7 @@
         "dbplyr",
         "purrr",
         "stringr",
+        "TestGenerator",
         "PatientProfiles",
         "magrittr",
         "tidyr",
