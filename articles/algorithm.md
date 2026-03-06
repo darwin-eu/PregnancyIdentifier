@@ -207,13 +207,13 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/Rtmpaz05KY/file22f1780b84ff.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/RtmpBJMjn6/file2391fe00625.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    
-#> 1        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
-#> 2        24                4094910 2023-01-28 NA       Pregnancy test positive  
-#> 3        24                 437611 2023-03-15 NA       Ectopic pregnancy        
+#> 1        24                 437611 2023-03-15 NA       Ectopic pregnancy        
+#> 2        24                4132434 2023-03-15 NA       Gestation period, 8 weeks
+#> 3        24                4094910 2023-01-28 NA       Pregnancy test positive  
 #> # ℹ 1 more variable: type_concept_name <chr>
 ```
 
