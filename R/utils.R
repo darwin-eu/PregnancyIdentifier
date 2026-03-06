@@ -248,94 +248,92 @@ cdmTableExists <- function(cdm, tableName) {
 #' cdm_small_vocab <- mockPregnancyCdm(fullVocab = FALSE)
 #' }
 mockPregnancyCdm <- function(fullVocab = TRUE) {
-  # TestGenerator commented out so renv does not add it when snapshotting the Shiny app.
-  # Uncomment the block below and ensure TestGenerator is installed to use mockPregnancyCdm().
-  stop("mockPregnancyCdm requires TestGenerator. Uncomment the TestGenerator code in R/utils.R to use it.")
-  # suppressMessages({
-  #   cdm <- TestGenerator::patientsCDM(
-  #     pathJson = system.file("testCases", package = "PregnancyIdentifier", mustWork = TRUE),
-  #     testName = 'TestData_P4_C5_002_1',
-  #     cdmVersion = "5.4",
-  #     cdmName = "TestData_P4_C5_002_1"
-  #   )
-  # })
-  #
-  # cdm$pregnancy_extension <- cdm$pregnancy_extension %>%
-  #   dplyr::mutate(
-  #     pregnancy_start_date = as.Date(.data$pregnancy_start_date),
-  #     pregnancy_end_date = as.Date(.data$pregnancy_end_date)
-  #   ) %>%
-  #   .compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
-  #
-  # if (!fullVocab) {
-  #   used_ids <- CDMConnector::cdmFlatten(cdm) %>%
-  #     dplyr::select("observation_concept_id") %>%
-  #     dplyr::distinct() %>%
-  #     dplyr::collect() %>%
-  #     dplyr::pull("observation_concept_id")
-  #   used_ids <- as.integer(used_ids[!is.na(used_ids)])
-  #
-  #   if (length(used_ids) > 0L) {
-  #     if ("concept" %in% names(cdm)) {
-  #       cdm$concept <- cdm$concept %>%
-  #         dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-  #         .compute(name = "concept", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #     if ("concept_relationship" %in% names(cdm)) {
-  #       cdm$concept_relationship <- cdm$concept_relationship %>%
-  #         dplyr::filter(
-  #           .data$concept_id_1 %in% .env$used_ids |
-  #             .data$concept_id_2 %in% .env$used_ids
-  #         ) %>%
-  #         .compute(name = "concept_relationship", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #     if ("concept_ancestor" %in% names(cdm)) {
-  #       cdm$concept_ancestor <- cdm$concept_ancestor %>%
-  #         dplyr::filter(
-  #           .data$ancestor_concept_id %in% .env$used_ids |
-  #             .data$descendant_concept_id %in% .env$used_ids
-  #         ) %>%
-  #         .compute(name = "concept_ancestor", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #     if ("concept_synonym" %in% names(cdm)) {
-  #       cdm$concept_synonym <- cdm$concept_synonym %>%
-  #         dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-  #         .compute(name = "concept_synonym", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #     if ("drug_strength" %in% names(cdm)) {
-  #       cdm$drug_strength <- cdm$drug_strength %>%
-  #         dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
-  #         .compute(name = "drug_strength", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #     if ("relationship" %in% names(cdm)) {
-  #       cdm$relationship <- cdm$relationship %>%
-  #         dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
-  #         .compute(name = "relationship", temporary = FALSE, overwrite = TRUE)
-  #     }
-  #   }
-  # }
-  #
-  # pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier", mustWork = TRUE),
-  #                        show_col_types = FALSE, guess_max = 1e6)
-  #
-  # cdm <- CDMConnector::insertTable(
-  #   cdm,
-  #   name = "pregnancy_extension",
-  #   table = pet,
-  #   overwrite = TRUE,
-  #   temporary = FALSE)
-  #
-  # # Ensure PET is in schema "main" so comparePregnancyIdentifierWithPET(..., petSchema = "main", petTable = "pregnancy_extension") works
-  # con <- CDMConnector::cdmCon(cdm)
-  # pet_df <- dplyr::collect(cdm$pregnancy_extension)
-  # DBI::dbWriteTable(
-  #   con,
-  #   DBI::Id(schema = "main", table = "pregnancy_extension"),
-  #   as.data.frame(pet_df),
-  #   overwrite = TRUE
-  # )
-  #
-  # return(cdm)
+  # TestGenerator requires arrow which is a heavy dependency and sometimes hard to install.
+  suppressMessages({
+    cdm <- TestGenerator::patientsCDM(
+      pathJson = system.file("testCases", package = "PregnancyIdentifier", mustWork = TRUE),
+      testName = 'TestData_P4_C5_002_1',
+      cdmVersion = "5.4",
+      cdmName = "TestData_P4_C5_002_1"
+    )
+  })
+
+  cdm$pregnancy_extension <- cdm$pregnancy_extension %>%
+    dplyr::mutate(
+      pregnancy_start_date = as.Date(.data$pregnancy_start_date),
+      pregnancy_end_date = as.Date(.data$pregnancy_end_date)
+    ) %>%
+    .compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
+
+  if (!fullVocab) {
+    used_ids <- CDMConnector::cdmFlatten(cdm) %>%
+      dplyr::select("observation_concept_id") %>%
+      dplyr::distinct() %>%
+      dplyr::collect() %>%
+      dplyr::pull("observation_concept_id")
+    used_ids <- as.integer(used_ids[!is.na(used_ids)])
+
+    if (length(used_ids) > 0L) {
+      if ("concept" %in% names(cdm)) {
+        cdm$concept <- cdm$concept %>%
+          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+          .compute(name = "concept", temporary = FALSE, overwrite = TRUE)
+      }
+      if ("concept_relationship" %in% names(cdm)) {
+        cdm$concept_relationship <- cdm$concept_relationship %>%
+          dplyr::filter(
+            .data$concept_id_1 %in% .env$used_ids |
+              .data$concept_id_2 %in% .env$used_ids
+          ) %>%
+          .compute(name = "concept_relationship", temporary = FALSE, overwrite = TRUE)
+      }
+      if ("concept_ancestor" %in% names(cdm)) {
+        cdm$concept_ancestor <- cdm$concept_ancestor %>%
+          dplyr::filter(
+            .data$ancestor_concept_id %in% .env$used_ids |
+              .data$descendant_concept_id %in% .env$used_ids
+          ) %>%
+          .compute(name = "concept_ancestor", temporary = FALSE, overwrite = TRUE)
+      }
+      if ("concept_synonym" %in% names(cdm)) {
+        cdm$concept_synonym <- cdm$concept_synonym %>%
+          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+          .compute(name = "concept_synonym", temporary = FALSE, overwrite = TRUE)
+      }
+      if ("drug_strength" %in% names(cdm)) {
+        cdm$drug_strength <- cdm$drug_strength %>%
+          dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
+          .compute(name = "drug_strength", temporary = FALSE, overwrite = TRUE)
+      }
+      if ("relationship" %in% names(cdm)) {
+        cdm$relationship <- cdm$relationship %>%
+          dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
+          .compute(name = "relationship", temporary = FALSE, overwrite = TRUE)
+      }
+    }
+  }
+
+  pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+                         show_col_types = FALSE, guess_max = 1e6)
+
+  cdm <- CDMConnector::insertTable(
+    cdm,
+    name = "pregnancy_extension",
+    table = pet,
+    overwrite = TRUE,
+    temporary = FALSE)
+
+  # Ensure PET is in schema "main" so comparePregnancyIdentifierWithPET(..., petSchema = "main", petTable = "pregnancy_extension") works
+  con <- CDMConnector::cdmCon(cdm)
+  pet_df <- dplyr::collect(cdm$pregnancy_extension)
+  DBI::dbWriteTable(
+    con,
+    DBI::Id(schema = "main", table = "pregnancy_extension"),
+    as.data.frame(pet_df),
+    overwrite = TRUE
+  )
+
+  return(cdm)
 }
 
 # Add age and sex to a cdm table

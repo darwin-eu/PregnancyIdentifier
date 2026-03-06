@@ -1,4 +1,4 @@
-# utils.R - Shared utility functions (no R6, no DarwinShinyModules)
+# utils.R - Shared utility functions
 
 #' Plotly placeholder when there is no data to display
 emptyPlotlyMessage <- function(message = "No data to display.") {

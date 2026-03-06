@@ -220,7 +220,7 @@ renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE
   result
 }
 
-#' Darwin footer without DarwinShinyModules dependency
+#' Darwin footer
 customDarwinFooter <- function() {
   shiny::tags$footer(
     class = "darwin-footer",
