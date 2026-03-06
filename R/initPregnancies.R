@@ -68,7 +68,7 @@ initPregnancies <- function(cdm,
   log4r::info(logger, "Loading + inserting pregnancy concept tables into the CDM")
 
   hipConcepts <- suppressMessages(readxl::read_excel(
-    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier"),
+    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier", mustWork = TRUE),
     col_types = "text"
   )) %>%
     dplyr::select("concept_id", "concept_name", "category", "gest_value") %>%
@@ -82,13 +82,13 @@ initPregnancies <- function(cdm,
   log4r::info(logger, sprintf("HIP concepts: using all %d concepts", nrow(hipConcepts)))
 
   ppsConcepts <- suppressMessages(readxl::read_excel(
-    system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier")
+    system.file("concepts", "PPS_concepts_reviewed1702026.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
   )) |>
     dplyr::rename_with(tolower) %>%
     dplyr::mutate(pps_concept_id = suppressWarnings(as.integer(.data$pps_concept_id)))
 
   matchoTermDurations <- readxl::read_excel(
-    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier")
+    system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
   )
 
   cdm <- CDMConnector::insertTable(cdm, "preg_hip_concepts", hipConcepts, overwrite = TRUE)

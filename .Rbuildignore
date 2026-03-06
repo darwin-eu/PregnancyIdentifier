@@ -20,7 +20,7 @@ work/*
 ^vignettes/algorithm_cache
 inst/shiny/renv/
 inst/shiny/version_comparison/
-inst/concepts/~*
+inst/concepts/~\$
 inst/shiny/data/
 inst/shiny/rsconnect
 inst/shiny/.claude

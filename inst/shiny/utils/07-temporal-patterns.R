@@ -1,5 +1,22 @@
 # 07-temporal-patterns.R - Temporal patterns module (standard Shiny module)
 
+# Year range bounds from data (used when UI is built); max year capped at 2026
+temporalPatternsYearRange <- function() {
+  maxYearCap <- 2026L
+  if (is.null(trendData) || nrow(trendData) == 0) {
+    return(list(min = 2000L, max = maxYearCap))
+  }
+  valNum <- suppressWarnings(as.numeric(trendData$value))
+  if (length(valNum) == 0 || all(is.na(valNum))) {
+    return(list(min = 2000L, max = maxYearCap))
+  }
+  minY <- min(valNum, na.rm = TRUE)
+  maxY <- max(valNum, na.rm = TRUE)
+  if (!is.finite(minY)) minY <- 2000
+  if (!is.finite(maxY)) maxY <- maxYearCap
+  list(min = as.integer(minY), max = as.integer(min(maxY, maxYearCap)))
+}
+
 temporalPatternsUI <- function(id) {
   ns <- NS(id)
 
@@ -27,13 +44,7 @@ temporalPatternsUI <- function(id) {
   columnChoices <- unique(trendData$column)
   if (length(columnChoices) == 0) columnChoices <- "column"
 
-  # Compute min year slider range from data
-  valNum <- suppressWarnings(as.numeric(trendData$value))
-  minVal <- if (length(valNum) > 0 && !all(is.na(valNum))) min(valNum, na.rm = TRUE) else 2000
-  maxVal <- if (length(valNum) > 0 && !all(is.na(valNum))) max(valNum, na.rm = TRUE) else 2020
-  if (!is.finite(minVal)) minVal <- 2000
-  if (!is.finite(maxVal)) maxVal <- 2020
-  defaultYear <- min(max(minVal, 2000), maxVal)
+  yearRange <- temporalPatternsYearRange()
 
   tagList(
     div(class = "tab-help-text",
@@ -50,8 +61,9 @@ temporalPatternsUI <- function(id) {
                                           choices = columnChoices,
                                           selected = "final_episode_end_date",
                                           multiple = TRUE, options = opt)),
-      column(3, sliderInput(ns("minYear"), "Min year",
-                            min = minVal, max = maxVal, value = defaultYear))
+      column(3, sliderInput(ns("yearRange"), "Year range",
+                            min = yearRange$min, max = yearRange$max,
+                            value = c(yearRange$min, yearRange$max)))
     ),
     tabsetPanel(
       id = ns("temporalTabs"),
@@ -90,13 +102,7 @@ temporalPatternsServer <- function(id) {
     columnChoices <- unique(trendData$column)
     if (length(columnChoices) == 0) columnChoices <- "column"
 
-    valNum <- suppressWarnings(as.numeric(trendData$value))
-    defaultMinYear <- if (length(valNum) > 0 && !all(is.na(valNum))) {
-      minVal <- min(valNum, na.rm = TRUE)
-      if (!is.finite(minVal)) 2000 else min(max(minVal, 2000), max(valNum, na.rm = TRUE))
-    } else {
-      2000
-    }
+    yearRangeBounds <- temporalPatternsYearRange()
 
     getData <- reactive({
       data <- filterByCdm(trendData, input$cdm, allDP)
@@ -112,10 +118,12 @@ temporalPatternsServer <- function(id) {
         dplyr::filter(.data$column %in% columnSel)
 
       if (periodSel == "year") {
-        minYear <- input$minYear
-        if (is.null(minYear)) minYear <- defaultMinYear
+        yr <- input$yearRange
+        if (is.null(yr) || length(yr) < 2L) {
+          yr <- c(yearRangeBounds$min, yearRangeBounds$max)
+        }
         data <- data %>%
-          dplyr::filter(as.numeric(.data$value) >= minYear)
+          dplyr::filter(as.numeric(.data$value) >= yr[1], as.numeric(.data$value) <= yr[2])
       }
 
       data
@@ -215,7 +223,7 @@ temporalPatternsServer <- function(id) {
     )
 
     output$dataTable <- DT::renderDT({
-      renderPrettyDT(trendData)
+      renderPrettyDT(getData())
     })
 
     output$missingDataTable <- DT::renderDT({
@@ -225,7 +233,8 @@ temporalPatternsServer <- function(id) {
     output$download_data_csv <- downloadHandler(
       filename = function() { "temporal_patterns.csv" },
       content = function(file) {
-        if (!is.null(trendData) && nrow(trendData) > 0) readr::write_csv(trendData, file)
+        d <- getData()
+        if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
       }
     )
     output$download_missing_csv <- downloadHandler(

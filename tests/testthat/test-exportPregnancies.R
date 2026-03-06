@@ -77,6 +77,7 @@ test_that("exportPregnancies runs with custom minCellCount", {
     "observation_period_range.csv",
     "outcome_categories_count.csv",
     "precision_days.csv",
+    "precision_days_denominators.csv",
     "pregnancy_frequency.csv",
     "pregnancy_overlap_counts.csv",
     "quality_check_cleanup.csv",

@@ -9,30 +9,38 @@ pregnancyOverlapUI <- function(id) {
     div(
       class = "well",
       p(
-        strong("What the overlap values mean:"),
+        strong("How overlap is checked:"),
+        " Episodes are sorted by start date within each person. Each episode is compared",
+        " only to the immediately preceding episode. An episode is flagged as ",
+        strong("overlapping"), " if its start date falls on or before the preceding",
+        " episode's end date."
+      ),
+      p(
+        strong("What the values mean:"),
         tags$ul(
           tags$li(
             strong("Overlapping:"),
-            " This pregnancy episode overlaps in time with at least one other episode for the same person. May indicate a data or algorithm issue."
+            " This episode's start date is on or before the preceding episode's end date (sequential check).",
+            " May indicate a data or algorithm issue."
           ),
           tags$li(
             strong("Non-overlapping:"),
-            " This pregnancy episode does not overlap with any other episode for the same person."
+            " This episode does not overlap with the immediately preceding episode,",
+            " or it is the first (or only) episode for this person."
           ),
           tags$li(
             strong("Single episode (N/A):"),
-            " The person has only one pregnancy episode, so overlap is not defined."
+            " The person has only one pregnancy episode, so overlap cannot be assessed.",
+            " (Only shown if the data source distinguishes single-episode persons.)"
           )
         )
       ),
       p(
-        strong("Note:"),
-        " This tab uses a sequential (lag-based) overlap check: episodes are sorted by start date within each person,",
-        " and an episode is flagged as overlapping only if its start date falls on or before the",
-        " immediately preceding episode's end date. This means non-consecutive overlaps (e.g. episode C",
-        " overlaps episode A but not the adjacent episode B) are not detected here.",
-        " The ", strong("Quality Check Cleanup"), " tab uses an all-pairs overlap check that catches",
-        " any overlap between any two episodes for the same person, and may therefore report higher overlap counts."
+        strong("Limitation:"),
+        " Because this is a sequential check, non-consecutive overlaps are not detected",
+        " (e.g. if episode C overlaps episode A but not the adjacent episode B, that overlap is missed).",
+        " The ", strong("Quality Check Cleanup"), " tab uses an all-pairs check that compares every episode",
+        " against every other episode for the same person, and may therefore report higher overlap counts."
       )
     ),
     fluidRow(

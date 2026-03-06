@@ -23,6 +23,7 @@ library(scales)
 library(amVennDiagram5)
 
 # Load utility functions and module files
+source(file.path("utils", "helpers.R")) # need to source helpers first
 invisible(lapply(list.files("utils", full.names = TRUE, pattern = "\\.R$"), source))
 
 ############################ Load data ############################
@@ -589,7 +590,12 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     if ("n_known" %in% colnames(deliveryModeSummary)) {
       deliveryModeSummary <- deliveryModeSummary %>% dplyr::mutate(n_known = suppressWarnings(as.numeric(.data$n_known)))
     } else {
-      deliveryModeSummary <- deliveryModeSummary %>% dplyr::mutate(n_known = .data$cesarean + .data$vaginal)
+      deliveryModeSummary <- deliveryModeSummary %>%
+        dplyr::mutate(
+          cesarean = suppressWarnings(as.numeric(.data$cesarean)),
+          vaginal = suppressWarnings(as.numeric(.data$vaginal)),
+          n_known = .data$cesarean + .data$vaginal
+        )
     }
     deliveryModeSummary <- dplyr::left_join(
       deliveryModeSummary %>%

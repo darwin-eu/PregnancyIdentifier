@@ -1532,7 +1532,7 @@ addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
 
   conceptSet <- suppressMessages(
     omopgenerics::importConceptSetExpression(
-      path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode")
+      path = system.file(package = "PregnancyIdentifier", "concepts/delivery_mode", mustWork = TRUE)
     )
   )
   conceptSet <- suppressMessages(

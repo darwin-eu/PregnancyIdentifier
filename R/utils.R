@@ -248,91 +248,94 @@ cdmTableExists <- function(cdm, tableName) {
 #' cdm_small_vocab <- mockPregnancyCdm(fullVocab = FALSE)
 #' }
 mockPregnancyCdm <- function(fullVocab = TRUE) {
-  suppressMessages({
-    cdm <- TestGenerator::patientsCDM(
-      pathJson = system.file("testCases", package = "PregnancyIdentifier"),
-      testName = 'TestData_P4_C5_002_1',
-      cdmVersion = "5.4",
-      cdmName = "TestData_P4_C5_002_1"
-    )
-  })
-
-  cdm$pregnancy_extension <- cdm$pregnancy_extension %>%
-    dplyr::mutate(
-      pregnancy_start_date = as.Date(.data$pregnancy_start_date),
-      pregnancy_end_date = as.Date(.data$pregnancy_end_date)
-    ) %>%
-    .compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
-
-  if (!fullVocab) {
-    used_ids <- CDMConnector::cdmFlatten(cdm) %>%
-      dplyr::select("observation_concept_id") %>%
-      dplyr::distinct() %>%
-      dplyr::collect() %>%
-      dplyr::pull("observation_concept_id")
-    used_ids <- as.integer(used_ids[!is.na(used_ids)])
-
-    if (length(used_ids) > 0L) {
-      if ("concept" %in% names(cdm)) {
-        cdm$concept <- cdm$concept %>%
-          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          .compute(name = "concept", temporary = FALSE, overwrite = TRUE)
-      }
-      if ("concept_relationship" %in% names(cdm)) {
-        cdm$concept_relationship <- cdm$concept_relationship %>%
-          dplyr::filter(
-            .data$concept_id_1 %in% .env$used_ids |
-              .data$concept_id_2 %in% .env$used_ids
-          ) %>%
-          .compute(name = "concept_relationship", temporary = FALSE, overwrite = TRUE)
-      }
-      if ("concept_ancestor" %in% names(cdm)) {
-        cdm$concept_ancestor <- cdm$concept_ancestor %>%
-          dplyr::filter(
-            .data$ancestor_concept_id %in% .env$used_ids |
-              .data$descendant_concept_id %in% .env$used_ids
-          ) %>%
-          .compute(name = "concept_ancestor", temporary = FALSE, overwrite = TRUE)
-      }
-      if ("concept_synonym" %in% names(cdm)) {
-        cdm$concept_synonym <- cdm$concept_synonym %>%
-          dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
-          .compute(name = "concept_synonym", temporary = FALSE, overwrite = TRUE)
-      }
-      if ("drug_strength" %in% names(cdm)) {
-        cdm$drug_strength <- cdm$drug_strength %>%
-          dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
-          .compute(name = "drug_strength", temporary = FALSE, overwrite = TRUE)
-      }
-      if ("relationship" %in% names(cdm)) {
-        cdm$relationship <- cdm$relationship %>%
-          dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
-          .compute(name = "relationship", temporary = FALSE, overwrite = TRUE)
-      }
-    }
-  }
-
-  pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier"),
-                         show_col_types = FALSE, guess_max = 1e6)
-
-  cdm <- CDMConnector::insertTable(
-    cdm,
-    name = "pregnancy_extension",
-    table = pet,
-    overwrite = TRUE,
-    temporary = FALSE)
-
-  # Ensure PET is in schema "main" so comparePregnancyIdentifierWithPET(..., petSchema = "main", petTable = "pregnancy_extension") works
-  con <- CDMConnector::cdmCon(cdm)
-  pet_df <- dplyr::collect(cdm$pregnancy_extension)
-  DBI::dbWriteTable(
-    con,
-    DBI::Id(schema = "main", table = "pregnancy_extension"),
-    as.data.frame(pet_df),
-    overwrite = TRUE
-  )
-
-  return(cdm)
+  # TestGenerator commented out so renv does not add it when snapshotting the Shiny app.
+  # Uncomment the block below and ensure TestGenerator is installed to use mockPregnancyCdm().
+  stop("mockPregnancyCdm requires TestGenerator. Uncomment the TestGenerator code in R/utils.R to use it.")
+  # suppressMessages({
+  #   cdm <- TestGenerator::patientsCDM(
+  #     pathJson = system.file("testCases", package = "PregnancyIdentifier", mustWork = TRUE),
+  #     testName = 'TestData_P4_C5_002_1',
+  #     cdmVersion = "5.4",
+  #     cdmName = "TestData_P4_C5_002_1"
+  #   )
+  # })
+  #
+  # cdm$pregnancy_extension <- cdm$pregnancy_extension %>%
+  #   dplyr::mutate(
+  #     pregnancy_start_date = as.Date(.data$pregnancy_start_date),
+  #     pregnancy_end_date = as.Date(.data$pregnancy_end_date)
+  #   ) %>%
+  #   .compute(name = "pregnancy_extension", temporary = FALSE, overwrite = TRUE)
+  #
+  # if (!fullVocab) {
+  #   used_ids <- CDMConnector::cdmFlatten(cdm) %>%
+  #     dplyr::select("observation_concept_id") %>%
+  #     dplyr::distinct() %>%
+  #     dplyr::collect() %>%
+  #     dplyr::pull("observation_concept_id")
+  #   used_ids <- as.integer(used_ids[!is.na(used_ids)])
+  #
+  #   if (length(used_ids) > 0L) {
+  #     if ("concept" %in% names(cdm)) {
+  #       cdm$concept <- cdm$concept %>%
+  #         dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+  #         .compute(name = "concept", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #     if ("concept_relationship" %in% names(cdm)) {
+  #       cdm$concept_relationship <- cdm$concept_relationship %>%
+  #         dplyr::filter(
+  #           .data$concept_id_1 %in% .env$used_ids |
+  #             .data$concept_id_2 %in% .env$used_ids
+  #         ) %>%
+  #         .compute(name = "concept_relationship", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #     if ("concept_ancestor" %in% names(cdm)) {
+  #       cdm$concept_ancestor <- cdm$concept_ancestor %>%
+  #         dplyr::filter(
+  #           .data$ancestor_concept_id %in% .env$used_ids |
+  #             .data$descendant_concept_id %in% .env$used_ids
+  #         ) %>%
+  #         .compute(name = "concept_ancestor", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #     if ("concept_synonym" %in% names(cdm)) {
+  #       cdm$concept_synonym <- cdm$concept_synonym %>%
+  #         dplyr::filter(.data$concept_id %in% .env$used_ids) %>%
+  #         .compute(name = "concept_synonym", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #     if ("drug_strength" %in% names(cdm)) {
+  #       cdm$drug_strength <- cdm$drug_strength %>%
+  #         dplyr::filter(.data$drug_concept_id %in% .env$used_ids) %>%
+  #         .compute(name = "drug_strength", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #     if ("relationship" %in% names(cdm)) {
+  #       cdm$relationship <- cdm$relationship %>%
+  #         dplyr::semi_join(cdm$concept_relationship, by = "relationship_id") %>%
+  #         .compute(name = "relationship", temporary = FALSE, overwrite = TRUE)
+  #     }
+  #   }
+  # }
+  #
+  # pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier", mustWork = TRUE),
+  #                        show_col_types = FALSE, guess_max = 1e6)
+  #
+  # cdm <- CDMConnector::insertTable(
+  #   cdm,
+  #   name = "pregnancy_extension",
+  #   table = pet,
+  #   overwrite = TRUE,
+  #   temporary = FALSE)
+  #
+  # # Ensure PET is in schema "main" so comparePregnancyIdentifierWithPET(..., petSchema = "main", petTable = "pregnancy_extension") works
+  # con <- CDMConnector::cdmCon(cdm)
+  # pet_df <- dplyr::collect(cdm$pregnancy_extension)
+  # DBI::dbWriteTable(
+  #   con,
+  #   DBI::Id(schema = "main", table = "pregnancy_extension"),
+  #   as.data.frame(pet_df),
+  #   overwrite = TRUE
+  # )
+  #
+  # return(cdm)
 }
 
 # Add age and sex to a cdm table
@@ -386,123 +389,3 @@ printLong <- function(x) {
   colnames(out)[-1] <- paste0("row", seq_len(ncol(out) - 1))
   print(dplyr::tibble(out), n = 1000)
 }
-
-#' Insert flattened CDM records as an aligned R comment in the active editor
-#'
-#' Flattens a CDM using [CDMConnector::cdmFlatten()], collects the data into R,
-#' optionally filters by one or more `person_id` values, and inserts an aligned,
-#' copy-pasteable comment block directly below the current cursor line in the
-#' active RStudio document.
-#'
-#' This is intended as a lightweight debugging and documentation helper when
-#' inspecting patient-level timelines (e.g. cohort inclusion, outcome validation,
-#' or study review notes).
-#'
-#' @param cdm A CDM reference object created with CDMConnector.
-#' @param personIds Optional numeric vector of `person_id` values to filter on.
-#'   If `NULL`, all persons in the flattened CDM are used (use with care).
-#'
-#' @return Invisibly returns the collected flattened CDM as a data.frame.
-#'   The primary side effect is insertion of commented text into the active
-#'   RStudio source editor.
-#'
-#' @details
-#' The inserted output is formatted as aligned R comments:
-#'
-#' \preformatted{
-#' # person_id | observation_concept_id | start_date | end_date   | domain
-#' # 12        | 2211751                 | 2021-01-13 | 2021-01-13 | procedure_occurrence
-#' }
-#'
-#' The function requires an interactive RStudio session and will error if
-#' `rstudioapi` is not available.
-#'
-#' @seealso
-#' [CDMConnector::cdmFlatten()]
-#'
-#' @examples
-#' \dontrun{
-#' # Insert patient timeline directly into your script
-#' cdmCommentContents(cdm, 12)
-#'
-#' # Insert multiple patients
-#' cdmCommentContents(cdm, c(12, 22))
-#' }
-#'
-#' @export
-cdmCommentContents <- function(cdm, personIds = NULL) {
-  # This function only makes sense in interactive use.
-  if (!interactive()) return(invisible(NULL))
-
-  if (!requireNamespace("rstudioapi", quietly = TRUE)) {
-    stop("Package 'rstudioapi' is required.", call. = FALSE)
-  }
-  if (!rstudioapi::isAvailable()) {
-    stop("RStudio is required (rstudioapi is not available in this session).", call. = FALSE)
-  }
-
-  if (!is.null(personIds) && !is.numeric(personIds)) {
-    stop("`personIds` must be a numeric vector (or NULL).", call. = FALSE)
-  }
-
-  # 1) Run the pipeline (cdmFlatten -> collect -> optional filter -> arrange)
-  flat <- CDMConnector::cdmFlatten(cdm) |>
-    dplyr::collect()
-
-  if (!is.null(personIds)) {
-    flat <- dplyr::filter(flat, .data$person_id %in% personIds)
-  }
-
-  flat <- dplyr::arrange(
-    flat,
-    .data$person_id,
-    dplyr::desc(.data$start_date),
-    dplyr::desc(.data$end_date)
-  )
-
-  # 2) Convert to aligned comment text (like your first format)
-  df_chr <- as.data.frame(lapply(flat, as.character), stringsAsFactors = FALSE)
-
-  widths <- vapply(
-    names(df_chr),
-    function(col) max(nchar(c(col, df_chr[[col]])), na.rm = TRUE),
-    integer(1)
-  )
-
-  pad <- function(x, w) sprintf(paste0("%-", w, "s"), x)
-
-  lines <- character()
-  header <- paste(mapply(pad, names(df_chr), widths), collapse = " | ")
-  lines <- c(lines, paste0("# ", header))
-
-  for (i in seq_len(nrow(df_chr))) {
-    row <- paste(mapply(pad, df_chr[i, ], widths), collapse = " | ")
-    lines <- c(lines, paste0("# ", row))
-  }
-
-  # 3) Insert directly below the current line in the active RStudio document
-  ctx <- rstudioapi::getActiveDocumentContext()
-  contents <- ctx$contents
-
-  # RStudio rows are 1-based
-  cursor_row <- ctx$selection[[1]]$range$start[["row"]]
-
-  # Find the most recent call line above (or at) the cursor
-  call_row <- cursor_row
-  while (call_row >= 1 && !grepl("\\bcdmCommentContents\\s*\\(", contents[[call_row]])) {
-    call_row <- call_row - 1
-  }
-
-  if (call_row < 1) {
-    stop("Couldn't find a line containing `cdmCommentContents(` above the cursor.", call. = FALSE)
-  }
-
-  # Insert *immediately below* the call line
-  rstudioapi::insertText(
-    location = rstudioapi::document_position(call_row + 1, 1),
-    text = paste0(paste(lines, collapse = "\n"), "\n")
-  )
-
-  invisible(flat)
-}
-
