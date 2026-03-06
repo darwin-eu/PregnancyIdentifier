@@ -10,8 +10,17 @@ name: test-coverage.yaml
 permissions: read-all
 
 jobs:
+  check-codecov-token:
+    runs-on: ubuntu-latest
+    outputs:
+      has_token: ${{ steps.check.outputs.has_token }}
+    steps:
+      - id: check
+        run: echo "has_token=${{ secrets.CODECOV_TOKEN != '' }}" >> $GITHUB_OUTPUT
+
   test-coverage:
-    if: secrets.CODECOV_TOKEN != ''
+    needs: check-codecov-token
+    if: needs.check-codecov-token.outputs.has_token == 'true'
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
