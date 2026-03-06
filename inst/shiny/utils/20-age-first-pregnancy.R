@@ -1,10 +1,24 @@
 # 20-age-first-pregnancy.R - Age at first pregnancy module (standard Shiny module)
-# Data: ageSummaryFirstPregnancy (columns: cdm_name, min, Q25, median, Q75, max, possibly mean, sd)
+# Data: ageSummaryFirstPregnancy (columns: cdm_name, final_outcome_category, min, Q25, median, Q75, max, mean, sd)
 
 ageFirstPregnancyUI <- function(id) {
   ns <- NS(id)
+
+  allOutcomes <- if (is.data.frame(ageSummaryFirstPregnancy) && nrow(ageSummaryFirstPregnancy) > 0 &&
+                     "final_outcome_category" %in% colnames(ageSummaryFirstPregnancy)) {
+    unique(as.character(ageSummaryFirstPregnancy$final_outcome_category))
+  } else {
+    "overall"
+  }
+
   tagList(
-    div(class = "tab-help-text", "Summary of maternal age at first pregnancy start."),
+    div(class = "tab-help-text", "Summary of maternal age at first pregnancy start, by outcome category."),
+    fluidRow(
+      column(3, shinyWidgets::pickerInput(ns("outcome"), "Outcome",
+                                          choices = allOutcomes,
+                                          selected = allOutcomes,
+                                          multiple = TRUE, options = opt))
+    ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
     h4("Download figure"),
     fluidRow(
@@ -22,8 +36,25 @@ ageFirstPregnancyUI <- function(id) {
 ageFirstPregnancyServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
-    plot_ggplot <- reactive({
+    getData <- reactive({
       data <- ageSummaryFirstPregnancy
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+
+      # backwards compat: if no outcome column, treat as overall
+      if (!"final_outcome_category" %in% colnames(data)) {
+        data$final_outcome_category <- "overall"
+      }
+
+      outcomeSel <- input$outcome
+      if (!is.null(outcomeSel) && length(outcomeSel) > 0) {
+        data <- data %>%
+          dplyr::filter(.data$final_outcome_category %in% outcomeSel)
+      }
+      data
+    })
+
+    plot_ggplot <- reactive({
+      data <- getData()
       if (is.null(data) || nrow(data) == 0) return(NULL)
 
       ageMetrics <- c("min", "Q25", "median", "Q75", "max")
@@ -34,8 +65,13 @@ ageFirstPregnancyServer <- function(id) {
         dplyr::filter(dplyr::if_all(dplyr::all_of(intersect(ageMetrics, colnames(data))), ~ !is.na(.)))
       if (nrow(data) == 0 || !all(ageMetrics %in% colnames(data))) return(NULL)
 
+      outcomeLevels <- c("overall", "ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG", "LB or PREG")
       data <- data %>%
-        dplyr::mutate(cdm_name = factor(.data$cdm_name, levels = rev(sort(unique(as.character(.data$cdm_name))))))
+        dplyr::mutate(
+          cdm_name = factor(.data$cdm_name, levels = rev(sort(unique(as.character(.data$cdm_name))))),
+          final_outcome_category = factor(.data$final_outcome_category,
+                                          levels = intersect(outcomeLevels, unique(as.character(.data$final_outcome_category))))
+        )
 
       ggplot2::ggplot(data, ggplot2::aes(
         x = .data$cdm_name,
@@ -43,11 +79,13 @@ ageFirstPregnancyServer <- function(id) {
         lower = .data$Q25,
         middle = .data$median,
         upper = .data$Q75,
-        ymax = .data$max
+        ymax = .data$max,
+        fill = .data$final_outcome_category
       )) +
-        ggplot2::geom_boxplot(stat = "identity") +
+        ggplot2::geom_boxplot(stat = "identity", position = ggplot2::position_dodge(width = 0.8)) +
         ggplot2::coord_flip() +
-        ggplot2::labs(x = NULL, y = "Age at first pregnancy (start)") +
+        ggplot2::labs(x = NULL, y = "Age at first pregnancy (start)", fill = "Outcome") +
+        ggplot2::scale_fill_brewer(palette = "Set2") +
         ggplot2::theme_minimal()
     })
 
@@ -75,12 +113,12 @@ ageFirstPregnancyServer <- function(id) {
     )
 
     output$table <- DT::renderDT({
-      renderPrettyDT(ageSummaryFirstPregnancy)
+      renderPrettyDT(getData())
     })
     output$download_table_csv <- downloadHandler(
       filename = function() { "age_first_pregnancy.csv" },
       content = function(file) {
-        d <- ageSummaryFirstPregnancy
+        d <- getData()
         if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
       }
     )

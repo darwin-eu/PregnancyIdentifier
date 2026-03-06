@@ -127,9 +127,9 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 
 ## age_summary_first_pregnancy.csv
 
-**Columns:** Summary statistics of **age_pregnancy_end** (age at first live-birth episode end) for each person's first LB episode: **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata.
+**Columns:** **final_outcome_category**, **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata. One row per outcome group: **overall** (any outcome), each individual outcome (LB, SB, AB, SA, ECT, DELIV, PREG), and **LB or PREG** (combined).
 
-**Purpose:** Age at first live birth; used for cohort description and feasibility.
+**Purpose:** Age at first pregnancy start, stratified by outcome; used for cohort description and feasibility.
 
 ---
 
@@ -316,7 +316,7 @@ After writing all CSVs (and copying log.txt), `exportPregnancies()` creates a ZI
 | attrition.csv | Pipeline step attrition | Audit, cohort flow (when present) |
 | log.txt | Pipeline log | Audit, debugging |
 | age_summary.csv | Age-at-start distribution (summary stats) | Cohort description, feasibility |
-| age_summary_first_pregnancy.csv | Age at first LB (summary) | First-birth age description |
+| age_summary_first_pregnancy.csv | Age at first pregnancy by outcome | First-pregnancy age description |
 | age_summary_groups.csv | Age counts (by year and &lt;12, &gt;55) | Age stratification, boundary checks |
 | precision_days.csv | Density of ESD precision (days) | Start-date precision, site comparison |
 | episode_frequency.csv | Total episodes, total individuals | Denominators, site summaries |
