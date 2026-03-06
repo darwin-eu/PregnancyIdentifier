@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -223,14 +223,15 @@ age-stratified summaries and checking extreme-age pregnancy counts.</p>
 <div class="section level3">
 <h3 id="age_summary_first_pregnancy-csv">age_summary_first_pregnancy.csv<a class="anchor" aria-label="anchor" href="#age_summary_first_pregnancy-csv"></a>
 </h3>
-<p><strong>Columns:</strong> Summary statistics of
-<strong>age_pregnancy_end</strong> (age at first live-birth episode end)
-for each person’s first LB episode: <strong>colName</strong>,
-<strong>min</strong>, <strong>Q25</strong>, <strong>median</strong>,
-<strong>Q75</strong>, <strong>max</strong>, <strong>mean</strong>,
-<strong>sd</strong>, plus metadata.</p>
-<p><strong>Purpose:</strong> Age at first live birth; used for cohort
-description and feasibility.</p>
+<p><strong>Columns:</strong> <strong>final_outcome_category</strong>,
+<strong>colName</strong>, <strong>min</strong>, <strong>Q25</strong>,
+<strong>median</strong>, <strong>Q75</strong>, <strong>max</strong>,
+<strong>mean</strong>, <strong>sd</strong>, plus metadata. One row per
+outcome group: <strong>overall</strong> (any outcome), each individual
+outcome (LB, SB, AB, SA, ECT, DELIV, PREG), and <strong>LB or
+PREG</strong> (combined).</p>
+<p><strong>Purpose:</strong> Age at first pregnancy start, stratified by
+outcome; used for cohort description and feasibility.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -554,8 +555,8 @@ share or archive a full export.</p>
 </tr>
 <tr class="even">
 <td>age_summary_first_pregnancy.csv</td>
-<td>Age at first LB (summary)</td>
-<td>First-birth age description</td>
+<td>Age at first pregnancy by outcome</td>
+<td>First-pregnancy age description</td>
 </tr>
 <tr class="odd">
 <td>age_summary_groups.csv</td>

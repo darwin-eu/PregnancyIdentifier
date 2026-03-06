@@ -147,7 +147,7 @@ kable(sr_table(res, "episode_counts", "source"), format = "html", caption = "Epi
 
 | source    | n_episodes | n_persons |
 |:----------|:-----------|:----------|
-| algorithm | 36         | 32        |
+| algorithm | 37         | 32        |
 | pet       | 33         | 25        |
 
 Episode counts: algorithm vs PET
@@ -163,7 +163,7 @@ kable(sr_table(res, "protocol_summary"), format = "html", caption = "Protocol su
 
 | variable_level | total_pet_episodes | total_algorithm_episodes | total_matched_episodes |
 |:---------------|:-------------------|:-------------------------|:-----------------------|
-| overall        | 33                 | 36                       | 27                     |
+| overall        | 33                 | 37                       | 27                     |
 
 Protocol summary (for reporting)
 
@@ -197,7 +197,7 @@ kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn
 |:---------------|:-----------|:--------------|:--------------|
 | both           | 27         | 27            | 27            |
 | pet_only       | 6          | 27            | 27            |
-| algorithm_only | 9          | 27            | 27            |
+| algorithm_only | 10         | 27            | 27            |
 
 Venn counts (one-to-one matching)
 
@@ -215,7 +215,7 @@ kable(sr_table(res, "confusion_2x2", "cell"), format = "html", caption = "2×2 c
 |:-----|:------|
 | TP   | 27    |
 | FN   | 6     |
-| FP   | 9     |
+| FP   | 10    |
 | TN   | NA    |
 
 2×2 confusion matrix (PET = reference)
@@ -234,7 +234,7 @@ kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Se
 | metric      | value             | numerator | denominator |
 |:------------|:------------------|:----------|:------------|
 | sensitivity | 0.818181818181818 | 27        | 33          |
-| ppv         | 0.75              | 27        | 36          |
+| ppv         | 0.72972972972973  | 27        | 37          |
 
 Sensitivity, specificity, PPV, NPV
 
@@ -368,10 +368,10 @@ Outcome by year (same-year pairs)
 kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
 ```
 
-| source    | n   | mean             | median | sd               | min | q25 | q75    | max  |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:-------|:-----|
-| algorithm | 36  | 251.916666666667 | 228    | 273.366146404415 | 21  | 147 | 282.75 | 1749 |
-| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280    | 377  |
+| source    | n   | mean             | median | sd               | min | q25 | q75 | max |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:----|
+| algorithm | 37  | 204.081081081081 | 189    | 95.5680032398043 | 21  | 147 | 280 | 380 |
+| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377 |
 
 Pregnancy duration (days) by source
 

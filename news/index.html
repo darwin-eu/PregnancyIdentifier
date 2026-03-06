@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,17 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.1.1" id="pregnancyidentifier-311">PregnancyIdentifier 3.1.1<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-311"></a></h2>
+<div class="section level3">
+<h3 id="export-changes-3-1-1">Export changes<a class="anchor" aria-label="anchor" href="#export-changes-3-1-1"></a></h3>
+<ul><li>Age at first pregnancy export (<code>age_summary_first_pregnancy.csv</code>) now includes all episodes, not just live births. Output is stratified by <code>final_outcome_category</code>: <strong>overall</strong> (any outcome), each individual outcome (LB, SB, AB, SA, ECT, DELIV, PREG), and a combined <strong>LB or PREG</strong> group.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="shiny-app-3-1-1">Shiny app<a class="anchor" aria-label="anchor" href="#shiny-app-3-1-1"></a></h3>
+<ul><li>Age at first pregnancy tab now shows an outcome picker and displays side-by-side boxplots coloured by outcome category. Backwards-compatible with older export files that lack the <code>final_outcome_category</code> column.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="3.1.0" id="pregnancyidentifier-310">PregnancyIdentifier 3.1.0<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-310"></a></h2>
 <div class="section level3">

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,8 @@
 <img src="logo.png" class="logo" alt=""><h1 id="pregnancyidentifier">PregnancyIdentifier<a class="anchor" aria-label="anchor" href="#pregnancyidentifier"></a>
 </h1>
 </div>
-<p><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg" alt="Tests (PostgreSQL)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg" alt="Tests (Snowflake)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg" alt="Tests (Spark)"></a> <a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml/badge.svg" alt="Tests (SQLServer)"></a></p>
+<!-- badges: start -->
+
 <p>Identify pregnancy episodes in OMOP CDM data using the <strong>HIPPS</strong> algorithm (Smith et al. 2024, <a href="https://doi.org/10.1093/jamia/ocae195" class="external-link">doi:10.1093/jamia/ocae195</a>).</p>
 <hr>
 <p>Observational health data rarely has <code>pregnancy_start</code> or <code>pregnancy_end</code> variables. More often we get scattered pregnancy-related events such as live birth, gestational week 12, delivery procedure, miscarriage, etc. <strong>PregnancyIdentifier</strong> turns pregnancy-related codes into:</p>
@@ -145,7 +146,16 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-postgres.yaml/badge.svg" alt="Tests (PostgreSQL)"></a></li>
+<li><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-snowflake.yaml/badge.svg" alt="Tests (Snowflake)"></a></li>
+<li><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-spark.yaml/badge.svg" alt="Tests (Spark)"></a></li>
+<li><a href="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml" class="external-link"><img src="https://github.com/darwin-eu/PregnancyIdentifier/actions/workflows/test-sqlserver.yaml/badge.svg" alt="Tests (SQLServer)"></a></li>
+<li><a href="https://app.codecov.io/gh/darwin-eu/PregnancyIdentifier" class="external-link"><img src="https://codecov.io/gh/darwin-eu/PregnancyIdentifier/graph/badge.svg" alt="Codecov test coverage"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
