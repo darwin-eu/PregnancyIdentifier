@@ -26,3 +26,4 @@ inst/shiny/rsconnect
 inst/shiny/.claude
 inst/shiny/.rscignore
 ^cran-comments\.md$
+^CRAN-SUBMISSION$

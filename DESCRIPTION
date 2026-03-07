@@ -13,8 +13,8 @@ Description: Identify pregnancy episodes in the OMOP CDM, based on
 License: Apache License (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.3.3
-URL: https://darwin-eu-dev.github.io/PregnancyIdentifier
-BugReports: https://darwin-eu.github.io/PregnancyIdentifier/issues/
+URL: https://darwin-eu.github.io/PregnancyIdentifier/
+BugReports: https://github.com/darwin-eu/PregnancyIdentifier/issues
 Config/testthat/edition: 3
 Config/testthat/parallel: true
 Depends:

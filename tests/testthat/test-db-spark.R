@@ -1,8 +1,10 @@
 # Database test: DATABRICKS/SPARK Copies minimal mock CDM with copyCdmTo, runs pipeline, checks files.
 
 test_that("runPregnancyIdentifier on SPARK/Databricks", {
+  skip_on_cran()
   skip_if(tolower(Sys.getenv("SKIP_DATABASE_TESTING", "")) == "true", "SKIP_DATABASE_TESTING is set")
   skip_if_not_installed("odbc")
+  skip_if(Sys.getenv("DATABRICKS_HTTPPATH") == "")
 
   con <- get_connection("spark")
   omopgenerics::uniqueId()
