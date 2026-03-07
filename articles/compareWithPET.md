@@ -266,11 +266,11 @@ if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
 }
 ```
 
-| variable_level                                | mean              | median | sd               | min   | q25  | q75 | max  | n_matched |
-|:----------------------------------------------|:------------------|:-------|:-----------------|:------|:-----|:----|:-----|:----------|
-| Start date difference (PET - Algorithm, days) | 54.7407407407407  | 2      | 278.660614173833 | -5    | -1   | 3.5 | 1449 | 27        |
-| End date difference (PET - Algorithm, days)   | -44.6296296296296 | 0      | 278.310306637442 | -1420 | -3   | 1.5 | 226  | 27        |
-| Duration difference (PET - Algorithm, days)   | -99.3703703703704 | -2     | 388.076434595453 | -1449 | -5.5 | 0   | 227  | 27        |
+| variable_level                                | mean              | median | sd               | min   | q25  | q75  | max  | n_matched |
+|:----------------------------------------------|:------------------|:-------|:-----------------|:------|:-----|:-----|:-----|:----------|
+| Start date difference (PET - Algorithm, days) | 54.7407407407407  | 2      | 278.660614173833 | -5    | -1   | 3.5  | 1449 | 27        |
+| End date difference (PET - Algorithm, days)   | -53.0740740740741 | 0      | 273.195045276324 | -1420 | -3   | 1    | 4    | 27        |
+| Duration difference (PET - Algorithm, days)   | -107.814814814815 | -2     | 383.150907911776 | -1449 | -5.5 | -0.5 | 8    | 27        |
 
 Date difference summary (PET − algorithm, days)
 
@@ -301,8 +301,8 @@ if (!is.null(dd_by_outcome) && nrow(dd_by_outcome) > 0) {
 | End date difference (PET - Algorithm, days) \[LB\]     | 0.125             | 1.5    | 3.27053949241231  | -5    | -3    | 3     | 3    | 8         |
 | Duration difference (PET - Algorithm, days) \[LB\]     | 0.375             | -1.5   | 5.0972681759098   | -6    | -2.5  | 4     | 8    | 8         |
 | Start date difference (PET - Algorithm, days) \[PREG\] | 105.142857142857  | 3.5    | 386.800854573644  | -4    | -0.75 | 5     | 1449 | 14        |
-| End date difference (PET - Algorithm, days) \[PREG\]   | -85.8571428571429 | -0.5   | 388.721545017046  | -1420 | -2.75 | 0.75  | 226  | 14        |
-| Duration difference (PET - Algorithm, days) \[PREG\]   | -191              | -2     | 531.423198011355  | -1449 | -8.5  | -0.25 | 227  | 14        |
+| End date difference (PET - Algorithm, days) \[PREG\]   | -102.142857142857 | -1     | 379.313318256285  | -1420 | -2.75 | 0     | 4    | 14        |
+| Duration difference (PET - Algorithm, days) \[PREG\]   | -207.285714285714 | -2     | 521.019773516903  | -1449 | -8.5  | -1    | 7    | 14        |
 | Start date difference (PET - Algorithm, days) \[SA\]   | 1.5               | 1.5    | 0.707106781186548 | 1     | 1.25  | 1.75  | 2    | NA        |
 | End date difference (PET - Algorithm, days) \[SA\]     | -2.5              | -2.5   | 2.12132034355964  | -4    | -3.25 | -1.75 | -1   | NA        |
 | Duration difference (PET - Algorithm, days) \[SA\]     | -4                | -4     | 1.4142135623731   | -5    | -4.5  | -3.5  | -3   | NA        |
@@ -368,10 +368,10 @@ Outcome by year (same-year pairs)
 kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
 ```
 
-| source    | n   | mean             | median | sd               | min | q25 | q75 | max  |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:-----|
-| algorithm | 35  | 328.257142857143 | 266    | 421.504332742866 | 21  | 147 | 293 | 1749 |
-| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377  |
+| source    | n   | mean             | median | sd               | min | q25 | q75   | max  |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:------|:-----|
+| algorithm | 35  | 340.971428571429 | 280    | 418.055828365366 | 21  | 147 | 299.5 | 1749 |
+| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280   | 377  |
 
 Pregnancy duration (days) by source
 
@@ -389,10 +389,10 @@ if (!is.null(dm) && nrow(dm) > 0) {
 }
 ```
 
-| source    | n   | mean            | median | sd               | min | q25   | q75   | max  |
-|:----------|:----|:----------------|:-------|:-----------------|:----|:------|:------|:-----|
-| algorithm | 27  | 299.37037037037 | 224    | 386.971291734646 | 21  | 143.5 | 280   | 1606 |
-| pet       | 27  | 200             | 181    | 102.336173016643 | 15  | 138.5 | 283.5 | 377  |
+| source    | n   | mean             | median | sd               | min | q25   | q75   | max  |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:------|:------|:-----|
+| algorithm | 27  | 307.814814814815 | 266    | 385.84582782376  | 21  | 147   | 285.5 | 1606 |
+| pet       | 27  | 200              | 181    | 102.336173016643 | 15  | 138.5 | 283.5 | 377  |
 
 Duration (matched pairs only)
 
