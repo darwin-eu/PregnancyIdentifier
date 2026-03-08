@@ -8,10 +8,10 @@ algorithm described in Smith et al. (2024)
 
 Useful links:
 
-- <https://darwin-eu-dev.github.io/PregnancyIdentifier>
+- <https://darwin-eu.github.io/PregnancyIdentifier/>
 
 - Report bugs at
-  <https://darwin-eu.github.io/PregnancyIdentifier/issues/>
+  <https://github.com/darwin-eu/PregnancyIdentifier/issues>
 
 ## Author
 
