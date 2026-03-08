@@ -8,8 +8,7 @@ Authors@R: c(
     person("Maarten", "van Kessel", email = "m.l.vankessel@erasmusmc.nl", role = c("aut"), comment = c(ORCID = "0009-0006-8832-6030")),
     person("Adam", "Black", email = "a.black@erasmusmc.nl", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-5576-8701"))
   )
-Description: Identify pregnancy episodes in the OMOP CDM, based on
-  the HIPPS algorithm described in Smith et al. (2024) <doi:10.1093/jamia/ocae195>.
+Description: Identify pregnancy episodes in the Common Data Model based on the algorithm described in Smith (2024) <doi:10.1093/jamia/ocae195>.
 License: Apache License (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.3.3
