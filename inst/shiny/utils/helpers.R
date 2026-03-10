@@ -159,6 +159,8 @@ prettyColNames <- function(df) {
 }
 
 #' Bind rows from data.frames with potentially different columns.
+#' Coerces columns to a common type when the same column has different types across frames
+#' (e.g. logical vs character from CSV reads) so bind_rows does not fail.
 bindRowsAligned <- function(...) {
   dfs <- list(...)
   dfs <- dfs[!vapply(dfs, is.null, logical(1))]
@@ -168,6 +170,16 @@ bindRowsAligned <- function(...) {
     for (col in setdiff(allCols, colnames(df))) df[[col]] <- NA
     df[, allCols, drop = FALSE]
   })
+  # Unify column types so bind_rows does not error on mixed logical/character/etc.
+  for (col in allCols) {
+    types <- vapply(aligned, function(d) typeof(d[[col]]), character(1L))
+    if (length(unique(types)) > 1L) {
+      aligned <- lapply(aligned, function(d) {
+        d[[col]] <- as.character(d[[col]])
+        d
+      })
+    }
+  }
   dplyr::bind_rows(aligned)
 }
 
