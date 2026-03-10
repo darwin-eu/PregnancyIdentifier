@@ -33,7 +33,6 @@ prevalenceUI <- function(id) {
   cdm_choices <- if (exists("prevalence") && !is.null(prevalence) && nrow(prevalence) > 0) .prev_cdm else character(0)
   age_choices <- if (exists("prevalence") && !is.null(prevalence)) .prev_ageGroups else character(0)
   tagList(
-    div(class = "tab-help-text", "Prevalence estimates and confidence intervals."),
     fluidRow(
       h3("Prevalence estimates"),
       p("Prevalence estimates are shown below, please select configuration to filter them:"),
@@ -78,8 +77,8 @@ prevalenceUI <- function(id) {
         ),
         tabPanel(
           "Data",
-          downloadButton(ns("download_data_csv"), "Download data (.csv)"),
-          DT::DTOutput(ns("dataTable")) %>% withSpinner(type = 6)
+          DT::DTOutput(ns("dataTable")) %>% withSpinner(type = 6),
+          downloadButton(ns("download_data_csv"), "Download data (.csv)")
         )
       )
     )
@@ -114,7 +113,7 @@ prevalenceServer <- function(id) {
           type = "gt",
           header = c("estimate_name"),
           groupColumn = c("cdm_name", "outcome_cohort_name"),
-          settingsColumn = c("denominator_age_group", "denominator_sex"),
+          settingsColumn = c("denominator_age_group"),
           hide = c("denominator_cohort_name"),
           .options = list(style = "darwin")
         )
@@ -202,10 +201,8 @@ prevalenceServer <- function(id) {
           }
           p <- p + ggplot2::geom_ribbon(rib_aes, alpha = 0.2, linewidth = 0)
         }
-        if (as.logical(input$plot_ribbon) && !isTRUE(input$conf_interval)) {
-          p <- p + ggplot2::geom_line(linewidth = 0.8)
-        }
         p <- p +
+          ggplot2::geom_line(linewidth = 0.8) +
           ggplot2::geom_point(size = 2) +
           ggplot2::labs(x = "Prevalence start date", y = "Prevalence") +
           ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +

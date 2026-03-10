@@ -9,8 +9,8 @@ outcomeCategoriesUI <- function(id) {
     ),
     tabsetPanel(
       tabPanel("Data",
-               downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-               DT::DTOutput(ns("table")) %>% withSpinner()),
+               DT::DTOutput(ns("table")) %>% withSpinner(),
+               downloadButton(ns("download_table_csv"), "Download table (.csv)")),
       tabPanel("Plot",
                plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
                h4("Download figure"),

@@ -239,6 +239,116 @@ extract_date_diff_distribution_from_sr <- function(sr, variable_name = "date_dif
   parsed
 }
 
+#' Extract gestational time summary by group (matched, algorithm_only, pet_only).
+#' Returns a data.frame with columns: cdm_name, group, stat, value.
+extract_gestational_time_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "group_gestational_time") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("n", "mean", "median", "sd", "min", "q25", "q75", "max")),
+                                ~ suppressWarnings(as.numeric(.x)))) %>%
+    dplyr::mutate(
+      group = dplyr::case_when(
+        .data$variable_level == "matched" ~ "Matched",
+        .data$variable_level == "algorithm_only" ~ "HIPPS only (unmatched)",
+        .data$variable_level == "pet_only" ~ "PET only (unmatched)",
+        TRUE ~ .data$variable_level
+      )
+    )
+}
+
+#' Extract outcome distribution by group (matched, algorithm_only, pet_only).
+#' Returns a data.frame with columns: cdm_name, group, outcome, n, pct.
+extract_group_outcome_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "group_outcome") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  wide <- rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(
+      n = suppressWarnings(as.numeric(.data$n)),
+      pct = suppressWarnings(as.numeric(.data$pct))
+    )
+  # Parse "group:outcome" from variable_level
+  wide %>%
+    dplyr::mutate(
+      group_raw = sub(":.*$", "", .data$variable_level),
+      outcome = sub("^[^:]+:", "", .data$variable_level),
+      group = dplyr::case_when(
+        .data$group_raw == "matched" ~ "Matched",
+        .data$group_raw == "algorithm_only" ~ "HIPPS only",
+        .data$group_raw == "pet_only" ~ "PET only",
+        TRUE ~ .data$group_raw
+      )
+    ) %>%
+    dplyr::select("cdm_name", "group", "outcome", "n", "pct")
+}
+
+#' Extract PET-only HIP/PPS concept coverage from summarised result.
+#' Returns a data.frame with columns: cdm_name, metric, value.
+extract_pet_only_concept_coverage_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  coverage_vars <- c("pet_only_hip_coverage", "pet_only_pps_coverage", "pet_only_any_record_coverage")
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name %in% coverage_vars) %>%
+    dplyr::select("cdm_name", "variable_name", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  rows %>%
+    dplyr::mutate(estimate_value = suppressWarnings(as.numeric(.data$estimate_value)))
+}
+
+#' Extract PET-only HIP/PPS record count distributions from summarised result.
+extract_pet_only_record_counts_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  count_vars <- c("pet_only_hip_record_count", "pet_only_pps_record_count")
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name %in% count_vars) %>%
+    dplyr::select("cdm_name", "variable_name", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("n", "mean", "median", "sd", "min", "q25", "q75", "max")),
+                                ~ suppressWarnings(as.numeric(.x)))) %>%
+    dplyr::mutate(
+      record_type = dplyr::case_when(
+        .data$variable_name == "pet_only_hip_record_count" ~ "HIP records",
+        .data$variable_name == "pet_only_pps_record_count" ~ "PPS records",
+        TRUE ~ .data$variable_name
+      )
+    )
+}
+
+#' Extract PET-only HIP category breakdown from summarised result.
+extract_pet_only_hip_categories_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "pet_only_hip_category") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(
+      n = suppressWarnings(as.numeric(.data$n)),
+      pct = suppressWarnings(as.numeric(.data$pct))
+    ) %>%
+    dplyr::rename(category = "variable_level")
+}
+
 # ---- Main PET comparison module ----
 petComparisonUI <- function(id) {
   ns <- NS(id)
@@ -257,6 +367,10 @@ petComparisonUI <- function(id) {
     has_person_venn <- !is.null(person_venn_data) && nrow(person_venn_data) > 0
     alignment_data <- extract_date_diff_distribution_from_sr(petComparisonSummarisedResult, "date_difference_distribution")
     has_alignment <- !is.null(alignment_data) && nrow(alignment_data) > 0
+    gest_data <- extract_gestational_time_from_sr(petComparisonSummarisedResult)
+    outcome_data <- extract_group_outcome_from_sr(petComparisonSummarisedResult)
+    has_unmatched <- (!is.null(gest_data) && nrow(gest_data) > 0) ||
+                     (!is.null(outcome_data) && nrow(outcome_data) > 0)
     tbl <- as.data.frame(petComparisonSummarisedResult)
     if ("cdm_name" %in% names(tbl)) cdm_names <- unique(tbl$cdm_name)
   }
@@ -317,8 +431,8 @@ petComparisonUI <- function(id) {
       ),
       hr(),
       h4("Episodes per person by group"),
-      downloadButton(ns("download_person_epp_csv"), "Download table (.csv)"),
-      DT::DTOutput(ns("person_epp_table")) %>% withSpinner()
+      DT::DTOutput(ns("person_epp_table")) %>% withSpinner(),
+      downloadButton(ns("download_person_epp_csv"), "Download table (.csv)")
     )
   } else {
     p("No person-level comparison data available. Re-run the PET comparison to generate this data.")
@@ -332,8 +446,8 @@ petComparisonUI <- function(id) {
                            multiple = TRUE, options = opt))
     ),
     br(),
-    downloadButton(ns("download_vis_docx"), "Download table (.docx)"),
-    gt::gt_output(ns("visTable")) %>% withSpinner()
+    gt::gt_output(ns("visTable")) %>% withSpinner(),
+    downloadButton(ns("download_vis_docx"), "Download table (.docx)")
   )
 
   # Alignment tab
@@ -369,21 +483,54 @@ petComparisonUI <- function(id) {
     p("No episode alignment data available. Re-run the PET comparison (v3.0.6+) to generate alignment distributions.")
   }
 
+  # Unmatched characterization tab
+  unmatched_ui <- if (has_unmatched) {
+    tagList(
+      div(class = "tab-help-text",
+          "Characterize episodes that exist in only one source (HIPPS-only or PET-only).",
+          " Compare gestational length, outcome distribution, and HIP/PPS concept",
+          " presence in unmatched PET episodes."),
+      if (length(cdm_names) > 1) {
+        fluidRow(
+          column(3, selectInput(ns("unmatched_database"), "Database",
+                                choices = db_choices, selected = db_choices[1]))
+        )
+      },
+      h4("Gestational length by matching group"),
+      p("Duration in days from episode start to end, summarised for matched, HIPPS-only, and PET-only episodes."),
+      DT::DTOutput(ns("gest_table")) %>% withSpinner(),
+      hr(),
+      h4("Outcome distribution by matching group"),
+      plotly::plotlyOutput(ns("outcome_plot"), height = "450px") %>% withSpinner(),
+      DT::DTOutput(ns("outcome_table")) %>% withSpinner(),
+      hr(),
+      h4("HIP/PPS concept presence in unmatched PET episodes"),
+      p("How many PET-only episodes contain HIP (pregnancy record) or PPS (pregnancy-related condition) concepts within their date range."),
+      uiOutput(ns("concept_coverage_ui")),
+      hr(),
+      h4("HIP category breakdown in unmatched PET episodes"),
+      uiOutput(ns("hip_category_ui"))
+    )
+  } else {
+    p("No unmatched characterization data available. Re-run the PET comparison to generate this data.")
+  }
+
   # Summarised result tab
   summarised_ui <- tagList(
-    downloadButton(ns("download_raw_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("rawTable")) %>% withSpinner()
+    DT::DTOutput(ns("rawTable")) %>% withSpinner(),
+    downloadButton(ns("download_raw_csv"), "Download table (.csv)")
   )
 
   tabsetPanel(
     id = ns("petTabs"),
     type = "tabs",
     tabPanel("Overview", overview_ui),
-    tabPanel("Plot", plot_ui),
-    tabPanel("Alignment", alignment_ui),
-    tabPanel("Person-level", person_ui),
-    tabPanel("Table", table_ui),
-    tabPanel("Summarised result", summarised_ui)
+    tabPanel("Person-level agreement", person_ui),
+    tabPanel("Episode level agreement", plot_ui),
+    tabPanel("Alignment of episodes", alignment_ui),
+    tabPanel("Unmatched characterization", unmatched_ui),
+    tabPanel("Table of metrics", table_ui),
+    tabPanel("Raw results", summarised_ui)
   )
 }
 
@@ -621,6 +768,197 @@ petComparisonServer <- function(id) {
       }
     )
 
+    # Unmatched characterization
+    gest_data <- extract_gestational_time_from_sr(result)
+    outcome_data <- extract_group_outcome_from_sr(result)
+    concept_coverage_data <- extract_pet_only_concept_coverage_from_sr(result)
+    record_count_data <- extract_pet_only_record_counts_from_sr(result)
+    hip_category_data <- extract_pet_only_hip_categories_from_sr(result)
+
+    chosen_unmatched_db <- reactive({
+      if (length(cdm_names) == 1) cdm_names[1] else input$unmatched_database
+    })
+
+    # Gestational length table
+    output$gest_table <- DT::renderDT({
+      db <- chosen_unmatched_db()
+      if (is.null(gest_data) || is.null(db)) return(NULL)
+      d <- gest_data %>%
+        dplyr::filter(.data$cdm_name == .env$db) %>%
+        dplyr::select("group", dplyr::any_of(c("n", "mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
+        dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 1)))
+      if (nrow(d) == 0) return(NULL)
+      DT::datatable(d, rownames = FALSE, options = list(dom = "t", pageLength = 10),
+                    colnames = c("Group", "N", "Mean (days)", "Median", "SD", "Min", "Q25", "Q75", "Max"))
+    })
+
+    # Outcome distribution plot
+    output$outcome_plot <- plotly::renderPlotly({
+      db <- chosen_unmatched_db()
+      if (is.null(outcome_data) || is.null(db)) {
+        return(emptyPlotlyMessage("No outcome data available."))
+      }
+      d <- outcome_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(d) == 0) return(emptyPlotlyMessage("No outcome data for selected database."))
+
+      d$group <- factor(d$group, levels = c("Matched", "HIPPS only", "PET only"))
+
+      p <- ggplot2::ggplot(d, ggplot2::aes(
+        x = .data$group, y = .data$pct, fill = .data$outcome,
+        text = paste0(.data$group, " - ", .data$outcome,
+                      "\nN: ", format(round(.data$n), big.mark = ","),
+                      "\n", round(.data$pct, 1), "%")
+      )) +
+        ggplot2::geom_col(position = "stack") +
+        ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Outcome") +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          axis.text.x = ggplot2::element_text(size = 11),
+          legend.position = "right"
+        )
+      plotly::ggplotly(p, tooltip = "text")
+    })
+
+    # Outcome distribution table
+    output$outcome_table <- DT::renderDT({
+      db <- chosen_unmatched_db()
+      if (is.null(outcome_data) || is.null(db)) return(NULL)
+      d <- outcome_data %>%
+        dplyr::filter(.data$cdm_name == .env$db) %>%
+        dplyr::mutate(
+          n = format(round(.data$n), big.mark = ","),
+          pct = round(.data$pct, 1)
+        ) %>%
+        dplyr::select("group", "outcome", "n", "pct")
+      if (nrow(d) == 0) return(NULL)
+      DT::datatable(d, rownames = FALSE, options = list(dom = "t", pageLength = 30),
+                    colnames = c("Group", "Outcome", "N", "%"))
+    })
+
+    # Concept coverage in PET-only episodes
+    output$concept_coverage_ui <- renderUI({
+      db <- chosen_unmatched_db()
+      if (is.null(concept_coverage_data) || is.null(db)) {
+        return(div(
+          style = "padding: 12px 16px; background: #FEF9C3; border: 1px solid #FDE68A; border-radius: 6px; margin: 10px 0;",
+          tags$strong("No HIP/PPS concept coverage data available."),
+          " Re-run the PET comparison to generate this data."
+        ))
+      }
+      d <- concept_coverage_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(d) == 0) {
+        return(div(
+          style = "padding: 12px 16px; background: #FEF9C3; border: 1px solid #FDE68A; border-radius: 6px; margin: 10px 0;",
+          "No concept coverage data for selected database."
+        ))
+      }
+
+      # Extract values
+      get_val <- function(var_name, est_name) {
+        row <- d %>% dplyr::filter(.data$variable_name == var_name, .data$estimate_name == est_name)
+        if (nrow(row) == 0) return(NA_real_)
+        row$estimate_value[1]
+      }
+      n_total     <- get_val("pet_only_hip_coverage", "n_total")
+      n_with_hip  <- get_val("pet_only_hip_coverage", "n_with_hip")
+      pct_hip     <- get_val("pet_only_hip_coverage", "pct_with_hip")
+      n_with_pps  <- get_val("pet_only_pps_coverage", "n_with_pps")
+      pct_pps     <- get_val("pet_only_pps_coverage", "pct_with_pps")
+      n_with_any  <- get_val("pet_only_any_record_coverage", "n_with_any")
+      pct_any     <- get_val("pet_only_any_record_coverage", "pct_with_any")
+
+      fmtN <- function(x) {
+        if (is.na(x) || x == 0) return(tags$span(style = "color: #6b7280;", "0"))
+        format(round(x), big.mark = ",")
+      }
+      fmtPct <- function(x) {
+        if (is.na(x)) return("--")
+        paste0(round(x, 1), "%")
+      }
+
+      no_concepts <- isTRUE(!is.na(pct_any) && pct_any == 0)
+
+      if (no_concepts) {
+        return(div(
+          style = "padding: 16px 20px; background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; margin: 10px 0;",
+          tags$h5(style = "margin-top: 0; color: #92400E;", "No HIP or PPS concepts found"),
+          p(style = "margin-bottom: 0; color: #78350F;",
+            "None of the ", tags$strong(fmtN(n_total)), " unmatched PET-only episodes contained any ",
+            "HIP (pregnancy record) or PPS (pregnancy-related condition) concepts within their date range. ",
+            "This means these PET episodes are derived from data sources or concept domains that the ",
+            "PregnancyIdentifier algorithm does not currently use for episode detection.")
+        ))
+      }
+
+      metricBox <- function(label, n_val, pct_val, color) {
+        tags$div(
+          style = "text-align:center; flex:1; min-width:150px; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;",
+          tags$p(style = "color:#6b7280; margin:0; font-size:0.85em;", label),
+          tags$h4(style = paste0("margin:4px 0; color:", color, ";"), fmtN(n_val)),
+          tags$p(style = "margin:0; font-size:0.9em;", fmtPct(pct_val))
+        )
+      }
+
+      tagList(
+        p(tags$strong(fmtN(n_total)), " total unmatched PET-only episodes examined."),
+        div(
+          style = "display:flex; flex-wrap:wrap; gap:12px; margin: 12px 0;",
+          metricBox("With HIP records", n_with_hip, pct_hip, if (isTRUE(pct_hip > 0)) "#16a34a" else "#6b7280"),
+          metricBox("With PPS records", n_with_pps, pct_pps, if (isTRUE(pct_pps > 0)) "#16a34a" else "#6b7280"),
+          metricBox("With any HIP/PPS", n_with_any, pct_any, if (isTRUE(pct_any > 0)) "#16a34a" else "#6b7280")
+        )
+      )
+    })
+
+    # HIP category breakdown
+    output$hip_category_ui <- renderUI({
+      db <- chosen_unmatched_db()
+
+      # Check coverage first - if no concepts, show message
+      if (!is.null(concept_coverage_data)) {
+        cd <- concept_coverage_data %>% dplyr::filter(.data$cdm_name == .env$db)
+        pct_any_row <- cd %>% dplyr::filter(.data$variable_name == "pet_only_any_record_coverage",
+                                             .data$estimate_name == "pct_with_any")
+        if (nrow(pct_any_row) > 0 && isTRUE(pct_any_row$estimate_value[1] == 0)) {
+          return(div(
+            style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+            "No HIP categories to display - no HIP/PPS concepts were found in unmatched PET episodes."
+          ))
+        }
+      }
+
+      if (is.null(hip_category_data)) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No HIP category breakdown data available."
+        ))
+      }
+      d <- hip_category_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(d) == 0) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No HIP category data for selected database."
+        ))
+      }
+
+      d <- d %>%
+        dplyr::arrange(dplyr::desc(.data$n)) %>%
+        dplyr::mutate(
+          n_fmt = format(round(.data$n), big.mark = ","),
+          pct_fmt = paste0(round(.data$pct, 1), "%")
+        )
+
+      tagList(
+        DT::renderDT({
+          DT::datatable(
+            d %>% dplyr::select("category", n = "n_fmt", pct = "pct_fmt"),
+            rownames = FALSE, options = list(dom = "t", pageLength = 30),
+            colnames = c("HIP Category", "N episodes", "% of PET-only")
+          )
+        })
+      )
+    })
+
     # Summarised result: display with renamed labels, download with original labels
     output$rawTable <- DT::renderDT({
       renderPrettyDT(as.data.frame(display_result))
@@ -639,8 +977,8 @@ petComparisonServer <- function(id) {
 petComparisonLegacyUI <- function(id) {
   ns <- NS(id)
   tagList(
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

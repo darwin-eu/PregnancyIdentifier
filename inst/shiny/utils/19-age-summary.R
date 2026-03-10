@@ -18,7 +18,8 @@ ageSummaryUI <- function(id) {
                            multiple = TRUE, options = opt)),
       if (hasOutcome) column(3, pickerInput(ns("outcome"), "Outcome group",
                                             choices = outcomeChoices, selected = outcomeChoices,
-                                            multiple = TRUE, options = opt))
+                                            multiple = TRUE, options = opt)),
+      column(2, numericInput(ns("max_age"), "Max age for plot", value = 55, min = 1, max = 120, step = 1))
     ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
     h4("Download figure"),
@@ -29,8 +30,8 @@ ageSummaryUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 
@@ -62,67 +63,78 @@ ageSummaryServer <- function(id) {
       data <- getData()
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
-      # Add a fallback group column if no outcome column
+      # Add a fallback group column if no outcome column; expose as "group" for boxplot-precomputed
       if (!hasOutcome) {
         if ("colName" %in% colnames(data)) {
-          # Use colName as the grouping variable
+          data$group <- data$colName
         } else {
-          data <- data %>% dplyr::mutate(colName = "Overall")
+          data <- data %>% dplyr::mutate(colName = "Overall", group = "Overall")
         }
+      } else if ("final_outcome_category" %in% colnames(data)) {
+        data$group <- data$final_outcome_category
       }
 
       # Ensure numeric
       for (col in ageMetrics) {
         if (col %in% colnames(data)) data[[col]] <- suppressWarnings(as.numeric(data[[col]]))
       }
-      data %>%
+      data <- data %>%
         dplyr::filter(dplyr::if_all(dplyr::all_of(intersect(ageMetrics, colnames(data))), ~ !is.na(.)))
+
+      # Cap boxplot stats at max age to avoid skewed plots
+      max_age <- input$max_age
+      if (!is.null(max_age) && is.finite(max_age)) {
+        for (col in ageMetrics) {
+          if (col %in% colnames(data)) data[[col]] <- pmin(data[[col]], max_age)
+        }
+        # Enforce order so boxplot remains valid (ymin <= lower <= middle <= upper <= ymax)
+        data <- data %>% dplyr::rowwise() %>% dplyr::mutate(
+          min = sort(c(.data$min, .data$Q25, .data$median, .data$Q75, .data$max))[1],
+          Q25 = sort(c(.data$min, .data$Q25, .data$median, .data$Q75, .data$max))[2],
+          median = sort(c(.data$min, .data$Q25, .data$median, .data$Q75, .data$max))[3],
+          Q75 = sort(c(.data$min, .data$Q25, .data$median, .data$Q75, .data$max))[4],
+          max = sort(c(.data$min, .data$Q25, .data$median, .data$Q75, .data$max))[5]
+        ) %>% dplyr::ungroup()
+      }
+      data
     })
 
     plot_ggplot <- reactive({
       data <- getPlotData()
       if (is.null(data) || nrow(data) == 0) return(NULL)
+      if (!all(c("min", "Q25", "median", "Q75", "max") %in% colnames(data))) return(NULL)
+      if (!"group" %in% colnames(data)) return(NULL)
 
-      ageMetrics <- c("min", "Q25", "median", "Q75", "max")
-      if (!all(ageMetrics %in% colnames(data))) return(NULL)
+      data <- data %>%
+        dplyr::mutate(group = factor(.data$group, levels = rev(sort(unique(as.character(.data$group))))))
 
-      groupCol <- if (hasOutcome && "final_outcome_category" %in% colnames(data)) {
-        "final_outcome_category"
-      } else if ("colName" %in% colnames(data)) {
-        "colName"
-      } else {
-        data$group__ <- "Overall"
-        "group__"
-      }
-
-      data[[groupCol]] <- factor(
-        data[[groupCol]],
-        levels = rev(sort(unique(as.character(data[[groupCol]]))))
+      make_ggplot_boxplot_precomputed(
+        data,
+        facet = ggplot2::vars(.data$cdm_name),
+        title = "Age at pregnancy start by outcome group",
+        xlab = NULL,
+        ylab = "Age",
+        category_order = levels(data$group),
+        horizontal = TRUE
       )
-
-      ggplot2::ggplot(data, ggplot2::aes(
-        x = .data[[groupCol]],
-        ymin = .data$min,
-        lower = .data$Q25,
-        middle = .data$median,
-        upper = .data$Q75,
-        ymax = .data$max
-      )) +
-        ggplot2::geom_boxplot(stat = "identity") +
-        ggplot2::coord_flip() +
-        ggplot2::facet_wrap(ggplot2::vars(.data$cdm_name), scales = "free_y") +
-        ggplot2::labs(x = NULL, y = "Age", title = "Age at pregnancy start by outcome group") +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.title = ggplot2::element_text(hjust = 0.5),
-          axis.text.y = ggplot2::element_text(size = 9)
-        )
     })
 
     output$plot <- plotly::renderPlotly({
-      p <- plot_ggplot()
-      if (is.null(p)) return(emptyPlotlyMessage("No age summary data for selected filters."))
-      plotly::ggplotly(p)
+      pd <- getPlotData()
+      if (is.null(pd) || nrow(pd) == 0 || !"group" %in% colnames(pd)) {
+        return(emptyPlotlyMessage("No age summary data for selected filters."))
+      }
+      pd <- pd %>%
+        dplyr::mutate(group = factor(.data$group, levels = rev(sort(unique(as.character(.data$group))))))
+      make_plotly_boxplot_precomputed(
+        pd,
+        facet = "cdm_name",
+        title = "Age at pregnancy start by outcome group",
+        xlab = NULL,
+        ylab = "Age",
+        category_order = levels(pd$group),
+        horizontal = TRUE
+      )
     })
 
     output$download_plot <- downloadHandler(
@@ -145,7 +157,7 @@ ageSummaryServer <- function(id) {
     output$table <- DT::renderDT({
       data <- getData()
       if (is.null(data) || nrow(data) == 0) return(renderPrettyDT(data.frame()))
-      renderPrettyDT(data)
+      renderPrettyDT(data, numDigits = 1)
     })
     output$download_table_csv <- downloadHandler(
       filename = function() { "age_summary.csv" },

@@ -12,6 +12,9 @@
 
 /* Layout backgrounds */
 body, .content-wrapper, .right-side { background: var(--surface) !important; color: var(--text); }
+
+/* Consistent horizontal spacing for all tab content */
+.content-wrapper > .content { padding-left: 15px; padding-right: 15px; }
 .skin-blue .main-header .logo, .skin-blue .main-header .navbar { background: var(--primary) !important; }
 .skin-blue .main-sidebar { background: var(--primary-700) !important; }
 

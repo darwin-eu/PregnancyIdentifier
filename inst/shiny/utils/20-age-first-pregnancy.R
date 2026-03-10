@@ -28,8 +28,8 @@ ageFirstPregnancyUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 
@@ -73,26 +73,47 @@ ageFirstPregnancyServer <- function(id) {
                                           levels = intersect(outcomeLevels, unique(as.character(.data$final_outcome_category))))
         )
 
-      ggplot2::ggplot(data, ggplot2::aes(
-        x = .data$cdm_name,
-        ymin = .data$min,
-        lower = .data$Q25,
-        middle = .data$median,
-        upper = .data$Q75,
-        ymax = .data$max,
-        fill = .data$final_outcome_category
-      )) +
-        ggplot2::geom_boxplot(stat = "identity", position = ggplot2::position_dodge(width = 0.8)) +
-        ggplot2::coord_flip() +
-        ggplot2::labs(x = NULL, y = "Age at first pregnancy (start)", fill = "Outcome") +
-        ggplot2::scale_fill_brewer(palette = "Set2") +
-        ggplot2::theme_minimal()
+      make_ggplot_boxplot_precomputed(
+        data,
+        x = "cdm_name",
+        fill = "final_outcome_category",
+        title = NULL,
+        xlab = NULL,
+        ylab = "Age at first pregnancy (start)",
+        category_order = levels(data$cdm_name),
+        horizontal = TRUE,
+        position = ggplot2::position_dodge(width = 0.8)
+      ) +
+        ggplot2::scale_fill_brewer(palette = "Set2", name = "Outcome")
     })
 
     output$plot <- plotly::renderPlotly({
-      p <- plot_ggplot()
-      if (is.null(p)) return(emptyPlotlyMessage("No data available."))
-      plotly::ggplotly(p)
+      pd <- getData()
+      if (is.null(pd) || nrow(pd) == 0) return(emptyPlotlyMessage("No data available."))
+      for (col in c("min", "Q25", "median", "Q75", "max")) {
+        if (col %in% colnames(pd)) pd[[col]] <- suppressWarnings(as.numeric(pd[[col]]))
+      }
+      pd <- pd %>%
+        dplyr::filter(dplyr::if_all(dplyr::all_of(intersect(c("min", "Q25", "median", "Q75", "max"), colnames(pd))), ~ !is.na(.)))
+      if (nrow(pd) == 0) return(emptyPlotlyMessage("No data available."))
+      outcomeLevels <- c("overall", "ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG", "LB or PREG")
+      pd <- pd %>%
+        dplyr::mutate(
+          cdm_name = factor(.data$cdm_name, levels = rev(sort(unique(as.character(.data$cdm_name))))),
+          final_outcome_category = factor(.data$final_outcome_category,
+                                          levels = intersect(outcomeLevels, unique(as.character(.data$final_outcome_category))))
+        )
+      make_plotly_boxplot_precomputed(
+        pd,
+        x = "cdm_name",
+        fill = "final_outcome_category",
+        title = NULL,
+        xlab = NULL,
+        ylab = "Age at first pregnancy (start)",
+        category_order = levels(pd$cdm_name),
+        colors = "Set2",
+        horizontal = TRUE
+      )
     })
 
     output$download_plot <- downloadHandler(

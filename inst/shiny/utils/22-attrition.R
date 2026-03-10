@@ -13,8 +13,8 @@ attritionUI <- function(id) {
     ),
     tabsetPanel(
       tabPanel("Table",
-               downloadButton(ns("download_table_docx"), "Download table (.docx)"),
-               gt::gt_output(ns("gtTable")) %>% withSpinner()),
+               gt::gt_output(ns("gtTable")) %>% withSpinner(),
+               downloadButton(ns("download_table_docx"), "Download table (.docx)")),
       tabPanel("Plot",
                plotly::plotlyOutput(ns("plot"), height = "600px") %>% withSpinner(),
                h4("Download figure"),

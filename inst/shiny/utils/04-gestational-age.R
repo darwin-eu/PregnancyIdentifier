@@ -12,7 +12,7 @@ gestationalAgeUI <- function(id) {
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,
                                           multiple = TRUE, options = opt)),
-      column(3, shinyWidgets::pickerInput(ns("yVar"), "Y value",
+      column(2, shinyWidgets::pickerInput(ns("yVar"), "Y value",
                                           choices = c("n", "pct", "log(n)"),
                                           selected = "log(n)",
                                           multiple = FALSE)),
@@ -20,10 +20,10 @@ gestationalAgeUI <- function(id) {
                                                           choices = outcomeChoices,
                                                           selected = "Overall",
                                                           multiple = TRUE, options = opt)),
-      column(3, numericInput(ns("minWeeks"), "Min weeks", value = 0))
+      column(2, numericInput(ns("minWeeks"), "Min weeks", value = 0))
     ),
     fluidRow(
-      column(3, numericInput(ns("maxWeeks"), "Max weeks", value = 50))
+      column(2, numericInput(ns("maxWeeks"), "Max weeks", value = 50))
     ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% shinycssloaders::withSpinner(),
     h4("Download figure"),
@@ -34,8 +34,8 @@ gestationalAgeUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

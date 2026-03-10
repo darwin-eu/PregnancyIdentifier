@@ -34,8 +34,8 @@ qualityCheckCleanupUI <- function(id) {
                ),
                downloadButton(ns("download_plot"), "Download plot (PNG)")),
       tabPanel("Data",
-               downloadButton(ns("download_table_docx"), "Download table (.docx)"),
-               gt::gt_output(ns("qualityTable")) %>% withSpinner())
+               gt::gt_output(ns("qualityTable")) %>% withSpinner(),
+               downloadButton(ns("download_table_docx"), "Download table (.docx)"))
     )
   )
 }

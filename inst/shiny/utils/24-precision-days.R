@@ -27,8 +27,8 @@ precisionDaysUI <- function(id) {
                DT::DTOutput(ns("denominatorsTable")) %>% withSpinner(),
                br(),
                h4("Precision statistics"),
-               downloadButton(ns("download_summary_csv"), "Download table (.csv)"),
-               DT::DTOutput(ns("summaryTable")) %>% withSpinner())
+               DT::DTOutput(ns("summaryTable")) %>% withSpinner(),
+               downloadButton(ns("download_summary_csv"), "Download table (.csv)"))
     )
   )
 }

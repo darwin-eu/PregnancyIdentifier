@@ -12,8 +12,8 @@ overviewUI <- function(id) {
       hr(),
       h3("Data availability"),
       p(style = "color: #555;", "Which result tables have data for each database."),
-      downloadButton(ns("download_summary_csv"), "Download table (.csv)"),
       DT::DTOutput(ns("dataSummary")) %>% withSpinner(),
+      downloadButton(ns("download_summary_csv"), "Download table (.csv)"),
       hr(),
       p(
         style = "color: #888; font-size: 0.9em;",

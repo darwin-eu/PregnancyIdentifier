@@ -21,8 +21,8 @@ episodeFrequencyUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 
@@ -143,15 +143,23 @@ pregnancyFrequencyUI <- function(id) {
                                           choices = allDP, selected = allDP,
                                           multiple = TRUE, options = opt))
     ),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 
 pregnancyFrequencyServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     tableData <- reactive({
-      filterByCdm(pregnancyFrequency, input$cdm, allDP)
+      d <- filterByCdm(pregnancyFrequency, input$cdm, allDP)
+      if (!is.data.frame(d) || nrow(d) == 0) return(d)
+      if (!"cdm_name" %in% colnames(d) || !"number_individuals" %in% colnames(d)) return(d)
+      d %>%
+        tidyr::pivot_wider(
+          names_from = "cdm_name",
+          values_from = "number_individuals",
+          values_fn = dplyr::first
+        )
     })
     output$table <- DT::renderDT({
       renderPrettyDT(tableData())

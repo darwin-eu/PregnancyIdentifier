@@ -64,8 +64,8 @@ pregnancyOverlapUI <- function(id) {
       ),
       tabPanel(
         "Data",
-        downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-        DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner()
+        DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner(),
+        downloadButton(ns("download_table_csv"), "Download table (.csv)")
       )
     )
   )

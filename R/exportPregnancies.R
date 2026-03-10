@@ -206,19 +206,22 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
 #' @noRd
 addAge <- function(cdm, res) {
   cdm$person %>%
-    dplyr::select("person_id", "gender_concept_id", "birth_datetime", "year_of_birth") %>%
+    dplyr::select("person_id", "gender_concept_id", "year_of_birth", "month_of_birth", "day_of_birth") %>%
     dplyr::mutate(
-      birth_datetime = dplyr::if_else(
-        is.na(.data$birth_datetime),
-        as.Date(paste0(as.character(.data$year_of_birth), "-01-01")),
-        as.Date(.data$birth_datetime)
-      )
+      day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
+      month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L)
+    ) %>%
+    dplyr::mutate(
+      date_of_birth = paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth))
+    ) %>%
+    dplyr::mutate(
+      date_of_birth = as.Date(.data$date_of_birth)
     ) %>%
     dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
     dplyr::collect() %>%
     dplyr::mutate(
-      age_pregnancy_start = (as.numeric(as.Date(.data$final_episode_start_date) - .data$birth_datetime) / 365.25),
-      age_pregnancy_end = (as.numeric(as.Date(.data$final_episode_end_date) - .data$birth_datetime) / 365.25)
+      age_pregnancy_start = (as.numeric(as.Date(.data$final_episode_start_date) - .data$date_of_birth) / 365.25),
+      age_pregnancy_end = (as.numeric(as.Date(.data$final_episode_end_date) - .data$date_of_birth) / 365.25)
     )
 }
 

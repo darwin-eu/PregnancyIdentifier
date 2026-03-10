@@ -14,7 +14,7 @@ header <- dashboardHeader(
 )
 
 sidebar <- dashboardSidebar(
-  width = 300,
+  width = 230,
   sidebarMenu(
     id = "tabs",
     menuItem("Study background", tabName = "background", icon = icon("book")),
@@ -23,14 +23,15 @@ sidebar <- dashboardSidebar(
     # Episode frequency
     menuItem("Episode frequency", icon = icon("chart-bar"),
       menuSubItem("Episode frequency", tabName = "episode_frequency"),
-      menuSubItem("Pregnancy frequency", tabName = "pregnancy_frequency")
+      menuSubItem("Pregnancy frequency", tabName = "pregnancy_frequency"),
+      if (has_version_diff) menuSubItem("Explain Differences", tabName = "version_diff")
     ),
 
     # Episode duration
     menuItem("Episode duration", icon = icon("clock"),
       menuSubItem("Gestational age weeks", tabName = "gestational_age"),
       menuSubItem("Gestational age binned", tabName = "gestational_age_binned"),
-      menuSubItem("Gestational age days per category", tabName = "gestational_age_days"),
+      menuSubItem("Gestational age by category", tabName = "gestational_age_days"),
       menuSubItem("Temporal patterns", tabName = "temporal_patterns")
     ),
 
@@ -183,6 +184,12 @@ body <- dashboardBody(
       if (has_pet_comparison_sr) petComparisonUI("pet_comparison")
       else if (has_pet_legacy) petComparisonLegacyContainerUI("pet_legacy")
       else p("No PET comparison data available.")
+    ),
+
+    # Version differences
+    tabItem(tabName = "version_diff",
+      if (has_version_diff) versionDifferencesUI("version_diff")
+      else p("No version differences data available.")
     ),
 
     # Overview (last)

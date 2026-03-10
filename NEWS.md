@@ -1,3 +1,46 @@
+# PregnancyIdentifier 3.1.2
+
+## Bug fix
+
+* Fixed `addAge()` in export to use `year_of_birth`, `month_of_birth`, and
+  `day_of_birth` (matching `addAgeSex()`) instead of `birth_datetime`. Previously
+  persons with a valid `year_of_birth` but a corrupt or default `birth_datetime`
+  (e.g. 0001-01-01) could pass the init-stage age filter yet produce implausible
+  ages (e.g. 2776) in the exported age summary CSVs.
+  _Expected to **decrease** the max age values in age_summary exports by removing
+  implausible outliers. No impact on episode or person counts._
+
+## Shiny app
+
+* **PET comparison - Unmatched characterization tab:** New subtab in the PET
+  comparison module that characterizes unmatched HIPPS-only and PET-only
+  episodes. Shows gestational length summary (mean, median, IQR) by matching
+  group (matched, HIPPS-only, PET-only), outcome distribution as a stacked
+  bar chart and detail table, and HIP/PPS concept presence in unmatched PET
+  episodes. When no HIP or PPS concepts are found in PET-only episodes, a
+  clear explanatory message is displayed.
+
+* **Explain Differences tab:** New sidebar section that compares
+  PregnancyIdentifier package versions. Users select an old and new version to
+  see computed episode/person count deltas (with N and %) alongside detailed
+  markdown explanations of algorithmic changes driving those differences.
+  Includes 15 pre-written version-pair explanations covering v2.0.1 through
+  v3.1.2.
+
+* **Gestational age bins fix:** Corrected gestational age binning to use
+  non-overlapping integer-week bins (e.g. "12-27", "28-31", "32-36", "37-41")
+  instead of the previous overlapping ranges. Weeks are rounded to integers
+  and counts aggregated before binning.
+
+* **Data loading fixes:** Fixed `many-to-many` join warning in episode
+  frequency summary, deduplicated delivery mode summary rows to avoid
+  `many-to-many` pivot issues, and fixed `tidyr::pivot_longer` /
+  `pivot_wider` calls to use tidy-select strings instead of `.data$` pronouns
+  for compatibility.
+
+* Minor UI polish: moved download buttons below data tables, narrowed filter
+  column widths, added consistent horizontal padding to content area.
+
 # PregnancyIdentifier 3.1.1
 
 ## Export changes

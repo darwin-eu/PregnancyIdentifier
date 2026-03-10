@@ -10,8 +10,8 @@ databasesUI <- function(id) {
                                           choices = allDP, selected = allDP,
                                           multiple = TRUE, options = opt))
     ),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("table")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

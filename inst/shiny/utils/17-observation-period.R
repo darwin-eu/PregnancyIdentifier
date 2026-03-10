@@ -10,8 +10,8 @@ observationPeriodUI <- function(id) {
                            selected = if (exists("allDP")) allDP else character(0),
                            multiple = TRUE, options = opt))
     ),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

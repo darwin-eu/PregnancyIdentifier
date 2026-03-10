@@ -14,8 +14,8 @@ conceptCheckUI <- function(id) {
                            choices = character(0), selected = character(0),
                            multiple = TRUE, options = opt))
     ),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

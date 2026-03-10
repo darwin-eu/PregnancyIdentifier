@@ -64,6 +64,9 @@ server <- function(input, output, session) {
     petComparisonLegacyContainerServer("pet_legacy")
   }
 
+  # Version differences
+  if (has_version_diff) versionDifferencesServer("version_diff", versionDifferences)
+
   # Overview (last)
   overviewServer("overview")
 }

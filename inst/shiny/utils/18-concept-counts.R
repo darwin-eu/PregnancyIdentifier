@@ -22,8 +22,8 @@ conceptCountsUI <- function(id) {
                downloadButton(ns("download_plot"), "Download plot (PNG)")
       ),
       tabPanel("Data",
-               downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-               DT::DTOutput(ns("table")) %>% withSpinner())
+               DT::DTOutput(ns("table")) %>% withSpinner(),
+               downloadButton(ns("download_table_csv"), "Download table (.csv)"))
     )
   )
 }

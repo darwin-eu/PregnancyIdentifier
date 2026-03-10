@@ -7,7 +7,7 @@ gestationalAgeBinnedUI <- function(id) {
   outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksBinned$final_outcome_category)), "Overall")) else character(0)
   tagList(
     div(class = "tab-help-text",
-        "Gestational age grouped into bands (e.g. <12, 12-28, 28-32 weeks). Used for outcome bands and cross-site comparison."),
+        "Gestational age (rounded to integer weeks) in non-overlapping bands: <12, 12-27, 28-31, 32-36, 37-41, 42-43, 44-49, ≥50 weeks. Used for outcome bands and cross-site comparison."),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,
@@ -30,8 +30,8 @@ gestationalAgeBinnedUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 

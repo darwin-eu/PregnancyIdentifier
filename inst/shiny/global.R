@@ -304,15 +304,15 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dateCols <- dateCols[grepl("_n$|_pct$", dateCols)]
       missingDates <- missingDates %>%
         dplyr::select(dplyr::all_of(c("cdm_name", dateCols))) %>%
-        tidyr::pivot_longer(-.data$cdm_name, names_to = "key", values_to = "value") %>%
+        tidyr::pivot_longer(-"cdm_name", names_to = "key", values_to = "value") %>%
         dplyr::mutate(
           value = suppressWarnings(as.numeric(.data$value)),
           name = gsub("_n$|_pct$", "", .data$key),
           metric = ifelse(grepl("_n$", .data$key), "n_missing", "percent_missing")
         ) %>%
-        dplyr::select(-.data$key) %>%
-        tidyr::pivot_wider(names_from = .data$metric, values_from = .data$value) %>%
-        dplyr::mutate(percent_missing = round(.data$percent_missing, 2))
+        dplyr::select(-"key") %>%
+        tidyr::pivot_wider(names_from = "metric", values_from = "value", values_fn = dplyr::first) %>%
+        dplyr::mutate(percent_missing = round(suppressWarnings(as.numeric(.data$percent_missing)), 2))
       missingDates <- missingDates %>%
         dplyr::mutate(
           name = dplyr::case_when(
@@ -328,7 +328,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     } else {
       skipCols <- intersect(metaCols, colnames(missingDates))
       missingDates <- dataToLong(missingDates, skipCols = skipCols) %>%
-        tidyr::pivot_longer(-.data$name, names_to = "cdm_name", values_to = "percent_missing") %>%
+        tidyr::pivot_longer(-"name", names_to = "cdm_name", values_to = "percent_missing") %>%
         dplyr::mutate(
           percent_missing = round(100 * suppressWarnings(as.numeric(.data$percent_missing)), 2),
           n_missing = NA_integer_
@@ -336,9 +336,9 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     }
     missingDates <- missingDates %>%
       dplyr::rename(
-        "Date field" = .data$name,
-        "N missing" = .data$n_missing,
-        "Percent missing" = .data$percent_missing
+        "Date field" = "name",
+        "N missing" = "n_missing",
+        "Percent missing" = "percent_missing"
       ) %>%
       dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
   }
@@ -374,9 +374,14 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       NA_real_,
       .data$number_individuals
     )) %>%
-    dplyr::ungroup()
+    dplyr::ungroup() %>%
+    dplyr::group_by(.data$freq, .data$cdm_name) %>%
+    dplyr::summarise(number_individuals = dplyr::first(.data$number_individuals), .groups = "drop")
 
-  episodeFrequency <- dataToLong(episodeFrequency %>% dplyr::left_join(episodeFrequencySummary), skipCols = c("cdm_name", "colName"))
+  episodeFrequency <- dataToLong(
+    episodeFrequency %>% dplyr::left_join(episodeFrequencySummary, relationship = "many-to-many"),
+    skipCols = c("cdm_name", "colName")
+  )
 
   if (nrow(gestationalAgeDaysSummary) > 0) {
     gestationalAgeDaysSummary <- dataToLong(gestationalAgeDaysSummary, skipCols = c("colName", "cdm_name"))
@@ -421,8 +426,10 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   minObservationPeriod <- observationPeriodRange %>%
     dplyr::filter(name == "min_obs") %>%
     dplyr::select(-c("name")) %>%
+    dplyr::slice(1L) %>%
+    unlist(use.names = FALSE) %>%
     as.numeric() %>%
-    min()
+    min(na.rm = TRUE)
 
   pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
     dplyr::select(-"colName") %>%
@@ -469,20 +476,38 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   gestationalWeeksSummary <- gestationalWeeks %>%
     dplyr::mutate(pct = round(pct, 1))
 
+  # Round gestational age to integer weeks and aggregate counts for non-overlapping bins
+  gestationalWeeksForBins <- gestationalWeeks %>%
+    dplyr::mutate(gestational_weeks = round(.data$gestational_weeks))
+  if (hasOutcomeInWeeks) {
+    gestationalWeeksForBins <- gestationalWeeksForBins %>%
+      dplyr::group_by(.data$cdm_name, .data$final_outcome_category, .data$gestational_weeks) %>%
+      dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop")
+  } else {
+    gestationalWeeksForBins <- gestationalWeeksForBins %>%
+      dplyr::group_by(.data$cdm_name, .data$gestational_weeks) %>%
+      dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
+      dplyr::group_by(.data$cdm_name) %>%
+      dplyr::mutate(pct = round(100 * .data$n / sum(.data$n, na.rm = TRUE), 1)) %>%
+      dplyr::ungroup()
+  }
+
+  # Non-overlapping bins: [lower, upper) in integer weeks → labels 12-27, 28-31, 32-36, etc.
+  binnedLevels <- c("<12", "12-27", "28-31", "32-36", "37-41", "42-43", "44-49", ">=50")
   gestationalWeeksBinned <- rbind(
-    summariseGestationalWeeks(gestationalWeeks, 0, 12, "<12"),
-    summariseGestationalWeeks(gestationalWeeks, 12, 28),
-    summariseGestationalWeeks(gestationalWeeks, 28, 32),
-    summariseGestationalWeeks(gestationalWeeks, 32, 37),
-    summariseGestationalWeeks(gestationalWeeks, 37, 42),
-    summariseGestationalWeeks(gestationalWeeks, 42, 44, "42-43"),
-    summariseGestationalWeeks(gestationalWeeks, 44, 50, "44-49"),
-    summariseGestationalWeeks(gestationalWeeks, 50, maxWeeks, ">=50")
+    summariseGestationalWeeks(gestationalWeeksForBins, 0, 12, "<12"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 12, 28, "12-27"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 28, 32, "28-31"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 32, 37, "32-36"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 37, 42, "37-41"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 42, 44, "42-43"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 44, 50, "44-49"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 50, maxWeeks, ">=50")
   )
 
   gestationalWeeksBinned <- gestationalWeeksBinned %>%
     dplyr::mutate(
-      gestational_weeks = factor(gestational_weeks, levels = c("<12", "12-28", "28-32", "32-37", "37-42", "42-43", "44-49", ">=50")),
+      gestational_weeks = factor(gestational_weeks, levels = binnedLevels),
       pct = round(pct, 1)
     )
 
@@ -600,6 +625,9 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
           n_known = .data$cesarean + .data$vaginal
         )
     }
+    # One row per (cdm_name, final_outcome_category) so pivot + join is one-to-one (avoids many-to-many from bind_rows duplicates)
+    deliveryModeSummary <- deliveryModeSummary %>%
+      dplyr::distinct(.data$cdm_name, .data$final_outcome_category, .keep_all = TRUE)
     deliveryModeSummary <- dplyr::left_join(
       deliveryModeSummary %>%
         tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
@@ -695,6 +723,19 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   has_age_groups <- exists("ageSummaryGroups") && is.data.frame(ageSummaryGroups) && nrow(ageSummaryGroups) > 0
   has_age <- has_age_summary || has_age_first_pregnancy || has_age_groups
   has_pet_comparison_sr <- exists("petComparisonSummarisedResult") && !is.null(petComparisonSummarisedResult) && nrow(petComparisonSummarisedResult) > 0
+
+  # Version differences (static reference CSV)
+  versionDiffPath <- file.path(getwd(), "data", "version_differences.csv")
+  if (file.exists(versionDiffPath)) {
+    versionDifferences <- readr::read_csv(versionDiffPath, col_types = "ccc",
+                                           show_col_types = FALSE)
+    has_version_diff <- nrow(versionDifferences) > 0
+  } else {
+    versionDifferences <- tibble::tibble(old_version = character(0),
+                                          new_version = character(0),
+                                          difference_explanation = character(0))
+    has_version_diff <- FALSE
+  }
 
   # Legacy PET comparison tables
   petComparisonSpec <- list(

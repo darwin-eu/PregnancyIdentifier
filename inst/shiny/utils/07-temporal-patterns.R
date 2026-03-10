@@ -24,14 +24,14 @@ temporalPatternsUI <- function(id) {
 
   dataTableOut <- tagList(
     h4("Data"),
-    downloadButton(ns("download_data_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_data_csv"), "Download table (.csv)")
   )
 
   missingTableOut <- tagList(
     h4("Missing data"),
-    downloadButton(ns("download_missing_csv"), "Download missing data (.csv)"),
-    DT::DTOutput(ns("missingDataTable")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("missingDataTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_missing_csv"), "Download missing data (.csv)")
   )
 
   if (emptyMsg) {

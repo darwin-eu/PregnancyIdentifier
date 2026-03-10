@@ -41,7 +41,6 @@ incidenceUI <- function(id) {
   age_choices <- if (exists("incidence") && !is.null(incidence)) .inc_ageGroups else character(0)
   sex_choices <- if (exists("incidence") && !is.null(incidence)) .inc_sex else character(0)
   tagList(
-    div(class = "tab-help-text", "Incidence estimates and confidence intervals."),
     fluidRow(
       h3("Incidence estimates"),
       p("Incidence estimates are shown below, please select configuration to filter them:"),
@@ -135,7 +134,7 @@ incidenceServer <- function(id) {
           type = "gt",
           header = c("estimate_name"),
           groupColumn = c("cdm_name", "outcome_cohort_name"),
-          settingsColumn = c("denominator_age_group", "denominator_sex"),
+          settingsColumn = c("denominator_age_group"),
           hide = c("denominator_cohort_name")
         )
       }, error = function(e) {

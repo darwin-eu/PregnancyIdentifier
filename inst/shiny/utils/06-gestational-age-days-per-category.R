@@ -15,8 +15,8 @@ gestationalAgeDaysPerCategoryUI <- function(id) {
 
   dataTableOut <- tagList(
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner()
+    DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 
   if (emptyMsg) {
@@ -71,6 +71,7 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
     })
 
     # Shared plot data: table stats (min, Q25, median, Q75, max) → boxplot bounds; IQR only = no min/max whiskers
+    # Uses canonical names (lower, middle, upper, ymin, ymax) and final_outcome_category as category for boxplot-precomputed helper.
     getPlotData <- reactive({
       data <- getData()
       if (is.null(data) || nrow(data) == 0) return(NULL)
@@ -93,7 +94,7 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
         tidyr::drop_na(lower, middle, upper, ymin, ymax)
     })
 
-    # Interactive: plotly native box (ggplotly does not support geom_boxplot stat="identity")
+    # Interactive: native Plotly from precomputed stats (boxplot-precomputed helper)
     output$plot <- plotly::renderPlotly({
       pd <- getPlotData()
       if (is.null(pd) || nrow(pd) == 0) {
@@ -104,114 +105,37 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
         }
         return(emptyPlotlyMessage(msg))
       }
-      iqrOnly <- isTRUE(input$iqrOnly)
-      cdms <- unique(pd$cdm_name)
-      plot_list <- lapply(cdms, function(cdm) {
-        d <- pd %>% dplyr::filter(.data$cdm_name == .env$cdm)
-        # Build tooltip: always Outcome + Median; add Episode count when present; add min/fences/max only when !iqrOnly
-        sep <- "<br>"
-        d$hover_text <- paste0(
-          "Outcome: ", as.character(d$final_outcome_category),
-          sep, "Median: ", round(d$middle, 1), " days"
-        )
-        if ("episode_count" %in% colnames(d)) {
-          ep_fmt <- ifelse(is.na(d$episode_count), "—", format(d$episode_count, big.mark = ","))
-          d$hover_text <- paste0(d$hover_text, sep, "Episode count: ", ep_fmt)
-        }
-        if (!iqrOnly) {
-          d$hover_text <- paste0(
-            d$hover_text,
-            sep, "Min: ", round(d$ymin, 1),
-            sep, "Lower fence (Q1): ", round(d$lower, 1),
-            sep, "Upper fence (Q3): ", round(d$upper, 1),
-            sep, "Max: ", round(d$ymax, 1)
-          )
-        }
-        plotly::plot_ly(
-          d,
-          x = ~ final_outcome_category,
-          type = "box",
-          lowerfence = ~ ymin,
-          q1 = ~ lower,
-          median = ~ middle,
-          q3 = ~ upper,
-          upperfence = ~ ymax,
-          color = ~ final_outcome_category,
-          colors = "Set2",
-          customdata = ~ hover_text,
-          hovertemplate = "%{customdata}<extra></extra>"
-        ) %>%
-          plotly::layout(
-            xaxis = list(title = "Final outcome category"),
-            yaxis = list(title = "Gestational age (days)"),
-            showlegend = FALSE
-          )
-      })
-      n <- length(plot_list)
-      if (n == 0) return(emptyPlotlyMessage("No data for selected filters."))
-      # Facet by cdm_name: wrap into grid (2 columns when multiple CDMs)
-      ncols <- min(2L, n)
-      nrows <- ceiling(n / ncols)
-      p <- plotly::subplot(
-        plot_list,
-        nrows = nrows,
-        margin = 0.06,
-        shareX = TRUE,
-        shareY = FALSE,
-        titleY = TRUE,
-        titleX = (nrows > 1)
+      make_plotly_boxplot_precomputed(
+        pd,
+        x = "final_outcome_category",
+        facet = "cdm_name",
+        title = NULL,
+        xlab = "Final outcome category",
+        ylab = "Gestational age (days)",
+        show_outliers = FALSE,
+        category_order = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG"),
+        colors = "Set2",
+        horizontal = TRUE
       )
-      # Per-panel titles (subplot can drop individual layout titles, so use annotations)
-      row_idx <- function(i) (i - 1L) %/% ncols + 1L
-      col_idx <- function(i) (i - 1L) %% ncols + 1L
-      annotations <- lapply(seq_len(n), function(i) {
-        list(
-          text = cdms[i],
-          x = (col_idx(i) - 0.5) / ncols,
-          y = 1 - (row_idx(i) - 1L) / nrows - 0.02,
-          xref = "paper",
-          yref = "paper",
-          xanchor = "center",
-          yanchor = "bottom",
-          showarrow = FALSE,
-          font = list(size = 12)
-        )
-      })
-      p %>%
-        plotly::layout(
-          margin = list(t = 50, b = 60),
-          legend = list(orientation = "h", y = 1.02),
-          annotations = annotations
-        ) %>%
-        plotly::config(displayModeBar = TRUE)
     })
 
-    # PNG download: ggplot works with stat="identity" for ggsave
+    # PNG download: ggplot from same precomputed data (boxplot-precomputed helper)
     plot_ggplot <- reactive({
       pd <- getPlotData()
       if (is.null(pd) || nrow(pd) == 0) return(NULL)
-      ggplot2::ggplot(pd, ggplot2::aes(
-        x = .data$final_outcome_category,
-        ymin = ymin,
-        lower = lower,
-        middle = middle,
-        upper = upper,
-        ymax = ymax,
-        fill = .data$final_outcome_category
-      )) +
-        ggplot2::geom_boxplot(stat = "identity") +
-        ggplot2::coord_flip() +
-        ggplot2::facet_wrap(ggplot2::vars(.data$cdm_name), scales = "free_y") +
-        ggplot2::labs(
-          x = "Final outcome category",
-          y = "Gestational age (days)",
-          fill = "Outcome category"
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          axis.text.y = ggplot2::element_text(size = 9),
-          legend.position = "bottom"
-        )
+      make_ggplot_boxplot_precomputed(
+        pd,
+        x = "final_outcome_category",
+        fill = "final_outcome_category",
+        facet = ggplot2::vars(.data$cdm_name),
+        title = NULL,
+        xlab = "Final outcome category",
+        ylab = "Gestational age (days)",
+        show_outliers = FALSE,
+        category_order = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG"),
+        horizontal = TRUE
+      ) +
+        ggplot2::scale_fill_brewer(palette = "Set2", name = "Outcome category")
     })
 
     output$download_plot <- downloadHandler(

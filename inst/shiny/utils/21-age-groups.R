@@ -36,7 +36,8 @@ ageGroupsUI <- function(id) {
                            multiple = TRUE, options = opt)),
       column(3, radioButtons(ns("yAxis"), "Y axis",
                             choices = c("Count (n)" = "n", "Percent (%)" = "pct"),
-                            selected = "n", inline = TRUE))
+                            selected = "n", inline = TRUE)),
+      column(2, numericInput(ns("max_age"), "Max age for plot", value = 55, min = 1, max = 120, step = 1))
     ),
     plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
     h4("Download figure"),
@@ -47,8 +48,8 @@ ageGroupsUI <- function(id) {
     ),
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
-    DT::DTOutput(ns("table")) %>% withSpinner()
+    DT::DTOutput(ns("table")) %>% withSpinner(),
+    downloadButton(ns("download_table_csv"), "Download table (.csv)")
   )
 }
 
@@ -126,6 +127,15 @@ ageGroupsServer <- function(id) {
 
       dPlot$y_plot <- dPlot[[yChoice]]
 
+      # Cap at max age for legibility
+      max_age <- input$max_age
+      if (!is.null(max_age) && is.finite(max_age)) {
+        dPlot <- dPlot %>% dplyr::filter(.data$age_num <= max_age)
+      }
+      if (nrow(dPlot) == 0) return(NULL)
+
+      x_max <- if (!is.null(max_age) && is.finite(max_age)) max_age else max(100, max(dPlot$age_num, na.rm = TRUE), na.rm = TRUE)
+
       p <- ggplot2::ggplot(dPlot, ggplot2::aes(x = .data$age_num, y = .data$y_plot))
       if (hasMultiDb) {
         p <- p +
@@ -136,7 +146,7 @@ ageGroupsServer <- function(id) {
           ggplot2::geom_col(fill = "#377EB8") +
           ggplot2::labs(x = "Age (years)", y = yLab)
       }
-      p + ggplot2::scale_x_continuous(breaks = seq(0, 100, 5)) +
+      p + ggplot2::scale_x_continuous(breaks = seq(0, x_max, 5), limits = c(0, x_max)) +
         ggplot2::theme_minimal()
     })
 
