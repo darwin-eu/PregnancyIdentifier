@@ -232,6 +232,106 @@ significant algorithmic improvements. See
 29% fewer episodes and 19% fewer persons than v2.0.1. The drops concentrate in
 multi-episode outliers and persons with weak or spurious pregnancy evidence.
 
+## Concept set changes
+
+All concept set files are unchanged across v3.0.0 through v3.0.5. The
+concept set changes below apply to the entire v3 release series.
+
+### HIP concepts (`HIP_concepts.xlsx` renamed to `HIP_concepts_reviewed17022026.xlsx`)
+
+* **553 concepts added** (941 in v2 to 1496 in v3). No concepts were removed.
+  The vast majority of additions (439) are in the PREG category, with smaller
+  additions to DELIV (+93 formerly coded as DELIV presentation concepts now
+  available as PREG), LB (+10), ECT (+4), AB (+4), and SA (+3). Most added
+  PREG concepts are antenatal care procedures, pregnancy-specific findings,
+  and prenatal screening concepts (e.g. amniocentesis, antenatal ultrasound
+  scans, pregnancy-specific lab tests). All added PREG concepts have
+  `gest_value = NA`.
+  _Expected to **increase** episode and person counts (medium magnitude).
+  More concepts can trigger inclusion in the initial pregnant cohort._
+* **11 concepts recategorized.** 9 concepts moved from DELIV to PREG
+  (presentation-related concepts such as breech, face, brow, and transverse
+  presentations), 1 from DELIV to ECT, and 1 from DELIV to PREG. Reclassifying
+  presentation concepts from DELIV to PREG means they no longer define a
+  delivery outcome on their own, reducing the chance of spurious DELIV episodes
+  from non-delivery encounters.
+  _Expected to **decrease** DELIV episode counts and may **increase** PREG
+  episode counts (low magnitude)._
+* **`gest_value` column** was already present in v2 but only 61 concepts had
+  non-NA values. This is unchanged in v3 (same 61 concepts, same values). The
+  difference is that v3 now uses this column during HIP episode construction
+  via `coalesce(value_as_number, gest_value)`.
+
+### PPS concepts (`PPS_concepts.xlsx` renamed to `PPS_concepts_reviewed1702026.xlsx`)
+
+* **11 concepts added** (112 in v2 to 123 in v3). No concepts were removed.
+  Added concepts include antenatal ultrasound scans at specific gestational
+  windows (4-8 weeks, 9-16 weeks, 17-22 weeks, 22-40 weeks), premature birth
+  at specific gestational ages (24-26, 26-28, 28-32, 32-36, 36 weeks), the
+  "Double test" prenatal screening concept, and "Cervical length scanning at 24
+  weeks". Gestational timing values (min_month, max_month) for the 112 common
+  concepts are unchanged.
+  _Expected to **increase** episode counts (low magnitude). Additional PPS
+  concepts provide more gestational timing evidence._
+* **Columns renamed** with `pps_` prefix (e.g. `domain_concept_id` to
+  `pps_concept_id`, `min_month` to `pps_min_month`).
+  _No impact on counts (column rename only)._
+
+### Matcho term durations (`Matcho_term_durations.xlsx`)
+
+* **`max_term` increased from 301 to 308 days** for DELIV, LB, and SB
+  categories. ECT (84), AB (168), and SA (139) are unchanged. The wider
+  `max_term` means fewer episodes with gestation evidence exceeding the maximum
+  are reclassified to PREG.
+  _Expected to **increase** episode counts in DELIV, LB, and SB categories
+  (low magnitude). Episodes with 302-308 day gestation that were previously
+  reclassified as PREG now retain their original outcome category._
+
+### Matcho outcome limits (`Matcho_outcome_limits.xlsx`)
+
+* Unchanged between v2 and v3 (36 rows, identical content).
+  _No impact on counts._
+
+### New files in v3 (not present in v2)
+
+* **`ESD_concepts.xlsx`** (NEW, 31 concepts). ESD timing concepts were
+  previously hardcoded in `R/ESD.R` function `get_timing_concepts()` across
+  three lists: `est_date_of_conception_concepts` (LMP dates, 6 concepts),
+  `est_date_of_delivery_concepts` (EDD dates, 15 concepts), and
+  `len_of_gestation_at_birth_concepts` (gestation-at-birth, 5 concepts). v3
+  externalizes these to an Excel file with structured columns (`esd_concept_id`,
+  `esd_concept_name`, `esd_domain_id`, `esd_category`, `is_gw_concept`),
+  adding 5 additional concepts not in the v2 hardcoded lists. The v2 hardcoded
+  lists totaled 26 unique concepts; v3 has 31.
+  _Expected to **increase** start date precision (low indirect effect on
+  counts). No direct impact on episode identification but better timing
+  evidence can improve episode start dates._
+* **`gestational_age_concepts.csv`** (NEW, 3 concept IDs: 3048230, 3002209,
+  3012266). These gestational age measurement concept IDs were hardcoded in v2
+  in `R/ESD.R` within `get_timing_concepts()` and `R/HIP.R`. v3 externalizes
+  them to a CSV file and uses them in both HIP (for gestation episode
+  construction) and ESD (for timing search). The concept IDs themselves are
+  unchanged from v2.
+  _No direct impact on counts from externalization. However, v3 now uses these
+  concepts in additional pipeline stages (e.g. ESD timing search), which may
+  slightly **increase** start date precision._
+* **`delivery_mode/` concept sets** (NEW). Two ATLAS-format JSON concept set
+  expression files for cesarean (46 concepts) and vaginal (173 concepts)
+  delivery classification. v2 had no delivery mode classification at all. These
+  are used in the ESD stage to classify the delivery mode of episodes.
+  _No impact on episode or person counts. Delivery mode is an enrichment
+  attribute, not a filter._
+
+### check_concepts.csv
+
+* 9 concepts removed and 5 added (34 in v2 to 30 in v3). Removed concepts
+  include fetal non-stress tests, Doppler velocimetry, ultrasound procedures,
+  and fetal biophysical profiles. Added concepts include glucose tolerance
+  gestational panels, first/second trimester pregnancy concepts, and added
+  `concept_id_standard` and `standard_concept` columns.
+  _Expected to slightly **decrease** episode counts (low magnitude).
+  `check_concepts.csv` is used for supplementary pregnancy evidence checks._
+
 ## Init stage (`initPregnancies.R`)
 
 * Reviewed and consolidated concept files. v3 loads
