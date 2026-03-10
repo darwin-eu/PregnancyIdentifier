@@ -20,15 +20,15 @@
 
 #' Create Initial Pregnancy Table
 #'
-#' Get initial cohort based on HIP concepts for women who are age 15 to 55
-#' at the time of pregnancy
+#' Get initial cohort based on HIP concepts for women who are within specific age
+#' at the time of the pregnancy related record
 #'
 #' @param cdm A CDM reference
 #' @param startDate Earliest date to look for pregnancies in the CDM
 #' @param endDate Latest date to look for pregnancies in the CDM
 #' @param ageBounds The upper and lower bounds for age at pregnancy end date
 #' represented using a length 2 integer vector. By default this will be
-#' c(15, 56) and will include anyone >= 15 and < 56.
+#' c(15, 55) and will include anyone >= 15 and < 56.
 #' @param logger A log4r logger object that can be created with `makeLogger()`
 #' @param outputFolder Optional directory path. When provided, an \code{attrition.csv}
 #'   file is created with initial record and person counts for \code{preg_hip_records}
@@ -47,7 +47,7 @@
 initPregnancies <- function(cdm,
                             startDate  = as.Date("1900-01-01"),
                             endDate    = Sys.Date(),
-                            ageBounds  = c(15L, 56L),
+                            ageBounds  = c(15L, 55L),
                             logger,
                             outputFolder  = NULL) {
 
