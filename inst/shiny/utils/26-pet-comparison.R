@@ -538,12 +538,21 @@ petComparisonServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
     result <- petComparisonSummarisedResult
+    # Ensure result is a proper summarised_result (CSV load yields plain tibble)
+    if (!inherits(result, "summarised_result")) {
+      result <- tryCatch(
+        omopgenerics::newSummarisedResult(tibble::as_tibble(result)),
+        error = function(e) result
+      )
+    }
     # Remap labels for display only (exports keep original labels)
+    # Preserve summarised_result class through remap (dplyr/as.data.frame strips it)
+    sr_class <- class(result)
+    sr_settings <- if (inherits(result, "summarised_result")) omopgenerics::settings(result) else NULL
     display_result <- remap_pet_display_labels(as.data.frame(result))
-    display_result <- tryCatch(
-      omopgenerics::newSummarisedResult(tibble::as_tibble(display_result), omopgenerics::settings(result)),
-      error = function(e) display_result
-    )
+    display_result <- tibble::as_tibble(display_result)
+    class(display_result) <- sr_class
+    if (!is.null(sr_settings)) attr(display_result, "settings") <- sr_settings
     tbl <- as.data.frame(display_result)
     cdm_names <- if (is.data.frame(tbl) && "cdm_name" %in% names(tbl)) unique(tbl$cdm_name) else character(0)
 
@@ -726,14 +735,10 @@ petComparisonServer <- function(id) {
       sel <- input$tableCdm
       if (is.null(sel) || length(sel) == 0) sel <- cdm_names
       res <- display_result %>% dplyr::filter(.data$cdm_name %in% sel)
-      if (!inherits(res, "summarised_result") && inherits(display_result, "summarised_result")) {
-        res <- tryCatch(
-          omopgenerics::newSummarisedResult(
-            tibble::as_tibble(res),
-            omopgenerics::settings(display_result)
-          ),
-          error = function(e) res
-        )
+      if (!inherits(res, "summarised_result")) {
+        res <- tibble::as_tibble(res)
+        class(res) <- class(display_result)
+        attr(res, "settings") <- attr(display_result, "settings")
       }
       res
     })
