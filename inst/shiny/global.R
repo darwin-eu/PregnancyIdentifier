@@ -438,20 +438,21 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     if (is.null(label)) {
       label <- glue::glue("{lowerBoundary}-{upperBoundary}")
     }
+    # Suppressed counts (e.g. <= minCellCount exported as "<5") become NA when read; treat as 0 when summing bins
     out <- data %>%
       dplyr::filter(gestational_weeks >= lowerBoundary & gestational_weeks < upperBoundary) %>%
       dplyr::select(-"gestational_weeks")
     if (hasOutcomeInWeeks) {
       out <- out %>%
         dplyr::group_by(cdm_name, final_outcome_category) %>%
-        dplyr::summarise(n = sum(n), .groups = "drop") %>%
+        dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
         dplyr::group_by(cdm_name) %>%
-        dplyr::mutate(pct = round(100 * n / sum(n), 1)) %>%
+        dplyr::mutate(pct = round(100 * .data$n / sum(.data$n, na.rm = TRUE), 1)) %>%
         dplyr::ungroup()
     } else {
       out <- out %>%
         dplyr::group_by(cdm_name) %>%
-        dplyr::summarise(n = sum(n), pct = sum(pct), .groups = "drop")
+        dplyr::summarise(n = sum(.data$n, na.rm = TRUE), pct = sum(.data$pct, na.rm = TRUE), .groups = "drop")
     }
     out %>%
       dplyr::mutate(gestational_weeks = label, .after = if (hasOutcomeInWeeks) "final_outcome_category" else "cdm_name")
@@ -474,12 +475,14 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     summariseGestationalWeeks(gestationalWeeks, 28, 32),
     summariseGestationalWeeks(gestationalWeeks, 32, 37),
     summariseGestationalWeeks(gestationalWeeks, 37, 42),
-    summariseGestationalWeeks(gestationalWeeks, 42, maxWeeks, ">42")
+    summariseGestationalWeeks(gestationalWeeks, 42, 44, "42-43"),
+    summariseGestationalWeeks(gestationalWeeks, 44, 50, "44-49"),
+    summariseGestationalWeeks(gestationalWeeks, 50, maxWeeks, ">=50")
   )
 
   gestationalWeeksBinned <- gestationalWeeksBinned %>%
     dplyr::mutate(
-      gestational_weeks = factor(gestational_weeks, levels = c("<12", "12-28", "28-32", "32-37", "37-42", ">42")),
+      gestational_weeks = factor(gestational_weeks, levels = c("<12", "12-28", "28-32", "32-37", "37-42", "42-43", "44-49", ">=50")),
       pct = round(pct, 1)
     )
 
