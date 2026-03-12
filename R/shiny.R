@@ -1,8 +1,8 @@
 #' View the results in the Shiny app
 #'
-#' @param dataFolder A folder where the exported zip files with the results are stored.
-#'                   Zip files containing results from multiple databases can be placed in the same
-#'                   folder.
+#' @param dataFolder A folder containing either exported zip files or subfolders
+#'   with exported CSV files. Results from multiple databases can be placed in
+#'   the same folder.
 #' @param makePublishable     (Optional) copy data files to make app publishable to posit connect/shinyapp.io
 #' @param publishDir          If make publishable is true - the directory that the shiny app is copied to
 #' @param overwritePublishDir (Optional) If make publishable is true - overwrite the directory for publishing
