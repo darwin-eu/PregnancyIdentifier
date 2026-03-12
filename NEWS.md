@@ -512,3 +512,209 @@ concept set changes below apply to the entire v3 release series.
 * Refactored code: snake_case column names, modular file structure, improved
   logging.
 * Additional testing with unit tests and database backend tests.
+
+# PregnancyIdentifier 2.0.1
+
+## Bug fixes
+
+* **Spark SQL compatibility:** Fixed `get_timing_concepts()` to explicitly upload
+  `person_id_list` to the database via `CDMConnector::insertTable()` instead of
+  relying on `dplyr::inner_join(..., copy = TRUE)`, which failed on Spark.
+* **SQL Server integer type casting:** Added explicit `as.integer()` casts for
+  `min_term`, `max_term`, `max_gest_day`, `min_gest_day`, and `prev_retry` in
+  HIP stage functions to satisfy SQL Server's strict type conversion rules.
+* **SQL Server named compute tables:** Changed anonymous `dplyr::compute()` calls
+  in `clean_episodes()` to named non-temporary tables (`final_df`, `neg_days_df`,
+  `clean_episodes_df`) for SQL Server compatibility.
+* **SQL Server `copy = TRUE` removal:** Rewrote `addAge()` and
+  `exportConceptTimingCheck()` in `export.R` to upload local data frames to the
+  database via `omopgenerics::insertTable()` before joining, replacing
+  `copy = TRUE` joins that failed on SQL Server.
+* Fixed missing `logger` argument in `log4r::warn()` call in `initial_pregnant_cohort()`.
+* Fixed `add_delivery()` to use pre-computed `prev_visit` column instead of
+  re-calling `dplyr::lag(visit_date)`, which could produce incorrect results
+  due to ordering context differences.
+
+# PregnancyIdentifier 2.0.0
+
+## Algorithm changes
+
+* **Critical: Fixed `datediff()` argument order throughout HIP stage.** All ~15
+  `CDMConnector::datediff()` calls in `HIP.R` had start and end date arguments
+  reversed, producing wrong-sign date differences. Corrected in `final_visits()`,
+  `add_stillbirth()`, `add_ectopic()`, `add_abortion()`, `add_delivery()`,
+  `gestation_episodes()`, `add_gestation()`, `clean_episodes()`,
+  `remove_overlaps()`, and `final_episodes_with_length()`.
+  _This is the most impactful change. All date-difference-based logic (episode
+  length, gap detection, gestation calculations) now produces correct values._
+* **Study period filtering:** Added `startDate` and `endDate` parameters to
+  `runHipps()`, `runHip()`, `runPps()`, and `runEsd()`. All CDM table queries
+  now filter records to the specified date range before processing. A final
+  post-merge filter ensures output episodes fall within the study period.
+* **`justGestation` parameter:** Added to `runHipps()` and `runHip()` (default
+  `TRUE`). When `FALSE`, episodes with only gestational concepts and no outcome
+  are excluded.
+* **ESD `keep_value` range check:** The gestational value validity check
+  (`> 0` and `<= 44` weeks) now applies to all gestational timing concepts,
+  not just three specific concept IDs. Upper bound changed from `< 44` to
+  `<= 44`.
+
+## New features
+
+* **Shiny results viewer:** New `viewResults()` function launches an interactive
+  Shiny dashboard for exploring exported results. Supports multi-database
+  comparison from multiple zip files. Includes tabs for demographics, incidence
+  trends, gestational age distributions, and interactive data tables.
+* **Concept timing validation:** New `exportConceptTimingCheck()` function
+  validates 35 pregnancy-related concepts against expected gestational timing
+  windows. Exports `concept_check.csv` with in-span and at-midpoint counts.
+  New `inst/concepts/check_concepts.csv` file defines the validation concepts.
+
+## Export changes
+
+* **`minCellCount` privacy parameter:** Added to `export()` (default: 5).
+  Counts between 0 (exclusive) and `minCellCount` are suppressed to NA in
+  `exportAgeSummary()`, `exportEpisodeFrequency()`, and
+  `exportPregnancyFrequency()`.
+* **`pkg_version` tracking:** All exported CSVs now include a `pkg_version`
+  column. Zip file name changed to `{date}-{version}-{cdm_name}-results.zip`.
+* **Age summary groups:** `exportAgeSummary()` now also exports
+  `age_summary_groups.csv` with counts per rounded age year and `<12` / `>55`
+  groups.
+* Fixed `addAge()` to fall back to `year_of_birth` when `birth_datetime` is NULL.
+* Fixed `exportPregnancyOverlapCounts()` to exclude first episodes per person
+  (which have no previous end date) from overlap detection.
+
+## Concept set changes
+
+* Updated HIP and PPS concept spreadsheets. Previous versions saved as
+  `HIP_concepts-backup.xlsx` and `PPS_concepts-backup.xlsx`.
+
+## Other changes
+
+* Added `R/insertPregnancyEpisodesTable.R` for inserting identified episodes
+  back into the database.
+* Added explicit `format = "%Y-%m-%d"` to `as.Date()` calls in ESD to avoid
+  locale-dependent date parsing.
+* Added tests for episode identification (`test-episodes.R`).
+
+# PregnancyIdentifier 1.0.0
+
+## New features
+
+* **Export system (`R/export.R`):** Complete export pipeline replacing the ad-hoc
+  `extras/exportResults.R` script. New `export()` entry point runs all
+  sub-exports and zips results. Exports include: age summary, precision days
+  density, episode frequency, pregnancy frequency per person, gestational age
+  summary and counts, gestational duration by outcome, yearly and monthly time
+  trends, observation period range, pregnancy overlap counts, date consistency
+  checks, reversed dates counts, and outcome category counts for HIP, PPS,
+  and final HIPPS.
+* **Structured logging:** All algorithm functions (`runHip`, `runPps`, `runEsd`,
+  `mergeHipPps`) now accept a `logger` parameter and use `log4r` for structured
+  file and console logging, replacing ad-hoc `message()` calls.
+* **`insertPregnancyEpisodesTable()`:** New utility function to insert
+  identified pregnancy episodes back into the database via
+  `CDMConnector::insertTable()`.
+* **`summariseColumn()`:** New utility computing mean, sd, median, Q1, Q3, min,
+  max, and count for a specified column.
+
+## Bug fixes
+
+* Fixed `dplyr::pull(n)` to `dplyr::pull(.data$n)` in multiple HIP functions
+  for strict tidy evaluation compliance.
+* Fixed `clean_episodes()` log message that was missing the `%s` format
+  specifier for episode count.
+* Fixed ESD `inferred_episode_start` fallback calculation: removed unnecessary
+  `lubridate::days()` wrapping around `max_term`.
+
+## Other changes
+
+* Added `magrittr`, `tidyr`, and `log4r` as package dependencies.
+* Added proper package documentation in `R/PregnancyIdentifier-package.R` with
+  `globalVariables()` declarations.
+* Re-exported the magrittr pipe operator via `R/utils-pipe.R`.
+
+# PregnancyIdentifier 0.1.7
+
+## Algorithm changes
+
+* **ESD robustness:** Wrapped gestational timing processing in a guard for empty
+  timing concepts. When no timing data exists, returns an empty tibble with the
+  correct schema instead of failing.
+* **HIP `remove_overlaps()` fixes:** Added guard for empty `gest_id_list`
+  (prevents errors when no overlapping episodes exist). Replaced R-native date
+  arithmetic with `CDMConnector::dateadd()` for SQL compatibility. Added
+  intermediate `dplyr::compute()` materializations with named tables.
+
+## Other changes
+
+* Replaced all `cat()` logging calls with `message(sprintf())` throughout HIP,
+  PPS, ESD, and merge stages.
+* Fixed bare column references to use `.data$` pronouns in
+  `mergeHIPPSEpisodes.R`.
+* Added guard for empty PPS episodes in merge stage: if zero rows, adds
+  `person_episode_number` column with default value.
+* Added `^dev$` and `^extras$` to `.Rbuildignore`.
+* Re-exported `runHipps()` in NAMESPACE.
+
+# PregnancyIdentifier 0.1.6
+
+* **HIP `add_gestation()` SQL fix:** Split large mutate in the `both_df` join
+  section into separate `mutate()` calls for `gest_at_outcome`, then
+  `is_under_max`/`is_over_min`, then `days_diff`. Ensures SQL backends can
+  reference columns created in prior steps.
+* Same split applied to `remove_overlaps()`.
+
+# PregnancyIdentifier 0.1.5
+
+* **HIP `add_gestation()` SQL fix:** Split a single large `dplyr::mutate()`
+  call into three separate `mutate() %>% compute()` steps (gest_id, then
+  max/min_gest_day, then start dates and comparisons). Some SQL backends cannot
+  reference columns created in the same `mutate()` call.
+* Wrapped `CDMConnector::dateadd()` results in `as.Date()` in
+  `calculate_start()`.
+
+# PregnancyIdentifier 0.1.4
+
+## Algorithm changes
+
+* **Full pipeline re-enabled:** Uncommented and activated the complete
+  HIPPS merge and ESD pipeline in `runHIPPS.R`. The merge pipeline (outcomes
+  per episode, add outcomes, final merged episodes, deduplication, demographic
+  details) and ESD pipeline (timing concepts, gestational timing info, metadata
+  merge) are now fully operational.
+* Changed `runHip()` and `runPps()` to return `cdm` objects instead of
+  separate result objects. Results are read from RDS files saved by each stage.
+* Replaced R-native date arithmetic in `add_gestation()` with
+  `CDMConnector::dateadd()` for `max_gest_start_date` and
+  `min_gest_start_date`.
+* Changed `runHip()` early return from `return(NULL)` to `return(cdm)`.
+
+# PregnancyIdentifier 0.1.3
+
+* **MS SQL compatibility:** Added `as.character()` casts for date-to-string
+  conversion in `paste()` calls in `ESD.R` (`episodes_with_gestational_timing_info`)
+  and `HIP.R` (`add_gestation`). Fixes implicit casting failures on MS SQL Server.
+
+# PregnancyIdentifier 0.1.2
+
+* **MS SQL compatibility:** Wrapped date component columns in
+  `as.character(as.integer(...))` in `HIP.R` and `PPS.R` for date_of_birth
+  construction. Handles backends where `year_of_birth` is stored as
+  numeric/float.
+* Replaced R-native date arithmetic with `CDMConnector::dateadd()` in
+  `calculate_start()` for `min_start_date` and `max_start_date`.
+
+# PregnancyIdentifier 0.1.1
+
+* **MS SQL compatibility:** Changed `as.integer()` casts to `as.character()` in
+  `HIP.R` and `PPS.R` when building `date_of_birth` via string concatenation.
+  The `as.integer()` approach failed on MS SQL Server.
+* Removed premature `runHipps` export from NAMESPACE.
+
+# PregnancyIdentifier 0.1.0
+
+* Initial release of the PregnancyIdentifier package implementing the HIPPS
+  algorithm (HIP + PPS + Merge + ESD) for identifying pregnancy episodes in
+  OMOP CDM databases.
