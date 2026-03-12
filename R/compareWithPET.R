@@ -1300,5 +1300,67 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   )
   log4r::info(logger, sprintf("PET comparison written to %s", file.path(exportFolder, "pet_comparison_summarised_result.csv")))
 
+  # ---- Large-scale characteristics of unmatched PET episodes ----
+  if (nrow(pet_only_df) > 0) {
+    log4r::info(logger, sprintf("Computing large-scale characteristics for %d unmatched PET episodes", nrow(pet_only_df)))
+    tryCatch({
+      unmatched_cohort_df <- pet_only_df %>%
+        dplyr::transmute(
+          cohort_definition_id = 1L,
+          subject_id           = .data$person_id,
+          cohort_start_date    = as.Date(.data$pregnancy_start_date),
+          cohort_end_date      = as.Date(.data$pregnancy_end_date)
+        )
+
+      cdm <- omopgenerics::insertTable(
+        cdm   = cdm,
+        name  = "unmatched_pet_cohort",
+        table = unmatched_cohort_df
+      )
+      cdm$unmatched_pet_cohort <- omopgenerics::newCohortTable(
+        table = cdm$unmatched_pet_cohort,
+        cohortSetRef = data.frame(
+          cohort_definition_id = 1L,
+          cohort_name = "unmatched_pet_episodes"
+        ),
+        .softValidation = TRUE
+      )
+
+      lsc <- CohortCharacteristics::summariseLargeScaleCharacteristics(
+        cohort        = cdm$unmatched_pet_cohort,
+        window        = list(c(-365, 0)),
+        eventInWindow = c(
+          "condition_occurrence",
+          "drug_exposure",
+          "procedure_occurrence",
+          "observation",
+          "measurement"
+        ),
+        indexDate        = "cohort_end_date",
+        minimumFrequency = 0.005,
+        excludedCodes    = c(0)
+      )
+
+      omopgenerics::exportSummarisedResult(
+        lsc,
+        minCellCount = 0,
+        path         = exportFolder,
+        fileName     = "pet_unmatched_lsc.csv"
+      )
+      log4r::info(logger, sprintf("Unmatched PET LSC written to %s", file.path(exportFolder, "pet_unmatched_lsc.csv")))
+    }, error = function(e) {
+      log4r::warn(logger, sprintf("Could not compute unmatched PET LSC: %s", conditionMessage(e)))
+    })
+  } else {
+    log4r::info(logger, "No unmatched PET episodes; skipping large-scale characteristics")
+  }
+
   log4r::info(logger, "PET comparison complete")
+
+  invisible(list(
+    pet_only = pet_only_df,
+    alg_only = alg_only_df,
+    matched_alg = matched_alg,
+    one_to_one_matches = one_to_one_matches
+  ))
 }
