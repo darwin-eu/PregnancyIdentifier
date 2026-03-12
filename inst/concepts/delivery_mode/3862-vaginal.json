@@ -53,7 +53,7 @@
         "VALID_START_DATE": "2002-01-31",
         "VALID_END_DATE": "2099-12-31"
       },
-      "isExcluded": false,
+      "isExcluded": true,
       "includeDescendants": true,
       "includeMapped": false
     },
@@ -72,8 +72,8 @@
         "VALID_START_DATE": "2002-01-31",
         "VALID_END_DATE": "2099-12-31"
       },
-      "isExcluded": false,
-      "includeDescendants": true,
+      "isExcluded": true,
+      "includeDescendants": false,
       "includeMapped": false
     },
     {
@@ -225,7 +225,7 @@
         "VALID_END_DATE": "2099-12-31"
       },
       "isExcluded": true,
-      "includeDescendants": false,
+      "includeDescendants": true,
       "includeMapped": false
     },
     {
@@ -794,7 +794,7 @@
         "VALID_START_DATE": "1970-01-01",
         "VALID_END_DATE": "2099-12-31"
       },
-      "isExcluded": true,
+      "isExcluded": false,
       "includeDescendants": false,
       "includeMapped": false
     },
@@ -813,7 +813,7 @@
         "VALID_START_DATE": "1970-01-01",
         "VALID_END_DATE": "2099-12-31"
       },
-      "isExcluded": true,
+      "isExcluded": false,
       "includeDescendants": false,
       "includeMapped": false
     },
@@ -832,8 +832,8 @@
         "VALID_START_DATE": "1970-01-01",
         "VALID_END_DATE": "2099-12-31"
       },
-      "isExcluded": true,
-      "includeDescendants": false,
+      "isExcluded": false,
+      "includeDescendants": true,
       "includeMapped": false
     },
     {
@@ -3285,6 +3285,576 @@
       },
       "isExcluded": true,
       "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "236994008",
+        "CONCEPT_ID": 4130323,
+        "CONCEPT_NAME": "Placental delivery procedure",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "ICD10PCS",
+        "CONCEPT_CODE": "10D07Z7",
+        "CONCEPT_ID": 2784571,
+        "CONCEPT_NAME": "Extraction of Products of Conception, Internal Version, Via Natural or Artificial Opening",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD10PCS",
+        "VALID_START_DATE": "2014-04-22",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "ICD10PCS",
+        "CONCEPT_CODE": "10D07Z4",
+        "CONCEPT_ID": 2784568,
+        "CONCEPT_NAME": "Extraction of Products of Conception, Mid Forceps, Via Natural or Artificial Opening",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD10PCS",
+        "VALID_START_DATE": "2014-04-22",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "ICD10PCS",
+        "CONCEPT_CODE": "10D07Z5",
+        "CONCEPT_ID": 2784569,
+        "CONCEPT_NAME": "Extraction of Products of Conception, High Forceps, Via Natural or Artificial Opening",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD10PCS",
+        "VALID_START_DATE": "2014-04-22",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "ICD10PCS",
+        "CONCEPT_CODE": "10D07Z3",
+        "CONCEPT_ID": 2784567,
+        "CONCEPT_NAME": "Extraction of Products of Conception, Low Forceps, Via Natural or Artificial Opening",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD10PCS",
+        "VALID_START_DATE": "2014-04-22",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "5556001",
+        "CONCEPT_ID": 4210037,
+        "CONCEPT_NAME": "Manually assisted spontaneous delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "408817009",
+        "CONCEPT_ID": 4248954,
+        "CONCEPT_NAME": "Amniotomy at delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2004-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "700000006",
+        "CONCEPT_ID": 44784097,
+        "CONCEPT_NAME": "Vaginal delivery of fetus",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2014-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "85403009",
+        "CONCEPT_ID": 4309795,
+        "CONCEPT_NAME": "Delivery, medical personnel present",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "ICD10PCS",
+        "CONCEPT_CODE": "10E0XZZ",
+        "CONCEPT_ID": 2784578,
+        "CONCEPT_NAME": "Delivery of Products of Conception, External Approach",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD10PCS",
+        "VALID_START_DATE": "2014-04-22",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "85548006",
+        "CONCEPT_ID": 4311671,
+        "CONCEPT_NAME": "Episiotomy",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "384730009",
+        "CONCEPT_ID": 40551541,
+        "CONCEPT_NAME": "Delivery of cephalic presentation",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2003-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "237311001",
+        "CONCEPT_ID": 4034145,
+        "CONCEPT_NAME": "Complete breech delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "177184002",
+        "CONCEPT_ID": 4071507,
+        "CONCEPT_NAME": "Normal delivery procedure",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "65243006",
+        "CONCEPT_ID": 4278225,
+        "CONCEPT_NAME": "Delivery by midwife",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "2-dig nonbill code",
+        "CONCEPT_CODE": "72",
+        "CONCEPT_ID": 2004702,
+        "CONCEPT_NAME": "Forceps, vacuum, and breech delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "177185001",
+        "CONCEPT_ID": 4071632,
+        "CONCEPT_NAME": "Water birth delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "177179008",
+        "CONCEPT_ID": 4071629,
+        "CONCEPT_NAME": "Cephalic vaginal delivery with abnormal presentation of head at delivery without instrument",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "2-dig nonbill code",
+        "CONCEPT_CODE": "73",
+        "CONCEPT_ID": 4191809,
+        "CONCEPT_NAME": "Other procedures inducing or assisting delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "3-dig nonbill code",
+        "CONCEPT_CODE": "73.0",
+        "CONCEPT_ID": 2004744,
+        "CONCEPT_NAME": "Artificial rupture of membranes",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "61586001",
+        "CONCEPT_ID": 4189205,
+        "CONCEPT_NAME": "Delivery by vacuum extraction",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "3-dig billing code",
+        "CONCEPT_CODE": "72.8",
+        "CONCEPT_ID": 2004731,
+        "CONCEPT_NAME": "Other specified instrumental delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "ICD9Proc",
+        "VALID_START_DATE": "1970-01-01",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "302383004",
+        "CONCEPT_ID": 4114637,
+        "CONCEPT_NAME": "Forceps delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Procedure",
+        "CONCEPT_CODE": "236974004",
+        "CONCEPT_ID": 4128031,
+        "CONCEPT_NAME": "Instrumental delivery",
+        "DOMAIN_ID": "Procedure",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": false,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "200133007",
+        "CONCEPT_ID": 4065737,
+        "CONCEPT_NAME": "Delivery by combination of forceps and vacuum extractor",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "200138003",
+        "CONCEPT_ID": 442069,
+        "CONCEPT_NAME": "Vacuum extractor delivery - delivered",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "200133007",
+        "CONCEPT_ID": 4065737,
+        "CONCEPT_NAME": "Delivery by combination of forceps and vacuum extractor",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "10761101000119105",
+        "CONCEPT_ID": 45757174,
+        "CONCEPT_NAME": "Vacuum assisted vaginal delivery",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2014-07-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "267278005",
+        "CONCEPT_ID": 440790,
+        "CONCEPT_NAME": "Deliveries by vacuum extractor",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
+      "includeMapped": false
+    },
+    {
+      "concept": {
+        "CONCEPT_CLASS_ID": "Clinical Finding",
+        "CONCEPT_CODE": "48782003",
+        "CONCEPT_ID": 441641,
+        "CONCEPT_NAME": "Delivery normal",
+        "DOMAIN_ID": "Condition",
+        "INVALID_REASON": "V",
+        "INVALID_REASON_CAPTION": "Valid",
+        "STANDARD_CONCEPT": "S",
+        "STANDARD_CONCEPT_CAPTION": "Standard",
+        "VOCABULARY_ID": "SNOMED",
+        "VALID_START_DATE": "2002-01-31",
+        "VALID_END_DATE": "2099-12-31"
+      },
+      "isExcluded": false,
+      "includeDescendants": true,
       "includeMapped": false
     }
   ]
