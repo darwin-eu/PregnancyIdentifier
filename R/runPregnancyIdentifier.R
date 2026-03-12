@@ -63,7 +63,7 @@ makeLogger <- function(outputFolder, outputLogToConsole = TRUE) {
 #'   and episode-level data** (RDS files such as `final_pregnancy_episodes.rds`,
 #'   logs, `runStart.csv`, concept counts, etc.). Created if it does not exist.
 #' @param exportFolder (`character(1)`) Directory where **shareable aggregated CSV
-#'   files** are written. Required. Defaults to `file.path(outputFolder, "export")`.
+#'   files** are written. Optional; defaults to `file.path(outputFolder, "export")`.
 #'   These CSVs can be used as input to the Shiny app. With
 #'   `conformToValidation = "both"`, results are written to `exportFolder/conform_false`
 #'   and `exportFolder/conform_true`.
@@ -159,7 +159,7 @@ runPregnancyIdentifier <- function(cdm,
     cdm,
     startDate = startDate,
     endDate = endDate,
-    ageBounds = c(15L, 56L),
+    ageBounds = c(15L, 55L),
     logger = logger,
     outputFolder = outputFolder
   )
