@@ -24,8 +24,26 @@
   PregnancyIdentifier package versions. Users select an old and new version to
   see computed episode/person count deltas (with N and %) alongside detailed
   markdown explanations of algorithmic changes driving those differences.
-  Includes 15 pre-written version-pair explanations covering v2.0.1 through
-  v3.1.2.
+  Expanded to 28 pre-written version-pair explanations covering all
+  consecutive versions from v0.1.0 through v3.1.2 plus key jump comparisons.
+  Fixed version dropdown rendering issue where selectize.js failed to display
+  all options due to a race condition with `updateSelectInput`.
+
+* **PET comparison - Unmatched LSC tab:** New subtab showing large-scale
+  characteristics (conditions, drugs, procedures, observations, measurements)
+  of unmatched PET-only episodes in the 365 days prior to pregnancy end date.
+  Filterable by database with downloadable CSV export.
+
+* **PET comparison - Table of metrics fix:** Fixed `visOmopTable` error
+  ("no applicable method for 'settings'") when the PET comparison summarised
+  result loaded from CSV lost its `summarised_result` class. The table now
+  reconstructs the class via `omopgenerics::newSummarisedResult()` before
+  rendering.
+
+* **Incidence & Prevalence picker fix:** Fixed empty picker inputs on the
+  Incidence and Prevalence tabs. Choices were previously extracted at file
+  source time (before data loading); moved extraction into helper functions
+  called at UI build time when data is available.
 
 * **Gestational age bins fix:** Corrected gestational age binning to use
   non-overlapping integer-week bins (e.g. "12-27", "28-31", "32-36", "37-41")
@@ -38,8 +56,25 @@
   `pivot_wider` calls to use tidy-select strings instead of `.data$` pronouns
   for compatibility.
 
+* **Data loading:** `version_differences.csv` is now skipped by `loadFile()`
+  to prevent it from being treated as a database result table.
+
 * Minor UI polish: moved download buttons below data tables, narrowed filter
   column widths, added consistent horizontal padding to content area.
+
+## Concept sets
+
+* **Delivery mode - Cesarean:** Added 8 SNOMED concepts for cesarean delivery
+  variants (elective, emergency, repeat, breech presentation, hysterectomy,
+  and term cesarean sections).
+
+* **Delivery mode - Vaginal:** Expanded with 30 concepts covering spontaneous
+  vaginal delivery, forceps delivery, vacuum extraction, breech delivery,
+  episiotomy, amniotomy, and ICD9Proc/ICD10PCS procedure codes. Corrected
+  inclusion/exclusion flags: excluded broad "Delivery procedure" and
+  "Cesarean section" parent concepts (previously included) to avoid capturing
+  cesarean deliveries in the vaginal set; re-included ICD9Proc forceps/vacuum
+  codes that were previously excluded.
 
 # PregnancyIdentifier 3.1.1
 
