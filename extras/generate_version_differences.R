@@ -8,7 +8,245 @@ library(readr)
 rows <- list()
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. v2.0.1 -> v3.0.0  (Major rewrite, net DECREASE)
+# v0.1.0 -> v0.1.1  (MS SQL fix)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.0",
+  new_version = "0.1.1",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.0 to v0.1.1 - MS SQL Server Compatibility",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (bug fix for MS SQL backends only)**",
+"",
+"- Fixed `date_of_birth` construction in `HIP.R` and `PPS.R`: changed `as.integer()` casts to `as.character()` for string concatenation. The `as.integer()` approach failed on MS SQL Server.",
+"- Removed premature `runHipps` export from NAMESPACE (function was not yet ready).",
+"",
+"No algorithmic changes. Episode and person counts should be identical on backends that were already working."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.1 -> v0.1.2  (MS SQL fix)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.1",
+  new_version = "0.1.2",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.1 to v0.1.2 - Further MS SQL Compatibility",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (bug fix for MS SQL and numeric-typed backends)**",
+"",
+"- Wrapped date components in `as.character(as.integer(...))` in `HIP.R` and `PPS.R` for `date_of_birth` construction. Handles backends where `year_of_birth` is stored as numeric/float.",
+"- Replaced R-native date arithmetic in `calculate_start()` with `CDMConnector::dateadd()` for `min_start_date` and `max_start_date`. Required for MS SQL compatibility.",
+"",
+"No algorithmic changes."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.2 -> v0.1.3  (MS SQL fix)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.2",
+  new_version = "0.1.3",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.2 to v0.1.3 - MS SQL Date Casting",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (bug fix for MS SQL backends only)**",
+"",
+"- Added `as.character()` casts for date-to-string conversion in `paste()` calls in `ESD.R` and `HIP.R`. Fixes implicit casting failures on MS SQL Server.",
+"",
+"No algorithmic changes."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.3 -> v0.1.4  (Full pipeline re-enabled)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.3",
+  new_version = "0.1.4",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.3 to v0.1.4 - Full HIPPS Pipeline Re-enabled",
+"",
+"**Net expected impact: MAJOR FUNCTIONAL CHANGE**",
+"",
+"v0.1.4 is a milestone release that activates the complete pregnancy identification pipeline. Prior versions had the merge and ESD stages commented out.",
+"",
+"### Changes",
+"",
+"- **Full pipeline activation:** Uncommented and enabled the HIPPS merge pipeline (outcomes per episode, add outcomes, final merged episodes, deduplication, demographic details) and ESD pipeline (timing concepts, gestational timing info, metadata merge) in `runHIPPS.R`.",
+"- Changed `runHip()` and `runPps()` to return CDM objects instead of separate result objects. Results are read from RDS files saved by each stage.",
+"- Replaced R-native date arithmetic in `add_gestation()` with `CDMConnector::dateadd()` for `max_gest_start_date` and `min_gest_start_date`.",
+"- Changed `runHip()` early return from `return(NULL)` to `return(cdm)` for pipeline flow.",
+"",
+"Before v0.1.4, only HIP and PPS stages ran independently. From v0.1.4 onward, the full algorithm (HIP + PPS + Merge + ESD) is operational."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.4 -> v0.1.5  (SQL mutate split)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.4",
+  new_version = "0.1.5",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.4 to v0.1.5 - SQL Backend Compatibility",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (bug fix for strict SQL backends)**",
+"",
+"- Split a single large `dplyr::mutate()` call in `add_gestation()` into three separate `mutate() %>% compute()` steps. Some SQL backends cannot reference columns created in the same `mutate()` call; intermediate `compute()` materializes the results.",
+"- Wrapped `CDMConnector::dateadd()` results in `as.Date()` in `calculate_start()`.",
+"",
+"No algorithmic changes. Fixes runtime errors on strict SQL backends."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.5 -> v0.1.6  (SQL mutate split continued)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.5",
+  new_version = "0.1.6",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.5 to v0.1.6 - Additional SQL Backend Fixes",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (bug fix for strict SQL backends)**",
+"",
+"- Further split large mutate chains in `add_gestation()` (the `both_df` join section) and `remove_overlaps()` into separate `mutate()` calls for `gest_at_outcome`, `is_under_max`/`is_over_min`, and `days_diff`. Same pattern as v0.1.5.",
+"",
+"No algorithmic changes."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.6 -> v0.1.7  (Robustness + logging)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.6",
+  new_version = "0.1.7",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.6 to v0.1.7 - Robustness and Logging Improvements",
+"",
+"**Net expected impact: VARIABLE (fixes edge cases that could crash or produce wrong results)**",
+"",
+"v0.1.7 is the largest pre-1.0 release, focused on robustness and logging.",
+"",
+"### Algorithm changes",
+"",
+"- **ESD empty data guard:** Wrapped gestational timing processing in a check for empty timing concepts. When no timing data exists, returns an empty tibble with the correct schema instead of crashing.",
+"- **HIP `remove_overlaps()` empty list guard:** Added handling for empty `gest_id_list` to prevent errors when no overlapping episodes exist.",
+"- **HIP `remove_overlaps()` date arithmetic:** Replaced R-native date arithmetic with `CDMConnector::dateadd()` for SQL compatibility.",
+"- Added intermediate `dplyr::compute()` materializations with named tables throughout HIP stage.",
+"",
+"### Other changes",
+"",
+"- Replaced all `cat()` logging calls with `message(sprintf())` throughout all stages.",
+"- Fixed bare column references to use `.data$` pronouns in `mergeHIPPSEpisodes.R`.",
+"- Added guard for empty PPS episodes in merge stage.",
+"- Added `^dev$` and `^extras$` to `.Rbuildignore`."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v0.1.7 -> v1.0.0  (Export system + structured logging)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.7",
+  new_version = "1.0.0",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.7 to v1.0.0 - Export System and Structured Logging",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (new features, minor bug fixes)**",
+"",
+"v1.0.0 adds a complete export system and structured logging but makes no changes to the core pregnancy identification algorithm.",
+"",
+"### New features",
+"",
+"- **Export pipeline (`R/export.R`):** New `export()` function replaces the ad-hoc `extras/exportResults.R` script. Exports include: age summary, precision days density, episode frequency, pregnancy frequency per person, gestational age summary and counts, gestational duration by outcome, yearly/monthly time trends, observation period range, pregnancy overlap counts, date consistency checks, reversed dates counts, and outcome category counts for HIP, PPS, and final HIPPS. Auto-zips all CSVs.",
+"- **Structured logging:** All algorithm functions now accept a `logger` parameter and use `log4r` for file and console logging, replacing `message()` calls.",
+"- **`insertPregnancyEpisodesTable()`:** New utility to insert identified episodes back into the database.",
+"- **`summariseColumn()`:** New utility computing mean, sd, median, Q1, Q3, min, max, and count.",
+"",
+"### Bug fixes",
+"",
+"- Fixed `dplyr::pull(n)` to `dplyr::pull(.data$n)` for strict tidy evaluation compliance.",
+"- Fixed `clean_episodes()` log message missing the `%s` format specifier.",
+"- Fixed ESD `inferred_episode_start` fallback: removed unnecessary `lubridate::days()` wrapping.",
+"",
+"### Dependencies added",
+"",
+"- `magrittr` (pipe re-export), `tidyr` (pivoting in time trends), `log4r` (structured logging)."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v1.0.0 -> v2.0.0  (Critical datediff fix + study period + Shiny)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "1.0.0",
+  new_version = "2.0.0",
+  difference_explanation = paste(sep = "\n",
+"## v1.0.0 to v2.0.0 - Critical Bug Fix + Study Period Filtering + Shiny App",
+"",
+"**Net expected impact: VARIABLE (critical bug fix changes date difference calculations throughout HIP)**",
+"",
+"v2.0.0 contains the most impactful single bug fix in the package history, plus new study period filtering and the first Shiny results viewer.",
+"",
+"### Algorithm changes",
+"",
+"- **CRITICAL: Fixed `datediff()` argument order throughout HIP stage - VERY HIGH magnitude:** All ~15 `CDMConnector::datediff()` calls in `HIP.R` had start and end date arguments reversed, producing wrong-sign date differences. This affected `final_visits()`, `add_stillbirth()`, `add_ectopic()`, `add_abortion()`, `add_delivery()`, `gestation_episodes()`, `add_gestation()`, `clean_episodes()`, `remove_overlaps()`, and `final_episodes_with_length()`. All date-difference-based logic (episode length, gap detection, gestation calculations) now produces correct values. The impact depends on how the downstream code handled negative values (some operations used absolute values, masking the bug; others did not).",
+"- **Study period filtering:** New `startDate` and `endDate` parameters on `runHipps()`, `runHip()`, `runPps()`, and `runEsd()`. All CDM table queries filter records to the specified date range before processing. A final post-merge filter ensures output episodes fall within the study window.",
+"- **`justGestation` parameter:** New parameter on `runHipps()` and `runHip()` (default `TRUE`). When `FALSE`, episodes with only gestational concepts and no outcome are excluded.",
+"- **ESD `keep_value` range check tightened:** The gestational value validity check (`> 0` and `<= 44` weeks) now applies to ALL gestational timing concepts, not just three specific concept IDs. Upper bound changed from `< 44` to `<= 44`.",
+"",
+"### New features",
+"",
+"- **Shiny results viewer:** New `viewResults()` function launches an interactive dashboard for exploring exported results. Supports multi-database comparison. Includes demographics, incidence trends, gestational age distributions, and interactive tables.",
+"- **Concept timing validation:** New `exportConceptTimingCheck()` validates 35 pregnancy-related concepts against expected gestational timing windows. New `inst/concepts/check_concepts.csv` defines the validation concepts.",
+"",
+"### Export changes",
+"",
+"- **`minCellCount` privacy parameter:** Added to `export()` (default: 5). Small counts suppressed to NA.",
+"- **`pkg_version` tracking:** All exported CSVs now include a `pkg_version` column.",
+"- **Age summary groups:** New `age_summary_groups.csv` with counts per rounded age year.",
+"- Fixed `addAge()` to fall back to `year_of_birth` when `birth_datetime` is NULL.",
+"- Fixed overlap count detection to exclude first episode per person.",
+"",
+"### Concept set changes",
+"",
+"- Updated HIP and PPS concept spreadsheets (previous versions saved as backups)."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.0.0 -> v2.0.1  (Database compatibility patch)
+# ──────────────────────────────────────────────────────────────────────────────
+rows[[length(rows) + 1]] <- list(
+  old_version = "2.0.0",
+  new_version = "2.0.1",
+  difference_explanation = paste(sep = "\n",
+"## v2.0.0 to v2.0.1 - Database Compatibility Patch",
+"",
+"**Net expected impact: NO CHANGE in episodes or persons (fixes for Spark and SQL Server backends)**",
+"",
+"v2.0.1 is a pure compatibility patch with no algorithmic changes.",
+"",
+"### Bug fixes",
+"",
+"- **Spark SQL:** Fixed `get_timing_concepts()` to explicitly upload `person_id_list` to the database via `CDMConnector::insertTable()` instead of `dplyr::inner_join(..., copy = TRUE)`, which failed on Spark.",
+"- **SQL Server integer casting:** Added explicit `as.integer()` casts for `min_term`, `max_term`, `max_gest_day`, `min_gest_day`, and `prev_retry` to satisfy strict type conversion.",
+"- **SQL Server named compute tables:** Changed anonymous `dplyr::compute()` calls in `clean_episodes()` to named non-temporary tables.",
+"- **SQL Server `copy = TRUE` removal:** Rewrote `addAge()` and `exportConceptTimingCheck()` to upload local data frames before joining.",
+"- Fixed missing `logger` argument in `log4r::warn()` call.",
+"- Fixed `add_delivery()` to use pre-computed `prev_visit` column instead of re-calling `dplyr::lag()`.",
+"",
+"Counts should be identical between v2.0.0 and v2.0.1 on all backends."
+  )
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.0.1 -> v3.0.0  (Major rewrite, net DECREASE)
 # ──────────────────────────────────────────────────────────────────────────────
 rows[[length(rows) + 1]] <- list(
   old_version = "2.0.1",
@@ -422,6 +660,90 @@ rows[[length(rows) + 1]] <- list(
 "- **v3.1.2 - Export age fix:** `addAge()` now uses `year_of_birth`/`month_of_birth`/`day_of_birth` (matching `addAgeSex()`) instead of `birth_datetime`. Fixes implausible ages in export CSVs but does not affect episode identification.",
 "",
 "Episode and person counts should be identical between v3.0.5 and v3.1.2 on the same data."
+  )
+)
+
+# 16. v0.1.0 -> v1.0.0 (entire 0.x series)
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.0",
+  new_version = "1.0.0",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.0 to v1.0.0 - Entire 0.x Development Series",
+"",
+"**Net expected impact: VARIABLE (pipeline enablement + robustness, no algorithmic logic changes)**",
+"",
+"The v0.1.x series was focused on making the package work across database backends and enabling the full pipeline. v1.0.0 added the export system.",
+"",
+"### Cumulative changes",
+"",
+"- **v0.1.1-v0.1.3:** MS SQL Server compatibility fixes for date construction and arithmetic. Changed `as.integer()` casts to `as.character()`, adopted `CDMConnector::dateadd()` for database-agnostic date math.",
+"- **v0.1.4 (major):** Activated the full HIPPS merge and ESD pipeline. Prior versions only ran HIP and PPS independently with merge/ESD commented out.",
+"- **v0.1.5-v0.1.6:** Split large `dplyr::mutate()` chains into separate `mutate() %>% compute()` steps for SQL backends that cannot reference columns created in the same mutate.",
+"- **v0.1.7:** Robustness improvements: empty data guards for ESD and PPS, empty overlap list handling in HIP, replaced `cat()` with `message(sprintf())`, adopted `.data$` pronouns.",
+"- **v1.0.0:** Complete export system (`export()`), structured `log4r` logging, `insertPregnancyEpisodesTable()` utility, `summariseColumn()` utility, minor bug fixes.",
+"",
+"The core pregnancy identification algorithm logic is unchanged from v0.1.0 to v1.0.0. The changes are about making it run reliably across backends, enabling the full pipeline, and adding export infrastructure."
+  )
+)
+
+# 17. v0.1.0 -> v2.0.1 (initial to pre-v3 baseline)
+rows[[length(rows) + 1]] <- list(
+  old_version = "0.1.0",
+  new_version = "2.0.1",
+  difference_explanation = paste(sep = "\n",
+"## v0.1.0 to v2.0.1 - Initial Release to Pre-v3 Baseline",
+"",
+"**Net expected impact: VARIABLE (critical datediff fix + study period filtering + full pipeline enablement)**",
+"",
+"This spans the entire v0-v2 development history.",
+"",
+"### Key milestones",
+"",
+"- **v0.1.4:** Full HIPPS merge and ESD pipeline activated (was commented out in v0.1.0-v0.1.3).",
+"- **v0.1.1-v0.1.7:** Progressive database compatibility (MS SQL, Spark, PostgreSQL) and robustness fixes.",
+"- **v1.0.0:** Complete export system, structured logging, `insertPregnancyEpisodesTable()` utility.",
+"- **v2.0.0:** Critical `datediff()` argument order fix (all ~15 calls had reversed start/end), study period filtering (`startDate`/`endDate`), `justGestation` parameter, Shiny results viewer, concept timing validation, `minCellCount` privacy, updated HIP/PPS concept sets.",
+"- **v2.0.1:** Spark and SQL Server compatibility patch.",
+"",
+"### Most impactful change",
+"",
+"The `datediff()` argument order correction in v2.0.0 affects all date-difference calculations in the HIP stage. The impact depends on how downstream code handled the previously wrong-sign values."
+  )
+)
+
+# 18. v1.0.0 -> v2.0.1 (v1 to v2 full upgrade)
+rows[[length(rows) + 1]] <- list(
+  old_version = "1.0.0",
+  new_version = "2.0.1",
+  difference_explanation = paste(sep = "\n",
+"## v1.0.0 to v2.0.1 - Full v1 to v2 Upgrade",
+"",
+"**Net expected impact: VARIABLE (critical datediff fix dominates)**",
+"",
+"This spans both v2.0.0 and v2.0.1. The v2.0.1 patch adds database compatibility fixes only.",
+"",
+"### Algorithm changes (from v2.0.0)",
+"",
+"- **CRITICAL: Fixed `datediff()` argument order throughout HIP stage - VERY HIGH magnitude:** All ~15 `CDMConnector::datediff()` calls had reversed arguments. This is the most impactful change.",
+"- **Study period filtering:** New `startDate`/`endDate` parameters filter all CDM queries and post-merge output to the study window.",
+"- **`justGestation` parameter:** Controls whether gestation-only episodes (no outcome) are included.",
+"- **ESD `keep_value` range check:** Validity check now applies to all gestational timing concepts.",
+"",
+"### New features (from v2.0.0)",
+"",
+"- **Shiny results viewer:** `viewResults()` launches an interactive dashboard supporting multi-database comparison.",
+"- **Concept timing validation:** 35 check concepts validated against expected gestational timing windows.",
+"- **`minCellCount` privacy:** Small counts suppressed in exports.",
+"- **`pkg_version` tracking:** Version column added to all CSVs.",
+"",
+"### Database fixes (from v2.0.1)",
+"",
+"- Spark: explicit table upload for person_id_list in ESD.",
+"- SQL Server: integer casts, named compute tables, removed `copy = TRUE` joins.",
+"",
+"### Concept set changes",
+"",
+"- Updated HIP and PPS concept spreadsheets."
   )
 )
 
