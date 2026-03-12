@@ -8,7 +8,7 @@ timing distributions, outcome counts, and date completeness checks), and
 writes them to `exportFolder`.
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md)
 runs this step automatically and writes to `exportFolder` (default
-`file.path(outputDir, "export")`); use `exportPregnancies()` when you
+`file.path(outputFolder, "export")`); use `exportPregnancies()` when you
 need to re-export or write to a different directory. Does not create a
 ZIP file; use
 [`zipExportFolder()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/zipExportFolder.md)

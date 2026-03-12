@@ -65,19 +65,22 @@ The pipeline writes intermediate RDS artifacts to `outputFolder` and
 always runs export: shareable CSVs are written to `exportFolder`
 (default `outputFolder/export`).
 
-| File                           | Description                                                                                                                                                                                               |
-|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `runStart.csv`                 | Run timestamp used in exported csv files                                                                                                                                                                  |
-| `log.txt`                      | Run log                                                                                                                                                                                                   |
-| `hip_episodes.rds`             | HIP episodes (outcome and/or gestation-derived)                                                                                                                                                           |
-| `pps_episodes.rds`             | PPS episodes with inferred outcomes (input to merge)                                                                                                                                                      |
-| `pps_concept_counts.csv`       | PPS concept record counts per concept (used by export).                                                                                                                                                   |
-| `pps_gest_timing_episodes.rds` | (Only when `debugMode = TRUE`) Record-level PPS concept rows with episode assignment.                                                                                                                     |
-| `pps_min_max_episodes.rds`     | (Only when `debugMode = TRUE`) Episode-level PPS min/max date summaries.                                                                                                                                  |
-| `hipps_episodes.rds`           | Merged HIP + PPS episode table (standardized columns)                                                                                                                                                     |
-| `final_pregnancy_episodes.rds` | **Final** episode table: one row per episode, with inferred start/end and outcomes                                                                                                                        |
-| `esd.rds`                      | (Only when `debugMode = TRUE`) ESD episode-level start inference before merging back to HIPPS.                                                                                                            |
-| `export/`                      | De-identified summary CSVs (default: `outputFolder/export`). See the [Export vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md) for file names, columns, and analysis use. |
+| File                                           | Description                                                                                                                                                                                               |
+|------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `runStart.csv`                                 | Run timestamp used in exported csv files                                                                                                                                                                  |
+| `log.txt`                                      | Run log                                                                                                                                                                                                   |
+| `hip_episodes.rds`                             | HIP episodes (outcome and/or gestation-derived)                                                                                                                                                           |
+| `pps_episodes.rds`                             | PPS episodes with inferred outcomes (input to merge)                                                                                                                                                      |
+| `pps_concept_counts.csv`                       | PPS concept record counts per concept (used by export).                                                                                                                                                   |
+| `pps_gest_timing_episodes.rds`                 | (Only when `debugMode = TRUE`) Record-level PPS concept rows with episode assignment.                                                                                                                     |
+| `pps_min_max_episodes.rds`                     | (Only when `debugMode = TRUE`) Episode-level PPS min/max date summaries.                                                                                                                                  |
+| `hipps_episodes.rds`                           | Merged HIP + PPS episode table (standardized columns)                                                                                                                                                     |
+| `final_pregnancy_episodes.rds`                 | **Final** episode table: one row per episode, with inferred start/end and outcomes                                                                                                                        |
+| `esd.rds`                                      | (Only when `debugMode = TRUE`) ESD episode-level start inference before merging back to HIPPS.                                                                                                            |
+| `export/`                                      | De-identified summary CSVs (default: `outputFolder/export`). See the [Export vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md) for file names, columns, and analysis use. |
+| `export/{date}_{cdm_name}_incidence.csv`       | Incidence estimates (overall and yearly), written by `computeIncidencePrevalence()`.                                                                                                                      |
+| `export/{date}_{cdm_name}_prevalence.csv`      | Period prevalence estimates (overall and yearly), written by `computeIncidencePrevalence()`.                                                                                                              |
+| `export/{date}_{cdm_name}_characteristics.csv` | Cohort characteristics stratified by age group and outcome, written by `computeIncidencePrevalence()`.                                                                                                    |
 
 ## Pipeline steps in order
 
@@ -98,7 +101,14 @@ always runs export: shareable CSVs are written to `exportFolder`
     `final_pregnancy_episodes.rds`. When `conformToValidation = TRUE`,
     episode output is modified to remove overlapping episodes and
     episodes longer than 308 days.
-6.  **exportPregnancies** — Reads `final_pregnancy_episodes.rds` and
+6.  **computeIncidencePrevalence** — Constructs outcome-specific cohort
+    tables (HIP-only, PPS-only, and combined HIPPS windows), generates
+    denominator cohorts stratified by age group, and estimates
+    incidence, period prevalence, and cohort characteristics. Writes
+    `{date}_{cdm_name}_incidence.csv`,
+    `{date}_{cdm_name}_prevalence.csv`, and
+    `{date}_{cdm_name}_characteristics.csv` to `exportFolder`.
+7.  **exportPregnancies** — Reads `final_pregnancy_episodes.rds` and
     writes shareable CSVs to `exportFolder` (default
     `file.path(outputFolder, "export")`). See the [Export
     vignette](https://darwin-eu-dev.github.io/PregnancyIdentifier/articles/export.md).
@@ -140,7 +150,7 @@ row per pregnancy episode. Key fields include:
   GR3m) within the merged evidence window, the start is inferred from
   that (e.g. concept_date − 7×weeks for GW, or GR3m midpoint). When ESD
   has no inferred start, it is set to **final_episode_end_date −
-  max_term** (Matcho term for the chosen outcome, e.g. 301 days for live
+  max_term** (Matcho term for the chosen outcome, e.g. 308 days for live
   birth).
 - **final_episode_end_date** — Best estimate of pregnancy end for this
   episode. **Not** taken from the merged interval
@@ -207,7 +217,7 @@ cdm %>%
   select(-"type_concept_id", -"domain") %>% 
   arrange(start_date)
 #> # Source:     SQL [?? x 6]
-#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/Rtmp1lEM4j/file231e8aad5eb.duckdb]
+#> # Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.3//tmp/Rtmp4SGXBp/file26e9472352a9.duckdb]
 #> # Ordered by: start_date
 #>   person_id observation_concept_id start_date end_date observation_concept_name 
 #>       <int>                  <int> <date>     <date>   <chr>                    

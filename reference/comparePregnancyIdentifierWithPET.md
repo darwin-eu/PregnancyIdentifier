@@ -20,6 +20,8 @@ comparePregnancyIdentifierWithPET(
   exportFolder,
   petSchema,
   petTable,
+  startDate = NULL,
+  endDate = NULL,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
   minCellCount = 5L,
@@ -59,6 +61,19 @@ comparePregnancyIdentifierWithPET(
   end dates in the database via
   [`CDMConnector::datediff()`](https://darwin-eu.github.io/CDMConnector/reference/datediff.html);
   the table need not have a `gestational_length_in_day` column.
+
+- startDate:
+
+  `Date(1)` or `NULL`. If provided, the PET table is filtered to
+  episodes that overlap the study period defined by
+  `[startDate, endDate]`. An episode overlaps if its end date is on or
+  after `startDate` and its start date is on or before `endDate`. Must
+  be before `endDate`. Default `NULL` (no date filtering).
+
+- endDate:
+
+  `Date(1)` or `NULL`. End of the study period. Required when
+  `startDate` is provided and vice versa. Default `NULL`.
 
 - minOverlapDays:
 

@@ -66,7 +66,8 @@ track provenance and CDM version.
 [`runPps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPps.md)).
 
 **Content:** Counts of pregnancy-related concepts used by PPS per
-concept (e.g. concept_id, concept name, count of records).
+concept (`pps_concept_id`, `pps_concept_name`, `record_count`,
+`person_count`).
 
 **Purpose:** Describes the PPS concept usage in this run. Used to
 compare concept coverage across sites and to check that expected
@@ -138,9 +139,8 @@ control.
 ### age_summary.csv
 
 **Columns:** Summary of **age_pregnancy_start** (age in years at
-pregnancy start): **colName**, **min**, **Q25**, **median**, **Q75**,
-**max**, **mean**, **sd**, plus **cdm_name**, **date_run**,
-**date_export**, **pkg_version**.
+pregnancy start): **final_outcome_category**, **n**, **min**, **Q25**,
+**median**, **Q75**, **max**, **mean**, plus metadata.
 
 **Purpose:** Describes the distribution of maternal age at pregnancy
 start. Used for cohort description, feasibility checks, and comparing
@@ -172,6 +172,19 @@ for cohort description and feasibility.
 
 ------------------------------------------------------------------------
 
+### age_summary_first_pregnancy_end.csv
+
+**Columns:** **final_outcome_category**, **colName**, **min**, **Q25**,
+**median**, **Q75**, **max**, **mean**, **sd**, plus metadata. Same
+structure as `age_summary_first_pregnancy.csv` but summarises
+**age_pregnancy_end** (age at pregnancy end date) instead of age at
+start.
+
+**Purpose:** Age at first pregnancy end, stratified by outcome; used for
+cohort description and feasibility.
+
+------------------------------------------------------------------------
+
 ### precision_days.csv
 
 **Columns:** **esd_precision_days** (x-axis values), **density** (kernel
@@ -181,6 +194,17 @@ density estimate), plus **cdm_name**, **date_run**, **date_export**,
 **Purpose:** Distribution of ESD start-date precision (in days). Used to
 see how precise inferred start dates are (e.g. mostly week-level vs
 month-level) and to compare precision across sites.
+
+------------------------------------------------------------------------
+
+### precision_days_denominators.csv
+
+**Columns:** **total_episodes**, **episodes_with_precision_days**,
+**pct_with_precision_days**, **episodes_with_gw_timing**,
+**pct_with_gw_timing**, plus metadata.
+
+**Purpose:** Denominators for interpreting precision outputs (how many
+episodes had ESD precision and GW timing evidence).
 
 ------------------------------------------------------------------------
 
@@ -243,9 +267,9 @@ quality and to quantify implausible or missing duration.
 
 ### gestational_weeks.csv
 
-**Columns:** **gestational_weeks** (integer: floor of gestational age in
-days / 7), **n** (number of episodes), **pct** (percentage), plus
-metadata.
+**Columns:** **final_outcome_category**, **gestational_weeks** (integer:
+floor of gestational age in days / 7), **n** (number of episodes),
+**pct** (percentage), plus metadata.
 
 **Purpose:** Distribution of gestational age by week. Used for
 gestational-age histograms, preterm/term summaries, and cross-site
@@ -409,22 +433,20 @@ counts, episode length flags), plus metadata.
 
 ### attrition_if_cleanup.csv
 
-**Columns:** Attrition summary when conform-to-validation cleanup is
-applied (records/persons before and after), plus metadata.
+**Columns:** Counts of episodes and people flagged by each cleanup rule
+and retained after cleanup checks, plus metadata.
 
-**Purpose:** Documents impact of optional cleanup (overlap removal, max
-length) when used.
+**Purpose:** Documents cleanup quality checks and potential attrition
+under cleanup rules.
 
 ------------------------------------------------------------------------
 
 ## ZIP archive
 
-After writing all CSVs (and copying log.txt),
 [`exportPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.md)
-creates a ZIP file in the same export directory. The name is of the form
-**`{snapshot_date}-{pkg_version}-{cdm_name}-results.zip`** and contains
-all files in that directory. Use this single archive to share or archive
-a full export.
+writes CSVs only. To create a ZIP archive, run
+`zipExportFolder(exportFolder)` after export (and after PET comparison
+outputs if you want one combined archive).
 
 ## Summary table
 
@@ -437,9 +459,11 @@ a full export.
 | attrition.csv                                 | Pipeline step attrition                      | Audit, cohort flow (when present)       |
 | log.txt                                       | Pipeline log                                 | Audit, debugging                        |
 | age_summary.csv                               | Age-at-start distribution (summary stats)    | Cohort description, feasibility         |
-| age_summary_first_pregnancy.csv               | Age at first pregnancy by outcome            | First-pregnancy age description         |
+| age_summary_first_pregnancy.csv               | Age at first pregnancy start by outcome      | First-pregnancy age description         |
+| age_summary_first_pregnancy_end.csv           | Age at first pregnancy end by outcome        | First-pregnancy end age description     |
 | age_summary_groups.csv                        | Age counts (by year and \<12, \>55)          | Age stratification, boundary checks     |
 | precision_days.csv                            | Density of ESD precision (days)              | Start-date precision, site comparison   |
+| precision_days_denominators.csv               | Precision/GW timing denominators             | Context for precision completeness      |
 | episode_frequency.csv                         | Total episodes, total individuals            | Denominators, site summaries            |
 | pregnancy_frequency.csv                       | Episodes per person (1, 2, 3, …)             | Parity-like distribution                |
 | episode_frequency_summary.csv                 | Summary of episodes per person               | Cohort description                      |
@@ -454,9 +478,9 @@ a full export.
 | observation_period_range.csv                  | Min/max observation period years             | Study window, coverage                  |
 | pregnancy_overlap_counts.csv                  | Overlap summary (n_overlap_true/false, etc.) | Overlap QA                              |
 | missing_dates.csv                             | N and % missing start/end (HIP, PPS, ESD)    | Completeness by episode type            |
-| swapped_dates.csv                             | Count of start \> end (HIP/PPS)              | Date logic QA                           |
+| swapped_dates.csv                             | Count of start \> end (HIP/PPS/ESD)          | Date logic QA                           |
 | outcome_categories_count.csv                  | Outcome counts by algorithm                  | Outcome mix, algorithm agreement        |
 | delivery_mode_summary.csv                     | Delivery mode by outcome                     | Cesarean/vaginal by outcome             |
 | concept_check.csv                             | Concept timing vs episodes                   | Concept QA                              |
 | quality_check_cleanup.csv                     | Cleanup/validation QA                        | Cleanup QA                              |
-| attrition_if_cleanup.csv                      | Attrition when cleanup applied               | Cleanup impact (when present)           |
+| attrition_if_cleanup.csv                      | Cleanup-rule flagged counts                  | Cleanup QA and potential attrition      |

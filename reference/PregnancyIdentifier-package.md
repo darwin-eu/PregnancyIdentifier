@@ -1,7 +1,7 @@
 # PregnancyIdentifier: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
 
-Identify pregnancy episodes in the OMOP CDM, based on the HIPPS
-algorithm described in Smith et al. (2024)
+Identify pregnancy episodes in the Common Data Model based on the
+algorithm described in Smith (2024)
 [doi:10.1093/jamia/ocae195](https://doi.org/10.1093/jamia/ocae195) .
 
 ## See also
@@ -15,8 +15,8 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Maarten van Kessel <m.l.vankessel@erasmusmc.com>
-([ORCID](https://orcid.org/0009-0006-8832-6030))
+**Maintainer**: Adam Black <a.black@erasmusmc.nl>
+([ORCID](https://orcid.org/0000-0001-5576-8701))
 
 Authors:
 
@@ -24,5 +24,5 @@ Authors:
 
 - Julieta Politi ([ORCID](https://orcid.org/0000-0001-7315-034X))
 
-- Adam Black <black@ohdsi.org>
-  ([ORCID](https://orcid.org/0000-0001-5576-8701))
+- Maarten van Kessel <m.l.vankessel@erasmusmc.nl>
+  ([ORCID](https://orcid.org/0009-0006-8832-6030))

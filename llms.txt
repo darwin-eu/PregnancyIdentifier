@@ -71,7 +71,9 @@ separately if you need to re-export to a different folder.
   [PPS](https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html),
   [Merge](https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html),
   [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html),
-  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html).
+  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html),
+  [PET
+  comparison](https://darwin-eu.github.io/PregnancyIdentifier/articles/compareWithPET.html).
 - **Reference:** [pkgdown
   site](https://darwin-eu.github.io/PregnancyIdentifier/).
 - **Issues:** [GitHub
@@ -90,6 +92,8 @@ Apache 2.0.
 - [`comparePregnancyIdentifierWithPET()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/comparePregnancyIdentifierWithPET.md)
   : Compare runPregnancyIdentifier results with the OMOP Pregnancy
   Extension Table (PET)
+- [`compareWithNationalStats()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/compareWithNationalStats.md)
+  : Compare PregnancyIdentifier results with national statistics
 - [`exportPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.md)
   : Export pregnancy results into shareable summary CSVs
 - [`initPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/initPregnancies.md)

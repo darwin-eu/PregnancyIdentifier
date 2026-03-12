@@ -64,8 +64,8 @@ one row per inferred pregnancy episode. Columns include:
 `esd_gestational_age_days_calculated`, `esd_gw_flag`, `esd_gr3m_flag`,
 `esd_outcome_match`, `esd_term_duration_flag`,
 `esd_outcome_concordance_score`, `esd_preterm_status_from_calculation`,
-plus merge/HIPPS metadata (e.g. `recorded_episode_start`,
-`hip_end_date`, `pps_end_date`).
+plus merge/HIPPS metadata (e.g. `merge_episode_start`, `hip_end_date`,
+`pps_end_date`).
 
 ## Details
 
@@ -84,9 +84,9 @@ This function performs the following major steps:
     the merged episodes table and computes final start/end/outcome
     fields.
 
-5.  Filters episodes to retain only those overlapping the requested
-    `startDate`–`endDate` study period, including episodes with missing
-    inferred dates.
+5.  Filters episodes to retain only those with start on/after
+    `startDate` and end on/before `endDate`; episodes with missing
+    inferred dates are retained.
 
 6.  Writes the resulting cohort of identified pregnancy episodes to an
     RDS file (`final_pregnancy_episodes.rds`) in `outputFolder`.

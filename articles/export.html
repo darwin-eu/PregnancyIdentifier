@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -127,8 +127,9 @@ runs so you can track provenance and CDM version.</p>
 <p><strong>Source:</strong> Copied from <code>outputFolder</code>
 (written by <code><a href="../reference/runPps.html">runPps()</a></code>).</p>
 <p><strong>Content:</strong> Counts of pregnancy-related concepts used
-by PPS per concept (e.g. concept_id, concept name, count of
-records).</p>
+by PPS per concept (<code>pps_concept_id</code>,
+<code>pps_concept_name</code>, <code>record_count</code>,
+<code>person_count</code>).</p>
 <p><strong>Purpose:</strong> Describes the PPS concept usage in this
 run. Used to compare concept coverage across sites and to check that
 expected pregnancy concepts are present.</p>
@@ -198,11 +199,10 @@ the range <code>(0, minCellCount)</code> may be replaced with
 </h3>
 <p><strong>Columns:</strong> Summary of
 <strong>age_pregnancy_start</strong> (age in years at pregnancy start):
-<strong>colName</strong>, <strong>min</strong>, <strong>Q25</strong>,
-<strong>median</strong>, <strong>Q75</strong>, <strong>max</strong>,
-<strong>mean</strong>, <strong>sd</strong>, plus
-<strong>cdm_name</strong>, <strong>date_run</strong>,
-<strong>date_export</strong>, <strong>pkg_version</strong>.</p>
+<strong>final_outcome_category</strong>, <strong>n</strong>,
+<strong>min</strong>, <strong>Q25</strong>, <strong>median</strong>,
+<strong>Q75</strong>, <strong>max</strong>, <strong>mean</strong>, plus
+metadata.</p>
 <p><strong>Purpose:</strong> Describes the distribution of maternal age
 at pregnancy start. Used for cohort description, feasibility checks, and
 comparing age distributions across sites or time windows.</p>
@@ -236,6 +236,20 @@ outcome; used for cohort description and feasibility.</p>
 <hr>
 </div>
 <div class="section level3">
+<h3 id="age_summary_first_pregnancy_end-csv">age_summary_first_pregnancy_end.csv<a class="anchor" aria-label="anchor" href="#age_summary_first_pregnancy_end-csv"></a>
+</h3>
+<p><strong>Columns:</strong> <strong>final_outcome_category</strong>,
+<strong>colName</strong>, <strong>min</strong>, <strong>Q25</strong>,
+<strong>median</strong>, <strong>Q75</strong>, <strong>max</strong>,
+<strong>mean</strong>, <strong>sd</strong>, plus metadata. Same
+structure as <code>age_summary_first_pregnancy.csv</code> but summarises
+<strong>age_pregnancy_end</strong> (age at pregnancy end date) instead
+of age at start.</p>
+<p><strong>Purpose:</strong> Age at first pregnancy end, stratified by
+outcome; used for cohort description and feasibility.</p>
+<hr>
+</div>
+<div class="section level3">
 <h3 id="precision_days-csv">precision_days.csv<a class="anchor" aria-label="anchor" href="#precision_days-csv"></a>
 </h3>
 <p><strong>Columns:</strong> <strong>esd_precision_days</strong> (x-axis
@@ -245,6 +259,19 @@ values), <strong>density</strong> (kernel density estimate), plus
 <p><strong>Purpose:</strong> Distribution of ESD start-date precision
 (in days). Used to see how precise inferred start dates are (e.g. mostly
 week-level vs month-level) and to compare precision across sites.</p>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="precision_days_denominators-csv">precision_days_denominators.csv<a class="anchor" aria-label="anchor" href="#precision_days_denominators-csv"></a>
+</h3>
+<p><strong>Columns:</strong> <strong>total_episodes</strong>,
+<strong>episodes_with_precision_days</strong>,
+<strong>pct_with_precision_days</strong>,
+<strong>episodes_with_gw_timing</strong>,
+<strong>pct_with_gw_timing</strong>, plus metadata.</p>
+<p><strong>Purpose:</strong> Denominators for interpreting precision
+outputs (how many episodes had ESD precision and GW timing
+evidence).</p>
 <hr>
 </div>
 <div class="section level3">
@@ -312,10 +339,10 @@ duration.</p>
 <div class="section level3">
 <h3 id="gestational_weeks-csv">gestational_weeks.csv<a class="anchor" aria-label="anchor" href="#gestational_weeks-csv"></a>
 </h3>
-<p><strong>Columns:</strong> <strong>gestational_weeks</strong>
-(integer: floor of gestational age in days / 7), <strong>n</strong>
-(number of episodes), <strong>pct</strong> (percentage), plus
-metadata.</p>
+<p><strong>Columns:</strong> <strong>final_outcome_category</strong>,
+<strong>gestational_weeks</strong> (integer: floor of gestational age in
+days / 7), <strong>n</strong> (number of episodes), <strong>pct</strong>
+(percentage), plus metadata.</p>
 <p><strong>Purpose:</strong> Distribution of gestational age by week.
 Used for gestational-age histograms, preterm/term summaries, and
 cross-site comparison.</p>
@@ -486,23 +513,19 @@ steps.</p>
 <div class="section level3">
 <h3 id="attrition_if_cleanup-csv">attrition_if_cleanup.csv<a class="anchor" aria-label="anchor" href="#attrition_if_cleanup-csv"></a>
 </h3>
-<p><strong>Columns:</strong> Attrition summary when
-conform-to-validation cleanup is applied (records/persons before and
-after), plus metadata.</p>
-<p><strong>Purpose:</strong> Documents impact of optional cleanup
-(overlap removal, max length) when used.</p>
+<p><strong>Columns:</strong> Counts of episodes and people flagged by
+each cleanup rule and retained after cleanup checks, plus metadata.</p>
+<p><strong>Purpose:</strong> Documents cleanup quality checks and
+potential attrition under cleanup rules.</p>
 <hr>
 </div>
 </div>
 <div class="section level2">
 <h2 id="zip-archive">ZIP archive<a class="anchor" aria-label="anchor" href="#zip-archive"></a>
 </h2>
-<p>After writing all CSVs (and copying log.txt),
-<code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code> creates a ZIP file in the same export
-directory. The name is of the form
-<strong><code>{snapshot_date}-{pkg_version}-{cdm_name}-results.zip</code></strong>
-and contains all files in that directory. Use this single archive to
-share or archive a full export.</p>
+<p><code><a href="../reference/exportPregnancies.html">exportPregnancies()</a></code> writes CSVs only. To create a ZIP
+archive, run <code>zipExportFolder(exportFolder)</code> after export
+(and after PET comparison outputs if you want one combined archive).</p>
 </div>
 <div class="section level2">
 <h2 id="summary-table">Summary table<a class="anchor" aria-label="anchor" href="#summary-table"></a>
@@ -556,18 +579,28 @@ share or archive a full export.</p>
 </tr>
 <tr class="even">
 <td>age_summary_first_pregnancy.csv</td>
-<td>Age at first pregnancy by outcome</td>
+<td>Age at first pregnancy start by outcome</td>
 <td>First-pregnancy age description</td>
 </tr>
 <tr class="odd">
+<td>age_summary_first_pregnancy_end.csv</td>
+<td>Age at first pregnancy end by outcome</td>
+<td>First-pregnancy end age description</td>
+</tr>
+<tr class="even">
 <td>age_summary_groups.csv</td>
 <td>Age counts (by year and &lt;12, &gt;55)</td>
 <td>Age stratification, boundary checks</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>precision_days.csv</td>
 <td>Density of ESD precision (days)</td>
 <td>Start-date precision, site comparison</td>
+</tr>
+<tr class="even">
+<td>precision_days_denominators.csv</td>
+<td>Precision/GW timing denominators</td>
+<td>Context for precision completeness</td>
 </tr>
 <tr class="odd">
 <td>episode_frequency.csv</td>
@@ -641,7 +674,7 @@ share or archive a full export.</p>
 </tr>
 <tr class="odd">
 <td>swapped_dates.csv</td>
-<td>Count of start &gt; end (HIP/PPS)</td>
+<td>Count of start &gt; end (HIP/PPS/ESD)</td>
 <td>Date logic QA</td>
 </tr>
 <tr class="even">
@@ -666,8 +699,8 @@ share or archive a full export.</p>
 </tr>
 <tr class="even">
 <td>attrition_if_cleanup.csv</td>
-<td>Attrition when cleanup applied</td>
-<td>Cleanup impact (when present)</td>
+<td>Cleanup-rule flagged counts</td>
+<td>Cleanup QA and potential attrition</td>
 </tr>
 </tbody>
 </table>

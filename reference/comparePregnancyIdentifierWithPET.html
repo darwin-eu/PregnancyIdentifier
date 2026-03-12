@@ -23,7 +23,7 @@ and pregnancy duration distributions."><meta property="og:image" content="https:
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,6 +69,8 @@ and pregnancy duration distributions.</p>
 <span>  <span class="va">exportFolder</span>,</span>
 <span>  <span class="va">petSchema</span>,</span>
 <span>  <span class="va">petTable</span>,</span>
+<span>  startDate <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  endDate <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  minOverlapDays <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  removeWithinSourceOverlaps <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  minCellCount <span class="op">=</span> <span class="fl">5L</span>,</span>
@@ -109,6 +111,20 @@ if it already exists.</p></dd>
 computed from start and end dates in the database via
 <code><a href="https://darwin-eu.github.io/CDMConnector/reference/datediff.html" class="external-link">CDMConnector::datediff()</a></code>; the table need not have a
 <code>gestational_length_in_day</code> column.</p></dd>
+
+
+<dt id="arg-startdate">startDate<a class="anchor" aria-label="anchor" href="#arg-startdate"></a></dt>
+<dd><p><code>Date(1)</code> or <code>NULL</code>. If provided, the PET table is
+filtered to episodes that overlap the study period defined by
+<code>[startDate, endDate]</code>. An episode overlaps if its end date is on or
+after <code>startDate</code> and its start date is on or before <code>endDate</code>.
+Must be before <code>endDate</code>. Default <code>NULL</code> (no date filtering).</p></dd>
+
+
+<dt id="arg-enddate">endDate<a class="anchor" aria-label="anchor" href="#arg-enddate"></a></dt>
+<dd><p><code>Date(1)</code> or <code>NULL</code>. End of the study period.
+Required when <code>startDate</code> is provided and vice versa. Default
+<code>NULL</code>.</p></dd>
 
 
 <dt id="arg-minoverlapdays">minOverlapDays<a class="anchor" aria-label="anchor" href="#arg-minoverlapdays"></a></dt>

@@ -80,8 +80,8 @@ runPregnancyIdentifier(
 # a PET from the algorithm output as in the `insert-mock-pet` chunk and use
 # petTable = "pregnancy_episode".)
 
-# 3) Run the PET comparison (writes summarised result and log to exportFolder; returns nothing)
-comparePregnancyIdentifierWithPET(
+# 3) Run the PET comparison (writes summarised result and log to exportFolder)
+pet_comparison <- comparePregnancyIdentifierWithPET(
   cdm = cdm,
   outputFolder = outputDir,
   exportFolder = exportFolder,

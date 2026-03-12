@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -241,7 +241,7 @@ One date is chosen per episode and stored as
 <strong>When ESD has no inferred start</strong>: The start is set to
 <strong>inferred_episode_end − max_term</strong>, where
 <strong>max_term</strong> is the maximum gestational days for the chosen
-outcome category from the Matcho term-duration table (e.g. 301 days for
+outcome category from the Matcho term-duration table (e.g. 308 days for
 live birth). So the start is back-calculated from the final end and the
 outcome’s expected maximum duration.</li>
 </ul>
@@ -299,7 +299,7 @@ tables).</li>
 <strong>startDate</strong>, <strong>endDate</strong> — Study window
 for filtering concept dates.</li>
 <li>
-<strong>logger</strong> — Optional log4r logger.</li>
+<strong>logger</strong> — Required <code>log4r</code> logger.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -456,13 +456,13 @@ before merging back to HIPPS metadata.</td>
 </h2>
 <p>ESD is normally run as step 5 of
 <code><a href="../reference/runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code>; step 6 is export (shareable CSVs
-to <code>exportFolder</code>, default <code>outputDir/export</code>). To
-run ESD alone (e.g. for debugging), ensure <code>outputDir</code>
+to <code>exportFolder</code>, default <code>outputFolder/export</code>).
+To run ESD alone (e.g. for debugging), ensure <code>outputFolder</code>
 already contains <code>hipps_episodes.rds</code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://darwin-eu.github.io/PregnancyIdentifier/" class="external-link">PregnancyIdentifier</a></span><span class="op">)</span></span>
 <span><span class="va">cdm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mockPregnancyCdm.html">mockPregnancyCdm</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co"># ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...</span></span>
+<span><span class="co"># ... run initPregnancies, runHip, runPps, mergeHipps so that outputFolder contains hipps_episodes.rds ...</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/runEsd.html">runEsd</a></span><span class="op">(</span></span>
 <span>  cdm          <span class="op">=</span> <span class="va">cdm</span>,</span>

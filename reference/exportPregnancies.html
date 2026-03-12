@@ -4,7 +4,7 @@ outputFolder; see runPregnancyIdentifier()), generates a set of
 de-identified summary tables (counts, age summaries, timing distributions,
 outcome counts, and date completeness checks), and writes them to exportFolder.
 runPregnancyIdentifier() runs this step automatically and writes to
-exportFolder (default file.path(outputDir, "export")); use
+exportFolder (default file.path(outputFolder, "export")); use
 exportPregnancies() when you need to re-export or write to a different
 directory. Does not create a ZIP file; use zipExportFolder() after export
 (and optionally after writing PET comparison tables to the same folder) to create
@@ -13,7 +13,7 @@ outputFolder; see runPregnancyIdentifier()), generates a set of
 de-identified summary tables (counts, age summaries, timing distributions,
 outcome counts, and date completeness checks), and writes them to exportFolder.
 runPregnancyIdentifier() runs this step automatically and writes to
-exportFolder (default file.path(outputDir, "export")); use
+exportFolder (default file.path(outputFolder, "export")); use
 exportPregnancies() when you need to re-export or write to a different
 directory. Does not create a ZIP file; use zipExportFolder() after export
 (and optionally after writing PET comparison tables to the same folder) to create
@@ -25,7 +25,7 @@ an archive.'><meta property="og:image" content="https://darwin-eu-dev.github.io/
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,7 @@ an archive.'><meta property="og:image" content="https://darwin-eu-dev.github.io/
 de-identified summary tables (counts, age summaries, timing distributions,
 outcome counts, and date completeness checks), and writes them to <code>exportFolder</code>.
 <code><a href="runPregnancyIdentifier.html">runPregnancyIdentifier()</a></code> runs this step automatically and writes to
-<code>exportFolder</code> (default <code>file.path(outputDir, "export")</code>); use
+<code>exportFolder</code> (default <code>file.path(outputFolder, "export")</code>); use
 <code>exportPregnancies()</code> when you need to re-export or write to a different
 directory. Does not create a ZIP file; use <code><a href="zipExportFolder.html">zipExportFolder()</a></code> after export
 (and optionally after writing PET comparison tables to the same folder) to create

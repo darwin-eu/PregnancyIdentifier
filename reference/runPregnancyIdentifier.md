@@ -39,7 +39,7 @@ runPregnancyIdentifier(
 - exportFolder:
 
   (\`character(1)\`) Directory where \*\*shareable aggregated CSV
-  files\*\* are written. Required. Defaults to \`file.path(outputFolder,
+  files\*\* are written. Optional; defaults to \`file.path(outputFolder,
   "export")\`. These CSVs can be used as input to the Shiny app. With
   \`conformToValidation = "both"\`, results are written to
   \`exportFolder/conform_false\` and \`exportFolder/conform_true\`.
@@ -88,9 +88,11 @@ runPregnancyIdentifier(
 Invisibly returns \`NULL\`. Side effects: - Adds/updates tables inside
 \`cdm\` (e.g., \`cdm\$preg_hip_records\`, concept tables, and
 intermediate algorithm tables). - Writes person-level and episode-level
-data (RDS, logs) under \`outputFolder\`. - Writes shareable aggregated
-CSV files to \`exportFolder\` (or \`exportFolder/conform_false\` and
-\`exportFolder/conform_true\` when \`conformToValidation = "both"\`).
+data (RDS, logs) under \`outputFolder\`. - Writes incidence, prevalence,
+and characteristics CSV files to \`exportFolder\`. - Writes shareable
+aggregated CSV files to \`exportFolder\` (or
+\`exportFolder/conform_false\` and \`exportFolder/conform_true\` when
+\`conformToValidation = "both"\`).
 
 ## Details
 
@@ -101,6 +103,9 @@ based on HIP rules, 3) PPS episode identification (\`runPps()\`):
 identifies episodes based on PPS rules, 4) merge (\`mergeHipps()\`):
 merges HIP and PPS into combined HIPPS episodes, 5) ESD refinement
 (\`runEsd()\`): derives inferred pregnancy start/precision and enriches
-merged episodes, 6) export (\`exportPregnancies()\`): writes shareable
-aggregated CSV files to \`exportFolder\` (with optional small-cell
-suppression).
+merged episodes, 6) incidence and prevalence
+(\`computeIncidencePrevalence()\`): constructs outcome-specific cohort
+tables, generates denominator cohorts stratified by age group, and
+estimates incidence, period prevalence, and cohort characteristics, 7)
+export (\`exportPregnancies()\`): writes shareable aggregated CSV files
+to \`exportFolder\` (with optional small-cell suppression).

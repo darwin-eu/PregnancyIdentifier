@@ -1,7 +1,7 @@
 # Create Initial Pregnancy Table
 
-Get initial cohort based on HIP concepts for women who are age 15 to 55
-at the time of pregnancy
+Get initial cohort based on HIP concepts for women who are within
+specific age at the time of the pregnancy related record
 
 ## Usage
 
@@ -10,7 +10,7 @@ initPregnancies(
   cdm,
   startDate = as.Date("1900-01-01"),
   endDate = Sys.Date(),
-  ageBounds = c(15L, 56L),
+  ageBounds = c(15L, 55L),
   logger,
   outputFolder = NULL
 )
@@ -33,7 +33,7 @@ initPregnancies(
 - ageBounds:
 
   The upper and lower bounds for age at pregnancy end date represented
-  using a length 2 integer vector. By default this will be c(15, 56) and
+  using a length 2 integer vector. By default this will be c(15, 55) and
   will include anyone \>= 15 and \< 56.
 
 - logger:

@@ -71,7 +71,9 @@ separately if you need to re-export to a different folder.
   [PPS](https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html),
   [Merge](https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html),
   [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html),
-  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html).
+  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html),
+  [PET
+  comparison](https://darwin-eu.github.io/PregnancyIdentifier/articles/compareWithPET.html).
 - **Reference:** [pkgdown
   site](https://darwin-eu.github.io/PregnancyIdentifier/).
 - **Issues:** [GitHub

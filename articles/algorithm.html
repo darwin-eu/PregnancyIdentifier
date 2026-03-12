@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -193,6 +193,21 @@ inference before merging back to HIPPS.</td>
 <code>outputFolder/export</code>). See the <a href="export.html">Export
 vignette</a> for file names, columns, and analysis use.</td>
 </tr>
+<tr class="even">
+<td><code>export/{date}_{cdm_name}_incidence.csv</code></td>
+<td>Incidence estimates (overall and yearly), written by
+<code>computeIncidencePrevalence()</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>export/{date}_{cdm_name}_prevalence.csv</code></td>
+<td>Period prevalence estimates (overall and yearly), written by
+<code>computeIncidencePrevalence()</code>.</td>
+</tr>
+<tr class="even">
+<td><code>export/{date}_{cdm_name}_characteristics.csv</code></td>
+<td>Cohort characteristics stratified by age group and outcome, written
+by <code>computeIncidencePrevalence()</code>.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -226,6 +241,15 @@ precision, harmonizes end and outcome from HIP vs PPS, and writes
 <code>final_pregnancy_episodes.rds</code>. When
 <code>conformToValidation = TRUE</code>, episode output is modified to
 remove overlapping episodes and episodes longer than 308 days.</li>
+<li>
+<strong>computeIncidencePrevalence</strong> — Constructs
+outcome-specific cohort tables (HIP-only, PPS-only, and combined HIPPS
+windows), generates denominator cohorts stratified by age group, and
+estimates incidence, period prevalence, and cohort characteristics.
+Writes <code>{date}_{cdm_name}_incidence.csv</code>,
+<code>{date}_{cdm_name}_prevalence.csv</code>, and
+<code>{date}_{cdm_name}_characteristics.csv</code> to
+<code>exportFolder</code>.</li>
 <li>
 <strong>exportPregnancies</strong> — Reads
 <code>final_pregnancy_episodes.rds</code> and writes shareable CSVs to
@@ -367,7 +391,7 @@ timing (GW and/or GR3m) within the merged evidence window, the start is
 inferred from that (e.g. concept_date − 7×weeks for GW, or GR3m
 midpoint). When ESD has no inferred start, it is set to
 <strong>final_episode_end_date − max_term</strong> (Matcho term for the
-chosen outcome, e.g. 301 days for live birth).</li>
+chosen outcome, e.g. 308 days for live birth).</li>
 <li>
 <strong>final_episode_end_date</strong> — Best estimate of pregnancy
 end for this episode. <strong>Not</strong> taken from the merged
@@ -442,7 +466,7 @@ both algorithms contributed to the episode, and one is NA for one-sided
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="op">-</span><span class="st">"type_concept_id"</span>, <span class="op">-</span><span class="st">"domain"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">start_date</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># Source:     SQL [?? x 6]</span></span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.2//tmp/Rtmp1lEM4j/file231e8aad5eb.duckdb]</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># Database:   DuckDB 1.4.4 [unknown@Linux 6.14.0-1017-azure:R 4.5.3//tmp/Rtmp4SGXBp/file26e9472352a9.duckdb]</span></span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># Ordered by: start_date</span></span></span>
 <span><span class="co">#&gt;   person_id observation_concept_id start_date end_date observation_concept_name </span></span>
 <span><span class="co">#&gt;       <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>                  <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                    </span></span>

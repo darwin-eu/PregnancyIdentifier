@@ -210,7 +210,7 @@ The algorithm:
     missing-outcome penalty) and best by `pps_episode_id` (no penalty),
     combine them, then **recompute** `duplicated_hip_episode_id` and
     `duplicated_pps_episode_id` on this set.
-2.  **Up to 4 rounds**: Again pick best by `hip_episode_id` among rows
+2.  **Up to 10 rounds**: Again pick best by `hip_episode_id` among rows
     still with `duplicated_hip_episode_id == 1`, and best by
     `pps_episode_id` among rows still with
     `duplicated_pps_episode_id == 1`; recombine and **recompute** dup

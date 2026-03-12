@@ -122,7 +122,7 @@ on the merged row; **merge_episode_end** is not used for the final end.
 - **When ESD has no inferred start**: The start is set to
   **inferred_episode_end − max_term**, where **max_term** is the maximum
   gestational days for the chosen outcome category from the Matcho
-  term-duration table (e.g. 301 days for live birth). So the start is
+  term-duration table (e.g. 308 days for live birth). So the start is
   back-calculated from the final end and the outcome’s expected maximum
   duration.
 
@@ -159,7 +159,7 @@ on the row; ESD never uses **merge_episode_end** for the reported end.
   by
   [`mergeHipps()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/mergeHipps.md)).
 - **startDate**, **endDate** — Study window for filtering concept dates.
-- **logger** — Optional log4r logger.
+- **logger** — Required `log4r` logger.
 
 ## Two types of gestational timing evidence
 
@@ -259,13 +259,13 @@ as category `week_poor-support`).
 ESD is normally run as step 5 of
 [`runPregnancyIdentifier()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/runPregnancyIdentifier.md);
 step 6 is export (shareable CSVs to `exportFolder`, default
-`outputDir/export`). To run ESD alone (e.g. for debugging), ensure
-`outputDir` already contains `hipps_episodes.rds`:
+`outputFolder/export`). To run ESD alone (e.g. for debugging), ensure
+`outputFolder` already contains `hipps_episodes.rds`:
 
 ``` r
 library(PregnancyIdentifier)
 cdm <- mockPregnancyCdm()
-# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
+# ... run initPregnancies, runHip, runPps, mergeHipps so that outputFolder contains hipps_episodes.rds ...
 
 runEsd(
   cdm          = cdm,

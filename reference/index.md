@@ -5,6 +5,8 @@
 - [`comparePregnancyIdentifierWithPET()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/comparePregnancyIdentifierWithPET.md)
   : Compare runPregnancyIdentifier results with the OMOP Pregnancy
   Extension Table (PET)
+- [`compareWithNationalStats()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/compareWithNationalStats.md)
+  : Compare PregnancyIdentifier results with national statistics
 - [`exportPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/exportPregnancies.md)
   : Export pregnancy results into shareable summary CSVs
 - [`initPregnancies()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/initPregnancies.md)

@@ -18,9 +18,9 @@ viewResults(
 
 - dataFolder:
 
-  A folder where the exported zip files with the results are stored. Zip
-  files containing results from multiple databases can be placed in the
-  same folder.
+  A folder containing either exported zip files or subfolders with
+  exported CSV files. Results from multiple databases can be placed in
+  the same folder.
 
 - makePublishable:
 
