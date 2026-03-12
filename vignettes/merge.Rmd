@@ -146,7 +146,7 @@ After picking the best match **by HIP** (`hip_episode_id`), some `pps_episode_id
 The algorithm:
 
 1. **Initial pass**: From `dupDf`, pick best by `hip_episode_id` (with missing-outcome penalty) and best by `pps_episode_id` (no penalty), combine them, then **recompute** `duplicated_hip_episode_id` and `duplicated_pps_episode_id` on this set.
-2. **Up to 4 rounds**: Again pick best by `hip_episode_id` among rows still with `duplicated_hip_episode_id == 1`, and best by `pps_episode_id` among rows still with `duplicated_pps_episode_id == 1`; recombine and **recompute** dup flags. After each round, the rows that are **no longer** duplicated (dup flags 0 or NA) are retained for the final table.
+2. **Up to 10 rounds**: Again pick best by `hip_episode_id` among rows still with `duplicated_hip_episode_id == 1`, and best by `pps_episode_id` among rows still with `duplicated_pps_episode_id == 1`; recombine and **recompute** dup flags. After each round, the rows that are **no longer** duplicated (dup flags 0 or NA) are retained for the final table.
 3. **Final set**: `baseKeep` (unchanged) plus all rows that are non-duplicated after the last round, then `distinct()`.
 
 So the loop repeatedly reduces duplicate HIP and PPS ids until no overlap row is duplicated on either side, then merges those resolved rows with the non-duplicate rows.

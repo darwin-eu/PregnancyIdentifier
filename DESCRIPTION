@@ -1,7 +1,7 @@
 Package: PregnancyIdentifier
 Type: Package
 Title: Identifies Pregnancy Episodes in the OMOP (Observational Medical Outcomes Partnership) CDM (Common Data Model)
-Version: 3.1.2
+Version: 3.2.0
 Authors@R: c(
     person("Aniek", "Markus", role = "aut", comment = c(ORCID = "0000-0001-5779-4794")),
     person("Julieta", "Politi", role = "aut", comment = c(ORCID = "0000-0001-7315-034X")),
@@ -18,13 +18,15 @@ Config/testthat/edition: 3
 Config/testthat/parallel: true
 Depends:
     R (>= 4.1.0)
-Imports: 
+Imports:
     CDMConnector,
+    CohortCharacteristics,
     dplyr,
     readxl,
     lubridate,
     DBI,
     dbplyr,
+    IncidencePrevalence,
     purrr,
     stringr,
     TestGenerator,

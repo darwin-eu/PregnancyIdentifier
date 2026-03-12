@@ -133,6 +133,14 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 
 ---
 
+## age_summary_first_pregnancy_end.csv
+
+**Columns:** **final_outcome_category**, **colName**, **min**, **Q25**, **median**, **Q75**, **max**, **mean**, **sd**, plus metadata. Same structure as `age_summary_first_pregnancy.csv` but summarises **age_pregnancy_end** (age at pregnancy end date) instead of age at start.
+
+**Purpose:** Age at first pregnancy end, stratified by outcome; used for cohort description and feasibility.
+
+---
+
 ## precision_days.csv
 
 **Columns:** **esd_precision_days** (x-axis values), **density** (kernel density estimate), plus **cdm_name**, **date_run**, **date_export**, **pkg_version**.
@@ -324,7 +332,8 @@ All of the following are computed from `final_pregnancy_episodes.rds` and share 
 | attrition.csv | Pipeline step attrition | Audit, cohort flow (when present) |
 | log.txt | Pipeline log | Audit, debugging |
 | age_summary.csv | Age-at-start distribution (summary stats) | Cohort description, feasibility |
-| age_summary_first_pregnancy.csv | Age at first pregnancy by outcome | First-pregnancy age description |
+| age_summary_first_pregnancy.csv | Age at first pregnancy start by outcome | First-pregnancy age description |
+| age_summary_first_pregnancy_end.csv | Age at first pregnancy end by outcome | First-pregnancy end age description |
 | age_summary_groups.csv | Age counts (by year and &lt;12, &gt;55) | Age stratification, boundary checks |
 | precision_days.csv | Density of ESD precision (days) | Start-date precision, site comparison |
 | precision_days_denominators.csv | Precision/GW timing denominators | Context for precision completeness |

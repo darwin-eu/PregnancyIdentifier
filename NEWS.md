@@ -1,4 +1,34 @@
-# PregnancyIdentifier 3.1.2
+# PregnancyIdentifier 3.2.0
+
+## Shiny app - New features
+
+* **National statistics comparison tab:** New sidebar tab that compares
+  PregnancyIdentifier database results with published national statistics
+  across 12 European countries (Croatia, Denmark, Finland, France, Germany,
+  Hungary, Netherlands, Norway, Portugal, Spain, Sweden, UK). The tab contains
+  five subtabs:
+  - **Overview:** gt summary table of all national indicators (birth rates,
+    maternal age, live births, foetal mortality) pivoted by country, with
+    country/year picker filters and Word (.docx) download.
+  - **Gestational Duration:** Side-by-side comparison of gestational-age bin
+    distributions (% of live births per bin) between database results and
+    national statistics. Bins are harmonised across sources (<32, 32-36,
+    37-41, >=42 weeks). Includes gt table and grouped bar chart
+    (ggplot2/plotly) with PNG download.
+  - **Delivery Mode:** Comparison of cesarean vs. vaginal delivery rates
+    between database results and national statistics. Includes gt table and
+    stacked bar chart with PNG download.
+  - **Birth Rates & Live Births:** Three sub-subtabs showing crude birth rate,
+    live births per year, and foetal mortality rate across countries and years
+    (all with plotly rendering and PNG download).
+  - **Raw Data:** Filterable DT table of all parsed national statistics with
+    CSV download.
+
+  All plots use ggplot2 rendered via `plotly::ggplotly()` with configurable
+  height/width/dpi inputs for PNG download. All gt tables support Word (.docx)
+  export. National statistics data sourced from
+  `National_Statistics_Obj2_v2.csv` (bundled in `inst/shiny/`). European
+  number formatting (dots as thousands separators) is handled automatically.
 
 ## Bug fix
 
@@ -24,8 +54,8 @@
   PregnancyIdentifier package versions. Users select an old and new version to
   see computed episode/person count deltas (with N and %) alongside detailed
   markdown explanations of algorithmic changes driving those differences.
-  Expanded to 28 pre-written version-pair explanations covering all
-  consecutive versions from v0.1.0 through v3.1.2 plus key jump comparisons.
+  Expanded to 31 pre-written version-pair explanations covering all
+  consecutive versions from v0.1.0 through v3.2.0 plus key jump comparisons.
   Fixed version dropdown rendering issue where selectize.js failed to display
   all options due to a race condition with `updateSelectInput`.
 

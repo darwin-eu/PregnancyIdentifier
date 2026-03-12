@@ -60,7 +60,7 @@ ESD sets **final_episode_start_date** (inferred_episode_start), **final_episode_
 ## Final start date
 
 - **When ESD has gestational timing evidence (GW and/or GR3m)** within the merged evidence window: The start is inferred from that evidence (see [Two types of gestational timing evidence](#two-types-of-gestational-timing-evidence)) — e.g. concept_date − 7×weeks for a “gestation 18 weeks” concept, or the midpoint of the GR3m intersection. One date is chosen per episode and stored as **inferred_episode_start**.
-- **When ESD has no inferred start**: The start is set to **inferred_episode_end − max_term**, where **max_term** is the maximum gestational days for the chosen outcome category from the Matcho term-duration table (e.g. 301 days for live birth). So the start is back-calculated from the final end and the outcome’s expected maximum duration.
+- **When ESD has no inferred start**: The start is set to **inferred_episode_end − max_term**, where **max_term** is the maximum gestational days for the chosen outcome category from the Matcho term-duration table (e.g. 308 days for live birth). So the start is back-calculated from the final end and the outcome’s expected maximum duration.
 
 ## Final end date and outcome category
 

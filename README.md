@@ -29,11 +29,11 @@ events such as live birth, gestational week 12, delivery procedure,
 miscarriage, etc. **PregnancyIdentifier** turns pregnancy-related codes
 into:
 
-- **One row per pregnancy episode**
-- **Inferred start and end dates** (and precision) from gestational
-  timing evidence.
-- **Standard outcome categories** (LB, SB, AB, SA, ECT, DELIV, PREG) you
-  can use in analyses or exports.
+-   **One row per pregnancy episode**
+-   **Inferred start and end dates** (and precision) from gestational
+    timing evidence.
+-   **Standard outcome categories** (LB, SB, AB, SA, ECT, DELIV, PREG)
+    you can use in analyses or exports.
 
 The pipeline combines outcome-anchored episodes (HIP), timing-anchored
 episodes (PPS), merges them (HIPPS), then refines start dates (ESD)—so
@@ -81,17 +81,19 @@ separately if you need to re-export to a different folder.
 
 ## Documentation
 
-- **Vignettes:** [Pipeline
-  overview](https://darwin-eu.github.io/PregnancyIdentifier/articles/algorithm.html),
-  [HIP](https://darwin-eu.github.io/PregnancyIdentifier/articles/hip.html),
-  [PPS](https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html),
-  [Merge](https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html),
-  [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html),
-  [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html).
-- **Reference:** [pkgdown
-  site](https://darwin-eu.github.io/PregnancyIdentifier/).
-- **Issues:** [GitHub
-  issues](https://github.com/darwin-eu/PregnancyIdentifier/issues).
+-   **Vignettes:** [Pipeline
+    overview](https://darwin-eu.github.io/PregnancyIdentifier/articles/algorithm.html),
+    [HIP](https://darwin-eu.github.io/PregnancyIdentifier/articles/hip.html),
+    [PPS](https://darwin-eu.github.io/PregnancyIdentifier/articles/pps.html),
+    [Merge](https://darwin-eu.github.io/PregnancyIdentifier/articles/merge.html),
+    [ESD](https://darwin-eu.github.io/PregnancyIdentifier/articles/esd.html),
+    [Export](https://darwin-eu.github.io/PregnancyIdentifier/articles/export.html),
+    [PET
+    comparison](https://darwin-eu.github.io/PregnancyIdentifier/articles/compareWithPET.html).
+-   **Reference:** [pkgdown
+    site](https://darwin-eu.github.io/PregnancyIdentifier/).
+-   **Issues:** [GitHub
+    issues](https://github.com/darwin-eu/PregnancyIdentifier/issues).
 
 ------------------------------------------------------------------------
 
