@@ -157,8 +157,8 @@ DBI::dbWriteTable(
 # a PET from the algorithm output as in the `insert-mock-pet` chunk and use
 # petTable = "pregnancy_episode".)
 
-# 3) Run the PET comparison (writes summarised result and log to exportFolder; returns nothing)
-comparePregnancyIdentifierWithPET(
+# 3) Run the PET comparison (writes summarised result and log to exportFolder)
+pet_comparison <- comparePregnancyIdentifierWithPET(
   cdm = cdm,
   outputFolder = outputDir,
   exportFolder = exportFolder,
@@ -185,7 +185,7 @@ Optional: if `removeWithinSourceOverlaps = TRUE`, overlapping episodes within PE
 
 # Outputs generated
 
-The function writes a **single CSV** in \code{omopgenerics} SummarisedResult format to \code{outputFolder} (\code{pet_comparison_summarised_result.csv}) and returns nothing. Re-import it with \code{omopgenerics::importSummarisedResult()} and display with \code{visOmopResults::visTable()}:
+The function writes a **single CSV** in \code{omopgenerics} SummarisedResult format to \code{exportFolder} (\code{pet_comparison_summarised_result.csv}) and returns nothing. Re-import it with \code{omopgenerics::importSummarisedResult()} and display with \code{visOmopResults::visOmopTable()}:
 
 ```{r import-and-vis, message=FALSE, warning=FALSE}
 # Display as a gt table (optional: requires visOmopResults)

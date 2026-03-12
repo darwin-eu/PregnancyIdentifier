@@ -81,7 +81,7 @@ So the final end and outcome are always one of the two algorithm values on the r
 - **cdm** — CDM reference (for concept and domain tables).
 - **outputFolder** — Directory containing `hipps_episodes.rds` (produced by `mergeHipps()`).
 - **startDate**, **endDate** — Study window for filtering concept dates.
-- **logger** — Optional log4r logger.
+- **logger** — Required `log4r` logger.
 
 # Two types of gestational timing evidence
 
@@ -127,12 +127,12 @@ When **both** GW and GR3m evidence exist, ESD checks whether each GW-extrapolate
 
 # Running ESD
 
-ESD is normally run as step 5 of `runPregnancyIdentifier()`; step 6 is export (shareable CSVs to `exportFolder`, default `outputDir/export`). To run ESD alone (e.g. for debugging), ensure `outputDir` already contains `hipps_episodes.rds`:
+ESD is normally run as step 5 of `runPregnancyIdentifier()`; step 6 is export (shareable CSVs to `exportFolder`, default `outputFolder/export`). To run ESD alone (e.g. for debugging), ensure `outputFolder` already contains `hipps_episodes.rds`:
 
 ```{r, eval=FALSE}
 library(PregnancyIdentifier)
 cdm <- mockPregnancyCdm()
-# ... run initPregnancies, runHip, runPps, mergeHipps so that outputDir contains hipps_episodes.rds ...
+# ... run initPregnancies, runHip, runPps, mergeHipps so that outputFolder contains hipps_episodes.rds ...
 
 runEsd(
   cdm          = cdm,

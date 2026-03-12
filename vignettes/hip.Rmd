@@ -99,7 +99,7 @@ Interpretation of categories:
 library(PregnancyIdentifier)
 cdm <- mockPregnancyCdm()
 logger <- makeLogger("hip_output")
-cdm <- initPregnancies(cdm, startDate = as.Date("2000-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 56L), logger = logger)
+cdm <- initPregnancies(cdm, startDate = as.Date("2000-01-01"), endDate = Sys.Date(), ageBounds = c(15L, 55L), logger = logger)
 
 cdm <- runHip(
   cdm,
