@@ -492,14 +492,15 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::ungroup()
   }
 
-  # Non-overlapping bins: [lower, upper) in integer weeks → labels 12-27, 28-31, 32-36, etc.
-  binnedLevels <- c("<12", "12-27", "28-31", "32-36", "37-41", "42-43", "44-49", ">=50")
+  # Non-overlapping bins: [lower, upper) in integer weeks
+  binnedLevels <- c("<12", "12-27", "28-31", "32-36", "37-38", "39-41", "42-43", "44-49", ">=50")
   gestationalWeeksBinned <- rbind(
     summariseGestationalWeeks(gestationalWeeksForBins, 0, 12, "<12"),
     summariseGestationalWeeks(gestationalWeeksForBins, 12, 28, "12-27"),
     summariseGestationalWeeks(gestationalWeeksForBins, 28, 32, "28-31"),
     summariseGestationalWeeks(gestationalWeeksForBins, 32, 37, "32-36"),
-    summariseGestationalWeeks(gestationalWeeksForBins, 37, 42, "37-41"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 37, 39, "37-38"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 39, 42, "39-41"),
     summariseGestationalWeeks(gestationalWeeksForBins, 42, 44, "42-43"),
     summariseGestationalWeeks(gestationalWeeksForBins, 44, 50, "44-49"),
     summariseGestationalWeeks(gestationalWeeksForBins, 50, maxWeeks, ">=50")
@@ -684,6 +685,9 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   if (exists("ageSummaryFirstPregnancy", envir = .GlobalEnv)) {
     ageSummaryFirstPregnancy <- get("ageSummaryFirstPregnancy", envir = .GlobalEnv)
   }
+  if (exists("ageSummaryFirstPregnancyEnd", envir = .GlobalEnv)) {
+    ageSummaryFirstPregnancyEnd <- get("ageSummaryFirstPregnancyEnd", envir = .GlobalEnv)
+  }
   if (exists("ageSummaryGroups", envir = .GlobalEnv)) {
     ageSummaryGroups <- get("ageSummaryGroups", envir = .GlobalEnv)
   }
@@ -723,8 +727,9 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   has_concept_counts <- has_esd_concepts || has_hip_concepts || has_pps_concepts
   has_age_summary <- nrow(ageSummaryRaw) > 0
   has_age_first_pregnancy <- exists("ageSummaryFirstPregnancy") && is.data.frame(ageSummaryFirstPregnancy) && nrow(ageSummaryFirstPregnancy) > 0
+  has_age_first_pregnancy_end <- exists("ageSummaryFirstPregnancyEnd") && is.data.frame(ageSummaryFirstPregnancyEnd) && nrow(ageSummaryFirstPregnancyEnd) > 0
   has_age_groups <- exists("ageSummaryGroups") && is.data.frame(ageSummaryGroups) && nrow(ageSummaryGroups) > 0
-  has_age <- has_age_summary || has_age_first_pregnancy || has_age_groups
+  has_age <- has_age_summary || has_age_first_pregnancy || has_age_first_pregnancy_end || has_age_groups
   has_pet_comparison_sr <- exists("petComparisonSummarisedResult") && !is.null(petComparisonSummarisedResult) && nrow(petComparisonSummarisedResult) > 0
   has_pet_unmatched_lsc <- exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0
 
@@ -740,6 +745,14 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
                                           difference_explanation = character(0))
     has_version_diff <- FALSE
   }
+
+  # National statistics comparison
+  natlStatsPath <- file.path(getwd(), "National_Statistics_Obj2_v2.csv")
+  if (!file.exists(natlStatsPath)) {
+    natlStatsPath <- system.file("shiny", "National_Statistics_Obj2_v2.csv",
+                                  package = "PregnancyIdentifier")
+  }
+  has_national_stats <- file.exists(natlStatsPath) && nzchar(natlStatsPath)
 
   # Legacy PET comparison tables
   petComparisonSpec <- list(

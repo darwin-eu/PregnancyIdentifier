@@ -349,6 +349,52 @@ extract_pet_only_hip_categories_from_sr <- function(sr) {
     dplyr::rename(category = "variable_level")
 }
 
+#' Extract delivery mode summary from summarised result.
+#' Returns a data.frame with columns: cdm_name, group, period, n, n_cesarean, n_vaginal, n_known, pct_cesarean, pct_vaginal
+extract_delivery_mode_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "delivery_mode") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  wide <- rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("n", "n_cesarean", "n_vaginal", "n_known", "pct_cesarean", "pct_vaginal")),
+                                ~ suppressWarnings(as.numeric(.x))))
+  # Parse "group:period" from variable_level
+  wide %>%
+    dplyr::mutate(
+      group_raw = sub(":.*$", "", .data$variable_level),
+      period = sub("^[^:]+:", "", .data$variable_level),
+      group = dplyr::case_when(
+        .data$group_raw == "matched" ~ "Matched",
+        .data$group_raw == "algorithm_only" ~ "HIPPS only",
+        TRUE ~ .data$group_raw
+      )
+    ) %>%
+    dplyr::select("cdm_name", "group", "period", dplyr::any_of(c("n", "n_cesarean", "n_vaginal", "n_known", "pct_cesarean", "pct_vaginal")))
+}
+
+#' Extract unmatched PET boundary metrics (first/last year of study period).
+#' Returns a data.frame with columns: cdm_name, variable_level, n, pct, boundary_date
+extract_pet_only_boundary_metrics_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "pet_only_boundary_metrics") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(
+      n = suppressWarnings(as.numeric(.data$n)),
+      pct = suppressWarnings(as.numeric(.data$pct))
+    )
+}
+
 # ---- Main PET comparison module ----
 petComparisonUI <- function(id) {
   ns <- NS(id)
@@ -503,6 +549,14 @@ petComparisonUI <- function(id) {
       h4("Outcome distribution by matching group"),
       plotly::plotlyOutput(ns("outcome_plot"), height = "450px") %>% withSpinner(),
       DT::DTOutput(ns("outcome_table")) %>% withSpinner(),
+      hr(),
+      h4("Delivery mode by matching group"),
+      p("Cesarean vs vaginal delivery mode for matched and HIPPS-only algorithm episodes, overall and by year."),
+      uiOutput(ns("delivery_mode_ui")),
+      hr(),
+      h4("Study period boundary analysis of unmatched PET episodes"),
+      p("Proportion of unmatched PET episodes near the study period boundaries, which may indicate episodes that lack algorithm coverage due to data truncation."),
+      uiOutput(ns("boundary_metrics_ui")),
       hr(),
       h4("HIP/PPS concept presence in unmatched PET episodes"),
       p("How many PET-only episodes contain HIP (pregnancy record) or PPS (pregnancy-related condition) concepts within their date range."),
@@ -861,6 +915,144 @@ petComparisonServer <- function(id) {
       if (nrow(d) == 0) return(NULL)
       DT::datatable(d, rownames = FALSE, options = list(dom = "t", pageLength = 30),
                     colnames = c("Group", "Outcome", "N", "%"))
+    })
+
+    # Delivery mode summary
+    delivery_mode_data <- extract_delivery_mode_from_sr(result)
+
+    output$delivery_mode_ui <- renderUI({
+      db <- chosen_unmatched_db()
+      if (is.null(delivery_mode_data) || is.null(db)) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No delivery mode data available. The algorithm output may not include delivery mode flags."
+        ))
+      }
+      d <- delivery_mode_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(d) == 0) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No delivery mode data for selected database."
+        ))
+      }
+
+      # Overall summary table
+      overall <- d %>%
+        dplyr::filter(.data$period == "overall") %>%
+        dplyr::mutate(
+          n = format(round(.data$n), big.mark = ","),
+          n_cesarean = format(round(.data$n_cesarean), big.mark = ","),
+          n_vaginal = format(round(.data$n_vaginal), big.mark = ","),
+          n_known = format(round(.data$n_known), big.mark = ","),
+          pct_cesarean = paste0(round(.data$pct_cesarean, 1), "%"),
+          pct_vaginal = paste0(round(.data$pct_vaginal, 1), "%")
+        ) %>%
+        dplyr::select("group", "n", "n_cesarean", "pct_cesarean", "n_vaginal", "pct_vaginal", "n_known")
+
+      # By-year table
+      by_year <- d %>%
+        dplyr::filter(.data$period != "overall") %>%
+        dplyr::arrange(.data$group, .data$period) %>%
+        dplyr::mutate(
+          n = format(round(.data$n), big.mark = ","),
+          n_cesarean = format(round(.data$n_cesarean), big.mark = ","),
+          n_vaginal = format(round(.data$n_vaginal), big.mark = ","),
+          n_known = format(round(.data$n_known), big.mark = ","),
+          pct_cesarean = paste0(round(.data$pct_cesarean, 1), "%"),
+          pct_vaginal = paste0(round(.data$pct_vaginal, 1), "%")
+        ) %>%
+        dplyr::select("group", year = "period", "n", "n_cesarean", "pct_cesarean", "n_vaginal", "pct_vaginal", "n_known")
+
+      tagList(
+        tags$h5("Overall"),
+        DT::renderDT({
+          DT::datatable(overall, rownames = FALSE, options = list(dom = "t", pageLength = 10),
+                        colnames = c("Group", "N episodes", "Cesarean", "% Cesarean", "Vaginal", "% Vaginal", "N known"))
+        }),
+        if (nrow(by_year) > 0) tagList(
+          tags$h5("By year"),
+          DT::renderDT({
+            DT::datatable(by_year, rownames = FALSE,
+                          options = list(dom = "t", pageLength = 50, scrollX = TRUE),
+                          colnames = c("Group", "Year", "N episodes", "Cesarean", "% Cesarean", "Vaginal", "% Vaginal", "N known"))
+          })
+        )
+      )
+    })
+
+    # Boundary metrics for unmatched PET episodes
+    boundary_metrics_data <- extract_pet_only_boundary_metrics_from_sr(result)
+
+    output$boundary_metrics_ui <- renderUI({
+      db <- chosen_unmatched_db()
+      if (is.null(boundary_metrics_data) || is.null(db)) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No boundary metrics available. Re-run the PET comparison with ",
+          tags$code("startDate"), " and ", tags$code("endDate"), " parameters to generate this data."
+        ))
+      }
+      d <- boundary_metrics_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(d) == 0) {
+        return(div(
+          style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
+          "No boundary metrics for selected database."
+        ))
+      }
+
+      first_year <- d %>% dplyr::filter(.data$variable_level == "first_year_ending")
+      last_year <- d %>% dplyr::filter(.data$variable_level == "last_year_starting")
+
+      fmtN <- function(x) {
+        if (is.na(x) || x == 0) return(tags$span(style = "color: #6b7280;", "0"))
+        format(round(x), big.mark = ",")
+      }
+      fmtPct <- function(x) {
+        if (is.na(x)) return("--")
+        paste0(round(x, 1), "%")
+      }
+
+      metricBox <- function(label, description, n_val, pct_val, boundary_date, color) {
+        tags$div(
+          style = "text-align:center; flex:1; min-width:200px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;",
+          tags$p(style = "color:#6b7280; margin:0; font-size:0.85em; font-weight:600;", label),
+          tags$p(style = "color:#9ca3af; margin:2px 0 8px; font-size:0.8em;", description),
+          tags$h4(style = paste0("margin:4px 0; color:", color, ";"), fmtN(n_val)),
+          tags$p(style = "margin:0; font-size:0.9em;", fmtPct(pct_val)),
+          if (!is.na(boundary_date)) tags$p(style = "color:#9ca3af; margin:4px 0 0; font-size:0.75em;",
+                                            paste0("Boundary: ", boundary_date))
+        )
+      }
+
+      first_n <- if (nrow(first_year) > 0) first_year$n[1] else NA_real_
+      first_pct <- if (nrow(first_year) > 0) first_year$pct[1] else NA_real_
+      first_bd <- if (nrow(first_year) > 0 && "boundary_date" %in% names(first_year)) first_year$boundary_date[1] else NA_character_
+      last_n <- if (nrow(last_year) > 0) last_year$n[1] else NA_real_
+      last_pct <- if (nrow(last_year) > 0) last_year$pct[1] else NA_real_
+      last_bd <- if (nrow(last_year) > 0 && "boundary_date" %in% names(last_year)) last_year$boundary_date[1] else NA_character_
+
+      tagList(
+        div(
+          style = "display:flex; flex-wrap:wrap; gap:16px; margin: 12px 0;",
+          metricBox(
+            "Ending in first year",
+            "Episodes ending within 1 year of study start",
+            first_n, first_pct, first_bd,
+            if (isTRUE(first_pct > 20)) "#dc2626" else if (isTRUE(first_pct > 10)) "#d97706" else "#16a34a"
+          ),
+          metricBox(
+            "Starting in last year",
+            "Episodes starting within 1 year of study end",
+            last_n, last_pct, last_bd,
+            if (isTRUE(last_pct > 20)) "#dc2626" else if (isTRUE(last_pct > 10)) "#d97706" else "#16a34a"
+          )
+        ),
+        div(
+          style = "padding: 8px 12px; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; margin: 8px 0; font-size: 0.85em; color: #1E40AF;",
+          "High proportions near study boundaries may indicate that unmatched PET episodes lack ",
+          "algorithm coverage due to data truncation rather than true algorithm misses."
+        )
+      )
     })
 
     # Concept coverage in PET-only episodes

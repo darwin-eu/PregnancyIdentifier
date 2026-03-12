@@ -7,7 +7,7 @@ gestationalAgeBinnedUI <- function(id) {
   outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksBinned$final_outcome_category)), "Overall")) else character(0)
   tagList(
     div(class = "tab-help-text",
-        "Gestational age (rounded to integer weeks) in non-overlapping bands: <12, 12-27, 28-31, 32-36, 37-41, 42-43, 44-49, ≥50 weeks. Used for outcome bands and cross-site comparison."),
+        "Gestational age (rounded to integer weeks) in non-overlapping bands: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 44-49, \u226550 weeks. Used for outcome bands and cross-site comparison."),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,

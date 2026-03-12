@@ -70,7 +70,8 @@ sidebar <- dashboardSidebar(
     # Age (conditional)
     if (has_age) menuItem("Age", icon = icon("user"),
       if (has_age_summary) menuSubItem("Age Summary by Outcome", tabName = "age_summary"),
-      if (has_age_first_pregnancy) menuSubItem("Age at first pregnancy", tabName = "age_first_pregnancy"),
+      if (has_age_first_pregnancy) menuSubItem("Age at first pregnancy (start)", tabName = "age_first_pregnancy"),
+      if (has_age_first_pregnancy_end) menuSubItem("Age at first pregnancy (end)", tabName = "age_first_pregnancy_end"),
       if (has_age_groups) menuSubItem("Age distribution", tabName = "age_groups")
     ),
 
@@ -91,6 +92,9 @@ sidebar <- dashboardSidebar(
 
     # PET comparison (conditional)
     if (has_pet) menuItem("PET comparison", tabName = "pet_comparison", icon = icon("exchange-alt")),
+
+    # National statistics comparison (conditional)
+    if (has_national_stats) menuItem("National stats comparison", tabName = "national_stats", icon = icon("globe")),
 
     # Overview (last)
     menuItem("Overview", tabName = "overview", icon = icon("th-large"))
@@ -158,6 +162,9 @@ body <- dashboardBody(
     tabItem(tabName = "age_first_pregnancy",
       if (has_age_first_pregnancy) ageFirstPregnancyUI("age_first_pregnancy") else p("No age at first pregnancy data available.")
     ),
+    tabItem(tabName = "age_first_pregnancy_end",
+      if (has_age_first_pregnancy_end) ageFirstPregnancyEndUI("age_first_pregnancy_end") else p("No age at first pregnancy end data available.")
+    ),
     tabItem(tabName = "age_groups",
       if (has_age_groups) ageGroupsUI("age_groups") else p("No age distribution data available.")
     ),
@@ -190,6 +197,12 @@ body <- dashboardBody(
     tabItem(tabName = "version_diff",
       if (has_version_diff) versionDifferencesUI("version_diff")
       else p("No version differences data available.")
+    ),
+
+    # National statistics comparison
+    tabItem(tabName = "national_stats",
+      if (has_national_stats) nationalStatsComparisonUI("national_stats")
+      else p("No national statistics data available.")
     ),
 
     # Overview (last)

@@ -1,25 +1,25 @@
-# 20-age-first-pregnancy.R - Age at first pregnancy start module (standard Shiny module)
-# Data: ageSummaryFirstPregnancy (columns: cdm_name, final_outcome_category, year, min, Q25, median, Q75, max, mean, sd)
+# 20b-age-first-pregnancy-end.R - Age at first pregnancy end module (standard Shiny module)
+# Data: ageSummaryFirstPregnancyEnd (columns: cdm_name, final_outcome_category, year, min, Q25, median, Q75, max, mean, sd)
 
-ageFirstPregnancyUI <- function(id) {
+ageFirstPregnancyEndUI <- function(id) {
   ns <- NS(id)
 
-  allOutcomes <- if (is.data.frame(ageSummaryFirstPregnancy) && nrow(ageSummaryFirstPregnancy) > 0 &&
-                     "final_outcome_category" %in% colnames(ageSummaryFirstPregnancy)) {
-    unique(as.character(ageSummaryFirstPregnancy$final_outcome_category))
+  allOutcomes <- if (is.data.frame(ageSummaryFirstPregnancyEnd) && nrow(ageSummaryFirstPregnancyEnd) > 0 &&
+                     "final_outcome_category" %in% colnames(ageSummaryFirstPregnancyEnd)) {
+    unique(as.character(ageSummaryFirstPregnancyEnd$final_outcome_category))
   } else {
     "overall"
   }
 
-  allYears <- if (is.data.frame(ageSummaryFirstPregnancy) && nrow(ageSummaryFirstPregnancy) > 0 &&
-                  "year" %in% colnames(ageSummaryFirstPregnancy)) {
-    sort(unique(as.character(ageSummaryFirstPregnancy$year)))
+  allYears <- if (is.data.frame(ageSummaryFirstPregnancyEnd) && nrow(ageSummaryFirstPregnancyEnd) > 0 &&
+                  "year" %in% colnames(ageSummaryFirstPregnancyEnd)) {
+    sort(unique(as.character(ageSummaryFirstPregnancyEnd$year)))
   } else {
     "overall"
   }
 
   tagList(
-    div(class = "tab-help-text", "Summary of maternal age at first pregnancy start, by outcome category."),
+    div(class = "tab-help-text", "Summary of maternal age at first pregnancy end, by outcome category."),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("outcome"), "Outcome",
                                           choices = allOutcomes,
@@ -44,11 +44,11 @@ ageFirstPregnancyUI <- function(id) {
   )
 }
 
-ageFirstPregnancyServer <- function(id) {
+ageFirstPregnancyEndServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
     getData <- reactive({
-      data <- ageSummaryFirstPregnancy
+      data <- ageSummaryFirstPregnancyEnd
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # backwards compat: if no outcome column, treat as overall
@@ -101,7 +101,7 @@ ageFirstPregnancyServer <- function(id) {
         fill = "final_outcome_category",
         title = NULL,
         xlab = NULL,
-        ylab = "Age at first pregnancy (start)",
+        ylab = "Age at first pregnancy (end)",
         category_order = levels(data$cdm_name),
         horizontal = TRUE,
         position = ggplot2::position_dodge(width = 0.8)
@@ -131,7 +131,7 @@ ageFirstPregnancyServer <- function(id) {
         fill = "final_outcome_category",
         title = NULL,
         xlab = NULL,
-        ylab = "Age at first pregnancy (start)",
+        ylab = "Age at first pregnancy (end)",
         category_order = levels(pd$cdm_name),
         colors = "Set2",
         horizontal = TRUE
@@ -139,7 +139,7 @@ ageFirstPregnancyServer <- function(id) {
     })
 
     output$download_plot <- downloadHandler(
-      filename = function() { "ageFirstPregnancyPlot.png" },
+      filename = function() { "ageFirstPregnancyEndPlot.png" },
       content = function(file) {
         p <- plot_ggplot()
         if (!is.null(p)) {
@@ -159,7 +159,7 @@ ageFirstPregnancyServer <- function(id) {
       renderPrettyDT(getData())
     })
     output$download_table_csv <- downloadHandler(
-      filename = function() { "age_first_pregnancy.csv" },
+      filename = function() { "age_first_pregnancy_end.csv" },
       content = function(file) {
         d <- getData()
         if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)

@@ -42,6 +42,7 @@ server <- function(input, output, session) {
   # Age
   if (has_age_summary) ageSummaryServer("age_summary")
   if (has_age_first_pregnancy) ageFirstPregnancyServer("age_first_pregnancy")
+  if (has_age_first_pregnancy_end) ageFirstPregnancyEndServer("age_first_pregnancy_end")
   if (has_age_groups) ageGroupsServer("age_groups")
 
   # Attrition
@@ -66,6 +67,9 @@ server <- function(input, output, session) {
 
   # Version differences
   if (has_version_diff) versionDifferencesServer("version_diff", versionDifferences)
+
+  # National statistics comparison
+  if (has_national_stats) nationalStatsComparisonServer("national_stats")
 
   # Overview (last)
   overviewServer("overview")
