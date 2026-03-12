@@ -1,46 +1,50 @@
 # 16-prevalence.R - Prevalence module (table, plot, data)
 # Structure matches 14-incidence.R: Table of estimates (gt), Plot of estimates (ggplot2 + plotly), Data (DT).
 
-# ---- Pre-extract picker choices at file load time ----
-if (exists("prevalence") && !is.null(prevalence) && is.data.frame(prevalence) && nrow(prevalence) > 0) {
-  .prev_cdm <- sort(unique(prevalence$cdm_name))
-  .prev_outcomes <- tryCatch(
-    prevalence |> visOmopResults::splitGroup() |> dplyr::pull(outcome_cohort_name) |> unique() |> sort(),
+# ---- Helper to extract picker choices (called at UI build time, after data loading) ----
+.extract_prev_choices <- function() {
+  if (!exists("prevalence", envir = .GlobalEnv) || is.null(get("prevalence", envir = .GlobalEnv))) {
+    return(list(cdm = character(0), outcomes = character(0), ageGroups = character(0), startDates = character(0)))
+  }
+  prev <- get("prevalence", envir = .GlobalEnv)
+  if (!is.data.frame(prev) || nrow(prev) == 0) {
+    return(list(cdm = character(0), outcomes = character(0), ageGroups = character(0), startDates = character(0)))
+  }
+  cdm <- sort(unique(prev$cdm_name))
+  outcomes <- tryCatch(
+    prev |> visOmopResults::splitGroup() |> dplyr::pull(outcome_cohort_name) |> unique() |> sort(),
     error = function(e) character(0)
   )
-  .prev_settings <- tryCatch(omopgenerics::settings(prevalence), error = function(e) NULL)
-  .prev_ageGroups <- if (!is.null(.prev_settings) && "denominator_age_group" %in% colnames(.prev_settings)) {
-    sort(unique(.prev_settings$denominator_age_group))
+  settings <- tryCatch(omopgenerics::settings(prev), error = function(e) NULL)
+  ageGroups <- if (!is.null(settings) && "denominator_age_group" %in% colnames(settings)) {
+    sort(unique(settings$denominator_age_group))
   } else character(0)
-  .prev_startDates <- tryCatch({
-    prevalence |>
+  startDates <- tryCatch({
+    prev |>
       visOmopResults::splitAdditional() |>
       dplyr::distinct(.data$prevalence_start_date) |>
       dplyr::filter(!is.na(.data$prevalence_start_date)) |>
       dplyr::arrange(.data$prevalence_start_date) |>
       dplyr::pull(.data$prevalence_start_date)
   }, error = function(e) character(0))
-} else {
-  .prev_cdm <- character(0)
-  .prev_outcomes <- character(0)
-  .prev_ageGroups <- character(0)
-  .prev_startDates <- character(0)
+  list(cdm = cdm, outcomes = outcomes, ageGroups = ageGroups, startDates = startDates)
 }
 
 # ---- UI ----
 prevalenceUI <- function(id) {
   ns <- NS(id)
-  cdm_choices <- if (exists("prevalence") && !is.null(prevalence) && nrow(prevalence) > 0) .prev_cdm else character(0)
-  age_choices <- if (exists("prevalence") && !is.null(prevalence)) .prev_ageGroups else character(0)
+  ch <- .extract_prev_choices()
+  cdm_choices <- ch$cdm
+  age_choices <- ch$ageGroups
   tagList(
     fluidRow(
       h3("Prevalence estimates"),
       p("Prevalence estimates are shown below, please select configuration to filter them:"),
       fluidRow(
         column(3, pickerInput(ns("cdm"), "CDM name", choices = cdm_choices, selected = cdm_choices, multiple = TRUE, options = opt)),
-        column(3, pickerInput(ns("outcome"), "Outcome", choices = .prev_outcomes, selected = .prev_outcomes, multiple = TRUE, options = opt)),
+        column(3, pickerInput(ns("outcome"), "Outcome", choices = ch$outcomes, selected = ch$outcomes, multiple = TRUE, options = opt)),
         column(3, pickerInput(ns("age_group"), "Age group", choices = age_choices, selected = "0 to 150", multiple = TRUE, options = opt)),
-        column(3, pickerInput(ns("start_date"), "Start date", choices = .prev_startDates, selected = .prev_startDates, multiple = TRUE, options = opt))
+        column(3, pickerInput(ns("start_date"), "Start date", choices = ch$startDates, selected = ch$startDates, multiple = TRUE, options = opt))
       ),
       tabsetPanel(
         id = ns("tabsetPanel"),

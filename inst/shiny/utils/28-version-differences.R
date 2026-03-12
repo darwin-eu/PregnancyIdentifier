@@ -4,14 +4,21 @@
 
 versionDifferencesUI <- function(id) {
   ns <- NS(id)
+  # Extract version choices at UI build time (after data loading)
+  vd <- if (exists("versionDifferences") && is.data.frame(versionDifferences) && nrow(versionDifferences) > 0) {
+    sort(unique(c(versionDifferences$old_version, versionDifferences$new_version)))
+  } else {
+    character(0)
+  }
   tagList(
     div(class = "tab-help-text",
         "Compare PregnancyIdentifier package versions to understand why episode",
         "and person counts differ. Select an old and new version to see the",
         "algorithmic changes and their expected impact."),
     fluidRow(
-      column(3, selectInput(ns("old_version"), "Old version", choices = NULL)),
-      column(3, selectInput(ns("new_version"), "New version", choices = NULL))
+      column(3, selectInput(ns("old_version"), "Old version", choices = vd, selected = if (length(vd) > 0) vd[1] else NULL)),
+      column(3, selectInput(ns("new_version"), "New version", choices = if (length(vd) > 1) vd[-1] else character(0),
+                            selected = if (length(vd) > 1) vd[2] else NULL))
     ),
     uiOutput(ns("metrics_cards")),
     hr(),
@@ -28,13 +35,6 @@ versionDifferencesServer <- function(id, versionDiffData) {
     # Sorted unique versions from the CSV
     allVersions <- sort(unique(c(versionDiffData$old_version,
                                  versionDiffData$new_version)))
-
-    # Initialise old-version dropdown
-    observe({
-      updateSelectInput(session, "old_version",
-                        choices  = allVersions,
-                        selected = allVersions[1])
-    })
 
     # Keep new-version choices strictly > old-version
     observeEvent(input$old_version, {

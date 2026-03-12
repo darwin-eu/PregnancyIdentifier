@@ -692,6 +692,9 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   if (exists("petComparisonSummarisedResult", envir = .GlobalEnv)) {
     petComparisonSummarisedResult <- get("petComparisonSummarisedResult", envir = .GlobalEnv)
   }
+  if (exists("petUnmatchedLsc", envir = .GlobalEnv)) {
+    petUnmatchedLsc <- get("petUnmatchedLsc", envir = .GlobalEnv)
+  }
 
   # Concept counts
   if (exists("esdConceptCounts", envir = .GlobalEnv)) {
@@ -723,6 +726,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   has_age_groups <- exists("ageSummaryGroups") && is.data.frame(ageSummaryGroups) && nrow(ageSummaryGroups) > 0
   has_age <- has_age_summary || has_age_first_pregnancy || has_age_groups
   has_pet_comparison_sr <- exists("petComparisonSummarisedResult") && !is.null(petComparisonSummarisedResult) && nrow(petComparisonSummarisedResult) > 0
+  has_pet_unmatched_lsc <- exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0
 
   # Version differences (static reference CSV)
   versionDiffPath <- file.path(getwd(), "data", "version_differences.csv")

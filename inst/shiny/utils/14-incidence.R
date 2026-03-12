@@ -1,22 +1,29 @@
 # 14-incidence.R - Incidence module (table, plot, attrition, population rates)
 # Single module: Table of estimates (gt), Plot of estimates (ggplot2 + plotly, per 1,000 pys), Attrition (gt), Population rates (DT).
 
-# ---- Pre-extract picker choices at file load time ----
-if (exists("incidence") && !is.null(incidence) && is.data.frame(incidence) && nrow(incidence) > 0) {
-  .inc_cdm <- sort(unique(incidence$cdm_name))
-  .inc_outcomes <- tryCatch(
-    incidence |> visOmopResults::splitGroup() |> dplyr::pull(outcome_cohort_name) |> unique() |> sort(),
+# ---- Helper to extract picker choices (called at UI build time, after data loading) ----
+.extract_inc_choices <- function() {
+  if (!exists("incidence", envir = .GlobalEnv) || is.null(get("incidence", envir = .GlobalEnv))) {
+    return(list(cdm = character(0), outcomes = character(0), ageGroups = character(0), sex = character(0), years = character(0)))
+  }
+  inc <- get("incidence", envir = .GlobalEnv)
+  if (!is.data.frame(inc) || nrow(inc) == 0) {
+    return(list(cdm = character(0), outcomes = character(0), ageGroups = character(0), sex = character(0), years = character(0)))
+  }
+  cdm <- sort(unique(inc$cdm_name))
+  outcomes <- tryCatch(
+    inc |> visOmopResults::splitGroup() |> dplyr::pull(outcome_cohort_name) |> unique() |> sort(),
     error = function(e) character(0)
   )
-  .inc_settings <- tryCatch(omopgenerics::settings(incidence), error = function(e) NULL)
-  .inc_ageGroups <- if (!is.null(.inc_settings) && "denominator_age_group" %in% colnames(.inc_settings)) {
-    sort(unique(.inc_settings$denominator_age_group))
+  settings <- tryCatch(omopgenerics::settings(inc), error = function(e) NULL)
+  ageGroups <- if (!is.null(settings) && "denominator_age_group" %in% colnames(settings)) {
+    sort(unique(settings$denominator_age_group))
   } else character(0)
-  .inc_sex <- if (!is.null(.inc_settings) && "denominator_sex" %in% colnames(.inc_settings)) {
-    sort(unique(.inc_settings$denominator_sex))
+  sex <- if (!is.null(settings) && "denominator_sex" %in% colnames(settings)) {
+    sort(unique(settings$denominator_sex))
   } else character(0)
-  .inc_years <- tryCatch({
-    incidence |>
+  years <- tryCatch({
+    inc |>
       visOmopResults::splitAdditional() |>
       dplyr::distinct(.data$incidence_start_date) |>
       dplyr::filter(.data$incidence_start_date != "overall") |>
@@ -26,33 +33,29 @@ if (exists("incidence") && !is.null(incidence) && is.data.frame(incidence) && nr
       dplyr::arrange(year) |>
       dplyr::pull(year)
   }, error = function(e) character(0))
-} else {
-  .inc_cdm <- character(0)
-  .inc_outcomes <- character(0)
-  .inc_ageGroups <- character(0)
-  .inc_sex <- character(0)
-  .inc_years <- character(0)
+  list(cdm = cdm, outcomes = outcomes, ageGroups = ageGroups, sex = sex, years = years)
 }
 
 # ---- UI ----
 incidenceUI <- function(id) {
   ns <- NS(id)
-  cdm_choices <- if (exists("incidence") && !is.null(incidence) && nrow(incidence) > 0) .inc_cdm else character(0)
-  age_choices <- if (exists("incidence") && !is.null(incidence)) .inc_ageGroups else character(0)
-  sex_choices <- if (exists("incidence") && !is.null(incidence)) .inc_sex else character(0)
+  ch <- .extract_inc_choices()
+  cdm_choices <- ch$cdm
+  age_choices <- ch$ageGroups
+  sex_choices <- ch$sex
   tagList(
     fluidRow(
       h3("Incidence estimates"),
       p("Incidence estimates are shown below, please select configuration to filter them:"),
       fluidRow(
         column(3, pickerInput(ns("cdm"), "CDM name", choices = cdm_choices, selected = cdm_choices, multiple = TRUE, options = opt)),
-        column(3, pickerInput(ns("outcome"), "Outcome", choices = .inc_outcomes, selected = .inc_outcomes, multiple = TRUE, options = opt)),
+        column(3, pickerInput(ns("outcome"), "Outcome", choices = ch$outcomes, selected = ch$outcomes, multiple = TRUE, options = opt)),
         column(3, pickerInput(ns("age_group"), "Age group", choices = age_choices, selected = "0 to 150", multiple = TRUE, options = opt)),
         column(3, pickerInput(ns("sex"), "Sex", choices = sex_choices, selected = sex_choices, multiple = TRUE, options = opt))
       ),
       fluidRow(
         column(3, pickerInput(ns("interval"), "Interval", choices = c("years", "overall"), selected = "years", multiple = FALSE, options = opt)),
-        column(3, pickerInput(ns("years"), "Years", choices = .inc_years, selected = .inc_years, multiple = TRUE, options = opt))
+        column(3, pickerInput(ns("years"), "Years", choices = ch$years, selected = ch$years, multiple = TRUE, options = opt))
       ),
       tabsetPanel(
         id = ns("tabsetPanel"),

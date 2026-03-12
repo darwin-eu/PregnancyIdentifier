@@ -51,6 +51,8 @@ deduplicateSummarisedResult <- function(data) {
 
 loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir = .GlobalEnv) {
   if (endsWith(file, ".csv")) {
+    # Skip static metadata files that are not database results
+    if (file == "version_differences.csv") return(invisible(NULL))
     message("Loading: ", file)
     tableName <- gsub(".csv$", "", file)
     camelCaseName <- snakeCaseToCamelCase(tableName)
@@ -87,6 +89,11 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
         )
       }
       camelCaseName <- "petComparisonSummarisedResult"
+    } else if (file == "pet_unmatched_lsc.csv") {
+      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
+      data <- flattenListCols(data)
+      data <- deduplicateSummarisedResult(data)
+      camelCaseName <- "petUnmatchedLsc"
     } else if (grepl("incidence|prevalence|characteristics", tolower(file))) {
       parts <- unlist(strsplit(tableName, "_"))
       tableName <- parts[length(parts)]

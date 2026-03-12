@@ -515,6 +515,28 @@ petComparisonUI <- function(id) {
     p("No unmatched characterization data available. Re-run the PET comparison to generate this data.")
   }
 
+  # Unmatched LSC tab
+  has_lsc <- exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0
+  lsc_ui <- if (has_lsc) {
+    lsc_cdm_names <- unique(as.data.frame(petUnmatchedLsc)$cdm_name)
+    tagList(
+      div(class = "tab-help-text",
+          "Large-scale characteristics of unmatched PET episodes (conditions, drugs, procedures,",
+          " observations, measurements) in the 365 days prior to the pregnancy end date."),
+      if (length(lsc_cdm_names) > 1) {
+        fluidRow(
+          column(3, selectInput(ns("lsc_database"), "Database",
+                                choices = stats::setNames(lsc_cdm_names, lsc_cdm_names),
+                                selected = lsc_cdm_names[1]))
+        )
+      },
+      DT::DTOutput(ns("lsc_table")) %>% withSpinner(),
+      downloadButton(ns("download_lsc_csv"), "Download table (.csv)")
+    )
+  } else {
+    p("No large-scale characteristics data available. Re-run the PET comparison with a CDM connection to generate this data.")
+  }
+
   # Summarised result tab
   summarised_ui <- tagList(
     DT::DTOutput(ns("rawTable")) %>% withSpinner(),
@@ -529,6 +551,7 @@ petComparisonUI <- function(id) {
     tabPanel("Episode level agreement", plot_ui),
     tabPanel("Alignment of episodes", alignment_ui),
     tabPanel("Unmatched characterization", unmatched_ui),
+    if (has_lsc) tabPanel("Unmatched LSC", lsc_ui),
     tabPanel("Table of metrics", table_ui),
     tabPanel("Raw results", summarised_ui)
   )
@@ -975,6 +998,50 @@ petComparisonServer <- function(id) {
         if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
       }
     )
+
+    # ---- Unmatched LSC tab ----
+    if (exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0) {
+      lsc_data <- as.data.frame(petUnmatchedLsc)
+      lsc_cdm_names <- unique(lsc_data$cdm_name)
+
+      lsc_filtered <- reactive({
+        db <- if (length(lsc_cdm_names) > 1 && !is.null(input$lsc_database)) input$lsc_database else lsc_cdm_names[1]
+        d <- lsc_data %>%
+          dplyr::filter(.data$cdm_name == db) %>%
+          dplyr::filter(.data$estimate_value != "0") %>%
+          dplyr::select(
+            variable_name  = "variable_name",
+            variable_level = "variable_level",
+            estimate_name  = "estimate_name",
+            estimate_value = "estimate_value"
+          ) %>%
+          dplyr::mutate(estimate_value = as.numeric(.data$estimate_value)) %>%
+          dplyr::arrange(dplyr::desc(.data$estimate_value))
+        d
+      })
+
+      output$lsc_table <- DT::renderDT({
+        d <- lsc_filtered()
+        DT::datatable(
+          d,
+          filter   = "top",
+          rownames = FALSE,
+          options  = list(
+            pageLength = 25,
+            scrollX    = TRUE,
+            order      = list(list(3, "desc"))
+          )
+        ) %>%
+          DT::formatRound("estimate_value", digits = 4)
+      })
+
+      output$download_lsc_csv <- downloadHandler(
+        filename = function() { "pet_unmatched_lsc.csv" },
+        content = function(file) {
+          readr::write_csv(lsc_filtered(), file)
+        }
+      )
+    }
   })
 }
 
