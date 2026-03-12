@@ -10,6 +10,8 @@ comparePregnancyIdentifierWithPET(
   exportFolder,
   petSchema,
   petTable,
+  startDate = NULL,
+  endDate = NULL,
   minOverlapDays = 1L,
   removeWithinSourceOverlaps = FALSE,
   minCellCount = 5L,
@@ -37,6 +39,16 @@ if it already exists.}
 computed from start and end dates in the database via
 \code{CDMConnector::datediff()}; the table need not have a
 \code{gestational_length_in_day} column.}
+
+\item{startDate}{\code{Date(1)} or \code{NULL}. If provided, the PET table is
+filtered to episodes that overlap the study period defined by
+\code{[startDate, endDate]}. An episode overlaps if its end date is on or
+after \code{startDate} and its start date is on or before \code{endDate}.
+Must be before \code{endDate}. Default \code{NULL} (no date filtering).}
+
+\item{endDate}{\code{Date(1)} or \code{NULL}. End of the study period.
+Required when \code{startDate} is provided and vice versa. Default
+\code{NULL}.}
 
 \item{minOverlapDays}{\code{integer(1)}. Minimum overlap in days to consider an
 algorithm episode and a PET episode as the same pregnancy (default 1).}
