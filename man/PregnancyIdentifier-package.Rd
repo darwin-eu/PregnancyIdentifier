@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Identify pregnancy episodes in the OMOP CDM, based on the HIPPS algorithm described in Smith et al. (2024) \doi{10.1093/jamia/ocae195}.
+Identify pregnancy episodes in the Common Data Model based on the algorithm described in Smith (2024) \doi{10.1093/jamia/ocae195}.
 }
 \seealso{
 Useful links:
@@ -19,13 +19,13 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Maarten van Kessel \email{m.l.vankessel@erasmusmc.com} (\href{https://orcid.org/0009-0006-8832-6030}{ORCID})
+\strong{Maintainer}: Adam Black \email{a.black@erasmusmc.nl} (\href{https://orcid.org/0000-0001-5576-8701}{ORCID})
 
 Authors:
 \itemize{
   \item Aniek Markus (\href{https://orcid.org/0000-0001-5779-4794}{ORCID})
   \item Julieta Politi (\href{https://orcid.org/0000-0001-7315-034X}{ORCID})
-  \item Adam Black \email{black@ohdsi.org} (\href{https://orcid.org/0000-0001-5576-8701}{ORCID})
+  \item Maarten van Kessel \email{m.l.vankessel@erasmusmc.nl} (\href{https://orcid.org/0009-0006-8832-6030}{ORCID})
 }
 
 }

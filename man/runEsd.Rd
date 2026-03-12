@@ -31,7 +31,7 @@ runEsd(
 }
 \value{
 Invisibly returns \code{NULL}. Main result is written as an RDS file (\code{final_pregnancy_episodes.rds}) to \code{outputFolder}.
-        The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{recorded_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
+        The output contains one row per inferred pregnancy episode. Columns include: \code{final_episode_start_date}, \code{final_episode_end_date}, \code{final_outcome_category} (no prefix), and ESD-derived columns with \code{esd_} prefix: \code{esd_precision_days}, \code{esd_precision_category}, \code{esd_gestational_age_days_calculated}, \code{esd_gw_flag}, \code{esd_gr3m_flag}, \code{esd_outcome_match}, \code{esd_term_duration_flag}, \code{esd_outcome_concordance_score}, \code{esd_preterm_status_from_calculation}, plus merge/HIPPS metadata (e.g. \code{merge_episode_start}, \code{hip_end_date}, \code{pps_end_date}).
 }
 \description{
 Runs the Episode Start Date (ESD) algorithm to infer pregnancy episode start dates for merged HIP/PPS episodes.
@@ -43,7 +43,7 @@ This function performs the following major steps:
   \item Extracts gestational timing concept evidence (e.g. gestational week, trimester concepts) for each episode within the specified date range.
   \item Infers episode start and start precision using all available gestational timing evidence, with logging.
   \item Merges inferred start dates, timing evidence, and metadata back onto the merged episodes table and computes final start/end/outcome fields.
-  \item Filters episodes to retain only those overlapping the requested \code{startDate}--\code{endDate} study period, including episodes with missing inferred dates.
+  \item Filters episodes to retain only those with start on/after \code{startDate} and end on/before \code{endDate}; episodes with missing inferred dates are retained.
   \item Writes the resulting cohort of identified pregnancy episodes to an RDS file (\code{final_pregnancy_episodes.rds}) in \code{outputFolder}.
 }
 }

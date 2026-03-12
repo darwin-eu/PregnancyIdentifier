@@ -20,3 +20,4 @@ vignettes/algorithm_cache
 export/
 output/
 inst/shiny/version_comparison/
+.positai

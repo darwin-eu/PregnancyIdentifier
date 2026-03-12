@@ -13,9 +13,9 @@ viewResults(
 )
 }
 \arguments{
-\item{dataFolder}{A folder where the exported zip files with the results are stored.
-Zip files containing results from multiple databases can be placed in the same
-folder.}
+\item{dataFolder}{A folder containing either exported zip files or subfolders
+with exported CSV files. Results from multiple databases can be placed in
+the same folder.}
 
 \item{makePublishable}{(Optional) copy data files to make app publishable to posit connect/shinyapp.io}
 

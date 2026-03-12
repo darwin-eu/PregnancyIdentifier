@@ -37,7 +37,7 @@ Reads the patient-level pregnancy episode results produced by the pipeline (from
 de-identified summary tables (counts, age summaries, timing distributions,
 outcome counts, and date completeness checks), and writes them to \code{exportFolder}.
 \code{runPregnancyIdentifier()} runs this step automatically and writes to
-\code{exportFolder} (default \code{file.path(outputDir, "export")}); use
+\code{exportFolder} (default \code{file.path(outputFolder, "export")}); use
 \code{exportPregnancies()} when you need to re-export or write to a different
 directory. Does not create a ZIP file; use \code{zipExportFolder()} after export
 (and optionally after writing PET comparison tables to the same folder) to create
