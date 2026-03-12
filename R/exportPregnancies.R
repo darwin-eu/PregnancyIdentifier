@@ -265,39 +265,76 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary.csv"), row.names = FALSE)
 
-  # summarise age at first pregnancy start
-  # helper: first episode per person from a filtered dataset
-  firstPerPerson <- function(df) {
-    df %>%
-      dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%
-      dplyr::group_by(.data$person_id) %>%
-      dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
+  # shared helper: compute age-at-first-pregnancy stats overall + by year
+  # ageCol: "age_pregnancy_start" or "age_pregnancy_end"
+  # dateCol: date column used to determine first episode and extract year
+  computeFirstPregnancyAgeStats <- function(resAge, ageCol, dateCol) {
+    firstPerPerson <- function(df) {
+      df %>%
+        dplyr::filter(!is.na(.data[[ageCol]])) %>%
+        dplyr::group_by(.data$person_id) %>%
+        dplyr::slice_min(order_by = .data[[dateCol]], n = 1, with_ties = FALSE) %>%
+        dplyr::ungroup()
+    }
+
+    # --- time_period = "overall" ---
+    overallFirst <- firstPerPerson(resAge) %>%
+      summariseColumn(ageCol) %>%
+      dplyr::mutate(final_outcome_category = "overall", year = "overall")
+
+    byOutcomeFirst <- resAge %>%
+      dplyr::filter(!is.na(.data[[ageCol]])) %>%
+      dplyr::group_by(.data$final_outcome_category, .data$person_id) %>%
+      dplyr::slice_min(order_by = .data[[dateCol]], n = 1, with_ties = FALSE) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(.data$final_outcome_category) %>%
+      summariseColumn(ageCol) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(year = "overall")
+
+    combinedFirst <- resAge %>%
+      dplyr::filter(.data$final_outcome_category %in% c("LB", "PREG")) %>%
+      firstPerPerson() %>%
+      summariseColumn(ageCol) %>%
+      dplyr::mutate(final_outcome_category = "LB or PREG", year = "overall")
+
+    overallRows <- dplyr::bind_rows(overallFirst, byOutcomeFirst, combinedFirst)
+
+    # --- by year ---
+    resAgeWithYear <- resAge %>%
+      dplyr::mutate(year = as.character(as.integer(format(as.Date(.data[[dateCol]]), "%Y"))))
+
+    overallByYear <- resAgeWithYear %>%
+      firstPerPerson() %>%
+      dplyr::group_by(.data$year) %>%
+      summariseColumn(ageCol) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(final_outcome_category = "overall")
+
+    byOutcomeByYear <- resAgeWithYear %>%
+      dplyr::filter(!is.na(.data[[ageCol]])) %>%
+      dplyr::group_by(.data$final_outcome_category, .data$person_id) %>%
+      dplyr::slice_min(order_by = .data[[dateCol]], n = 1, with_ties = FALSE) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(.data$final_outcome_category, .data$year) %>%
+      summariseColumn(ageCol) %>%
       dplyr::ungroup()
+
+    combinedByYear <- resAgeWithYear %>%
+      dplyr::filter(.data$final_outcome_category %in% c("LB", "PREG")) %>%
+      firstPerPerson() %>%
+      dplyr::group_by(.data$year) %>%
+      summariseColumn(ageCol) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(final_outcome_category = "LB or PREG")
+
+    yearRows <- dplyr::bind_rows(overallByYear, byOutcomeByYear, combinedByYear)
+
+    dplyr::bind_rows(overallRows, yearRows)
   }
 
-  # overall: first pregnancy per person (any outcome)
-  overallFirst <- firstPerPerson(resAge) %>%
-    summariseColumn("age_pregnancy_start") %>%
-    dplyr::mutate(final_outcome_category = "overall")
-
-  # by outcome category
-  byOutcomeFirst <- resAge %>%
-    dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%
-    dplyr::group_by(.data$final_outcome_category, .data$person_id) %>%
-    dplyr::slice_min(order_by = .data$final_episode_start_date, n = 1, with_ties = FALSE) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(.data$final_outcome_category) %>%
-    summariseColumn("age_pregnancy_start") %>%
-    dplyr::ungroup()
-
-  # combined LB or PREG
-  combinedFirst <- resAge %>%
-    dplyr::filter(.data$final_outcome_category %in% c("LB", "PREG")) %>%
-    firstPerPerson() %>%
-    summariseColumn("age_pregnancy_start") %>%
-    dplyr::mutate(final_outcome_category = "LB or PREG")
-
-  dplyr::bind_rows(overallFirst, byOutcomeFirst, combinedFirst) %>%
+  # summarise age at first pregnancy start
+  computeFirstPregnancyAgeStats(resAge, "age_pregnancy_start", "final_episode_start_date") %>%
     dplyr::mutate(
       cdm_name = snap$cdm_name,
       date_run = runStart,
@@ -305,6 +342,16 @@ exportAgeSummary <- function(res, cdm, resPath, snap, runStart, pkgVersion, minC
       pkg_version = pkgVersion
     ) %>%
     utils::write.csv(file.path(resPath, "age_summary_first_pregnancy.csv"), row.names = FALSE)
+
+  # summarise age at first pregnancy end
+  computeFirstPregnancyAgeStats(resAge, "age_pregnancy_end", "final_episode_end_date") %>%
+    dplyr::mutate(
+      cdm_name = snap$cdm_name,
+      date_run = runStart,
+      date_export = snap$snapshot_date,
+      pkg_version = pkgVersion
+    ) %>%
+    utils::write.csv(file.path(resPath, "age_summary_first_pregnancy_end.csv"), row.names = FALSE)
 
   resAgeRound <- resAge %>%
     dplyr::filter(!is.na(.data$age_pregnancy_start)) %>%

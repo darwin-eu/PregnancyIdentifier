@@ -54,7 +54,11 @@ makeLogger <- function(outputFolder, outputLogToConsole = TRUE) {
 #' 4) merge (`mergeHipps()`): merges HIP and PPS into combined HIPPS episodes,
 #' 5) ESD refinement (`runEsd()`): derives inferred pregnancy start/precision and
 #'    enriches merged episodes,
-#' 6) export (`exportPregnancies()`): writes shareable aggregated CSV files to
+#' 6) incidence and prevalence (`computeIncidencePrevalence()`): constructs
+#'    outcome-specific cohort tables, generates denominator cohorts stratified by
+#'    age group, and estimates incidence, period prevalence, and cohort
+#'    characteristics,
+#' 7) export (`exportPregnancies()`): writes shareable aggregated CSV files to
 #'    `exportFolder` (with optional small-cell suppression).
 #'
 #' @param cdm (`cdm_reference`) A CDM reference created by `CDMConnector` pointing
@@ -90,6 +94,8 @@ makeLogger <- function(outputFolder, outputLogToConsole = TRUE) {
 #'   - Adds/updates tables inside `cdm` (e.g., `cdm$preg_hip_records`, concept
 #'     tables, and intermediate algorithm tables).
 #'   - Writes person-level and episode-level data (RDS, logs) under `outputFolder`.
+#'   - Writes incidence, prevalence, and characteristics CSV files to
+#'     `exportFolder`.
 #'   - Writes shareable aggregated CSV files to `exportFolder` (or
 #'     `exportFolder/conform_false` and `exportFolder/conform_true` when
 #'     `conformToValidation = "both"`).
@@ -222,6 +228,24 @@ runPregnancyIdentifier <- function(cdm,
     conformToValidation = runEsdConform
   )
 
+  # ---- Step 6: Incidence, prevalence & characteristics ----------------------
+  # Inputs:
+  #   - cdm (OMOP CDM)
+  #   - final_pregnancy_episodes.rds in outputFolder
+  # Outputs:
+  #   - writes: exportFolder/{date}_{cdm_name}_incidence.csv
+  #   - writes: exportFolder/{date}_{cdm_name}_prevalence.csv
+  #   - writes: exportFolder/{date}_{cdm_name}_characteristics.csv
+  log4r::info(logger, "Running `computeIncidencePrevalence`")
+  computeIncidencePrevalence(
+    cdm = cdm,
+    outputFolder = outputFolder,
+    exportFolder = exportFolder,
+    minCellCount = minCellCount,
+    logger = logger
+  )
+
+  # ---- Step 7: Export aggregated summaries -----------------------------------
   baseExportDir <- exportFolder
   dir.create(baseExportDir, recursive = TRUE, showWarnings = FALSE)
   if (exportBoth) {

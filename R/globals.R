@@ -11,6 +11,7 @@ utils::globalVariables(
     "pps_episode_max_date_plus_two_months",
     "pps_episode_min_date",
     "age_pregnancy_start",
+    "age_pregnancy_end",
     "hip_outcome_category",
     "concept_id",
     "domain_concept_start_date",
@@ -53,6 +54,21 @@ utils::globalVariables(
     "esd_term_duration_flag",
     "esd_outcome_concordance_score",
     "esd_preterm_status_from_calculation",
-    "final_outcome_category"
+    "final_outcome_category",
+    "n",
+    "birth_datetime",
+    "gender_concept_id",
+    "age",
+    "hip_end_date",
+    "hipps_end_date",
+    "pps_end_date",
+    "cohort_definition_id",
+    "cohort_start_date",
+    "cohort_end_date",
+    "subject_id",
+    "start_in_obs",
+    "end_in_obs",
+    "age_group",
+    "year"
   ))
 )

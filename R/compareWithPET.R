@@ -45,6 +45,14 @@
 #'   computed from start and end dates in the database via
 #'   \code{CDMConnector::datediff()}; the table need not have a
 #'   \code{gestational_length_in_day} column.
+#' @param startDate \code{Date(1)} or \code{NULL}. If provided, the PET table is
+#'   filtered to episodes that overlap the study period defined by
+#'   \code{[startDate, endDate]}. An episode overlaps if its end date is on or
+#'   after \code{startDate} and its start date is on or before \code{endDate}.
+#'   Must be before \code{endDate}. Default \code{NULL} (no date filtering).
+#' @param endDate \code{Date(1)} or \code{NULL}. End of the study period.
+#'   Required when \code{startDate} is provided and vice versa. Default
+#'   \code{NULL}.
 #' @param minOverlapDays \code{integer(1)}. Minimum overlap in days to consider an
 #'   algorithm episode and a PET episode as the same pregnancy (default 1).
 #' @param removeWithinSourceOverlaps \code{logical(1)}. If \code{TRUE}, before
@@ -67,6 +75,8 @@ comparePregnancyIdentifierWithPET <- function(cdm,
                                               exportFolder,
                                               petSchema,
                                               petTable,
+                                              startDate = NULL,
+                                              endDate = NULL,
                                               minOverlapDays = 1L,
                                               removeWithinSourceOverlaps = FALSE,
                                               minCellCount = 5L,
@@ -80,6 +90,22 @@ comparePregnancyIdentifierWithPET <- function(cdm,
   checkmate::assertLogical(removeWithinSourceOverlaps, len = 1L, any.missing = FALSE)
   checkmate::assertIntegerish(minCellCount, len = 1L, lower = 0)
   checkmate::assertLogical(outputLogToConsole, len = 1L, any.missing = FALSE)
+
+  # Validate startDate / endDate: both or neither must be provided
+  if (!is.null(startDate) || !is.null(endDate)) {
+    if (is.null(startDate) || is.null(endDate)) {
+      stop("Both `startDate` and `endDate` must be provided, or both must be NULL.")
+    }
+    startDate <- as.Date(startDate)
+    endDate <- as.Date(endDate)
+    if (is.na(startDate) || is.na(endDate)) {
+      stop("`startDate` and `endDate` must be valid dates.")
+    }
+    if (startDate >= endDate) {
+      stop("`startDate` must be before `endDate`.")
+    }
+  }
+
   minOverlapDays <- as.integer(minOverlapDays)
   minCellCount <- as.integer(minCellCount)
 
@@ -230,7 +256,8 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       dplyr::any_of(c(
         "esd_gestational_age_days_calculated",
         "hip_flag", "pps_flag",
-        "esd_precision_days", "esd_precision_category"
+        "esd_precision_days", "esd_precision_category",
+        "cesarean_m30_to_30", "vaginal_m30_to_30"
       ))
     ) %>%
     dplyr::mutate(
@@ -242,6 +269,17 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       pet_start = as.Date(.data$pregnancy_start_date),
       pet_end = as.Date(.data$pregnancy_end_date)
     )
+
+  # Filter PET episodes to those overlapping the study period [startDate, endDate]
+  if (!is.null(startDate)) {
+    n_before <- nrow(pet)
+    pet <- pet %>%
+      dplyr::filter(.data$pet_end >= .env$startDate, .data$pet_start <= .env$endDate)
+    log4r::info(logger, sprintf(
+      "Filtered PET episodes to study period [%s, %s]: %d -> %d episodes",
+      startDate, endDate, n_before, nrow(pet)
+    ))
+  }
 
   # Optional: remove within-source overlapping episodes before matching (reduces many-to-many pairs)
   if (removeWithinSourceOverlaps) {
@@ -617,6 +655,86 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       dplyr::mutate(pct = .data$n / sum(.data$n) * 100)
   } else {
     tibble::tibble(pet_outcome_label = character(0), dominant_hip_category = character(0), n = integer(0), pct = numeric(0))
+  }
+
+  # ---- 2a-iii) Unmatched PET boundary metrics (first/last year of study period) ----
+  pet_only_first_year_n <- NA_integer_
+  pet_only_first_year_pct <- NA_real_
+  pet_only_last_year_n <- NA_integer_
+  pet_only_last_year_pct <- NA_real_
+
+  if (!is.null(startDate) && nrow(pet_only_df) > 0) {
+    first_year_end <- startDate + 365L
+    last_year_start <- endDate - 365L
+
+    # Episodes ending in the first year from study start
+    pet_only_first_year_n <- sum(pet_only_df$pet_end <= first_year_end, na.rm = TRUE)
+    pet_only_first_year_pct <- pet_only_first_year_n / nrow(pet_only_df) * 100
+
+    # Episodes starting in the last year of the study period
+    pet_only_last_year_n <- sum(pet_only_df$pet_start >= last_year_start, na.rm = TRUE)
+    pet_only_last_year_pct <- pet_only_last_year_n / nrow(pet_only_df) * 100
+
+    log4r::info(logger, sprintf(
+      "Unmatched PET boundary metrics: %d (%.1f%%) ending in first year, %d (%.1f%%) starting in last year",
+      pet_only_first_year_n, pet_only_first_year_pct,
+      pet_only_last_year_n, pet_only_last_year_pct
+    ))
+  }
+
+  # ---- 2a-iv) Delivery mode summary for algorithm episodes (matched vs unmatched) ----
+  has_delivery_mode <- all(c("cesarean_m30_to_30", "vaginal_m30_to_30") %in% colnames(alg))
+  delivery_mode_summary <- NULL
+
+  if (has_delivery_mode) {
+    log4r::info(logger, "Computing delivery mode summary for algorithm episode groups")
+
+    .summarise_delivery_mode <- function(df, group_label) {
+      if (nrow(df) == 0) return(NULL)
+      dm <- df %>%
+        dplyr::mutate(
+          year = lubridate::year(.data$alg_end),
+          cesarean = as.integer(.data$cesarean_m30_to_30 == 1),
+          vaginal = as.integer(.data$vaginal_m30_to_30 == 1)
+        )
+      # By year
+      by_year <- dm %>%
+        dplyr::group_by(.data$year) %>%
+        dplyr::summarise(
+          n = dplyr::n(),
+          n_cesarean = sum(.data$cesarean, na.rm = TRUE),
+          n_vaginal = sum(.data$vaginal, na.rm = TRUE),
+          .groups = "drop"
+        ) %>%
+        dplyr::mutate(
+          n_known = .data$n_cesarean + .data$n_vaginal,
+          pct_cesarean = dplyr::if_else(.data$n_known > 0, 100 * .data$n_cesarean / .data$n_known, NA_real_),
+          pct_vaginal = dplyr::if_else(.data$n_known > 0, 100 * .data$n_vaginal / .data$n_known, NA_real_),
+          group = group_label,
+          period = as.character(.data$year)
+        )
+      # Overall
+      overall <- dm %>%
+        dplyr::summarise(
+          n = dplyr::n(),
+          n_cesarean = sum(.data$cesarean, na.rm = TRUE),
+          n_vaginal = sum(.data$vaginal, na.rm = TRUE),
+          .groups = "drop"
+        ) %>%
+        dplyr::mutate(
+          n_known = .data$n_cesarean + .data$n_vaginal,
+          pct_cesarean = dplyr::if_else(.data$n_known > 0, 100 * .data$n_cesarean / .data$n_known, NA_real_),
+          pct_vaginal = dplyr::if_else(.data$n_known > 0, 100 * .data$n_vaginal / .data$n_known, NA_real_),
+          group = group_label,
+          period = "overall"
+        )
+      dplyr::bind_rows(by_year, overall)
+    }
+
+    delivery_mode_summary <- dplyr::bind_rows(
+      .summarise_delivery_mode(matched_alg, "matched"),
+      .summarise_delivery_mode(alg_only_df, "algorithm_only")
+    )
   }
 
   # 2x2 confusion matrix (PET = reference, Algorithm = test)
@@ -1267,6 +1385,36 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     }
   }
 
+  # ---- Delivery mode SR rows ----
+  if (!is.null(delivery_mode_summary) && nrow(delivery_mode_summary) > 0) {
+    for (i in seq_len(nrow(delivery_mode_summary))) {
+      row <- delivery_mode_summary[i, ]
+      level <- paste0(row$group, ":", row$period)
+      sr_rows <- add_sr_rows(sr_rows, "delivery_mode", level, list(
+        n = list(type = "integer", value = suppress_count(row$n)),
+        n_cesarean = list(type = "integer", value = suppress_count(row$n_cesarean)),
+        n_vaginal = list(type = "integer", value = suppress_count(row$n_vaginal)),
+        n_known = list(type = "integer", value = suppress_count(row$n_known)),
+        pct_cesarean = list(type = "numeric", value = row$pct_cesarean),
+        pct_vaginal = list(type = "numeric", value = row$pct_vaginal)
+      ))
+    }
+  }
+
+  # ---- Unmatched PET boundary metrics SR rows ----
+  if (!is.null(startDate) && !is.na(pet_only_first_year_n)) {
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_boundary_metrics", "first_year_ending", list(
+      n = list(type = "integer", value = suppress_count(pet_only_first_year_n)),
+      pct = list(type = "numeric", value = pet_only_first_year_pct),
+      boundary_date = list(type = "character", value = as.character(startDate + 365L))
+    ))
+    sr_rows <- add_sr_rows(sr_rows, "pet_only_boundary_metrics", "last_year_starting", list(
+      n = list(type = "integer", value = suppress_count(pet_only_last_year_n)),
+      pct = list(type = "numeric", value = pet_only_last_year_pct),
+      boundary_date = list(type = "character", value = as.character(endDate - 365L))
+    ))
+  }
+
   # Build results table (all character for CSV compatibility; result_id as integer for omopgenerics)
   results_tbl <- do.call(rbind, lapply(sr_rows, function(r) {
     as.data.frame(r, stringsAsFactors = FALSE)
@@ -1283,6 +1431,8 @@ comparePregnancyIdentifierWithPET <- function(cdm,
     package_version = pkg_version,
     pet_schema = petSchema,
     pet_table = petTable,
+    study_start_date = if (!is.null(startDate)) as.character(startDate) else NA_character_,
+    study_end_date = if (!is.null(endDate)) as.character(endDate) else NA_character_,
     min_overlap_days = as.character(minOverlapDays),
     remove_within_source_overlaps = as.character(removeWithinSourceOverlaps),
     min_cell_count = as.character(minCellCount)
