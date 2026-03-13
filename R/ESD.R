@@ -1396,7 +1396,7 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
     dplyr::select(-"retry") %>%
     dplyr::mutate(
       min_term = dplyr::coalesce(.data$min_term, 140),
-      max_term = dplyr::coalesce(.data$max_term, 301),
+      max_term = dplyr::coalesce(.data$max_term, 308),
       # If no start date, subtract max term from inferred end date
       inferred_episode_start = dplyr::if_else(
         is.na(.data$inferred_episode_start),
@@ -1426,7 +1426,7 @@ mergedEpisodesWithMetadata <- function(episodesWithGestationalTimingInfoDf,
         .data$gestational_age_days_calculated >= .data$min_term &
           .data$gestational_age_days_calculated <= .data$max_term ~ 1,
         .data$final_outcome_category == "PREG" &
-          .data$gestational_age_days_calculated <= 301 ~ 1,
+          .data$gestational_age_days_calculated <= 308 ~ 1,
         TRUE ~ 0
       ),
       # Add outcome concordance score - 2 highly concordant, 1 somewhat concordant, 0 not accurate/not enough info

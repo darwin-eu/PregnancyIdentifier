@@ -258,7 +258,7 @@ test_that("persons 35--40: final outcome category and episode dates are correct"
   # 38        | 444098                 | 2023-12-20 | NA       | 32817           | condition_occurrence | Gestation period, 40 weeks | EHR
   # 38        | 4014295                | 2023-12-06 | NA       | 32817           | condition_occurrence | Single live birth          | EHR
   # Data: GA 40w on 2023-12-20, LB on 2023-12-06. Start = count back from LB; end = LB.
-  # Algorithm uses Matcho term (e.g. max_term 301 days for LB) for start when inferring from outcome.
+  # Algorithm uses Matcho term (e.g. max_term 308 days for LB) for start when inferring from outcome.
   out38 <- dplyr::filter(df, .data$person_id == 38L)
   expect_equal(nrow(out38), 1, info = "person 38 should have exactly one episode")
   expect_equal(out38$final_outcome_category, "LB", info = "person 38 should be LB")

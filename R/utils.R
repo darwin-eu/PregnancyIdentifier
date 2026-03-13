@@ -146,7 +146,7 @@ fixStartBeforeEnd <- function(df,
   by_col <- stats::setNames("category", outcomeCol)
   with_term <- df %>%
     dplyr::left_join(termMaxMin, by = by_col) %>%
-    dplyr::mutate(.max_term = as.numeric(dplyr::coalesce(.data$max_term, 301)))
+    dplyr::mutate(.max_term = as.numeric(dplyr::coalesce(.data$max_term, 308)))
   n_corrected <- with_term %>%
     dplyr::filter(
       !is.na(.data[[startDateCol]]),

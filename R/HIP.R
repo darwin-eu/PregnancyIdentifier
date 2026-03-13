@@ -452,7 +452,7 @@ buildOutcomeEpisodes <- function(cdm, logger, finalVisitsList) {
 
 # Default term (days) when outcome category is missing from Matcho_term_durations (e.g. PREG).
 # Used so outcome-only episodes still get a non-NA start date (outcome_date - default_max_term).
-DEFAULT_MATCHO_MAX_TERM_DAYS <- 301L
+DEFAULT_MATCHO_MAX_TERM_DAYS <- 308L
 DEFAULT_MATCHO_MIN_TERM_DAYS <- 140L
 
 # estimateOutcomeStarts()
