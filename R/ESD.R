@@ -1126,7 +1126,7 @@ getGtTiming <- function(datesList) {
         if (length(filtDates) == 1) precisionDays <- -1 # only one GW concept and it doesn't overlap
       }
 
-      inferredStartDate <- filtDates[[1]] # latest date
+      inferredStartDate <- filtDates[[1]] # earliest inferred start (from highest gest week)
       precisionDays <- if (precisionDays == -1) -1 else as.numeric(max(filtDates) - min(filtDates))
 
     } else {

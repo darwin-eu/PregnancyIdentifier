@@ -545,7 +545,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
     dplyr::group_by(.data$person_id, .data$episode, .data$min_gest_week) %>%
     dplyr::summarise(min_gest_date = min(.data$visit_date, na.rm = TRUE), .groups = "drop")
   secondMin <- tempMin %>%
-    dplyr::group_by(.data$person_id, .data$episode, .data$gest_week) %>%
+    dplyr::group_by(.data$person_id, .data$episode) %>%
     dplyr::summarise(min_gest_date_2 = max(.data$visit_date, na.rm = TRUE), .groups = "drop")
   tempEnd <- gestationEpisodesTbl %>%
     dplyr::group_by(.data$person_id, .data$episode) %>%

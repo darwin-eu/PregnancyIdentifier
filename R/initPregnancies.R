@@ -68,7 +68,7 @@ initPregnancies <- function(cdm,
   log4r::info(logger, "Loading + inserting pregnancy concept tables into the CDM")
 
   hipConcepts <- suppressMessages(readxl::read_excel(
-    system.file("concepts", "HIP_concepts_reviewed17022026.xlsx", package = "PregnancyIdentifier", mustWork = TRUE),
+    system.file("concepts", "HIP_concepts_reviewed_12032026.xlsx", package = "PregnancyIdentifier", mustWork = TRUE),
     col_types = "text"
   )) %>%
     dplyr::select("concept_id", "concept_name", "category", "gest_value") %>%

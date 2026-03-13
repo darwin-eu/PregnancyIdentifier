@@ -229,7 +229,7 @@ conformEpisodePeriods <- function(df,
 }
 
 cdmTableExists <- function(cdm, tableName) {
-  DBI::dbExistsTable(conn = attr(cdm, "dbcon"), name = tableName)
+  DBI::dbExistsTable(conn = CDMConnector::cdmCon(cdm), name = tableName)
 }
 
 #' Create a mock pregnancy cdm for examples and testing
@@ -378,7 +378,7 @@ addAgeSex <- function(tbl, dateColumn) {
 printLong <- function(x) {
   df <- x %>%
     dplyr::collect() %>%
-    dplyr::mutate_all(as.character)
+    dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
 
   out <- cbind(
     column = colnames(df),
