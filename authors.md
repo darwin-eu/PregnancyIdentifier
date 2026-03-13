@@ -15,7 +15,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/darwin-eu/PregnancyIdentifier/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/darwin-eu/PregnancyIdentifier/blob/v3.2.0/DESCRIPTION)
 
 Markus A, Politi J, van Kessel M, Black A (2026). *PregnancyIdentifier:
 Identifies Pregnancy Episodes in the OMOP (Observational Medical
