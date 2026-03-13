@@ -168,9 +168,9 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
       on_or_before_min = .data$min_date >= .data$concept_start,
       on_or_after_max = .data$max_date <= .data$concept_end,
       in_span = .data$concept_start >= .data$min_date & .data$concept_start <= .data$max_date,
-      # NOTE: keeping original behavior (even though this condition looks suspicious)
-      at_midpoint = .data$concept_start >= (.data$merge_pregnancy_start + .data$midpoint) &
-        .data$concept_start <= (.data$merge_pregnancy_start - .data$midpoint * 30)
+      # midpoint is in months; check if concept falls within +/- 0.5 months of the midpoint
+      at_midpoint = .data$concept_start >= (.data$merge_pregnancy_start + (.data$midpoint - 0.5) * 30) &
+        .data$concept_start <= (.data$merge_pregnancy_start + (.data$midpoint + 0.5) * 30)
     )
 
   # Group by concept and summarize counts
