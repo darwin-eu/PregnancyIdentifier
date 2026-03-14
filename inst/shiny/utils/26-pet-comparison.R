@@ -605,7 +605,7 @@ petComparisonUI <- function(id) {
     tabPanel("Episode level agreement", plot_ui),
     tabPanel("Alignment of episodes", alignment_ui),
     tabPanel("Unmatched characterization", unmatched_ui),
-    if (has_lsc) tabPanel("Unmatched LSC", lsc_ui),
+    tabPanel("Unmatched LSC", lsc_ui),
     tabPanel("Table of metrics", table_ui),
     tabPanel("Raw results", summarised_ui)
   )

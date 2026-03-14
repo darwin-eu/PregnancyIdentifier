@@ -179,7 +179,11 @@ runHip <- function(cdm, outputFolder = NULL, startDate = as.Date("1900-01-01"), 
       "gest_episodes_df",
       "merged_episodes_df",
       "final_episodes_df",
-      "matcho_outcome_limits"
+      "matcho_outcome_limits",
+      "merge_both_tmp",
+      "merge_both_filtered_tmp",
+      "merged_episodes_tmp",
+      "resolve_pairs_to_remove_tmp"
     )
   )
 

@@ -485,6 +485,14 @@ runEsd <- function(cdm,
     }
   }
 
+  # Clean up intermediate database tables created during ESD.
+  # These tables were inserted inside helper functions (getTimingConcepts, addDeliveryMode)
+  # that don't return the updated cdm, so the tables may not be registered on our cdm object.
+  tryCatch(
+    CDMConnector::dropSourceTable(cdm, c("person_id_list", "esd_delivery_mode_cohort")),
+    error = function(e) NULL # table may not exist (e.g. empty input or already dropped)
+  )
+
   invisible(NULL)
 }
 

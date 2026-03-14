@@ -305,5 +305,21 @@ runPregnancyIdentifier <- function(cdm,
       )
     }
 
+  # ---- Cleanup: drop all intermediate tables from the database ---------------
+  log4r::info(logger, "Dropping intermediate database tables")
+  tablesToDrop <- c(
+    "preg_hip_concepts",
+    "preg_pps_concepts",
+    "preg_matcho_term_durations",
+    "preg_hip_records",
+    "preg_pps_records",
+    "preg_hip_episodes",
+    "identified_pregnancies"
+  )
+  tryCatch(
+    CDMConnector::dropSourceTable(cdm, tablesToDrop),
+    error = function(e) log4r::warn(logger, paste("Table cleanup warning:", conditionMessage(e)))
+  )
+
   invisible(NULL)
 }

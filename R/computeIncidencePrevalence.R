@@ -280,5 +280,8 @@ computeIncidencePrevalence <- function(cdm,
     fileName = file.path(exportFolder, "{date}_{cdm_name}_characteristics.csv")
   )
 
+  # Clean up intermediate database table
+  CDMConnector::dropSourceTable(cdm, "identified_pregnancies")
+
   invisible(NULL)
 }
