@@ -137,6 +137,7 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
       version <- NULL
       if (!is.null(zipVersion)) {
         version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
+        if (!isSR && "pkg_version" %in% colnames(data)) data <- data %>% dplyr::select(-"pkg_version")
       } else if ("pkg_version" %in% colnames(data)) {
         version <- data %>% dplyr::pull("pkg_version") %>% unique()
         version <- paste0("_v", as.numeric(substr(version, 1, 1)))

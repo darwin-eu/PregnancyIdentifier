@@ -72,6 +72,7 @@ listCsvFolders <- function(root) {
   csvs <- list.files(root, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
   if (length(csvs) == 0) return(character(0))
   out <- unique(dirname(csvs))
+  out <- out[normalizePath(out) != normalizePath(root)]
   out[order(nchar(out))]
 }
 
@@ -148,10 +149,28 @@ if (hasData) {
         folderRunDate <- paste0(dateParts[3], "-", dateParts[2], "-", dateParts[1])
       }
 
-      writeLines(paste("Processing database folder", basename(d), "-> dbName:", dbName, "runDate:", folderRunDate))
+      # Detect pkg_version from any CSV in the folder to use as fallback zipVersion
+      # (ensures cdm_source.csv gets the same version suffix as data files)
+      folderVersion <- NULL
+      sampleCsv <- list.files(d, pattern = "\\.csv$", full.names = TRUE)
+      sampleCsv <- sampleCsv[basename(sampleCsv) != "cdm_source.csv"]
+      for (.sc in sampleCsv) {
+        .sampleData <- tryCatch(
+          readr::read_csv(.sc, col_types = readr::cols(.default = "c"),
+                          show_col_types = FALSE, n_max = 1),
+          error = function(e) NULL
+        )
+        if (!is.null(.sampleData) && "pkg_version" %in% colnames(.sampleData)) {
+          folderVersion <- .sampleData$pkg_version[1]
+          break
+        }
+      }
+      rm(.sampleData, .sc)
+
+      writeLines(paste("Processing database folder", basename(d), "-> dbName:", dbName, "runDate:", folderRunDate, "folderVersion:", folderVersion))
       csvFiles <- list.files(d, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
       for (csvPath in csvFiles) {
-        loadFile(file = basename(csvPath), dbName = dbName, runDate = folderRunDate, zipVersion = NULL, folder = dirname(csvPath), overwrite = (i == 1))
+        loadFile(file = basename(csvPath), dbName = dbName, runDate = folderRunDate, zipVersion = folderVersion, folder = dirname(csvPath), overwrite = (i == 1))
       }
     }
   }
