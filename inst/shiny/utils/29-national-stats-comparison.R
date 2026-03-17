@@ -6,7 +6,8 @@
 # Maps database CDM names (lowercase, as used in allDP) to national statistics
 # country names. Only population-level databases should be mapped here.
 .DB_COUNTRY_MAP <- list(
-  "dk-dhr" = "Denmark"
+  "dk-dhr"  = "Denmark",
+  "dkdhr"   = "Denmark"
 )
 
 # Resolve a database cdm_name to its mapped national stats country.
@@ -24,6 +25,120 @@
   dbs <- allDP
   mapped <- vapply(dbs, function(db) !is.na(.resolve_db_country(db)), logical(1))
   dbs[mapped]
+}
+
+# ---- Internal crude rates (pregnancy count / incidence denominator, per 1000) ----
+# Builds a dataframe of crude rates for DBs that match a country: uses pregnancy counts
+# (numerators) from trendData and population denominators from the incidence
+# summarised result (overall, both sexes, by year). Only for mapped databases.
+# Returns tibble: cdm_name, country, year, numerator, denominator_count, crude_rate_per_1000
+.build_crude_rates_internal <- function() {
+  mapped_dbs <- .get_mapped_databases()
+  if (length(mapped_dbs) == 0) {
+    return(tibble::tibble(
+      cdm_name = character(0), country = character(0), year = integer(0),
+      numerator = numeric(0), denominator_count = numeric(0), crude_rate_per_1000 = numeric(0)
+    ))
+  }
+  # Denominator: from incidence (overall, both sexes, by year)
+  denom <- tibble::tibble(cdm_name = character(0), year = integer(0), denominator_count = numeric(0))
+  if (exists("incidence", envir = .GlobalEnv)) {
+    inc <- get("incidence", envir = .GlobalEnv)
+    if (is.data.frame(inc) && nrow(inc) > 0 &&
+        "estimate_name" %in% colnames(inc) && "estimate_value" %in% colnames(inc)) {
+      inc_sub <- NULL
+      # Prefer filtering via settings(incidence) if available
+      stg <- tryCatch(omopgenerics::settings(inc), error = function(e) NULL)
+      if (!is.null(stg) && nrow(stg) > 0 && "result_id" %in% colnames(stg)) {
+        need_sex <- "denominator_sex" %in% colnames(stg)
+        need_age <- "denominator_age_group" %in% colnames(stg)
+        need_interval <- "analysis_interval" %in% colnames(stg)
+        stg <- stg %>%
+          dplyr::filter(
+            if (need_sex) .data$denominator_sex == "Both" else TRUE,
+            if (need_age) .data$denominator_age_group == "0 to 150" else TRUE,
+            if (need_interval) .data$analysis_interval == "years" else TRUE
+          )
+        rid <- stg$result_id
+        inc_sub <- inc %>%
+          dplyr::filter(.data$result_id %in% rid, .data$estimate_name == "denominator_count")
+      }
+      # Fallback: settings merged into main table (e.g. visOmopResults)
+      if (is.null(inc_sub) || nrow(inc_sub) == 0) {
+        has_sex <- "denominator_sex" %in% colnames(inc)
+        has_age <- "denominator_age_group" %in% colnames(inc)
+        has_interval <- "analysis_interval" %in% colnames(inc)
+        inc_sub <- inc %>%
+          dplyr::filter(
+            .data$estimate_name == "denominator_count",
+            if (has_sex) .data$denominator_sex == "Both" else TRUE,
+            if (has_age) .data$denominator_age_group == "0 to 150" else TRUE,
+            if (has_interval) .data$analysis_interval == "years" else TRUE
+          )
+      }
+      if (!is.null(inc_sub) && nrow(inc_sub) > 0) {
+        year_col <- if ("incidence_start_date" %in% colnames(inc_sub)) "incidence_start_date" else NULL
+        if (!is.null(year_col)) {
+          inc_sub <- inc_sub %>%
+            dplyr::mutate(
+              year = suppressWarnings(as.integer(stringr::str_extract(.data[[year_col]], "^[0-9]+")))
+            ) %>%
+            dplyr::filter(!is.na(.data$year))
+        } else if ("additional_name" %in% colnames(inc_sub) && "additional_level" %in% colnames(inc_sub)) {
+          inc_sub <- inc_sub %>%
+            dplyr::filter(.data$additional_name == "incidence_start_date") %>%
+            dplyr::mutate(
+              year = suppressWarnings(as.integer(stringr::str_extract(.data$additional_level, "^[0-9]+")))
+            ) %>%
+            dplyr::filter(!is.na(.data$year))
+        } else {
+          inc_sub <- tibble::tibble()
+        }
+        if (nrow(inc_sub) > 0) {
+          denom <- inc_sub %>%
+            dplyr::mutate(denominator_count = suppressWarnings(as.numeric(.data$estimate_value))) %>%
+            dplyr::filter(!is.na(.data$denominator_count), .data$denominator_count > 0) %>%
+            dplyr::select("cdm_name", "year", "denominator_count") %>%
+            dplyr::distinct()
+        }
+      }
+    }
+  }
+  # Numerator: yearly pregnancy (episode) counts from trendData
+  num <- tibble::tibble(cdm_name = character(0), year = integer(0), numerator = numeric(0))
+  if (exists("trendData", envir = .GlobalEnv)) {
+    td <- get("trendData", envir = .GlobalEnv)
+    if (!is.null(td) && nrow(td) > 0 &&
+        "period" %in% colnames(td) && "column" %in% colnames(td) && "value" %in% colnames(td) && "count" %in% colnames(td)) {
+      num <- td %>%
+        dplyr::filter(
+          .data$period == "year",
+          .data$column == "final_episode_end_date",
+          tolower(.data$cdm_name) %in% tolower(mapped_dbs)
+        ) %>%
+        dplyr::mutate(
+          year = as.integer(.data$value),
+          numerator = as.numeric(.data$count)
+        ) %>%
+        dplyr::filter(!is.na(.data$year)) %>%
+        dplyr::select("cdm_name", "year", "numerator") %>%
+        dplyr::distinct()
+    }
+  }
+  # Join and compute rate per 1000; only for mapped (cdm_name, country)
+  out <- num %>%
+    dplyr::inner_join(denom, by = c("cdm_name", "year")) %>%
+    dplyr::mutate(
+      country = .resolve_db_country(.data$cdm_name),
+      crude_rate_per_1000 = dplyr::if_else(
+        .data$denominator_count > 0,
+        round(1000 * .data$numerator / .data$denominator_count, 1),
+        NA_real_
+      )
+    ) %>%
+    dplyr::filter(!is.na(.data$country)) %>%
+    dplyr::select("cdm_name", "country", "year", "numerator", "denominator_count", "crude_rate_per_1000")
+  out
 }
 
 # ---- Load and parse national statistics ----
@@ -138,6 +253,20 @@
         ) %>%
         dplyr::select("year", "count")
     }
+  }
+
+  # 2b. Crude birth rate (pregnancy count / incidence denominator, overall both sexes, by year)
+  int_crude <- tibble::tibble()
+  crude_rates_all <- .build_crude_rates_internal()
+  if (nrow(crude_rates_all) > 0) {
+    int_crude <- crude_rates_all %>%
+      dplyr::filter(
+        (tolower(.data$cdm_name) == tolower(db_name) |
+           grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
+                 tolower(.data$cdm_name))),
+        .data$country == country_name
+      ) %>%
+      dplyr::select("year", "crude_rate_per_1000", "numerator", "denominator_count")
   }
 
   # 3. Foetal mortality rate (overall, no year breakdown)
@@ -304,8 +433,11 @@
           } else NA_real_
 
         } else if (grepl("Crude birth rate", var)) {
-          # Birth rate: cannot compute (no population denominator)
-          NA_real_
+          # Birth rate: pregnancy count / incidence denominator (overall, both sexes), per 1000
+          if (nrow(int_crude) > 0) {
+            match_row <- int_crude %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) match_row$crude_rate_per_1000[1] else NA_real_
+          } else NA_real_
 
         } else if (grepl("Number of live births", var)) {
           # Live births: match with yearly total episodes
@@ -357,7 +489,12 @@
           } else "No age data available"
 
         } else if (grepl("Crude birth rate", var)) {
-          "N/A (population denominator not available)"
+          if (nrow(int_crude) > 0) {
+            match_row <- int_crude %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) {
+              "Pregnancy count / incidence denominator (overall, both sexes), per 1000"
+            } else "No data for this year"
+          } else "N/A (incidence denominator or trend data not available)"
 
         } else if (grepl("Number of live births", var)) {
           if (nrow(int_trend) > 0) {
