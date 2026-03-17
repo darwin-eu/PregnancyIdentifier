@@ -13,6 +13,9 @@ precisionDaysUI <- function(id) {
     ),
     tabsetPanel(
       tabPanel("Plot",
+               fluidRow(
+                 column(3, numericInput(ns("max_days_plot"), "Max days for plot", value = 50, min = 1, step = 1))
+               ),
                plotly::plotlyOutput(ns("plot"), height = "420px") %>% withSpinner(),
                h4("Download figure"),
                fluidRow(
@@ -64,7 +67,7 @@ precisionDaysServer <- function(id) {
           episodes_with_precision_days = suppressWarnings(as.integer(.data$episodes_with_precision_days)),
           pct_with_precision_days = suppressWarnings(as.numeric(.data$pct_with_precision_days))
         ) %>%
-        dplyr::select(.data$cdm_name, .data$total_episodes, .data$episodes_with_precision_days, .data$pct_with_precision_days, dplyr::any_of(c("episodes_with_gw_timing", "pct_with_gw_timing")))
+        dplyr::select("cdm_name", "total_episodes", "episodes_with_precision_days", "pct_with_precision_days", dplyr::any_of(c("episodes_with_gw_timing", "pct_with_gw_timing")))
       if ("episodes_with_gw_timing" %in% colnames(out)) {
         out <- out %>% dplyr::mutate(
           episodes_with_gw_timing = suppressWarnings(as.integer(.data$episodes_with_gw_timing)),
@@ -209,12 +212,18 @@ precisionDaysServer <- function(id) {
 
       if (nrow(plotData) == 0) return(NULL)
 
+      max_days <- if (is.numeric(input$max_days_plot) && input$max_days_plot > 0) {
+        input$max_days_plot
+      } else {
+        50
+      }
       ggplot2::ggplot(plotData, ggplot2::aes(
         x = .data$esd_precision_days,
         y = .data$density,
         colour = .data$cdm_name
       )) +
         ggplot2::geom_line(linewidth = 0.8) +
+        ggplot2::scale_x_continuous(limits = c(0, max_days)) +
         ggplot2::labs(x = "ESD Precision (days)", y = "Density", colour = "Database") +
         ggplot2::theme_minimal()
     })
