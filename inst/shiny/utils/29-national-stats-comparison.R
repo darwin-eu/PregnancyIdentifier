@@ -13,6 +13,12 @@
 # Resolve a database cdm_name to its mapped national stats country.
 # Matches on prefix (ignores version suffix like "_v3").
 .resolve_db_country <- function(db_name) {
+  # dplyr may call this on 0-row dataframes, resulting in a 0-length vector.
+  # In that case there is no meaningful mapping, so return NA.
+  if (is.null(db_name) || length(db_name) == 0) return(NA_character_)
+  if (length(db_name) > 1L) {
+    return(vapply(db_name, function(x) .resolve_db_country(x), FUN.VALUE = character(1)))
+  }
   for (prefix in names(.DB_COUNTRY_MAP)) {
     if (grepl(paste0("^", prefix), tolower(db_name))) return(.DB_COUNTRY_MAP[[prefix]])
   }
@@ -41,66 +47,52 @@
     ))
   }
   # Denominator: from incidence (overall, both sexes, by year)
+  # Uses maximum denominator_count per (cdm_name, year) as the total population count
   denom <- tibble::tibble(cdm_name = character(0), year = integer(0), denominator_count = numeric(0))
   if (exists("incidence", envir = .GlobalEnv)) {
     inc <- get("incidence", envir = .GlobalEnv)
     if (is.data.frame(inc) && nrow(inc) > 0 &&
         "estimate_name" %in% colnames(inc) && "estimate_value" %in% colnames(inc)) {
-      inc_sub <- NULL
-      # Prefer filtering via settings(incidence) if available
-      stg <- tryCatch(omopgenerics::settings(inc), error = function(e) NULL)
-      if (!is.null(stg) && nrow(stg) > 0 && "result_id" %in% colnames(stg)) {
-        need_sex <- "denominator_sex" %in% colnames(stg)
-        need_age <- "denominator_age_group" %in% colnames(stg)
-        need_interval <- "analysis_interval" %in% colnames(stg)
-        stg <- stg %>%
-          dplyr::filter(
-            if (need_sex) .data$denominator_sex == "Both" else TRUE,
-            if (need_age) .data$denominator_age_group == "0 to 150" else TRUE,
-            if (need_interval) .data$analysis_interval == "years" else TRUE
-          )
-        rid <- stg$result_id
-        inc_sub <- inc %>%
-          dplyr::filter(.data$result_id %in% rid, .data$estimate_name == "denominator_count")
+
+      # Filter to denominator_count rows, overall strata
+      inc_sub <- inc %>%
+        dplyr::filter(.data$estimate_name == "denominator_count")
+      if ("strata_name" %in% colnames(inc_sub)) {
+        inc_sub <- inc_sub %>% dplyr::filter(.data$strata_name == "overall")
       }
-      # Fallback: settings merged into main table (e.g. visOmopResults)
-      if (is.null(inc_sub) || nrow(inc_sub) == 0) {
-        has_sex <- "denominator_sex" %in% colnames(inc)
-        has_age <- "denominator_age_group" %in% colnames(inc)
-        has_interval <- "analysis_interval" %in% colnames(inc)
-        inc_sub <- inc %>%
-          dplyr::filter(
-            .data$estimate_name == "denominator_count",
-            if (has_sex) .data$denominator_sex == "Both" else TRUE,
-            if (has_age) .data$denominator_age_group == "0 to 150" else TRUE,
-            if (has_interval) .data$analysis_interval == "years" else TRUE
-          )
-      }
-      if (!is.null(inc_sub) && nrow(inc_sub) > 0) {
-        year_col <- if ("incidence_start_date" %in% colnames(inc_sub)) "incidence_start_date" else NULL
-        if (!is.null(year_col)) {
+
+      # Extract year from the data
+      if (nrow(inc_sub) > 0) {
+        if ("incidence_start_date" %in% colnames(inc_sub)) {
+          # Direct column
           inc_sub <- inc_sub %>%
             dplyr::mutate(
-              year = suppressWarnings(as.integer(stringr::str_extract(.data[[year_col]], "^[0-9]+")))
+              year = suppressWarnings(as.integer(stringr::str_extract(.data$incidence_start_date, "^[0-9]+")))
             ) %>%
             dplyr::filter(!is.na(.data$year))
         } else if ("additional_name" %in% colnames(inc_sub) && "additional_level" %in% colnames(inc_sub)) {
+          # &&&-delimited format: additional_name = "incidence_start_date &&& ..."
+          # additional_level = "2015-01-01 &&& 2015-12-31 &&& years"
           inc_sub <- inc_sub %>%
-            dplyr::filter(.data$additional_name == "incidence_start_date") %>%
+            dplyr::filter(grepl("incidence_start_date", .data$additional_name)) %>%
             dplyr::mutate(
-              year = suppressWarnings(as.integer(stringr::str_extract(.data$additional_level, "^[0-9]+")))
+              year = suppressWarnings(as.integer(stringr::str_extract(
+                trimws(sub("\\s*&&&.*", "", .data$additional_level)), "^[0-9]+"
+              )))
             ) %>%
             dplyr::filter(!is.na(.data$year))
         } else {
           inc_sub <- tibble::tibble()
         }
-        if (nrow(inc_sub) > 0) {
-          denom <- inc_sub %>%
-            dplyr::mutate(denominator_count = suppressWarnings(as.numeric(.data$estimate_value))) %>%
-            dplyr::filter(!is.na(.data$denominator_count), .data$denominator_count > 0) %>%
-            dplyr::select("cdm_name", "year", "denominator_count") %>%
-            dplyr::distinct()
-        }
+      }
+
+      if (nrow(inc_sub) > 0) {
+        # Take max denominator per (cdm_name, year) = total population
+        denom <- inc_sub %>%
+          dplyr::mutate(denominator_count = suppressWarnings(as.numeric(.data$estimate_value))) %>%
+          dplyr::filter(!is.na(.data$denominator_count), .data$denominator_count > 0) %>%
+          dplyr::group_by(.data$cdm_name, .data$year) %>%
+          dplyr::summarise(denominator_count = max(.data$denominator_count, na.rm = TRUE), .groups = "drop")
       }
     }
   }
