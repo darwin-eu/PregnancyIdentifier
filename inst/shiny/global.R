@@ -218,6 +218,11 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
            tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
            envir = .GlobalEnv)
   }
+  if (!exists("deliveryModeByYear", envir = .GlobalEnv) || !is.data.frame(get("deliveryModeByYear", envir = .GlobalEnv)) || nrow(get("deliveryModeByYear", envir = .GlobalEnv)) == 0) {
+    assign("deliveryModeByYear",
+           tibble::tibble(cdm_name = character(0), year = integer(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
+           envir = .GlobalEnv)
+  }
   if (!exists("missingDates", envir = .GlobalEnv) || !is.data.frame(get("missingDates", envir = .GlobalEnv)) || nrow(get("missingDates", envir = .GlobalEnv)) == 0) {
     assign("missingDates",
            tibble::tibble(cdm_name = character(0)),
@@ -614,6 +619,28 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
           .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
         }
       }
+      if ("delivery_mode_by_year.csv" %in% baseNames) {
+        .dmy <- if (exists("deliveryModeByYear", envir = .GlobalEnv)) get("deliveryModeByYear", envir = .GlobalEnv) else tibble::tibble()
+        if (!is.data.frame(.dmy) || nrow(.dmy) == 0) {
+          idx <- which(baseNames == "delivery_mode_by_year.csv")[1L]
+          conn <- utils::unz(zf, contents[idx], open = "rb")
+          x <- tryCatch(
+            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
+            error = function(e) NULL,
+            finally = close(conn)
+          )
+          if (!is.null(x) && nrow(x) >= 0) {
+            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
+            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
+            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
+            if (!exists("deliveryModeByYear", envir = .GlobalEnv) || nrow(get("deliveryModeByYear", envir = .GlobalEnv)) == 0) {
+              assign("deliveryModeByYear", x, envir = .GlobalEnv)
+            } else {
+              assign("deliveryModeByYear", dplyr::bind_rows(get("deliveryModeByYear", envir = .GlobalEnv), x), envir = .GlobalEnv)
+            }
+          }
+        }
+      }
     }
   }
 
@@ -662,6 +689,48 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
       dplyr::mutate(pct = round(pct, 2)) %>%
       dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
+  }
+
+  # Transform delivery mode by year (already loaded by main loop)
+  deliveryModeByYear <- get("deliveryModeByYear", envir = .GlobalEnv)
+  deliveryModeByYearRequired <- c("year", "final_outcome_category", "n", "cesarean", "vaginal", "cesarean_pct", "vaginal_pct")
+  if (nrow(deliveryModeByYear) > 0 && all(deliveryModeByYearRequired %in% colnames(deliveryModeByYear))) {
+    deliveryModeByYear <- deliveryModeByYear %>%
+      dplyr::filter(final_outcome_category %in% c("DELIV", "LB")) %>%
+      dplyr::select(-dplyr::any_of(c("cesarean_count", "vaginal_count"))) %>%
+      dplyr::rename(total = n) %>%
+      dplyr::mutate(year = suppressWarnings(as.integer(.data$year)))
+    if ("n_known" %in% colnames(deliveryModeByYear)) {
+      deliveryModeByYear <- deliveryModeByYear %>% dplyr::mutate(n_known = suppressWarnings(as.numeric(.data$n_known)))
+    } else {
+      deliveryModeByYear <- deliveryModeByYear %>%
+        dplyr::mutate(
+          cesarean = suppressWarnings(as.numeric(.data$cesarean)),
+          vaginal = suppressWarnings(as.numeric(.data$vaginal)),
+          n_known = .data$cesarean + .data$vaginal
+        )
+    }
+    deliveryModeByYear <- deliveryModeByYear %>%
+      dplyr::distinct(.data$cdm_name, .data$year, .data$final_outcome_category, .keep_all = TRUE)
+    joinCols <- c("cdm_name", "year", "final_outcome_category", "total", "n_known", "mode")
+    deliveryModeByYear <- dplyr::left_join(
+      deliveryModeByYear %>%
+        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
+      deliveryModeByYear %>%
+        dplyr::select(-dplyr::any_of(c("cesarean", "vaginal"))) %>%
+        dplyr::rename(
+          vaginal = vaginal_pct,
+          cesarean = cesarean_pct
+        ) %>%
+        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct"),
+      by = joinCols
+    ) %>%
+      dplyr::mutate(dplyr::across(
+        -dplyr::all_of(c("cdm_name", "year", "final_outcome_category", "mode")),
+        ~ suppressWarnings(as.numeric(.))
+      )) %>%
+      dplyr::mutate(pct = round(pct, 2)) %>%
+      dplyr::select(c("cdm_name", "year", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
   }
 
   # Get incidence/prevalence/characteristics (already proper summarised_result objects)

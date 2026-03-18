@@ -45,6 +45,7 @@ sidebar <- dashboardSidebar(
     # Episode outcomes
     menuItem("Episode outcomes", icon = icon("flag"),
       menuSubItem("Mode of delivery", tabName = "delivery_mode"),
+      menuSubItem("Mode of delivery by year", tabName = "delivery_mode_by_year"),
       menuSubItem("Outcome categories", tabName = "outcome_categories")
     ),
 
@@ -126,6 +127,7 @@ body <- dashboardBody(
 
     # Episode outcomes
     tabItem(tabName = "delivery_mode", deliveryModeUI("delivery_mode")),
+    tabItem(tabName = "delivery_mode_by_year", deliveryModeByYearUI("delivery_mode_by_year")),
     tabItem(tabName = "outcome_categories", outcomeCategoriesUI("outcome_categories")),
 
     # Cohort Characteristics

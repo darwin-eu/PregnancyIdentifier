@@ -1049,29 +1049,55 @@ exportOutcomeCategoriesCounts <- function(res, resPath, snap, runStart, pkgVersi
 }
 
 exportDeliveryModeSummary <- function(res, resPath, snap, runStart, pkgVersion) {
-  deliveryModeSummary <- res %>%
-    dplyr::select(c("final_outcome_category", dplyr::starts_with("cesarean"), dplyr::starts_with("vaginal"))) %>%
-    dplyr::group_by(.data$final_outcome_category) %>%
-    dplyr::summarise(
-      n = dplyr::n(),
-      cesarean = sum(.data$cesarean_m30_to_30),
-      cesarean_count = sum(.data$cesarean_m30_to_30_count),
-      vaginal = sum(.data$vaginal_m30_to_30),
-      vaginal_count = sum(.data$vaginal_m30_to_30_count)
-    ) %>%
-    dplyr::mutate(
-      n_known = .data$cesarean + .data$vaginal,
-      cesarean_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$cesarean / .data$n_known, NA_real_),
-      vaginal_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$vaginal / .data$n_known, NA_real_)
-    ) %>%
-    dplyr::mutate(
+
+  addMeta <- function(df) {
+    dplyr::mutate(df,
       cdm_name = snap$cdm_name,
       date_run = runStart,
       date_export = snap$snapshot_date,
       pkg_version = pkgVersion
     )
+  }
+
+  summariseDeliveryMode <- function(df, ...) {
+    df %>%
+      dplyr::group_by(...) %>%
+      dplyr::summarise(
+        n = dplyr::n(),
+        cesarean = sum(.data$cesarean_m30_to_30),
+        cesarean_count = sum(.data$cesarean_m30_to_30_count),
+        vaginal = sum(.data$vaginal_m30_to_30),
+        vaginal_count = sum(.data$vaginal_m30_to_30_count),
+        .groups = "drop"
+      ) %>%
+      dplyr::mutate(
+        n_known = .data$cesarean + .data$vaginal,
+        cesarean_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$cesarean / .data$n_known, NA_real_),
+        vaginal_pct = dplyr::if_else(.data$n_known > 0, 100 * .data$vaginal / .data$n_known, NA_real_)
+      )
+  }
+
+  resWithYear <- res %>%
+    dplyr::select(
+      dplyr::any_of(c("final_outcome_category", "final_episode_end_date")),
+      dplyr::starts_with("cesarean"),
+      dplyr::starts_with("vaginal")
+    ) %>%
+    dplyr::mutate(year = as.integer(format(as.Date(.data$final_episode_end_date), "%Y")))
+
+  # Overall summary by outcome (existing export)
+  deliveryModeSummary <- resWithYear %>%
+    summariseDeliveryMode(.data$final_outcome_category) %>%
+    addMeta()
 
   utils::write.csv(deliveryModeSummary, file.path(resPath, "delivery_mode_summary.csv"), row.names = FALSE)
+
+  # Stratified by year and outcome
+  deliveryModeByYear <- resWithYear %>%
+    summariseDeliveryMode(.data$year, .data$final_outcome_category) %>%
+    addMeta()
+
+  utils::write.csv(deliveryModeByYear, file.path(resPath, "delivery_mode_by_year.csv"), row.names = FALSE)
 }
 
 # ---- Small utility functions --------------------------------------------------

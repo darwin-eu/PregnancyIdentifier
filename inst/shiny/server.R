@@ -22,6 +22,7 @@ server <- function(input, output, session) {
 
   # Episode outcomes
   deliveryModeServer("delivery_mode")
+  deliveryModeByYearServer("delivery_mode_by_year")
   outcomeCategoriesServer("outcome_categories")
 
   # Cohort Characteristics

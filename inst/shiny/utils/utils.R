@@ -74,6 +74,9 @@ loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir
     if (file == "delivery_mode_summary.csv") {
       camelCaseName <- "deliveryModeSummary"
     }
+    if (file == "delivery_mode_by_year.csv") {
+      camelCaseName <- "deliveryModeByYear"
+    }
 
     if (file == "pet_comparison_summarised_result.csv") {
       data <- omopgenerics::importSummarisedResult(file.path(folder, file))
