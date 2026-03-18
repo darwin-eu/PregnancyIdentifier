@@ -231,15 +231,30 @@ computeIncidencePrevalence <- function(cdm,
     cdm = cdm,
     denominatorTable = "hipps_denom",
     outcomeTable = "hipps_cohort_table",
-    interval = c("overall", "years")
+    interval = c("overall", "years"),
+    outcomeWashout = 0,
+    repeatedEvents = TRUE
   )
 
   # -- Estimate period prevalence ---------------------------------------------
+  # For prevalence, set cohort_start_date = cohort_end_date - 1 day so that
+  # each episode is a point-like event anchored at its outcome date.
+  logMsg("Building prevalence cohort table")
+  cdm$hipps_prev_cohort <- cdm$hipps_cohort_table %>%
+    dplyr::mutate(
+      cohort_start_date = !!CDMConnector::dateadd("cohort_end_date", -1L, interval = "day")
+    ) %>%
+    dplyr::compute(name = "hipps_prev_cohort") %>%
+    omopgenerics::newCohortTable(
+      cohortSetRef = cohort_set_ref,
+      .softValidation = TRUE
+    )
+
   logMsg("Estimating period prevalence")
   prevRes <- IncidencePrevalence::estimatePeriodPrevalence(
     cdm = cdm,
     denominatorTable = "hipps_denom",
-    outcomeTable = "hipps_cohort_table",
+    outcomeTable = "hipps_prev_cohort",
     interval = c("overall", "years")
   )
 
