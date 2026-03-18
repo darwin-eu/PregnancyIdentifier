@@ -413,7 +413,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     gestationalAgeDaysSummary <- tibble::tibble(name = character(0))
   }
   gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
-    dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "colName"))), as.numeric) %>%
+    dplyr::mutate(dplyr::across(-dplyr::all_of(c("cdm_name", "final_outcome_category", "colName")), as.numeric)) %>%
     dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
   # Ensure total records (episodes) and person count per cdm–outcome exist for table display
   if (!"episode_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) {
@@ -675,6 +675,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     # One row per (cdm_name, final_outcome_category) so pivot + join is one-to-one (avoids many-to-many from bind_rows duplicates)
     deliveryModeSummary <- deliveryModeSummary %>%
       dplyr::distinct(.data$cdm_name, .data$final_outcome_category, .keep_all = TRUE)
+    dmJoinCols <- c("cdm_name", "final_outcome_category", "total", "n_known", "mode")
     deliveryModeSummary <- dplyr::left_join(
       deliveryModeSummary %>%
         tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "n"),
@@ -684,9 +685,13 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
           vaginal = vaginal_pct,
           cesarean = cesarean_pct
         ) %>%
-        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct")
+        tidyr::pivot_longer(cols = c("cesarean", "vaginal"), names_to = "mode", values_to = "pct"),
+      by = dmJoinCols
     ) %>%
-      dplyr::mutate_at(vars(-(c("cdm_name", "final_outcome_category", "mode"))), ~ suppressWarnings(as.numeric(.))) %>%
+      dplyr::mutate(dplyr::across(
+        -dplyr::all_of(c("cdm_name", "final_outcome_category", "mode")),
+        ~ suppressWarnings(as.numeric(.))
+      )) %>%
       dplyr::mutate(pct = round(pct, 2)) %>%
       dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
   }
