@@ -158,19 +158,9 @@ test_that("PREG-outcome person appears in hip_records and final output", {
     outputLogToConsole = FALSE
   )
 
-  # 1) PREG concept must be in preg_hip_records
-  #    runPregnancyIdentifier returns invisible(NULL) so the cdm object isn't
-  #    updated. Query the database table directly.
-  preg_records <- DBI::dbGetQuery(
-    con,
-    sprintf(
-      "SELECT * FROM %s.preg_hip_records WHERE person_id = %d AND category = 'PREG'",
-      write_schema, test_person_id
-    )
-  )
-  expect_true(nrow(preg_records) > 0, info = "PREG concept must appear in preg_hip_records")
+  # preg_hip_records is dropped during pipeline cleanup, so verify the person
 
-  # 2) Person must appear in final_pregnancy_episodes.rds
+  # Person must appear in final_pregnancy_episodes.rds
   final <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
   person_episodes <- final[final$person_id == test_person_id, ]
   expect_true(nrow(person_episodes) > 0, info = "Person with PREG concept must appear in final output")

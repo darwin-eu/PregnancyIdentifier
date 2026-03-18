@@ -13,6 +13,8 @@
 ^Meta$
 work/*
 ^README\.Rmd$
+^README\.html$
+^code_review\.md$
 ^STYLE\.md$
 .vscode/
 ^export$

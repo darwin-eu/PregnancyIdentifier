@@ -122,7 +122,7 @@ computeIncidencePrevalence <- function(cdm,
       dplyr::select(
         subject_id = "person_id",
         cohort_start_date = "merge_pregnancy_start",
-        cohort_end_date = end_date_col,
+        cohort_end_date = dplyr::all_of(end_date_col),
         "final_outcome_category"
       ) %>%
       dplyr::mutate(cohort_definition_id = base_id)
