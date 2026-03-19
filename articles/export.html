@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,7 +58,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Export: shareable summary CSVs</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/darwin-eu/PregnancyIdentifier/blob/v3.2.0/vignettes/export.Rmd" class="external-link"><code>vignettes/export.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/darwin-eu/PregnancyIdentifier/blob/main/vignettes/export.Rmd" class="external-link"><code>vignettes/export.Rmd</code></a></small>
       <div class="d-none name"><code>export.Rmd</code></div>
     </div>
 
@@ -493,6 +493,17 @@ outcome category for live-birth analyses.</p>
 <hr>
 </div>
 <div class="section level3">
+<h3 id="delivery_mode_by_year-csv">delivery_mode_by_year.csv<a class="anchor" aria-label="anchor" href="#delivery_mode_by_year-csv"></a>
+</h3>
+<p><strong>Columns:</strong> <strong>year</strong>,
+<strong>final_outcome_category</strong>, delivery-mode counts
+(e.g. cesarean, vaginal), <strong>n</strong>, plus metadata.</p>
+<p><strong>Purpose:</strong> Delivery mode (cesarean vs vaginal)
+stratified by year and outcome category. Year is derived from the
+episode end date.</p>
+<hr>
+</div>
+<div class="section level3">
 <h3 id="concept_check-csv">concept_check.csv<a class="anchor" aria-label="anchor" href="#concept_check-csv"></a>
 </h3>
 <p><strong>Columns:</strong> Concept-timing check results (concept
@@ -688,16 +699,21 @@ archive, run <code>zipExportFolder(exportFolder)</code> after export
 <td>Cesarean/vaginal by outcome</td>
 </tr>
 <tr class="even">
+<td>delivery_mode_by_year.csv</td>
+<td>Delivery mode by year and outcome</td>
+<td>Cesarean/vaginal trends over time</td>
+</tr>
+<tr class="odd">
 <td>concept_check.csv</td>
 <td>Concept timing vs episodes</td>
 <td>Concept QA</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>quality_check_cleanup.csv</td>
 <td>Cleanup/validation QA</td>
 <td>Cleanup QA</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>attrition_if_cleanup.csv</td>
 <td>Cleanup-rule flagged counts</td>
 <td>Cleanup QA and potential attrition</td>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">PregnancyIdentifier</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">3.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,9 +29,32 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/darwin-eu/PregnancyIdentifier/blob/v3.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/darwin-eu/PregnancyIdentifier/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="3.2.1" id="pregnancyidentifier-321">PregnancyIdentifier 3.2.1<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-321"></a></h2>
+<div class="section level3">
+<h3 id="new-features-3-2-1">New features<a class="anchor" aria-label="anchor" href="#new-features-3-2-1"></a></h3>
+<ul><li>Added <code>computeIncidencePrevalence()</code> pipeline step for incidence, prevalence, and cohort characteristics.</li>
+<li>Added <code><a href="../reference/compareWithNationalStats.html">compareWithNationalStats()</a></code> with Shiny tab comparing results to European national statistics.</li>
+<li>Added age at first pregnancy by end date Shiny subtab.</li>
+<li>Expanded <code>compareWithPET()</code> with additional comparison metrics.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-3-2-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-3-2-1"></a></h3>
+<ul><li>Changed default max term from 301 to 308 days (44-week upper bound).</li>
+<li>Fixed <code>at_midpoint</code> calculation in <code>exportConceptTimingCheck()</code>.</li>
+<li>Fixed <code>buildGestationEpisodes()</code> grouping bug in <code>secondMin</code> (extra <code>gest_week</code> group).</li>
+<li>Fixed DuckDB type mismatch (<code>gest_value</code> INTEGER vs DOUBLE) in <code>buildGestationEpisodes()</code> and <code>attachGestationAndLength()</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-3-2-1">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-3-2-1"></a></h3>
+<ul><li>Updated HIP concept set (<code>HIP_concepts_reviewed_12032026.xlsx</code>).</li>
+<li>Pipeline now cleans up intermediate database tables after completion.</li>
+<li>Age at first pregnancy export now includes both start and end date, overall and by year.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="3.2.0" id="pregnancyidentifier-320">PregnancyIdentifier 3.2.0<a class="anchor" aria-label="anchor" href="#pregnancyidentifier-320"></a></h2>
 <div class="section level3">

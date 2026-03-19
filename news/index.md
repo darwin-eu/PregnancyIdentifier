@@ -1,5 +1,33 @@
 # Changelog
 
+## PregnancyIdentifier 3.2.1
+
+### New features
+
+- Added `computeIncidencePrevalence()` pipeline step for incidence,
+  prevalence, and cohort characteristics.
+- Added
+  [`compareWithNationalStats()`](https://darwin-eu-dev.github.io/PregnancyIdentifier/reference/compareWithNationalStats.md)
+  with Shiny tab comparing results to European national statistics.
+- Added age at first pregnancy by end date Shiny subtab.
+- Expanded `compareWithPET()` with additional comparison metrics.
+
+### Bug fixes
+
+- Changed default max term from 301 to 308 days (44-week upper bound).
+- Fixed `at_midpoint` calculation in `exportConceptTimingCheck()`.
+- Fixed `buildGestationEpisodes()` grouping bug in `secondMin` (extra
+  `gest_week` group).
+- Fixed DuckDB type mismatch (`gest_value` INTEGER vs DOUBLE) in
+  `buildGestationEpisodes()` and `attachGestationAndLength()`.
+
+### Other changes
+
+- Updated HIP concept set (`HIP_concepts_reviewed_12032026.xlsx`).
+- Pipeline now cleans up intermediate database tables after completion.
+- Age at first pregnancy export now includes both start and end date,
+  overall and by year.
+
 ## PregnancyIdentifier 3.2.0
 
 ### Shiny app - New features

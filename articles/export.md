@@ -412,6 +412,16 @@ live-birth analyses.
 
 ------------------------------------------------------------------------
 
+### delivery_mode_by_year.csv
+
+**Columns:** **year**, **final_outcome_category**, delivery-mode counts
+(e.g. cesarean, vaginal), **n**, plus metadata.
+
+**Purpose:** Delivery mode (cesarean vs vaginal) stratified by year and
+outcome category. Year is derived from the episode end date.
+
+------------------------------------------------------------------------
+
 ### concept_check.csv
 
 **Columns:** Concept-timing check results (concept coverage and timing
@@ -481,6 +491,7 @@ outputs if you want one combined archive).
 | swapped_dates.csv                             | Count of start \> end (HIP/PPS/ESD)          | Date logic QA                           |
 | outcome_categories_count.csv                  | Outcome counts by algorithm                  | Outcome mix, algorithm agreement        |
 | delivery_mode_summary.csv                     | Delivery mode by outcome                     | Cesarean/vaginal by outcome             |
+| delivery_mode_by_year.csv                     | Delivery mode by year and outcome            | Cesarean/vaginal trends over time       |
 | concept_check.csv                             | Concept timing vs episodes                   | Concept QA                              |
 | quality_check_cleanup.csv                     | Cleanup/validation QA                        | Cleanup QA                              |
 | attrition_if_cleanup.csv                      | Cleanup-rule flagged counts                  | Cleanup QA and potential attrition      |
