@@ -147,7 +147,7 @@ kable(sr_table(res, "episode_counts", "source"), format = "html", caption = "Epi
 
 | source    | n_episodes | n_persons |
 |:----------|:-----------|:----------|
-| algorithm | 35         | 32        |
+| algorithm | 37         | 32        |
 | pet       | 33         | 25        |
 
 Episode counts: algorithm vs PET
@@ -163,7 +163,7 @@ kable(sr_table(res, "protocol_summary"), format = "html", caption = "Protocol su
 
 | variable_level | total_pet_episodes | total_algorithm_episodes | total_matched_episodes |
 |:---------------|:-------------------|:-------------------------|:-----------------------|
-| overall        | 33                 | 35                       | 27                     |
+| overall        | 33                 | 37                       | 27                     |
 
 Protocol summary (for reporting)
 
@@ -178,7 +178,7 @@ kable(sr_table(res, "person_overlap", "metric"), format = "html", caption = "Per
 | metric                | n_persons |
 |:----------------------|:----------|
 | raw_person_overlap    | 25        |
-| cohort_person_overlap | 21        |
+| cohort_person_overlap | 23        |
 
 Person overlap
 
@@ -197,7 +197,7 @@ kable(sr_table(res, "venn_counts", "category"), format = "html", caption = "Venn
 |:---------------|:-----------|:--------------|:--------------|
 | both           | 27         | 27            | 27            |
 | pet_only       | 6          | 27            | 27            |
-| algorithm_only | 8          | 27            | 27            |
+| algorithm_only | 10         | 27            | 27            |
 
 Venn counts (one-to-one matching)
 
@@ -215,7 +215,7 @@ kable(sr_table(res, "confusion_2x2", "cell"), format = "html", caption = "2×2 c
 |:-----|:------|
 | TP   | 27    |
 | FN   | 6     |
-| FP   | 8     |
+| FP   | 10    |
 | TN   | NA    |
 
 2×2 confusion matrix (PET = reference)
@@ -234,7 +234,7 @@ kable(sr_table(res, "ppv_sensitivity", "metric"), format = "html", caption = "Se
 | metric      | value             | numerator | denominator |
 |:------------|:------------------|:----------|:------------|
 | sensitivity | 0.818181818181818 | 27        | 33          |
-| ppv         | 0.771428571428571 | 27        | 35          |
+| ppv         | 0.72972972972973  | 27        | 37          |
 
 Sensitivity, specificity, PPV, NPV
 
@@ -266,11 +266,11 @@ if (!is.null(dd_summary) && nrow(dd_summary) > 0) {
 }
 ```
 
-| variable_level                                | mean              | median | sd               | min   | q25  | q75 | max  | n_matched |
-|:----------------------------------------------|:------------------|:-------|:-----------------|:------|:-----|:----|:-----|:----------|
-| Start date difference (PET - Algorithm, days) | 55                | 2      | 278.607112394718 | -5    | -0.5 | 3.5 | 1449 | 27        |
-| End date difference (PET - Algorithm, days)   | -44.6296296296296 | 0      | 278.310306637442 | -1420 | -3   | 1.5 | 226  | 27        |
-| Duration difference (PET - Algorithm, days)   | -99.6296296296296 | -2     | 388.00497103756  | -1449 | -5.5 | 0   | 227  | 27        |
+| variable_level                                | mean               | median | sd               | min | q25  | q75 | max | n_matched |
+|:----------------------------------------------|:-------------------|:-------|:-----------------|:----|:-----|:----|:----|:----------|
+| Start date difference (PET - Algorithm, days) | 1.37037037037037   | 2      | 2.73366685478214 | -5  | -0.5 | 3   | 5   | 27        |
+| End date difference (PET - Algorithm, days)   | -0.666666666666667 | 0      | 2.54195563720897 | -5  | -3   | 1   | 4   | 27        |
+| Duration difference (PET - Algorithm, days)   | -2.03703703703704  | -2     | 4.16470039075194 | -9  | -4.5 | -1  | 8   | 27        |
 
 Date difference summary (PET − algorithm, days)
 
@@ -289,26 +289,26 @@ if (!is.null(dd_by_outcome) && nrow(dd_by_outcome) > 0) {
 }
 ```
 
-| variable_level                                         | mean              | median | sd               | min   | q25   | q75  | max  | n_matched |
-|:-------------------------------------------------------|:------------------|:-------|:-----------------|:------|:------|:-----|:-----|:----------|
-| Start date difference (PET - Algorithm, days) \[AB\]   | 3                 | 3      | NA               | 3     | 3     | 3    | 3    | NA        |
-| End date difference (PET - Algorithm, days) \[AB\]     | 1                 | 1      | NA               | 1     | 1     | 1    | 1    | NA        |
-| Duration difference (PET - Algorithm, days) \[AB\]     | -2                | -2     | NA               | -2    | -2    | -2   | -2   | NA        |
-| Start date difference (PET - Algorithm, days) \[ECT\]  | 0                 | 0      | NA               | 0     | 0     | 0    | 0    | NA        |
-| End date difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA               | 0     | 0     | 0    | 0    | NA        |
-| Duration difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA               | 0     | 0     | 0    | 0    | NA        |
-| Start date difference (PET - Algorithm, days) \[LB\]   | -0.25             | -0.5   | 3.15096357144468 | -5    | -1.75 | 3    | 3    | 8         |
-| End date difference (PET - Algorithm, days) \[LB\]     | 0.125             | 1.5    | 3.27053949241231 | -5    | -3    | 3    | 3    | 8         |
-| Duration difference (PET - Algorithm, days) \[LB\]     | 0.375             | -1.5   | 5.0972681759098  | -6    | -2.5  | 4    | 8    | 8         |
-| Start date difference (PET - Algorithm, days) \[PREG\] | 98.7333333333333  | 3      | 373.54832670078  | -2    | 0     | 5    | 1449 | 15        |
-| End date difference (PET - Algorithm, days) \[PREG\]   | -80.2             | -1     | 375.221686854204 | -1420 | -2.5  | 0.5  | 226  | 15        |
-| Duration difference (PET - Algorithm, days) \[PREG\]   | -178.933333333333 | -3     | 514.210555354609 | -1449 | -8    | -0.5 | 227  | 15        |
-| Start date difference (PET - Algorithm, days) \[SA\]   | 1                 | 1      | NA               | 1     | 1     | 1    | 1    | NA        |
-| End date difference (PET - Algorithm, days) \[SA\]     | -4                | -4     | NA               | -4    | -4    | -4   | -4   | NA        |
-| Duration difference (PET - Algorithm, days) \[SA\]     | -5                | -5     | NA               | -5    | -5    | -5   | -5   | NA        |
-| Start date difference (PET - Algorithm, days) \[SB\]   | 2                 | 2      | NA               | 2     | 2     | 2    | 2    | NA        |
-| End date difference (PET - Algorithm, days) \[SB\]     | 0                 | 0      | NA               | 0     | 0     | 0    | 0    | NA        |
-| Duration difference (PET - Algorithm, days) \[SB\]     | -2                | -2     | NA               | -2    | -2    | -2   | -2   | NA        |
+| variable_level                                         | mean              | median | sd               | min | q25   | q75 | max | n_matched |
+|:-------------------------------------------------------|:------------------|:-------|:-----------------|:----|:------|:----|:----|:----------|
+| Start date difference (PET - Algorithm, days) \[AB\]   | 3                 | 3      | NA               | 3   | 3     | 3   | 3   | NA        |
+| End date difference (PET - Algorithm, days) \[AB\]     | 1                 | 1      | NA               | 1   | 1     | 1   | 1   | NA        |
+| Duration difference (PET - Algorithm, days) \[AB\]     | -2                | -2     | NA               | -2  | -2    | -2  | -2  | NA        |
+| Start date difference (PET - Algorithm, days) \[ECT\]  | 0                 | 0      | NA               | 0   | 0     | 0   | 0   | NA        |
+| End date difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA               | 0   | 0     | 0   | 0   | NA        |
+| Duration difference (PET - Algorithm, days) \[ECT\]    | 0                 | 0      | NA               | 0   | 0     | 0   | 0   | NA        |
+| Start date difference (PET - Algorithm, days) \[LB\]   | -0.25             | -0.5   | 3.15096357144468 | -5  | -1.75 | 3   | 3   | 8         |
+| End date difference (PET - Algorithm, days) \[LB\]     | 0.125             | 1.5    | 3.27053949241231 | -5  | -3    | 3   | 3   | 8         |
+| Duration difference (PET - Algorithm, days) \[LB\]     | 0.375             | -1.5   | 5.0972681759098  | -6  | -2.5  | 4   | 8   | 8         |
+| Start date difference (PET - Algorithm, days) \[PREG\] | 2.2               | 3      | 2.51282425057657 | -2  | 0     | 4.5 | 5   | 15        |
+| End date difference (PET - Algorithm, days) \[PREG\]   | -1.06666666666667 | -1     | 2.25092573548455 | -5  | -2.5  | 0   | 4   | 15        |
+| Duration difference (PET - Algorithm, days) \[PREG\]   | -3.26666666666667 | -2     | 3.65409098851971 | -9  | -6.5  | -1  | 3   | 15        |
+| Start date difference (PET - Algorithm, days) \[SA\]   | 1                 | 1      | NA               | 1   | 1     | 1   | 1   | NA        |
+| End date difference (PET - Algorithm, days) \[SA\]     | -4                | -4     | NA               | -4  | -4    | -4  | -4  | NA        |
+| Duration difference (PET - Algorithm, days) \[SA\]     | -5                | -5     | NA               | -5  | -5    | -5  | -5  | NA        |
+| Start date difference (PET - Algorithm, days) \[SB\]   | 2                 | 2      | NA               | 2   | 2     | 2   | 2   | NA        |
+| End date difference (PET - Algorithm, days) \[SB\]     | 0                 | 0      | NA               | 0   | 0     | 0   | 0   | NA        |
+| Duration difference (PET - Algorithm, days) \[SB\]     | -2                | -2     | NA               | -2  | -2    | -2  | -2  | NA        |
 
 Date differences by algorithm outcome (PET − algorithm, days)
 
@@ -358,7 +358,7 @@ kable(sr_table(res, "outcome_by_year"), format = "html", caption = "Outcome by y
 
 | variable_level  | overall_equal | overall_diff | lb_lb | lb_miscarriage | lb_ab | lb_sb | lb_unknown | sb_sb | sb_miscarriage | sb_ab | sb_lb | sb_unknown | ab_ab | ab_miscarriage | ab_lb | ab_sb | ab_unknown |
 |:----------------|:--------------|:-------------|:------|:---------------|:------|:------|:-----------|:------|:---------------|:------|:------|:-----------|:------|:---------------|:------|:------|:-----------|
-| same_year_pairs | 11            | 15           | 8     | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         |
+| same_year_pairs | 11            | 16           | 8     | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         | NA    | NA             | NA    | NA    | NA         |
 
 Outcome by year (same-year pairs)
 
@@ -368,10 +368,10 @@ Outcome by year (same-year pairs)
 kable(sr_table(res, "duration_summary", "source"), format = "html", caption = "Pregnancy duration (days) by source")
 ```
 
-| source    | n   | mean             | median | sd               | min | q25 | q75 | max  |
-|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:-----|
-| algorithm | 35  | 328.457142857143 | 266    | 421.492679641766 | 21  | 147 | 293 | 1749 |
-| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377  |
+| source    | n   | mean             | median | sd               | min | q25 | q75 | max |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:----|:----|:----|
+| algorithm | 37  | 204.27027027027  | 189    | 95.771907458598  | 21  | 147 | 280 | 380 |
+| pet       | 33  | 210.454545454545 | 260    | 97.4211511008681 | 15  | 140 | 280 | 377 |
 
 Pregnancy duration (days) by source
 
@@ -389,10 +389,10 @@ if (!is.null(dm) && nrow(dm) > 0) {
 }
 ```
 
-| source    | n   | mean            | median | sd               | min | q25   | q75   | max  |
-|:----------|:----|:----------------|:-------|:-----------------|:----|:------|:------|:-----|
-| algorithm | 27  | 299.62962962963 | 224    | 386.974770410776 | 21  | 143.5 | 280   | 1606 |
-| pet       | 27  | 200             | 181    | 102.336173016643 | 15  | 138.5 | 283.5 | 377  |
+| source    | n   | mean             | median | sd               | min | q25   | q75   | max |
+|:----------|:----|:-----------------|:-------|:-----------------|:----|:------|:------|:----|
+| algorithm | 27  | 196              | 147    | 99.401284622561  | 21  | 147   | 280   | 380 |
+| pet       | 27  | 193.962962962963 | 150    | 100.511568978777 | 15  | 138.5 | 279.5 | 377 |
 
 Duration (matched pairs only)
 
