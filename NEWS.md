@@ -1,64 +1,24 @@
-# PregnancyIdentifier 3.2.2
-
-## Bug fixes
-
-* **DuckDB type mismatch fix:** Fixed `gest_value` column type inconsistency
-  (`INTEGER` vs `DOUBLE`) that caused a DuckDB internal assertion error
-  ("Failed to bind column reference gest_value: inequal types") when building
-  the `algorithm.Rmd` vignette on CI. The `gest_value` column is now kept as
-  `numeric` (DOUBLE) throughout `buildGestationEpisodes()` and
-  `attachGestationAndLength()` instead of being cast to `as.integer()`, which
-  conflicted with the upstream `as.numeric()` type set in `initPregnancies()`.
-
 # PregnancyIdentifier 3.2.1
 
 ## New features
 
-* **Incidence, prevalence & characteristics:** New pipeline step
-  `computeIncidencePrevalence()` constructs outcome-specific cohort tables
-  (HIP-only, PPS-only, and combined HIPPS windows), generates denominator
-  cohorts stratified by age group, and estimates incidence, period prevalence,
-  and cohort characteristics. Writes CSV files to `exportFolder`.
-
-* **National statistics comparison:** New `compareWithNationalStats()` function
-  and Shiny tab that compares PregnancyIdentifier results with published
-  national statistics across 12 European countries. Includes subtabs for
-  gestational duration, delivery mode, birth rates, live births, foetal
-  mortality, and raw data.
-
-* **Age at first pregnancy by end date:** New Shiny subtab
-  (`20b-age-first-pregnancy-end.R`) showing age at first pregnancy based on
-  episode end date, complementing the existing start-date-based view.
-
-* **PET comparison enhancements:** Expanded `compareWithPET()` with additional
-  comparison metrics and improved Shiny visualisations.
+* Added `computeIncidencePrevalence()` pipeline step for incidence, prevalence, and cohort characteristics.
+* Added `compareWithNationalStats()` with Shiny tab comparing results to European national statistics.
+* Added age at first pregnancy by end date Shiny subtab.
+* Expanded `compareWithPET()` with additional comparison metrics.
 
 ## Bug fixes
 
-* **Default max term changed from 301 to 308 days:** `DEFAULT_MATCHO_MAX_TERM_DAYS`
-  and the PREG fallback `max_term` in ESD updated from 301 to 308 days,
-  aligning with the standard 44-week upper bound for pregnancy duration.
-
-* **Midpoint timing check fix:** Corrected the `at_midpoint` calculation in
-  `exportConceptTimingCheck()` which previously had an incorrect subtraction
-  that would always produce invalid ranges. Now correctly checks whether a
-  concept falls within ±0.5 months of the expected midpoint.
-
-* **Gestation episode grouping fix:** Fixed `secondMin` in
-  `buildGestationEpisodes()` which incorrectly grouped by `gest_week` in
-  addition to `person_id` and `episode`, producing wrong `min_gest_date_2`
-  values.
+* Changed default max term from 301 to 308 days (44-week upper bound).
+* Fixed `at_midpoint` calculation in `exportConceptTimingCheck()`.
+* Fixed `buildGestationEpisodes()` grouping bug in `secondMin` (extra `gest_week` group).
+* Fixed DuckDB type mismatch (`gest_value` INTEGER vs DOUBLE) in `buildGestationEpisodes()` and `attachGestationAndLength()`.
 
 ## Other changes
 
-* **Updated HIP concept set:** Replaced `HIP_concepts_reviewed17022026.xlsx`
-  with `HIP_concepts_reviewed_12032026.xlsx`.
-
-* **Database table cleanup:** The pipeline now drops intermediate database
-  tables after completion and cleans up ESD temporary tables.
-
-* **Age at first pregnancy:** Export now computes age-at-first-pregnancy
-  statistics by both start date and end date, overall and by year.
+* Updated HIP concept set (`HIP_concepts_reviewed_12032026.xlsx`).
+* Pipeline now cleans up intermediate database tables after completion.
+* Age at first pregnancy export now includes both start and end date, overall and by year.
 
 # PregnancyIdentifier 3.2.0
 
