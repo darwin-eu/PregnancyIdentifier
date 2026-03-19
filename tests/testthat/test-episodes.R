@@ -18,7 +18,9 @@ test_that("gestational episodes from preg_hip_records", {
     sep = ";"
   ) %>%
     dplyr::mutate(
-      visit_date = as.Date(.data$visit_date)
+      visit_date = as.Date(.data$visit_date),
+      gest_value = as.numeric(.data$gest_value),
+      value_as_number = as.numeric(.data$value_as_number)
     ) %>%
     dplyr::select("person_id", "concept_id", "visit_date", "value_as_number", "category", "gest_value")
 
