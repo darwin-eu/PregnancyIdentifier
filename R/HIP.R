@@ -505,7 +505,7 @@ buildGestationEpisodes <- function(cdm, logger, minDays = 70, bufferDays = 28, g
     dplyr::filter(
       .data$concept_id %in% .env$gestConceptIds | !is.na(.data$gest_value)
     ) %>%
-    dplyr::mutate(gest_value = as.integer(.data$effective_gest))
+    dplyr::mutate(gest_value = as.numeric(.data$effective_gest))
 
   gestationVisitsTbl <- gestFromValue %>%
     dplyr::distinct(.data$person_id, .data$visit_date, .data$gest_value, .keep_all = TRUE)
@@ -942,7 +942,7 @@ attachGestationAndLength <- function(cdm, gestConceptIds) {
       .data$effective_gest <= 44,
       .data$concept_id %in% .env$gestConceptIds | !is.na(.data$gest_value)
     ) %>%
-    dplyr::mutate(gest_value = as.integer(.data$effective_gest))
+    dplyr::mutate(gest_value = as.numeric(.data$effective_gest))
   gestationVisitsTbl <- pregWithGest %>%
     dplyr::select("person_id", "gest_value", "visit_date") %>%
     dplyr::rename(gest_date = "visit_date")
