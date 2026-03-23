@@ -652,10 +652,10 @@ mergeOutcomeAndGestation <- function(cdm, outcomeEpisodesWithStartsTbl, justGest
     dplyr::distinct() %>%
     dplyr::pull("gest_id")
   justOutcomeTbl <- outcomeWithVisitId %>%
-    dplyr::filter(!.data$visit_id %in% .env$bothVisitIds) %>%
+    { if (length(bothVisitIds) == 0) . else dplyr::filter(., !.data$visit_id %in% .env$bothVisitIds) } %>%
     dplyr::mutate(gest_id = NA_character_)
   justGestationTbl <- gestWithId %>%
-    dplyr::filter(!.data$gest_id %in% .env$bothGestIds) %>%
+    { if (length(bothGestIds) == 0) . else dplyr::filter(., !.data$gest_id %in% .env$bothGestIds) } %>%
     dplyr::mutate(
       final_category = "PREG",
       final_visit_date = .data$max_gest_date,
