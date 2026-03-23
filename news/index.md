@@ -7,6 +7,10 @@
 - Fixed integer overflow error in `validateDeliveryModeCohort()` when
   `person_id` is stored as `integer64` (PostgreSQL bigint). The
   validation no longer coerces `person_id` to 32-bit integer.
+- Fixed SQL Server error “non-boolean type specified in a context where
+  a condition is expected” caused by `NOT(0)` when no matched
+  gestation/outcome IDs exist. dbplyr translates `%in%` with an empty
+  vector to `NOT(0)` which is invalid on SQL Server.
 
 ## PregnancyIdentifier 3.2.1
 
