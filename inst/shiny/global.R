@@ -59,127 +59,146 @@ if (dir.exists(dataFolder)) {
   dataFolder <- normalizePath(dataFolder, mustWork = FALSE)
 }
 
-# Data sources: zip files first, then folders that contain CSVs
-zipFiles <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
-zipFiles <- zipFiles[!is.na(zipFiles) & nzchar(zipFiles)]
-if (length(zipFiles) > 0) {
-  info <- file.info(zipFiles)
-  zipFiles <- zipFiles[file.exists(zipFiles) & !is.na(info$size) & info$size > 0]
-}
+useCachedData <- if (exists("shinySettings") && "useCachedData" %in% names(shinySettings)) shinySettings$useCachedData else TRUE
 
-listCsvFolders <- function(root) {
-  if (!dir.exists(root)) return(character(0))
-  csvs <- list.files(root, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
-  if (length(csvs) == 0) return(character(0))
-  out <- unique(dirname(csvs))
-  out <- out[normalizePath(out) != normalizePath(root)]
-  out[order(nchar(out))]
-}
+if (!file.exists("data.rds") || isFALSE(useCachedData)) {
+  if (!dir.exists(dataFolder)) cli::cli_abort("dataFolder: {dataFolder} does not exist!")
 
-subfolders <- character(0)
-csvFolders <- listCsvFolders(dataFolder)
-if (length(zipFiles) == 0) {
-  subfolders <- csvFolders
-}
+  # Summarised results
+  incidence <- readResults(dataFolder, regex = "_incidence\\.csv$")
+  prevalence <- readResults(dataFolder, regex = "_prevalence\\.csv$")
+  characteristics <- readResults(dataFolder, regex = "_characteristics\\.csv$")
+  petComparisonSummarisedResult <- readResults(dataFolder, regex = "pet_comparison_summarised_result")
+  petUnmatchedLsc <- readResults(dataFolder, regex = "pet_unmatched_lsc")
 
-hasData <- length(zipFiles) > 0 || length(subfolders) > 0
+  # Plain CSVs
+  cdmSource <- readResults(dataFolder, regex = "cdm_source\\.csv$", reader = "csv")
+  ageSummary <- readResults(dataFolder, regex = "/age_summary\\.csv$", reader = "csv")
+  ageSummaryFirstPregnancy <- readResults(dataFolder, regex = "age_summary_first_pregnancy\\.csv$", reader = "csv")
+  ageSummaryFirstPregnancyEnd <- readResults(dataFolder, regex = "age_summary_first_pregnancy_end\\.csv$", reader = "csv")
+  ageSummaryGroups <- readResults(dataFolder, regex = "age_summary_groups\\.csv$", reader = "csv")
+  attrition <- readResults(dataFolder, regex = "/attrition\\.csv$", reader = "csv")
+  attritionIfCleanup <- readResults(dataFolder, regex = "attrition_if_cleanup\\.csv$", reader = "csv")
+  conceptCheck <- readResults(dataFolder, regex = "concept_check\\.csv$", reader = "csv")
+  deliveryModeSummary <- readResults(dataFolder, regex = "delivery_mode_summary\\.csv$", reader = "csv")
+  deliveryModeByYear <- readResults(dataFolder, regex = "delivery_mode_by_year\\.csv$", reader = "csv")
+  episodeFrequency <- readResults(dataFolder, regex = "/episode_frequency\\.csv$", reader = "csv")
+  episodeFrequencySummary <- readResults(dataFolder, regex = "/episode_frequency_summary\\.csv$", reader = "csv")
+  esdConceptCounts <- readResults(dataFolder, regex = "esd_concept_counts\\.csv$", reader = "csv")
+  gestationalAgeDaysCounts <- readResults(dataFolder, regex = "gestational_age_days_counts\\.csv$", reader = "csv")
+  gestationalAgeDaysPerCategorySummary <- readResults(dataFolder, regex = "gestational_age_days_per_category_summary\\.csv$", reader = "csv")
+  gestationalAgeDaysSummary <- readResults(dataFolder, regex = "gestational_age_days_summary\\.csv$", reader = "csv")
+  gestationalWeeks <- readResults(dataFolder, regex = "gestational_weeks\\.csv$", reader = "csv")
+  hipConceptCounts <- readResults(dataFolder, regex = "hip_concept_counts\\.csv$", reader = "csv")
+  missingDates <- readResults(dataFolder, regex = "missing_dates\\.csv$", reader = "csv")
+  monthlyTrendMissing <- readResults(dataFolder, regex = "/monthly_trend_missing\\.csv$", reader = "csv")
+  monthlyTrends <- readResults(dataFolder, regex = "/monthly_trends\\.csv$", reader = "csv")
+  observationPeriodRange <- readResults(dataFolder, regex = "observation_period_range\\.csv$", reader = "csv")
+  outcomeCategoriesCount <- readResults(dataFolder, regex = "outcome_categories_count\\.csv$", reader = "csv")
+  ppsConceptCounts <- readResults(dataFolder, regex = "pps_concept_counts\\.csv$", reader = "csv")
+  precisionDays <- readResults(dataFolder, regex = "/precision_days\\.csv$", reader = "csv")
+  precisionDaysDenominators <- readResults(dataFolder, regex = "/precision_days_denominators\\.csv$", reader = "csv")
+  pregnancyFrequency <- readResults(dataFolder, regex = "pregnancy_frequency\\.csv$", reader = "csv")
+  pregnancyOverlapCounts <- readResults(dataFolder, regex = "pregnancy_overlap_counts\\.csv$", reader = "csv")
+  qualityCheckCleanup <- readResults(dataFolder, regex = "quality_check_cleanup\\.csv$", reader = "csv")
+  swappedDates <- readResults(dataFolder, regex = "swapped_dates\\.csv$", reader = "csv")
+  yearlyTrend <- readResults(dataFolder, regex = "/yearly_trend\\.csv$", reader = "csv")
+  yearlyTrendMissing <- readResults(dataFolder, regex = "/yearly_trend_missing\\.csv$", reader = "csv")
 
-if (hasData) {
-  # Ensure concept check / precision days / quality check cleanup exist (empty) so loadFile can fill them
-  if (!exists("conceptCheck", envir = .GlobalEnv)) {
-    assign("conceptCheck", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
-  }
-  if (!exists("precisionDays", envir = .GlobalEnv)) {
-    assign("precisionDays", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
-  }
-  if (!exists("precisionDaysDenominators", envir = .GlobalEnv)) {
-    assign("precisionDaysDenominators", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
-  }
-  if (!exists("qualityCheckCleanup", envir = .GlobalEnv)) {
-    assign("qualityCheckCleanup", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
-  }
-
-  if (length(zipFiles) > 0) {
-    td <- tempdir()
-    if (!dir.exists(td)) dir.create(td, recursive = TRUE, showWarnings = FALSE)
-    for (i in seq_along(zipFiles)) {
-      writeLines(paste("Processing zip", zipFiles[i]))
-      tempFolder <- tempfile(tmpdir = td)
-      dir.create(tempFolder, recursive = TRUE, showWarnings = FALSE)
-      unzip(zipFiles[i], exdir = tempFolder, junkpaths = TRUE)
-      csvFiles <- list.files(tempFolder, pattern = "\\.csv$")
-      zipName <- gsub("\\.zip$", "", basename(zipFiles[i]))
-      zipNameParts <- unlist(strsplit(zipName, "-"))
-      versionOrDBName <- zipNameParts[4]
-      if (startsWith(versionOrDBName, "1") || startsWith(versionOrDBName, "2") || startsWith(versionOrDBName, "3")) {
-        version <- versionOrDBName
-        dbName <- zipNameParts[5]
-      } else {
-        version <- NULL
-        dbName <- versionOrDBName
-      }
-      runDate <- gsub(paste0("-", dbName, ".*"), "", zipName)
-      lapply(csvFiles, loadFile, dbName = dbName, runDate = runDate, zipVersion = version, folder = tempFolder, overwrite = (i == 1))
-      unlink(tempFolder, recursive = TRUE)
-    }
-  } else {
-    for (i in seq_along(subfolders)) {
-      d <- subfolders[i]
-      dbName <- basename(d)
-
-      # Try to get the canonical database name from cdm_source.csv
-      cdmSourcePath <- file.path(d, "cdm_source.csv")
-      if (file.exists(cdmSourcePath)) {
-        .cdmSrc <- tryCatch(
-          readr::read_csv(cdmSourcePath, col_types = readr::cols(.default = "c"), show_col_types = FALSE),
-          error = function(e) NULL
+  # Post-process PET comparison
+  if (!is.null(petComparisonSummarisedResult)) {
+    petComparisonSummarisedResult <- flattenListCols(petComparisonSummarisedResult)
+    petComparisonSummarisedResult <- deduplicateSummarisedResult(petComparisonSummarisedResult)
+    if ("group_name" %in% names(petComparisonSummarisedResult) && "group_level" %in% names(petComparisonSummarisedResult)) {
+      petComparisonSummarisedResult <- petComparisonSummarisedResult %>% dplyr::mutate(
+        group_level = dplyr::if_else(
+          .data$group_name == "pet_comparison" & .data$group_level == "overall",
+          "all", .data$group_level
         )
-        if (!is.null(.cdmSrc) && "cdm_name" %in% colnames(.cdmSrc) && nrow(.cdmSrc) > 0) {
-          dbName <- .cdmSrc$cdm_name[1]
-        }
-        rm(.cdmSrc)
-      }
-
-      # Try to extract a run date from the folder name (e.g. "IPCI_results_04_03_2026" -> "2026-03-04")
-      folderRunDate <- ""
-      folderBaseName <- basename(d)
-      dateMatch <- regmatches(folderBaseName, regexpr("[0-9]{2}_[0-9]{2}_[0-9]{4}", folderBaseName))
-      if (length(dateMatch) > 0 && nzchar(dateMatch)) {
-        dateParts <- unlist(strsplit(dateMatch, "_"))
-        folderRunDate <- paste0(dateParts[3], "-", dateParts[2], "-", dateParts[1])
-      }
-
-      # Detect pkg_version from any CSV in the folder to use as fallback zipVersion
-      # (ensures cdm_source.csv gets the same version suffix as data files)
-      folderVersion <- NULL
-      sampleCsv <- list.files(d, pattern = "\\.csv$", full.names = TRUE)
-      sampleCsv <- sampleCsv[basename(sampleCsv) != "cdm_source.csv"]
-      for (.sc in sampleCsv) {
-        .sampleData <- tryCatch(
-          readr::read_csv(.sc, col_types = readr::cols(.default = "c"),
-                          show_col_types = FALSE, n_max = 1),
-          error = function(e) NULL
-        )
-        if (!is.null(.sampleData) && "pkg_version" %in% colnames(.sampleData)) {
-          folderVersion <- .sampleData$pkg_version[1]
-          break
-        }
-      }
-      rm(.sampleData, .sc)
-
-      writeLines(paste("Processing database folder", basename(d), "-> dbName:", dbName, "runDate:", folderRunDate, "folderVersion:", folderVersion))
-      csvFiles <- list.files(d, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
-      for (csvPath in csvFiles) {
-        loadFile(file = basename(csvPath), dbName = dbName, runDate = folderRunDate, zipVersion = folderVersion, folder = dirname(csvPath), overwrite = (i == 1))
-      }
+      )
     }
   }
+  if (!is.null(petUnmatchedLsc)) {
+    petUnmatchedLsc <- flattenListCols(petUnmatchedLsc)
+    petUnmatchedLsc <- deduplicateSummarisedResult(petUnmatchedLsc)
+  }
 
+  # Normalise gestational_age_days_per_category_summary column names
+  if (!is.null(gestationalAgeDaysPerCategorySummary)) {
+    nc <- colnames(gestationalAgeDaysPerCategorySummary)
+    nc_lower <- tolower(trimws(gsub("[^a-z0-9]", "", nc)))
+    epCol <- nc[nc_lower == "episodecount" | tolower(nc) == "episode_count"][1L]
+    pcCol <- nc[nc_lower == "personcount" | tolower(nc) == "person_count"][1L]
+    renames <- character(0)
+    if (length(epCol) == 1L && !is.na(epCol) && epCol != "episode_count") renames["episode_count"] <- epCol
+    if (length(pcCol) == 1L && !is.na(pcCol) && pcCol != "person_count") renames["person_count"] <- pcCol
+    if (length(renames) > 0) gestationalAgeDaysPerCategorySummary <- dplyr::rename(gestationalAgeDaysPerCategorySummary, dplyr::all_of(renames))
+    if ("episode_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) gestationalAgeDaysPerCategorySummary$episode_count <- suppressWarnings(as.integer(gestationalAgeDaysPerCategorySummary$episode_count))
+    if ("person_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) gestationalAgeDaysPerCategorySummary$person_count <- suppressWarnings(as.integer(gestationalAgeDaysPerCategorySummary$person_count))
+  }
+
+  # Remove cdm_data_hash from cdm_source if present
+  if (!is.null(cdmSource) && "cdm_data_hash" %in% colnames(cdmSource)) {
+    cdmSource <- cdmSource %>% dplyr::select(-"cdm_data_hash")
+  }
+
+  # Rename attrition to attrition_episodes for downstream consistency
+  attrition_episodes <- attrition
+  attrition <- NULL
+
+  # Build data list and cache
+  data <- list(
+    cdmSource = cdmSource,
+    incidence = incidence,
+    prevalence = prevalence,
+    characteristics = characteristics,
+    petComparisonSummarisedResult = petComparisonSummarisedResult,
+    petUnmatchedLsc = petUnmatchedLsc,
+    ageSummary = ageSummary,
+    ageSummaryFirstPregnancy = ageSummaryFirstPregnancy,
+    ageSummaryFirstPregnancyEnd = ageSummaryFirstPregnancyEnd,
+    ageSummaryGroups = ageSummaryGroups,
+    attrition_episodes = attrition_episodes,
+    attritionIfCleanup = attritionIfCleanup,
+    conceptCheck = conceptCheck,
+    deliveryModeSummary = deliveryModeSummary,
+    deliveryModeByYear = deliveryModeByYear,
+    episodeFrequency = episodeFrequency,
+    episodeFrequencySummary = episodeFrequencySummary,
+    esdConceptCounts = esdConceptCounts,
+    gestationalAgeDaysCounts = gestationalAgeDaysCounts,
+    gestationalAgeDaysPerCategorySummary = gestationalAgeDaysPerCategorySummary,
+    gestationalAgeDaysSummary = gestationalAgeDaysSummary,
+    gestationalWeeks = gestationalWeeks,
+    hipConceptCounts = hipConceptCounts,
+    missingDates = missingDates,
+    monthlyTrendMissing = monthlyTrendMissing,
+    monthlyTrends = monthlyTrends,
+    observationPeriodRange = observationPeriodRange,
+    outcomeCategoriesCount = outcomeCategoriesCount,
+    ppsConceptCounts = ppsConceptCounts,
+    precisionDays = precisionDays,
+    precisionDaysDenominators = precisionDaysDenominators,
+    pregnancyFrequency = pregnancyFrequency,
+    pregnancyOverlapCounts = pregnancyOverlapCounts,
+    qualityCheckCleanup = qualityCheckCleanup,
+    swappedDates = swappedDates,
+    yearlyTrend = yearlyTrend,
+    yearlyTrendMissing = yearlyTrendMissing
+  )
+
+  readr::write_rds(data, "data.rds")
+  purrr::walk(names(data), ~assign(., data[[.]], envir = .GlobalEnv))
+} else {
+  data <- readr::read_rds("data.rds")
+  purrr::walk(names(data), ~assign(., data[[.]], envir = .GlobalEnv))
 }
+
+hasData <- !is.null(cdmSource) && is.data.frame(cdmSource) && nrow(cdmSource) > 0
 
 ############################ Data transformations ############################
 
-if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0) {
+if (hasData) {
   dbinfo <- cdmSource %>%
     dplyr::select_if(~ !all(is.na(.))) %>%
     dplyr::arrange(cdm_name)
@@ -188,46 +207,14 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   allDP <- allDP[order(allDP)]
 
   # Ensure tables exist (empty if not loaded)
-  if (!exists("gestationalAgeDaysCounts", envir = .GlobalEnv)) {
-    assign("gestationalAgeDaysCounts",
-           tibble::tibble(cdm_name = character(0), less_1day = character(0), over_308days = character(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("gestationalAgeDaysSummary", envir = .GlobalEnv)) {
-    assign("gestationalAgeDaysSummary",
-           tibble::tibble(colName = character(0), cdm_name = character(0), min = numeric(0), Q25 = numeric(0), median = numeric(0), Q75 = numeric(0), max = numeric(0), mean = numeric(0), sd = numeric(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("gestationalAgeDaysPerCategorySummary", envir = .GlobalEnv)) {
-    assign("gestationalAgeDaysPerCategorySummary",
-           tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), colName = character(0), min = numeric(0), Q25 = numeric(0), median = numeric(0), Q75 = numeric(0), max = numeric(0), mean = numeric(0), sd = numeric(0), person_count = integer(0), episode_count = integer(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("gestationalWeeks", envir = .GlobalEnv)) {
-    assign("gestationalWeeks",
-           tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), gestational_weeks = numeric(0), n = numeric(0), pct = numeric(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || !is.data.frame(get("outcomeCategoriesCount", envir = .GlobalEnv)) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
-    assign("outcomeCategoriesCount",
-           tibble::tibble(cdm_name = character(0), outcome_category = character(0), algorithm = character(0), n = numeric(0), pct = numeric(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("deliveryModeSummary", envir = .GlobalEnv) || !is.data.frame(get("deliveryModeSummary", envir = .GlobalEnv)) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
-    assign("deliveryModeSummary",
-           tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("deliveryModeByYear", envir = .GlobalEnv) || !is.data.frame(get("deliveryModeByYear", envir = .GlobalEnv)) || nrow(get("deliveryModeByYear", envir = .GlobalEnv)) == 0) {
-    assign("deliveryModeByYear",
-           tibble::tibble(cdm_name = character(0), year = integer(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0)),
-           envir = .GlobalEnv)
-  }
-  if (!exists("missingDates", envir = .GlobalEnv) || !is.data.frame(get("missingDates", envir = .GlobalEnv)) || nrow(get("missingDates", envir = .GlobalEnv)) == 0) {
-    assign("missingDates",
-           tibble::tibble(cdm_name = character(0)),
-           envir = .GlobalEnv)
-  }
+  if (is.null(gestationalAgeDaysCounts)) gestationalAgeDaysCounts <- tibble::tibble(cdm_name = character(0), less_1day = character(0), over_308days = character(0))
+  if (is.null(gestationalAgeDaysSummary)) gestationalAgeDaysSummary <- tibble::tibble(colName = character(0), cdm_name = character(0), min = numeric(0), Q25 = numeric(0), median = numeric(0), Q75 = numeric(0), max = numeric(0), mean = numeric(0), sd = numeric(0))
+  if (is.null(gestationalAgeDaysPerCategorySummary)) gestationalAgeDaysPerCategorySummary <- tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), colName = character(0), min = numeric(0), Q25 = numeric(0), median = numeric(0), Q75 = numeric(0), max = numeric(0), mean = numeric(0), sd = numeric(0), person_count = integer(0), episode_count = integer(0))
+  if (is.null(gestationalWeeks)) gestationalWeeks <- tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), gestational_weeks = numeric(0), n = numeric(0), pct = numeric(0))
+  if (is.null(outcomeCategoriesCount) || !is.data.frame(outcomeCategoriesCount) || nrow(outcomeCategoriesCount) == 0) outcomeCategoriesCount <- tibble::tibble(cdm_name = character(0), outcome_category = character(0), algorithm = character(0), n = numeric(0), pct = numeric(0))
+  if (is.null(deliveryModeSummary) || !is.data.frame(deliveryModeSummary) || nrow(deliveryModeSummary) == 0) deliveryModeSummary <- tibble::tibble(cdm_name = character(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0))
+  if (is.null(deliveryModeByYear) || !is.data.frame(deliveryModeByYear) || nrow(deliveryModeByYear) == 0) deliveryModeByYear <- tibble::tibble(cdm_name = character(0), year = integer(0), final_outcome_category = character(0), mode = character(0), total = numeric(0), n = numeric(0), pct = numeric(0))
+  if (is.null(missingDates) || !is.data.frame(missingDates) || nrow(missingDates) == 0) missingDates <- tibble::tibble(cdm_name = character(0))
 
   if (nrow(gestationalAgeDaysCounts) > 0) {
     gestationalAgeDaysCounts <- dataToLong(gestationalAgeDaysCounts)
@@ -236,6 +223,8 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   }
 
   # Swapped dates transformation
+  if (is.null(swappedDates)) swappedDates <- tibble::tibble(cdm_name = character(0))
+  if (is.null(pregnancyOverlapCounts)) pregnancyOverlapCounts <- tibble::tibble(cdm_name = character(0), colName = character(0), n = character(0), total = character(0), pct = character(0))
   if ("source" %in% colnames(swappedDates) && "n_swapped" %in% colnames(swappedDates)) {
     swappedDatesDisplay <- swappedDates %>%
       dplyr::mutate(
@@ -303,16 +292,12 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
   }
 
   # Age summary
-  if (!exists("ageSummary", envir = .GlobalEnv) || is.null(get("ageSummary", envir = .GlobalEnv)) || nrow(get("ageSummary", envir = .GlobalEnv)) == 0) {
-    assign("ageSummary",
-           tibble::tibble(cdm_name = character(0), colName = character(0)),
-           envir = .GlobalEnv)
+  if (is.null(ageSummary) || nrow(ageSummary) == 0) {
+    ageSummary <- tibble::tibble(cdm_name = character(0), colName = character(0))
   }
-  ageSummary <- get("ageSummary", envir = .GlobalEnv)
   ageSummaryRaw <- ageSummary
 
   # Missing dates transformation
-  missingDates <- get("missingDates", envir = .GlobalEnv)
   if (nrow(missingDates) == 0) {
     missingDates <- tibble::tibble(
       cdm_name = character(0),
@@ -367,21 +352,13 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::select(dplyr::any_of("cdm_name"), "Date field", "N missing", "Percent missing")
   }
 
+  if (is.null(observationPeriodRange)) observationPeriodRange <- tibble::tibble(cdm_name = character(0))
   observationPeriodRange <- dataToLong(observationPeriodRange)
 
   # Ensure pregnancy frequency and episode frequency exist
-  if (!exists("pregnancyFrequency", envir = .GlobalEnv) || !is.data.frame(get("pregnancyFrequency", envir = .GlobalEnv))) {
-    assign("pregnancyFrequency", tibble::tibble(freq = integer(0), number_individuals = numeric(0), cdm_name = character(0)), envir = .GlobalEnv)
-  }
-  if (!exists("episodeFrequencySummary", envir = .GlobalEnv) || !is.data.frame(get("episodeFrequencySummary", envir = .GlobalEnv))) {
-    assign("episodeFrequencySummary", tibble::tibble(cdm_name = character(0), colName = character(0)), envir = .GlobalEnv)
-  }
-  if (!exists("episodeFrequency", envir = .GlobalEnv) || !is.data.frame(get("episodeFrequency", envir = .GlobalEnv))) {
-    assign("episodeFrequency", tibble::tibble(cdm_name = character(0)), envir = .GlobalEnv)
-  }
-  pregnancyFrequency <- get("pregnancyFrequency", envir = .GlobalEnv)
-  episodeFrequencySummary <- get("episodeFrequencySummary", envir = .GlobalEnv)
-  episodeFrequency <- get("episodeFrequency", envir = .GlobalEnv)
+  if (is.null(pregnancyFrequency) || !is.data.frame(pregnancyFrequency)) pregnancyFrequency <- tibble::tibble(freq = integer(0), number_individuals = numeric(0), cdm_name = character(0))
+  if (is.null(episodeFrequencySummary) || !is.data.frame(episodeFrequencySummary)) episodeFrequencySummary <- tibble::tibble(cdm_name = character(0), colName = character(0))
+  if (is.null(episodeFrequency) || !is.data.frame(episodeFrequency)) episodeFrequency <- tibble::tibble(cdm_name = character(0))
 
   if (nrow(pregnancyFrequency) > 0 && !"freq" %in% colnames(pregnancyFrequency)) {
     firstCol <- setdiff(colnames(pregnancyFrequency), c("cdm_name", "number_individuals", "date_run", "date_export", "pkg_version"))[1]
@@ -456,7 +433,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     min(na.rm = TRUE)
 
   pregnancyOverlapCounts <- pregnancyOverlapCounts %>%
-    dplyr::select(-"colName") %>%
+    dplyr::select(-dplyr::any_of("colName")) %>%
     dplyr::mutate(
       n = suppressWarnings(as.numeric(n)),
       total = suppressWarnings(as.numeric(total)),
@@ -537,115 +514,45 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     )
 
   # Trend data
-  yearlyTrend <- yearlyTrend %>%
-    dplyr::mutate(
-      count = as.numeric(count),
-      year = as.numeric(year),
-      period = "year"
-    ) %>%
-    dplyr::rename(value = year)
+  emptyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = numeric(0), value = numeric(0), period = character(0))
+  if (is.null(yearlyTrend)) yearlyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), year = character(0))
+  if (is.null(yearlyTrendMissing)) yearlyTrendMissing <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), year = character(0))
+  if (is.null(monthlyTrends)) monthlyTrends <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), month = character(0))
+  if (is.null(monthlyTrendMissing)) monthlyTrendMissing <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), month = character(0))
 
-  yearlyTrendMissing <- yearlyTrendMissing %>%
-    dplyr::mutate(
-      count = as.numeric(count),
-      year = as.numeric(year),
-      period = "year"
-    ) %>%
-    dplyr::rename(value = year)
-
-  monthlyTrends <- monthlyTrends %>%
-    dplyr::mutate(
-      count = as.numeric(count),
-      period = "month"
-    ) %>%
-    dplyr::rename(value = month)
-  monthlyTrendMissing <- monthlyTrendMissing %>%
-    dplyr::mutate(
-      count = as.numeric(count),
-      period = "month"
-    ) %>%
-    dplyr::rename(value = month)
+  if (nrow(yearlyTrend) > 0) {
+    yearlyTrend <- yearlyTrend %>%
+      dplyr::mutate(count = as.numeric(count), year = as.numeric(year), period = "year") %>%
+      dplyr::rename(value = year)
+  } else {
+    yearlyTrend <- emptyTrend
+  }
+  if (nrow(yearlyTrendMissing) > 0) {
+    yearlyTrendMissing <- yearlyTrendMissing %>%
+      dplyr::mutate(count = as.numeric(count), year = as.numeric(year), period = "year") %>%
+      dplyr::rename(value = year)
+  } else {
+    yearlyTrendMissing <- emptyTrend
+  }
+  if (nrow(monthlyTrends) > 0) {
+    monthlyTrends <- monthlyTrends %>%
+      dplyr::mutate(count = as.numeric(count), period = "month") %>%
+      dplyr::rename(value = month)
+  } else {
+    monthlyTrends <- emptyTrend
+  }
+  if (nrow(monthlyTrendMissing) > 0) {
+    monthlyTrendMissing <- monthlyTrendMissing %>%
+      dplyr::mutate(count = as.numeric(count), period = "month") %>%
+      dplyr::rename(value = month)
+  } else {
+    monthlyTrendMissing <- emptyTrend
+  }
 
   trendData <- rbind(yearlyTrend, monthlyTrends)
   trendDataMissing <- rbind(yearlyTrendMissing, monthlyTrendMissing)
 
-  # Fallback: if outcome/delivery still empty, try reading from zip files
-  .oc <- if (exists("outcomeCategoriesCount", envir = .GlobalEnv)) get("outcomeCategoriesCount", envir = .GlobalEnv) else tibble::tibble()
-  .dm <- if (exists("deliveryModeSummary", envir = .GlobalEnv)) get("deliveryModeSummary", envir = .GlobalEnv) else tibble::tibble()
-  if ((!is.data.frame(.oc) || nrow(.oc) == 0) || (!is.data.frame(.dm) || nrow(.dm) == 0)) {
-    zipFilesForOutcome <- list.files(dataFolder, pattern = "\\.zip$", full.names = TRUE)
-    zipFilesForOutcome <- zipFilesForOutcome[file.exists(zipFilesForOutcome)]
-    for (zf in zipFilesForOutcome) {
-      contents <- utils::unzip(zf, list = TRUE)$Name
-      if (!is.character(contents)) next
-      baseNames <- basename(contents)
-      if ("outcome_categories_count.csv" %in% baseNames && (!is.data.frame(.oc) || nrow(.oc) == 0)) {
-        idx <- which(baseNames == "outcome_categories_count.csv")[1L]
-        conn <- utils::unz(zf, contents[idx], open = "rb")
-        x <- tryCatch(
-          readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
-          error = function(e) NULL,
-          finally = close(conn)
-        )
-        if (!is.null(x) && nrow(x) >= 0) {
-          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
-          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
-          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
-          if (!exists("outcomeCategoriesCount", envir = .GlobalEnv) || nrow(get("outcomeCategoriesCount", envir = .GlobalEnv)) == 0) {
-            assign("outcomeCategoriesCount", x, envir = .GlobalEnv)
-          } else {
-            assign("outcomeCategoriesCount", dplyr::bind_rows(get("outcomeCategoriesCount", envir = .GlobalEnv), x), envir = .GlobalEnv)
-          }
-          .oc <- get("outcomeCategoriesCount", envir = .GlobalEnv)
-        }
-      }
-      if ("delivery_mode_summary.csv" %in% baseNames && (!is.data.frame(.dm) || nrow(.dm) == 0)) {
-        idx <- which(baseNames == "delivery_mode_summary.csv")[1L]
-        conn <- utils::unz(zf, contents[idx], open = "rb")
-        x <- tryCatch(
-          readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
-          error = function(e) NULL,
-          finally = close(conn)
-        )
-        if (!is.null(x) && nrow(x) >= 0) {
-          colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
-          if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
-          if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
-          if (!exists("deliveryModeSummary", envir = .GlobalEnv) || nrow(get("deliveryModeSummary", envir = .GlobalEnv)) == 0) {
-            assign("deliveryModeSummary", x, envir = .GlobalEnv)
-          } else {
-            assign("deliveryModeSummary", dplyr::bind_rows(get("deliveryModeSummary", envir = .GlobalEnv), x), envir = .GlobalEnv)
-          }
-          .dm <- get("deliveryModeSummary", envir = .GlobalEnv)
-        }
-      }
-      if ("delivery_mode_by_year.csv" %in% baseNames) {
-        .dmy <- if (exists("deliveryModeByYear", envir = .GlobalEnv)) get("deliveryModeByYear", envir = .GlobalEnv) else tibble::tibble()
-        if (!is.data.frame(.dmy) || nrow(.dmy) == 0) {
-          idx <- which(baseNames == "delivery_mode_by_year.csv")[1L]
-          conn <- utils::unz(zf, contents[idx], open = "rb")
-          x <- tryCatch(
-            readr::read_csv(conn, col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"), show_col_types = FALSE),
-            error = function(e) NULL,
-            finally = close(conn)
-          )
-          if (!is.null(x) && nrow(x) >= 0) {
-            colnames(x) <- gsub("^['\"]*|['\"]*$", "", colnames(x))
-            if ("...1" %in% colnames(x)) x <- x %>% dplyr::select(-dplyr::any_of("...1"))
-            if (!"cdm_name" %in% colnames(x)) x <- x %>% dplyr::mutate(cdm_name = "export")
-            if (!exists("deliveryModeByYear", envir = .GlobalEnv) || nrow(get("deliveryModeByYear", envir = .GlobalEnv)) == 0) {
-              assign("deliveryModeByYear", x, envir = .GlobalEnv)
-            } else {
-              assign("deliveryModeByYear", dplyr::bind_rows(get("deliveryModeByYear", envir = .GlobalEnv), x), envir = .GlobalEnv)
-            }
-          }
-        }
-      }
-    }
-  }
-
-  # Transform outcome categories (already loaded by main loop)
-  outcomeCategoriesCount <- get("outcomeCategoriesCount", envir = .GlobalEnv)
+  # Transform outcome categories
   if (nrow(outcomeCategoriesCount) > 0) {
     if ("n" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
     if ("pct" %in% colnames(outcomeCategoriesCount)) outcomeCategoriesCount <- outcomeCategoriesCount %>% dplyr::mutate(pct = round(suppressWarnings(as.numeric(.data$pct)), 4))
@@ -654,8 +561,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     }
   }
 
-  # Transform delivery mode (already loaded by main loop)
-  deliveryModeSummary <- get("deliveryModeSummary", envir = .GlobalEnv)
+  # Transform delivery mode
   deliveryModeRequired <- c("final_outcome_category", "n", "cesarean", "vaginal", "cesarean_pct", "vaginal_pct")
   if (nrow(deliveryModeSummary) > 0 && all(deliveryModeRequired %in% colnames(deliveryModeSummary))) {
     deliveryModeSummary <- deliveryModeSummary %>%
@@ -696,8 +602,7 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::select(c("cdm_name", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
   }
 
-  # Transform delivery mode by year (already loaded by main loop)
-  deliveryModeByYear <- get("deliveryModeByYear", envir = .GlobalEnv)
+  # Transform delivery mode by year
   deliveryModeByYearRequired <- c("year", "final_outcome_category", "n", "cesarean", "vaginal", "cesarean_pct", "vaginal_pct")
   if (nrow(deliveryModeByYear) > 0 && all(deliveryModeByYearRequired %in% colnames(deliveryModeByYear))) {
     deliveryModeByYear <- deliveryModeByYear %>%
@@ -738,93 +643,38 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
       dplyr::select(c("cdm_name", "year", "final_outcome_category", "mode", "total", "n_known", "n", "pct"))
   }
 
-  # Get incidence/prevalence/characteristics (already proper summarised_result objects)
-  if (exists("incidence", envir = .GlobalEnv)) {
-    incidence <- get("incidence", envir = .GlobalEnv)
-  }
-  if (exists("prevalence", envir = .GlobalEnv)) {
-    prevalence <- get("prevalence", envir = .GlobalEnv)
-  }
-  if (exists("characteristics", envir = .GlobalEnv)) {
-    characteristics <- get("characteristics", envir = .GlobalEnv)
-  }
-
   # Quality check cleanup
-  qualityCheckCleanup <- get("qualityCheckCleanup", envir = .GlobalEnv)
-  if (nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) {
+  if (!is.null(qualityCheckCleanup) && nrow(qualityCheckCleanup) > 0 && "cdm_name" %in% colnames(qualityCheckCleanup)) {
     qualityCheckCleanup <- qualityCheckCleanup %>% dplyr::select("cdm_name", dplyr::everything())
   }
+  if (is.null(precisionDaysDenominators)) precisionDaysDenominators <- tibble::tibble(cdm_name = character(0))
 
-  # Precision days
-  precisionDays <- get("precisionDays", envir = .GlobalEnv)
-  if (exists("precisionDaysDenominators", envir = .GlobalEnv)) {
-    precisionDaysDenominators <- get("precisionDaysDenominators", envir = .GlobalEnv)
-  } else {
-    precisionDaysDenominators <- tibble::tibble(cdm_name = character(0))
-  }
-
-  # Concept check
-  conceptCheck <- get("conceptCheck", envir = .GlobalEnv)
-
-  # Attrition
-  if (exists("attrition_episodes", envir = .GlobalEnv)) {
-    attritionEpisodes <- get("attrition_episodes", envir = .GlobalEnv)
-  }
-  if (exists("attritionIfCleanup", envir = .GlobalEnv)) {
-    attritionIfCleanup <- get("attritionIfCleanup", envir = .GlobalEnv)
-  }
-
-  # Age data
-  if (exists("ageSummaryFirstPregnancy", envir = .GlobalEnv)) {
-    ageSummaryFirstPregnancy <- get("ageSummaryFirstPregnancy", envir = .GlobalEnv)
-  }
-  if (exists("ageSummaryFirstPregnancyEnd", envir = .GlobalEnv)) {
-    ageSummaryFirstPregnancyEnd <- get("ageSummaryFirstPregnancyEnd", envir = .GlobalEnv)
-  }
-  if (exists("ageSummaryGroups", envir = .GlobalEnv)) {
-    ageSummaryGroups <- get("ageSummaryGroups", envir = .GlobalEnv)
-  }
-
-  # PET comparison
-  if (exists("petComparisonSummarisedResult", envir = .GlobalEnv)) {
-    petComparisonSummarisedResult <- get("petComparisonSummarisedResult", envir = .GlobalEnv)
-  }
-  if (exists("petUnmatchedLsc", envir = .GlobalEnv)) {
-    petUnmatchedLsc <- get("petUnmatchedLsc", envir = .GlobalEnv)
-  }
-
-  # Concept counts
-  if (exists("esdConceptCounts", envir = .GlobalEnv)) {
-    esdConceptCounts <- get("esdConceptCounts", envir = .GlobalEnv)
-  }
-  if (exists("hipConceptCounts", envir = .GlobalEnv)) {
-    hipConceptCounts <- get("hipConceptCounts", envir = .GlobalEnv)
-  }
-  if (exists("ppsConceptCounts", envir = .GlobalEnv)) {
-    ppsConceptCounts <- get("ppsConceptCounts", envir = .GlobalEnv)
-  }
+  # Rename attrition_episodes for downstream
+  attritionEpisodes <- attrition_episodes
 
   ############################ Feature flags ############################
 
   defaultPlotHeight <- "400px"
   plotHeight <- "600px"
 
-  has_incidence <- exists("incidence") && is.data.frame(incidence) && nrow(incidence) > 0
-  has_prevalence <- exists("prevalence") && is.data.frame(prevalence) && nrow(prevalence) > 0
-  has_characteristics <- exists("characteristics") && is.data.frame(characteristics) && nrow(characteristics) > 0
-  has_attrition <- exists("attritionEpisodes") && is.data.frame(attritionEpisodes) && nrow(attritionEpisodes) > 0
-  has_attrition_cleanup <- exists("attritionIfCleanup") && is.data.frame(attritionIfCleanup) && nrow(attritionIfCleanup) > 0
-  has_esd_concepts <- exists("esdConceptCounts") && is.data.frame(esdConceptCounts) && nrow(esdConceptCounts) > 0
-  has_hip_concepts <- exists("hipConceptCounts") && is.data.frame(hipConceptCounts) && nrow(hipConceptCounts) > 0
-  has_pps_concepts <- exists("ppsConceptCounts") && is.data.frame(ppsConceptCounts) && nrow(ppsConceptCounts) > 0
+  hasRows <- function(x) !is.null(x) && is.data.frame(x) && nrow(x) > 0
+
+  has_incidence <- hasRows(incidence)
+  has_prevalence <- hasRows(prevalence)
+  has_characteristics <- hasRows(characteristics)
+  has_attrition <- hasRows(attritionEpisodes)
+  has_attrition_cleanup <- hasRows(attritionIfCleanup)
+  has_esd_concepts <- hasRows(esdConceptCounts)
+  has_hip_concepts <- hasRows(hipConceptCounts)
+  has_pps_concepts <- hasRows(ppsConceptCounts)
   has_concept_counts <- has_esd_concepts || has_hip_concepts || has_pps_concepts
   has_age_summary <- nrow(ageSummaryRaw) > 0
-  has_age_first_pregnancy <- exists("ageSummaryFirstPregnancy") && is.data.frame(ageSummaryFirstPregnancy) && nrow(ageSummaryFirstPregnancy) > 0
-  has_age_first_pregnancy_end <- exists("ageSummaryFirstPregnancyEnd") && is.data.frame(ageSummaryFirstPregnancyEnd) && nrow(ageSummaryFirstPregnancyEnd) > 0
-  has_age_groups <- exists("ageSummaryGroups") && is.data.frame(ageSummaryGroups) && nrow(ageSummaryGroups) > 0
+  has_age_first_pregnancy <- hasRows(ageSummaryFirstPregnancy)
+  has_age_first_pregnancy_end <- hasRows(ageSummaryFirstPregnancyEnd)
+  has_age_groups <- hasRows(ageSummaryGroups)
   has_age <- has_age_summary || has_age_first_pregnancy || has_age_first_pregnancy_end || has_age_groups
-  has_pet_comparison_sr <- exists("petComparisonSummarisedResult") && !is.null(petComparisonSummarisedResult) && nrow(petComparisonSummarisedResult) > 0
-  has_pet_unmatched_lsc <- exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0
+  has_pet_comparison_sr <- hasRows(petComparisonSummarisedResult)
+  has_pet_unmatched_lsc <- hasRows(petUnmatchedLsc)
 
   # Version differences (static reference CSV)
   versionDiffPath <- file.path(getwd(), "data", "version_differences.csv")
@@ -866,7 +716,8 @@ if (hasData && exists("cdmSource") && !is.null(cdmSource) && nrow(cdmSource) > 0
     petComparisonDurationDistribution = "Duration distribution"
   )
   has_pet_legacy <- !has_pet_comparison_sr && any(vapply(names(petComparisonSpec), function(v) {
-    exists(v, envir = .GlobalEnv) && is.data.frame(get(v, envir = .GlobalEnv)) && nrow(get(v, envir = .GlobalEnv)) > 0
+    obj <- tryCatch(get(v, envir = .GlobalEnv), error = function(e) NULL)
+    hasRows(obj)
   }, logical(1)))
   has_pet <- has_pet_comparison_sr || has_pet_legacy
   has_ip <- has_incidence || has_prevalence

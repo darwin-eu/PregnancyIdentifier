@@ -11,14 +11,123 @@ emptyPlotlyMessage <- function(message = "No data to display.") {
     plotly::layout(xaxis = list(visible = FALSE), yaxis = list(visible = FALSE))
 }
 
-# copied from SQLRender, so we don't need to include this dependency (and rJava)
-snakeCaseToCamelCase <- function(string) {
-  string <- tolower(string)
-  for (letter in letters) {
-    string <- gsub(paste("_", letter, sep = ""), toupper(letter), string)
+#' Find log.txt near a file path and extract the package version.
+#' Walks up from the file's directory looking for log.txt within dataFolder.
+#' Returns version string (e.g. "3.2.1") or NULL if not found.
+getVersionFromLog <- function(filepath, dataFolder) {
+  dir <- dirname(filepath)
+  dataFolder <- normalizePath(dataFolder, mustWork = FALSE)
+  while (nchar(dir) >= nchar(dataFolder)) {
+    logPath <- file.path(dir, "log.txt")
+    if (file.exists(logPath)) {
+      firstLine <- readLines(logPath, n = 1, warn = FALSE)
+      m <- regmatches(firstLine, regexpr("[0-9]+\\.[0-9]+\\.[0-9]+", firstLine))
+      if (length(m) == 1) return(m)
+    }
+    parent <- dirname(dir)
+    if (parent == dir) break
+    dir <- parent
   }
-  string <- gsub("_([0-9])", "\\1", string)
-  return(string)
+  NULL
+}
+
+#' Read result files by regex pattern from dataFolder.
+#'
+#' Recursively searches dataFolder for files matching `regex`, reads each one,
+#' appends package version from log.txt to cdm_name, and combines results.
+#'
+#' @param dataFolder Path to the data directory
+#' @param regex Regular expression to match file names
+#' @param reader "summarised_result" to use omopgenerics::importSummarisedResult,
+#'   "csv" to use readr::read_csv
+#' @return Combined data frame or NULL if no files found
+readResults <- function(dataFolder, regex, reader = c("summarised_result", "csv")) {
+  reader <- match.arg(reader)
+  allFiles <- list.files(dataFolder, recursive = TRUE, full.names = TRUE)
+  selectedFiles <- stringr::str_subset(allFiles, regex)
+
+  if (length(selectedFiles) == 0) return(NULL)
+
+  # Error if multiple files match the regex in the same directory
+
+  dirs <- dirname(selectedFiles)
+  if (any(duplicated(dirs))) {
+    dupDirs <- unique(dirs[duplicated(dirs)])
+    dupFiles <- selectedFiles[dirs %in% dupDirs]
+    cli::cli_abort(c(
+      "Multiple files matching pattern {.val {regex}} found in the same directory.",
+      "Each database folder should contain only one copy of each result file.",
+      "Duplicates found:",
+      set_names(dupFiles, rep("*", length(dupFiles)))
+    ))
+  }
+
+  results <- list()
+  for (f in selectedFiles) {
+    message("Loading: ", f)
+    res <- tryCatch({
+      if (reader == "summarised_result") {
+        omopgenerics::importSummarisedResult(f)
+      } else {
+        readr::read_csv(f, col_types = readr::cols(.default = "c"),
+                        guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"),
+                        show_col_types = FALSE)
+      }
+    }, error = function(e) {
+      warning("Failed to read ", f, ": ", conditionMessage(e))
+      NULL
+    })
+
+    if (is.null(res) || nrow(res) == 0) next
+
+    # Clean up column names (some CSVs have quoted headers)
+    if (reader == "csv") {
+      colnames(res) <- gsub("^['\"]|['\"]$", "", colnames(res))
+      if ("...1" %in% colnames(res)) res <- res[, colnames(res) != "...1", drop = FALSE]
+    }
+
+    # Get version from log.txt
+    version <- getVersionFromLog(f, dataFolder)
+    versionSuffix <- if (!is.null(version)) paste0("_v", version) else ""
+
+    # Ensure cdm_name exists for plain CSVs
+    if (reader == "csv" && !"cdm_name" %in% colnames(res)) {
+      # Try cdm_source.csv in same folder
+      cdmSrcPath <- file.path(dirname(f), "cdm_source.csv")
+      if (file.exists(cdmSrcPath)) {
+        src <- tryCatch(
+          readr::read_csv(cdmSrcPath, col_types = readr::cols(.default = "c"),
+                          show_col_types = FALSE, n_max = 1),
+          error = function(e) NULL
+        )
+        dbName <- if (!is.null(src) && "cdm_name" %in% colnames(src)) src$cdm_name[1] else basename(dirname(f))
+      } else {
+        dbName <- basename(dirname(f))
+      }
+      res$cdm_name <- dbName
+    }
+
+    # Apply version suffix and cdm_name normalization
+    if ("cdm_name" %in% colnames(res)) {
+      res$cdm_name <- ifelse(res$cdm_name == "cdm", "EMBD-ULSGE", res$cdm_name)
+      res$cdm_name <- tolower(paste0(res$cdm_name, versionSuffix))
+    }
+
+    # Remove metadata columns from plain CSVs
+    if (reader == "csv") {
+      res <- res[, !colnames(res) %in% c("date_run", "date_export", "pkg_version"), drop = FALSE]
+    }
+
+    results <- c(results, list(res))
+  }
+
+  if (length(results) == 0) return(NULL)
+
+  if (reader == "summarised_result") {
+    purrr::compact(results) |> purrr::reduce(omopgenerics::bind)
+  } else {
+    dplyr::bind_rows(results)
+  }
 }
 
 #' Flatten list columns in a data frame by taking the first element of each list.
@@ -49,148 +158,6 @@ deduplicateSummarisedResult <- function(data) {
     dplyr::ungroup()
 }
 
-loadFile <- function(file, dbName, runDate, zipVersion, folder, overwrite, envir = .GlobalEnv) {
-  if (endsWith(file, ".csv")) {
-    # Skip static metadata files that are not database results
-    if (file == "version_differences.csv") return(invisible(NULL))
-    message("Loading: ", file)
-    tableName <- gsub(".csv$", "", file)
-    camelCaseName <- snakeCaseToCamelCase(tableName)
-    if (camelCaseName == "attrition") {
-      camelCaseName <- "attrition_episodes"
-    }
-    if (file == "precision-days.csv") {
-      camelCaseName <- "precisionDays"
-    }
-    if (file == "precision_days_denominators.csv") {
-      camelCaseName <- "precisionDaysDenominators"
-    }
-    if (file == "date_consistency.csv") {
-      camelCaseName <- "missingDates"
-    }
-    if (file == "outcome_categories_count.csv") {
-      camelCaseName <- "outcomeCategoriesCount"
-    }
-    if (file == "delivery_mode_summary.csv") {
-      camelCaseName <- "deliveryModeSummary"
-    }
-    if (file == "delivery_mode_by_year.csv") {
-      camelCaseName <- "deliveryModeByYear"
-    }
-
-    if (file == "pet_comparison_summarised_result.csv") {
-      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-      data <- flattenListCols(data)
-      data <- deduplicateSummarisedResult(data)
-      if (is.data.frame(data) && "group_name" %in% names(data) && "group_level" %in% names(data)) {
-        data <- data %>% dplyr::mutate(
-          group_level = dplyr::if_else(
-            .data$group_name == "pet_comparison" & .data$group_level == "overall",
-            "all",
-            .data$group_level
-          )
-        )
-      }
-      camelCaseName <- "petComparisonSummarisedResult"
-    } else if (file == "pet_unmatched_lsc.csv") {
-      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-      data <- flattenListCols(data)
-      data <- deduplicateSummarisedResult(data)
-      camelCaseName <- "petUnmatchedLsc"
-    } else if (grepl("incidence|prevalence|characteristics", tolower(file))) {
-      parts <- unlist(strsplit(tableName, "_"))
-      tableName <- parts[length(parts)]
-      camelCaseName <- snakeCaseToCamelCase(tableName)
-      data <- omopgenerics::importSummarisedResult(file.path(folder, file))
-      # Preserve summarised_result class — don't flatten or deduplicate
-    } else {
-      data <- readr::read_csv(file.path(folder, file), col_types = readr::cols(.default = "c"), guess_max = 1e7, locale = readr::locale(encoding = "UTF-8"))
-      colnames(data) <- gsub("^['\"]*|['\"]*$", "", colnames(data))
-      if ("...1" %in% colnames(data)) {
-        if (file == "pregnancy_frequency.csv" && !"freq" %in% colnames(data)) {
-          data <- data %>% dplyr::rename(freq = "...1")
-        } else if (file == "episode_frequency.csv" && !"freq" %in% colnames(data)) {
-          data <- data %>% dplyr::rename(freq = "...1")
-        } else {
-          data <- data %>% dplyr::select(-"...1")
-        }
-      }
-      if (!"cdm_name" %in% colnames(data)) {
-        data <- data %>% dplyr::mutate(cdm_name = dbName)
-      }
-      if (file == "cdm_source.csv" && "cdm_data_hash" %in% colnames(data)) {
-        data <- data %>% dplyr::select(-"cdm_data_hash")
-      }
-      # Normalise count column names for gestational_age_days_per_category_summary (preserve episode_count, person_count)
-      if (file == "gestational_age_days_per_category_summary.csv") {
-        nc <- colnames(data)
-        nc_lower <- tolower(trimws(gsub("[^a-z0-9]", "", nc)))
-        epCol <- nc[nc_lower == "episodecount" | tolower(nc) == "episode_count"][1L]
-        pcCol <- nc[nc_lower == "personcount" | tolower(nc) == "person_count"][1L]
-        renames <- character(0)
-        if (length(epCol) == 1L && !is.na(epCol) && epCol != "episode_count") renames["episode_count"] <- epCol
-        if (length(pcCol) == 1L && !is.na(pcCol) && pcCol != "person_count") renames["person_count"] <- pcCol
-        if (length(renames) > 0) data <- dplyr::rename(data, dplyr::all_of(renames))
-      }
-    }
-
-    {
-      isSR <- inherits(data, "summarised_result")
-
-      version <- NULL
-      if (!is.null(zipVersion)) {
-        version <- paste0("_v", as.numeric(substr(zipVersion, 1, 1)))
-        if (!isSR && "pkg_version" %in% colnames(data)) data <- data %>% dplyr::select(-"pkg_version")
-      } else if ("pkg_version" %in% colnames(data)) {
-        version <- data %>% dplyr::pull("pkg_version") %>% unique()
-        version <- paste0("_v", as.numeric(substr(version, 1, 1)))
-        if (!isSR) data <- data %>% dplyr::select(-"pkg_version")
-      } else if (nzchar(trimws(runDate))) {
-        runDateParsed <- suppressWarnings(as.Date(runDate))
-        if (!is.na(runDateParsed)) {
-          if (dplyr::between(runDateParsed, as.Date("2025-11-17"), as.Date("2025-11-30"))) {
-            version <- "_v1"
-          } else if (dplyr::between(runDateParsed, as.Date("2025-12-07"), as.Date("2026-02-16"))) {
-            version <- "_v2"
-          } else if (dplyr::between(runDateParsed, as.Date("2026-02-17"), as.Date("2026-03-31"))) {
-            version <- "_v3"
-          }
-        }
-      }
-
-      if (isSR) {
-        # Use base R assignment to preserve summarised_result class
-        data$cdm_name <- tolower(paste0(
-          ifelse(data$cdm_name == "cdm", "EMBD-ULSGE", data$cdm_name),
-          version
-        ))
-      } else {
-        data <- data %>%
-          dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
-          dplyr::mutate(cdm_name = dplyr::if_else(cdm_name == "cdm", "EMBD-ULSGE", cdm_name)) %>%
-          dplyr::mutate(cdm_name = sub("_v[0-9]+$", "", .data$cdm_name)) %>%
-          dplyr::mutate(cdm_name = paste0(.data$cdm_name, version)) %>%
-          dplyr::mutate(cdm_name = tolower(.data$cdm_name))
-      }
-      # Ensure episode_count and person_count are integer for gestational_age_days_per_category_summary
-      if (file == "gestational_age_days_per_category_summary.csv" && !isSR) {
-        if ("episode_count" %in% colnames(data)) data$episode_count <- suppressWarnings(as.integer(data$episode_count))
-        if ("person_count" %in% colnames(data)) data$person_count <- suppressWarnings(as.integer(data$person_count))
-      }
-    }
-
-    if (!overwrite && exists(camelCaseName, envir = envir)) {
-      existingData <- get(camelCaseName, envir = envir)
-      if (isSR && inherits(existingData, "summarised_result")) {
-        data <- omopgenerics::bind(existingData, data)
-      } else {
-        data <- bindRowsAligned(existingData, data)
-      }
-    }
-    assign(camelCaseName, data, envir = envir)
-    invisible(NULL)
-  }
-}
 
 dataToLong <- function(data, skipCols = c("cdm_name")) {
   skipCols <- intersect(skipCols, colnames(data))

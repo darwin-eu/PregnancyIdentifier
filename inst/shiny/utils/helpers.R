@@ -158,44 +158,6 @@ prettyColNames <- function(df) {
   df
 }
 
-#' Bind rows from data.frames with potentially different columns.
-#' Coerces columns to a common type when the same column has different types across frames
-#' (e.g. logical vs character from CSV reads) so bind_rows does not fail.
-bindRowsAligned <- function(...) {
-  dfs <- list(...)
-  dfs <- dfs[!vapply(dfs, is.null, logical(1))]
-  if (length(dfs) == 0) return(tibble::tibble())
-  allCols <- Reduce(union, lapply(dfs, colnames))
-  aligned <- lapply(dfs, function(df) {
-    for (col in setdiff(allCols, colnames(df))) df[[col]] <- NA
-    df[, allCols, drop = FALSE]
-  })
-  # Unify column types so bind_rows does not error on mixed logical/character/etc.
-  for (col in allCols) {
-    types <- vapply(aligned, function(d) typeof(d[[col]]), character(1L))
-    if (length(unique(types)) > 1L) {
-      aligned <- lapply(aligned, function(d) {
-        d[[col]] <- as.character(d[[col]])
-        d
-      })
-    }
-  }
-  dplyr::bind_rows(aligned)
-}
-
-#' Normalise cdm_name to match the format used by allDP.
-normaliseCdmName <- function(df) {
-  if (!is.data.frame(df) || nrow(df) == 0 || !"cdm_name" %in% colnames(df)) return(df)
-  version <- ""
-  if ("pkg_version" %in% colnames(df)) {
-    version <- paste0("_v", as.numeric(sub("^([0-9]+).*", "\\1", as.character(df$pkg_version))))
-    df <- df %>% dplyr::select(-"pkg_version")
-  }
-  df %>%
-    dplyr::select(-dplyr::any_of(c("date_run", "date_export"))) %>%
-    dplyr::mutate(cdm_name = dplyr::if_else(.data$cdm_name == "cdm", "EMBD-ULSGE", .data$cdm_name)) %>%
-    dplyr::mutate(cdm_name = tolower(paste0(.data$cdm_name, version)))
-}
 
 #' Render a DT datatable with PRETTY_NAMES, standard formatting, and optional overlap highlighting.
 #' @param numDigits Optional number of decimal places for numeric (non-pct) columns; if NULL, uses 0.
