@@ -1493,15 +1493,13 @@ validateDeliveryModeCohort <- function(df,
   if (!dateCol %in% names(out)) {
     rlang::abort(sprintf("validateDeliveryModeCohort: required column '%s' is missing", dateCol))
   }
-  personIdOrig <- out$person_id
+  if (!is.numeric(out$person_id) && !inherits(out$person_id, "integer64")) {
+    rlang::abort("validateDeliveryModeCohort: person_id must be numeric or integer64")
+  }
   out <- out %>%
     dplyr::mutate(
-      person_id = as.integer(.data$person_id),
       "{dateCol}" := as.Date(.data[[dateCol]])
     )
-  if (any(is.na(out$person_id) & !is.na(personIdOrig), na.rm = TRUE)) {
-    rlang::abort("validateDeliveryModeCohort: person_id must be coercible to integer")
-  }
   dateVals <- out[[dateCol]]
   outOfRange <- !is.na(dateVals) & (dateVals < dateMin | dateVals > dateMax)
   if (any(outOfRange, na.rm = TRUE)) {
