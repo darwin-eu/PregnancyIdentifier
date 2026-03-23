@@ -1,5 +1,13 @@
 # Changelog
 
+## PregnancyIdentifier 3.2.2
+
+### Bug fixes
+
+- Fixed integer overflow error in `validateDeliveryModeCohort()` when
+  `person_id` is stored as `integer64` (PostgreSQL bigint). The
+  validation no longer coerces `person_id` to 32-bit integer.
+
 ## PregnancyIdentifier 3.2.1
 
 ### New features
