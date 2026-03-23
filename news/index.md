@@ -11,6 +11,7 @@
   a condition is expected” caused by `NOT(0)` when no matched
   gestation/outcome IDs exist. dbplyr translates `%in%` with an empty
   vector to `NOT(0)` which is invalid on SQL Server.
+- Improved data loading in shiny app
 
 ## PregnancyIdentifier 3.2.1
 

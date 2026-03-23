@@ -38,6 +38,7 @@
 <h3 id="bug-fixes-3-2-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-3-2-2"></a></h3>
 <ul><li>Fixed integer overflow error in <code>validateDeliveryModeCohort()</code> when <code>person_id</code> is stored as <code>integer64</code> (PostgreSQL bigint). The validation no longer coerces <code>person_id</code> to 32-bit integer.</li>
 <li>Fixed SQL Server error “non-boolean type specified in a context where a condition is expected” caused by <code>NOT(0)</code> when no matched gestation/outcome IDs exist. dbplyr translates <code>%in%</code> with an empty vector to <code>NOT(0)</code> which is invalid on SQL Server.</li>
+<li>Improved data loading in shiny app</li>
 </ul></div>
 </div>
     <div class="section level2">
