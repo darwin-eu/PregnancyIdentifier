@@ -63,6 +63,7 @@ PRETTY_NAMES <- c(
   colName                               = "Category",
 
   # --- Gestational age ---
+  plausibility                          = "Plausibility",
   gestational_weeks                     = "Gestational Weeks",
   esd_precision_days                    = "ESD Precision (days)",
   esd_gestational_age_days_calculated   = "Gestational Age (days)",

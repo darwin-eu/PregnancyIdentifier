@@ -537,6 +537,28 @@ if (hasData) {
       pct = round(pct, 1)
     )
 
+  # Binary plausibility: ≤44 weeks = plausible, >44 weeks = implausible
+  plausibilityLevels <- c("Plausible", "Implausible")
+  gestationalWeeksPlausibility <- rbind(
+    summariseGestationalWeeks(gestationalWeeksForBins, -Inf, 45, plausibilityLevels[1]),
+    summariseGestationalWeeks(gestationalWeeksForBins, 45, maxWeeks, plausibilityLevels[2])
+  ) %>%
+    dplyr::rename(plausibility = gestational_weeks) %>%
+    dplyr::mutate(plausibility = factor(plausibility, levels = plausibilityLevels))
+
+  # Recalculate pct within plausibility groups (per cdm, optionally per outcome)
+  if (hasOutcomeInWeeks) {
+    gestationalWeeksPlausibility <- gestationalWeeksPlausibility %>%
+      dplyr::group_by(cdm_name, final_outcome_category) %>%
+      dplyr::mutate(pct = round(100 * n / sum(n, na.rm = TRUE), 1)) %>%
+      dplyr::ungroup()
+  } else {
+    gestationalWeeksPlausibility <- gestationalWeeksPlausibility %>%
+      dplyr::group_by(cdm_name) %>%
+      dplyr::mutate(pct = round(100 * n / sum(n, na.rm = TRUE), 1)) %>%
+      dplyr::ungroup()
+  }
+
   # Trend data
   emptyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = numeric(0), value = numeric(0), period = character(0))
   if (is.null(yearlyTrend)) yearlyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), year = character(0))

@@ -12,6 +12,7 @@ server <- function(input, output, session) {
   # Episode duration
   gestationalAgeServer("gestational_age")
   gestationalAgeBinnedServer("gestational_age_binned")
+  gestationalAgePlausibilityServer("gestational_age_plausibility")
   gestationalAgeDaysPerCategoryServer("gestational_age_days")
   temporalPatternsServer("temporal_patterns")
 

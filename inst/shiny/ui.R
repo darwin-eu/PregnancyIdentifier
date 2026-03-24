@@ -31,6 +31,7 @@ sidebar <- dashboardSidebar(
     menuItem("Episode duration", icon = icon("clock"),
       menuSubItem("Gestational age weeks", tabName = "gestational_age"),
       menuSubItem("Gestational age binned", tabName = "gestational_age_binned"),
+      menuSubItem("GW plausibility", tabName = "gestational_age_plausibility"),
       menuSubItem("Gestational age by category", tabName = "gestational_age_days"),
       menuSubItem("Temporal patterns", tabName = "temporal_patterns")
     ),
@@ -117,6 +118,7 @@ body <- dashboardBody(
     # Episode duration
     tabItem(tabName = "gestational_age", gestationalAgeUI("gestational_age")),
     tabItem(tabName = "gestational_age_binned", gestationalAgeBinnedUI("gestational_age_binned")),
+    tabItem(tabName = "gestational_age_plausibility", gestationalAgePlausibilityUI("gestational_age_plausibility")),
     tabItem(tabName = "gestational_age_days", gestationalAgeDaysPerCategoryUI("gestational_age_days")),
     tabItem(tabName = "temporal_patterns", temporalPatternsUI("temporal_patterns")),
 
