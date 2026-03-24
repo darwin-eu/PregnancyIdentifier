@@ -61,7 +61,16 @@ if (dir.exists(dataFolder)) {
 
 useCachedData <- if (exists("shinySettings") && "useCachedData" %in% names(shinySettings)) shinySettings$useCachedData else TRUE
 
-if (!file.exists("data.rds") || isFALSE(useCachedData)) {
+# Invalidate cache if dataFolder has changed since last cache was built
+cacheValid <- file.exists("data.rds") && !isFALSE(useCachedData)
+if (cacheValid) {
+  cachedFolder <- tryCatch(readr::read_rds("data.rds")[["_dataFolder"]], error = function(e) NULL)
+  if (is.null(cachedFolder) || !identical(cachedFolder, dataFolder)) {
+    cacheValid <- FALSE
+  }
+}
+
+if (!cacheValid) {
   if (!dir.exists(dataFolder)) cli::cli_abort("dataFolder: {dataFolder} does not exist!")
 
   # Summarised results
@@ -211,11 +220,14 @@ if (!file.exists("data.rds") || isFALSE(useCachedData)) {
     yearlyTrendMissing = yearlyTrendMissing
   )
 
+  data[["_dataFolder"]] <- dataFolder
   readr::write_rds(data, "data.rds")
-  purrr::walk(names(data), ~assign(., data[[.]], envir = .GlobalEnv))
+  dataNames <- setdiff(names(data), "_dataFolder")
+  purrr::walk(dataNames, ~assign(., data[[.]], envir = .GlobalEnv))
 } else {
   data <- readr::read_rds("data.rds")
-  purrr::walk(names(data), ~assign(., data[[.]], envir = .GlobalEnv))
+  dataNames <- setdiff(names(data), "_dataFolder")
+  purrr::walk(dataNames, ~assign(., data[[.]], envir = .GlobalEnv))
 }
 
 hasData <- !is.null(cdmSource) && is.data.frame(cdmSource) && nrow(cdmSource) > 0
