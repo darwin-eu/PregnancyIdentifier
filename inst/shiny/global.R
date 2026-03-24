@@ -107,6 +107,12 @@ if (!file.exists("data.rds") || isFALSE(useCachedData)) {
 
   # Post-process PET comparison
   if (!is.null(petComparisonSummarisedResult)) {
+    # Capture class and settings before dplyr operations strip them
+    .pet_sr_class <- class(petComparisonSummarisedResult)
+    .pet_sr_settings <- if (inherits(petComparisonSummarisedResult, "summarised_result")) {
+      tryCatch(omopgenerics::settings(petComparisonSummarisedResult), error = function(e) NULL)
+    } else NULL
+
     petComparisonSummarisedResult <- flattenListCols(petComparisonSummarisedResult)
     petComparisonSummarisedResult <- deduplicateSummarisedResult(petComparisonSummarisedResult)
     if ("group_name" %in% names(petComparisonSummarisedResult) && "group_level" %in% names(petComparisonSummarisedResult)) {
@@ -117,10 +123,28 @@ if (!file.exists("data.rds") || isFALSE(useCachedData)) {
         )
       )
     }
+
+    # Restore summarised_result class stripped by dplyr/flattenListCols
+    if ("summarised_result" %in% .pet_sr_class && !inherits(petComparisonSummarisedResult, "summarised_result")) {
+      petComparisonSummarisedResult <- tibble::as_tibble(petComparisonSummarisedResult)
+      class(petComparisonSummarisedResult) <- .pet_sr_class
+      if (!is.null(.pet_sr_settings)) attr(petComparisonSummarisedResult, "settings") <- .pet_sr_settings
+    }
   }
   if (!is.null(petUnmatchedLsc)) {
+    .lsc_sr_class <- class(petUnmatchedLsc)
+    .lsc_sr_settings <- if (inherits(petUnmatchedLsc, "summarised_result")) {
+      tryCatch(omopgenerics::settings(petUnmatchedLsc), error = function(e) NULL)
+    } else NULL
+
     petUnmatchedLsc <- flattenListCols(petUnmatchedLsc)
     petUnmatchedLsc <- deduplicateSummarisedResult(petUnmatchedLsc)
+
+    if ("summarised_result" %in% .lsc_sr_class && !inherits(petUnmatchedLsc, "summarised_result")) {
+      petUnmatchedLsc <- tibble::as_tibble(petUnmatchedLsc)
+      class(petUnmatchedLsc) <- .lsc_sr_class
+      if (!is.null(.lsc_sr_settings)) attr(petUnmatchedLsc, "settings") <- .lsc_sr_settings
+    }
   }
 
   # Normalise gestational_age_days_per_category_summary column names
