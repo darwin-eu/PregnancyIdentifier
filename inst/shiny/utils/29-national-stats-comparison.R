@@ -1,13 +1,28 @@
 # 29-national-stats-comparison.R - National statistics comparison module
 # Compares internal (study) results with external (national statistics) as validation.
-# Currently implements DK-DHR <-> Denmark comparison.
+# Compares databases from 14 countries across Europe.
 
 # ---- Database-to-country mapping ----
 # Maps database CDM names (lowercase, as used in allDP) to national statistics
 # country names. Only population-level databases should be mapped here.
 .DB_COUNTRY_MAP <- list(
-  "dk-dhr"  = "Denmark",
-  "dkdhr"   = "Denmark"
+  "najs"              = "Croatia",
+  "dk-dhr"            = "Denmark",
+  "dkdhr"             = "Denmark",
+  "finomop-tauh"      = "Finland",
+  "finomop-thl"       = "Finland",
+  "cdw bordeaux"      = "France",
+  "ingef"             = "Germany",
+  "sucd"              = "Hungary",
+  "ipci"              = "Netherlands",
+  "nlhr"              = "Norway",
+  "emdb"              = "Portugal",
+  "bifap"             = "Spain",
+  "imasis"            = "Spain",
+  "sidiap"            = "Spain",
+  "hi-speed"          = "Sweden",
+  "cprd gold"         = "UK",
+  "cprd"              = "UK"
 )
 
 # Resolve a database cdm_name to its mapped national stats country.
