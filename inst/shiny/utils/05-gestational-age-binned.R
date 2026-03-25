@@ -7,7 +7,9 @@ gestationalAgeBinnedUI <- function(id) {
   outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksBinned$final_outcome_category)), "Overall")) else character(0)
   tagList(
     div(class = "tab-help-text",
-        "Gestational age (rounded to integer weeks) in non-overlapping bands: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 44-49, \u226550 weeks. Used for outcome bands and cross-site comparison."),
+        "Gestational age (rounded to integer weeks) in non-overlapping bands: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 45-49, \u226550 weeks. Used for outcome bands and cross-site comparison.",
+        tags$br(),
+        tags$em("Note: 308 days (44 weeks) is counted as 43 weeks and included in the 42-43 bin.")),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,
@@ -101,7 +103,8 @@ gestationalAgeBinnedServer <- function(id) {
         plotArgs$fillVar <- "final_outcome_category"
       }
 
-      do.call(barPlot, plotArgs)
+      do.call(barPlot, plotArgs) +
+        ggplot2::labs(caption = "Note: 308 days (44 weeks) is counted as 43 weeks.")
     })
 
     output$plot <- plotly::renderPlotly({
@@ -133,7 +136,7 @@ gestationalAgeBinnedServer <- function(id) {
     output$dataTable <- DT::renderDT({
       data <- getData()
       if (is.null(data) || nrow(data) == 0) return(renderPrettyDT(data.frame()))
-      renderPrettyDT(data)
+      renderPrettyDT(data, caption = "Note: 308 days (44 weeks) is counted as 43 weeks.")
     })
     output$download_table_csv <- downloadHandler(
       filename = function() { "gestational_age_binned.csv" },

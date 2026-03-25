@@ -520,9 +520,14 @@ if (hasData) {
   gestationalWeeksSummary <- gestationalWeeks %>%
     dplyr::mutate(pct = round(pct, 1))
 
+
   # Round gestational age to integer weeks and aggregate counts for non-overlapping bins
+  # Convention: 308 days (exactly 44.0 weeks) is counted as 43 weeks
   gestationalWeeksForBins <- gestationalWeeks %>%
-    dplyr::mutate(gestational_weeks = round(.data$gestational_weeks))
+    dplyr::mutate(
+      gestational_weeks = round(.data$gestational_weeks),
+      gestational_weeks = dplyr::if_else(.data$gestational_weeks == 44, 43, .data$gestational_weeks)
+    )
   if (hasOutcomeInWeeks) {
     gestationalWeeksForBins <- gestationalWeeksForBins %>%
       dplyr::group_by(.data$cdm_name, .data$final_outcome_category, .data$gestational_weeks) %>%
@@ -537,7 +542,8 @@ if (hasData) {
   }
 
   # Non-overlapping bins: [lower, upper) in integer weeks
-  binnedLevels <- c("<12", "12-27", "28-31", "32-36", "37-38", "39-41", "42-43", "44-49", ">=50")
+  # Note: week 44 (308 days) has been remapped to 43 above, so 42-43 includes 308d
+  binnedLevels <- c("<12", "12-27", "28-31", "32-36", "37-38", "39-41", "42-43", "45-49", ">=50")
   gestationalWeeksBinned <- rbind(
     summariseGestationalWeeks(gestationalWeeksForBins, 0, 12, "<12"),
     summariseGestationalWeeks(gestationalWeeksForBins, 12, 28, "12-27"),
@@ -546,7 +552,7 @@ if (hasData) {
     summariseGestationalWeeks(gestationalWeeksForBins, 37, 39, "37-38"),
     summariseGestationalWeeks(gestationalWeeksForBins, 39, 42, "39-41"),
     summariseGestationalWeeks(gestationalWeeksForBins, 42, 44, "42-43"),
-    summariseGestationalWeeks(gestationalWeeksForBins, 44, 50, "44-49"),
+    summariseGestationalWeeks(gestationalWeeksForBins, 45, 50, "45-49"),
     summariseGestationalWeeks(gestationalWeeksForBins, 50, maxWeeks, ">=50")
   )
 

@@ -1,5 +1,5 @@
 # 29-national-stats-comparison.R - National statistics comparison module
-# Compares internal (study) results with external (national statistics) as validation.
+# Compares our results with reference (national statistics) values as validation.
 # Compares databases from 14 countries across Europe.
 
 # ---- Database-to-country mapping ----
@@ -48,7 +48,7 @@
   dbs[mapped]
 }
 
-# ---- Internal crude rates (pregnancy count / incidence denominator, per 1000) ----
+# ---- Our crude rates (pregnancy count / incidence denominator, per 1000) ----
 # Builds a dataframe of crude rates for DBs that match a country: uses pregnancy counts
 # (numerators) from trendData and population denominators from the incidence
 # summarised result (overall, both sexes, by year). Only for mapped databases.
@@ -197,7 +197,7 @@
 #   external_value, internal_value, internal_note
 .build_comparison <- function(natl, db_name, country_name) {
 
-  # ---- External data for this country ----
+  # ---- Reference data for this country ----
   ext <- natl %>%
     dplyr::filter(.data$country == country_name) %>%
     dplyr::select("indicator", "variable", "level", "year", "value") %>%
@@ -205,7 +205,7 @@
 
   if (nrow(ext) == 0) return(tibble::tibble())
 
-  # Pre-compute external gestational percentages per year (for fair comparison)
+  # Pre-compute reference gestational percentages per year (for fair comparison)
   ext_gest_pct <- ext %>%
     dplyr::filter(.data$indicator == "Gestational duration distribution") %>%
     dplyr::group_by(.data$year) %>%
@@ -217,7 +217,7 @@
     dplyr::ungroup() %>%
     dplyr::select("level", "year", "external_pct")
 
-  # ---- Gather all internal data sources ----
+  # ---- Gather all our result data sources ----
 
   # 1. Maternal age (year-matched)
   int_age <- tibble::tibble()
@@ -297,14 +297,14 @@
 
   # 4. Gestational duration distribution (LB only, percentage per bin)
   # National stats report live births by gestational age, so we filter to LB.
-  # Internal data spans all years, so we compare distributions (%) not counts.
+  # Our data spans all years, so we compare distributions (%) not counts.
   int_gest <- tibble::tibble()
   if (exists("gestationalWeeksBinned")) {
     gwb <- gestationalWeeksBinned
     if (!is.null(gwb) && nrow(gwb) > 0) {
-      # Map internal app bins to national stats bins.
+      # Map our app bins to national stats bins.
       # The national stats CSV has individual bins: <32, 32-36, 37-38, 39-41, >=42
-      # The internal data has: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 44-49, >=50
+      # Our data has: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 44-49, >=50
       app_bin_map <- dplyr::tribble(
         ~app_bin,  ~natl_bin,
         "<12",     "<32",
@@ -395,7 +395,7 @@
     }
   }
 
-  # ---- Match external rows with internal values ----
+  # ---- Match reference rows with our result values ----
   result <- ext %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
@@ -410,7 +410,7 @@
         # would incorrectly match the "Number of live births per year" check.
         if (ind == "Gestational duration distribution") {
           # Gestational bins: compare percentages (distributions)
-          # External data is in counts; internal spans all years so only % is comparable
+          # Reference data is in counts; our data spans all years so only % is comparable
           if (nrow(int_gest) > 0) {
             natl_bin <- dplyr::case_when(
               lvl == "\u226542" ~ ">=42",
@@ -474,13 +474,13 @@
               lvl_check == "\u226542" ~ ">=42",
               TRUE ~ lvl_check
             )
-            # Show which internal bins were summed; both values are %
+            # Show which of our bins were summed; both values are %
             bin_sources <- dplyr::case_when(
-              natl_bin_check == "<32"   ~ "% of LB; internal sums <12+12-27+28-31 wk",
+              natl_bin_check == "<32"   ~ "% of LB; our result sums <12+12-27+28-31 wk",
               natl_bin_check == "32-36" ~ "% of LB; 32-36 wk",
               natl_bin_check == "37-38" ~ "% of LB; 37-38 wk",
               natl_bin_check == "39-41" ~ "% of LB; 39-41 wk",
-              natl_bin_check == ">=42"  ~ "% of LB; internal sums 42-43+44-49+>=50 wk",
+              natl_bin_check == ">=42"  ~ "% of LB; our result sums 42-43+44-49+>=50 wk",
               TRUE ~ "% of LB (all years)"
             )
             bin_sources
@@ -521,9 +521,8 @@
     ) %>%
     dplyr::ungroup()
 
-  # For gestational duration rows, replace external counts with percentages
-
-  # so both columns are comparable (internal is already %)
+  # For gestational duration rows, replace reference counts with percentages
+  # so both columns are comparable (our result is already %)
   result <- result %>%
     dplyr::left_join(ext_gest_pct, by = c("level", "year")) %>%
     dplyr::mutate(
@@ -541,7 +540,7 @@
     ) %>%
     dplyr::select(-"external_pct")
 
-  # Delivery mode: external is already in % so no change needed
+  # Delivery mode: reference is already in % so no change needed
 
   result
 }
@@ -549,7 +548,7 @@
 
 # ---- Compute gestational pct comparison for plots ----
 .build_gest_pct_comparison <- function(natl, db_name, country_name) {
-  # External: gestational bins as percentages
+  # Reference: gestational bins as percentages
   natl_gest <- natl %>%
     dplyr::filter(.data$indicator == "Gestational duration distribution",
                   .data$country == country_name,
@@ -567,11 +566,11 @@
     dplyr::mutate(pct = round(100 * .data$n / sum(.data$n, na.rm = TRUE), 1)) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
-      source = "External (National Statistics)",
-      label = paste0(country_name, " (External, ", .data$year, ")")
+      source = "Reference (National Statistics)",
+      label = paste0(country_name, " (Reference, ", .data$year, ")")
     )
 
-  # Internal: gestational bins as percentages
+  # Our result: gestational bins as percentages
   int_gest <- tibble::tibble()
   if (exists("gestationalWeeksBinned")) {
     gwb <- gestationalWeeksBinned
@@ -614,8 +613,8 @@
             pct = round(100 * .data$n / total_n, 1),
             bin = .data$natl_bin,
             year = NA_integer_,
-            source = "Internal (Study Results)",
-            label = paste0(db_name, " (Internal, LB)")
+            source = "Our Result",
+            label = paste0(db_name, " (Our Result, LB)")
           ) %>%
           dplyr::select("year", "bin", "n", "pct", "source", "label")
       }
@@ -639,8 +638,8 @@
         tolower(.data$mode) == "c-section" ~ "Cesarean",
         TRUE                               ~ .data$mode
       ),
-      source = "External (National Statistics)",
-      label = paste0(country_name, " (External, ", .data$year, ")")
+      source = "Reference (National Statistics)",
+      label = paste0(country_name, " (Reference, ", .data$year, ")")
     )
 
   int_dm <- tibble::tibble()
@@ -686,8 +685,8 @@
             TRUE ~ .data$mode
           ),
           year = NA_integer_,
-          source = "Internal (Study Results)",
-          label = paste0(db_name, " (Internal, LB)")
+          source = "Our Result",
+          label = paste0(db_name, " (Our Result, LB)")
         ) %>%
         dplyr::select("mode", "year", "pct", "source", "label")
     }
@@ -697,15 +696,60 @@
 }
 
 
+# ---- Build comparison for ALL mapped databases ----
+# Returns a tibble with columns: cdm_name, country, indicator, variable, level,
+#   year, external_value, internal_value, diff_abs, diff_pct
+.build_all_db_comparison <- function(natl) {
+
+  mapped_dbs <- .get_mapped_databases()
+  if (length(mapped_dbs) == 0) return(tibble::tibble())
+
+  all_results <- purrr::map_dfr(mapped_dbs, function(db) {
+    country <- .resolve_db_country(db)
+    if (is.na(country)) return(tibble::tibble())
+    comp <- tryCatch(.build_comparison(natl, db, country), error = function(e) tibble::tibble())
+    if (nrow(comp) == 0) return(tibble::tibble())
+    comp %>%
+      dplyr::mutate(
+        cdm_name = db,
+        country = country,
+        diff_abs = dplyr::if_else(
+          is.na(.data$external_value) | is.na(.data$internal_value),
+          NA_real_,
+          .data$internal_value - .data$external_value
+        ),
+        diff_pct = dplyr::case_when(
+          is.na(.data$external_value) | is.na(.data$internal_value) ~ NA_real_,
+          .data$external_value != 0 ~ round(100 * (.data$internal_value - .data$external_value) / .data$external_value, 1),
+          TRUE ~ NA_real_
+        )
+      )
+  })
+
+  all_results
+}
+
+# ---- Color coding helper for difference percentage ----
+# Returns a background color based on absolute percentage difference
+.diff_color <- function(pct) {
+  dplyr::case_when(
+    is.na(pct) ~ "#f5f5f5",       # grey for missing
+    abs(pct) < 5   ~ "#d4edda",   # green: no meaningful diff
+    abs(pct) < 10  ~ "#fff3cd",   # yellow: small diff
+    abs(pct) < 50  ~ "#ffe0b2",   # orange: moderate diff
+    TRUE           ~ "#f8d7da"    # red: extreme diff >50%
+  )
+}
+
+
 # ---- UI ----
 nationalStatsComparisonUI <- function(id) {
   ns <- NS(id)
 
   tagList(
     h3("National Statistics Comparison"),
-    p("Compare internal study results with external national statistics as validation.",
-      "Each external data element is matched with its internal counterpart.",
-      "Currently comparing: DK-DHR (internal) with Denmark (external)."),
+    p("Compare our results with reference values from national statistics as validation.",
+      "Each reference value is matched with its counterpart from our results."),
     tabsetPanel(
       id = ns("tabs"),
       type = "tabs",
@@ -714,10 +758,10 @@ nationalStatsComparisonUI <- function(id) {
       tabPanel(
         "Comparison Table",
         br(),
-        p("Row-by-row comparison of external (national statistics) with internal (study results).",
+        p("Row-by-row comparison of reference values (national statistics) with our results.",
           "Years and levels are matched where possible."),
         fluidRow(
-          column(4, pickerInput(ns("comp_db"), "Database (internal)",
+          column(4, pickerInput(ns("comp_db"), "Database (our result)",
                                 choices = character(0), selected = character(0),
                                 multiple = FALSE, options = opt)),
           column(4, uiOutput(ns("comp_country_display")))
@@ -730,7 +774,7 @@ nationalStatsComparisonUI <- function(id) {
       tabPanel(
         "Gestational Duration",
         br(),
-        p("Distribution of births by gestational age bin: internal (study) vs. external (national statistics), shown as percentages."),
+        p("Distribution of births by gestational age bin: our results vs. reference values (national statistics), shown as percentages."),
         tabsetPanel(
           tabPanel(
             "Table",
@@ -754,7 +798,7 @@ nationalStatsComparisonUI <- function(id) {
       tabPanel(
         "Delivery Mode",
         br(),
-        p("Cesarean vs. vaginal delivery rates: internal (study) vs. external (national statistics)."),
+        p("Cesarean vs. vaginal delivery rates: our results vs. reference values (national statistics)."),
         tabsetPanel(
           tabPanel(
             "Table",
@@ -778,7 +822,7 @@ nationalStatsComparisonUI <- function(id) {
       tabPanel(
         "Year-Level Metrics",
         br(),
-        p("Yearly comparison of internal episode counts, maternal age, and foetal mortality against external national statistics."),
+        p("Yearly comparison of our episode counts, maternal age, and foetal mortality against reference values (national statistics)."),
         tabsetPanel(
           tabPanel(
             "Live Births / Episodes",
@@ -813,7 +857,48 @@ nationalStatsComparisonUI <- function(id) {
         )
       ),
 
-      # -- Tab 5: Raw data --
+      # -- Tab 5: All Databases comparison --
+      tabPanel(
+        "All Databases",
+        br(),
+        p("Comparison table across all mapped databases. Use the metric filter to focus on specific indicators."),
+        fluidRow(
+          column(6, pickerInput(ns("alldb_metrics"), "Filter by metric",
+                                choices = character(0), selected = character(0),
+                                multiple = TRUE,
+                                options = list(`actions-box` = TRUE,
+                                               `selected-text-format` = "count > 2",
+                                               `count-selected-text` = "{0} metrics selected",
+                                               `live-search` = TRUE)))
+        ),
+        gt::gt_output(ns("alldb_table")) %>% withSpinner(type = 6),
+        downloadButton(ns("download_alldb"), "Download table (.docx)")
+      ),
+
+      # -- Tab 6: Difference Overview across DBs --
+      tabPanel(
+        "Difference Overview",
+        br(),
+        p("Shows the percentage difference for each indicator across all databases.",
+          "Color coding: ",
+          tags$span("< 5%", style = "background-color:#d4edda; padding:2px 6px; border-radius:3px;"), " ",
+          tags$span("5-10%", style = "background-color:#fff3cd; padding:2px 6px; border-radius:3px;"), " ",
+          tags$span("10-50%", style = "background-color:#ffe0b2; padding:2px 6px; border-radius:3px;"), " ",
+          tags$span("> 50%", style = "background-color:#f8d7da; padding:2px 6px; border-radius:3px;")),
+        fluidRow(
+          column(6, pickerInput(ns("diffov_metrics"), "Filter by metric",
+                                choices = character(0), selected = character(0),
+                                multiple = TRUE,
+                                options = list(`actions-box` = TRUE,
+                                               `selected-text-format` = "count > 2",
+                                               `count-selected-text` = "{0} metrics selected",
+                                               `live-search` = TRUE)))
+        ),
+        gt::gt_output(ns("diffov_table")) %>% withSpinner(type = 6),
+        downloadButton(ns("download_diffov"), "Download table (.docx)")
+      ),
+
+      # -- Tab 7: Raw data --
       tabPanel(
         "Raw Data",
         br(),
@@ -862,7 +947,7 @@ nationalStatsComparisonServer <- function(id) {
                  paste0("No country mapping found for '", db, "'."))
       } else {
         tags$div(
-          tags$strong("Mapped country (external): "),
+          tags$strong("Mapped country (reference): "),
           tags$span(country, style = "font-size: 1.1em; color: #337ab7;")
         )
       }
@@ -922,16 +1007,16 @@ nationalStatsComparisonServer <- function(id) {
       gt::gt(d_display) %>%
         gt::tab_header(
           title = paste0("National Statistics Comparison: ",
-                         pair$db, " (Internal) vs. ", pair$country, " (External)"),
-          subtitle = "Row-by-row matching of each external data element with internal study results"
+                         pair$db, " (Our Result) vs. ", pair$country, " (Reference)"),
+          subtitle = "Row-by-row matching of each reference value with our results"
         ) %>%
         gt::cols_label(
           indicator = "Indicator",
           variable = "Variable",
           level = "Level",
           year = "Year",
-          external_fmt = paste0(pair$country, "\n(External)"),
-          internal_fmt = paste0(pair$db, "\n(Internal)"),
+          external_fmt = paste0(pair$country, "\n(Reference)"),
+          internal_fmt = paste0(pair$db, "\n(Our Result)"),
           difference = "Difference",
           internal_note = "Notes"
         ) %>%
@@ -983,7 +1068,7 @@ nationalStatsComparisonServer <- function(id) {
 
       gt::gt(d_wide) %>%
         gt::tab_header(title = "Gestational Duration Distribution (%)",
-                       subtitle = "Internal (study) vs. External (national statistics)") %>%
+                       subtitle = "Our results vs. reference values (national statistics)") %>%
         gt::cols_label(label = "Source") %>%
         gt::fmt_number(columns = dplyr::all_of(present_bins), decimals = 1) %>%
         gt::sub_missing(missing_text = "-") %>%
@@ -1010,7 +1095,7 @@ nationalStatsComparisonServer <- function(id) {
       ggplot2::ggplot(d, ggplot2::aes(x = .data$label, y = .data$pct, fill = .data$bin)) +
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Gestational\nAge (weeks)",
-                      title = "Gestational Duration: Internal vs. External") +
+                      title = "Gestational Duration: Our Results vs. Reference") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 7),
                        plot.title = ggplot2::element_text(hjust = 0.5)) +
@@ -1056,7 +1141,7 @@ nationalStatsComparisonServer <- function(id) {
 
       gt::gt(d_wide) %>%
         gt::tab_header(title = "Delivery Mode Distribution (%)",
-                       subtitle = "Internal (study) vs. External (national statistics)") %>%
+                       subtitle = "Our results vs. reference values (national statistics)") %>%
         gt::cols_label(label = "Source") %>%
         gt::fmt_number(columns = dplyr::any_of(c("Vaginal", "Cesarean")), decimals = 1) %>%
         gt::sub_missing(missing_text = "-") %>%
@@ -1079,7 +1164,7 @@ nationalStatsComparisonServer <- function(id) {
       ggplot2::ggplot(d, ggplot2::aes(x = .data$label, y = .data$pct, fill = .data$mode)) +
         ggplot2::geom_bar(stat = "identity", position = "stack") +
         ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Mode",
-                      title = "Delivery Mode: Internal vs. External") +
+                      title = "Delivery Mode: Our Results vs. Reference") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 7),
                        plot.title = ggplot2::element_text(hjust = 0.5)) +
@@ -1121,10 +1206,10 @@ nationalStatsComparisonServer <- function(id) {
           !is.na(.data$value)
         ) %>%
         dplyr::transmute(
-          source_label = paste0(pair$country, " (External)"),
+          source_label = paste0(pair$country, " (Reference)"),
           year = .data$year,
           count = .data$value,
-          source = "External"
+          source = "Reference"
         )
 
       int_lb <- tibble::tibble()
@@ -1141,10 +1226,10 @@ nationalStatsComparisonServer <- function(id) {
           # Only show years that overlap with external data
           dplyr::filter(.data$year %in% natl_lb$year) %>%
           dplyr::transmute(
-            source_label = paste0(pair$db, " (Internal)"),
+            source_label = paste0(pair$db, " (Our Result)"),
             year = .data$year,
             count = .data$count,
-            source = "Internal"
+            source = "Our Result"
           )
       }
 
@@ -1161,14 +1246,14 @@ nationalStatsComparisonServer <- function(id) {
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = "Year", y = "Count", fill = "Source",
                       title = paste0("Live Births (", pair$country, ") vs. Total Episodes (", pair$db, ")"),
-                      caption = "Note: Internal count includes all pregnancy episodes (LB, AB, SA, SB, ECT, etc.)") +
+                      caption = "Note: Our result count includes all pregnancy episodes (LB, AB, SA, SB, ECT, etc.)") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
         ggplot2::scale_y_continuous(labels = scales::comma) +
         ggplot2::scale_fill_manual(values = c(
-          setNames("#377EB8", paste0(pair$country, " (External)")),
-          setNames("#E41A1C", paste0(pair$db, " (Internal)"))
+          setNames("#377EB8", paste0(pair$country, " (Reference)")),
+          setNames("#E41A1C", paste0(pair$db, " (Our Result)"))
         ))
     })
 
@@ -1204,10 +1289,10 @@ nationalStatsComparisonServer <- function(id) {
           !is.na(.data$value)
         ) %>%
         dplyr::transmute(
-          source_label = paste0(pair$country, " (External)"),
+          source_label = paste0(pair$country, " (Reference)"),
           year = .data$year,
           value = .data$value,
-          source = "External"
+          source = "Reference"
         )
 
       int_ma <- tibble::tibble()
@@ -1229,10 +1314,10 @@ nationalStatsComparisonServer <- function(id) {
             dplyr::filter(!is.na(.data$year),
                           .data$year %in% natl_ma$year) %>%
             dplyr::transmute(
-              source_label = paste0(pair$db, " (Internal)"),
+              source_label = paste0(pair$db, " (Our Result)"),
               year = .data$year,
               value = .data$value,
-              source = "Internal"
+              source = "Our Result"
             )
         }
       }
@@ -1253,14 +1338,14 @@ nationalStatsComparisonServer <- function(id) {
                            vjust = -0.5, size = 3.5) +
         ggplot2::labs(x = "Year", y = "Mean age (years)", fill = "Source",
                       title = paste0("Mean Maternal Age at First Child: ", pair$db, " vs. ", pair$country),
-                      caption = paste0("External: Mean age at birth of first child\n",
-                                       "Internal: Mean age at pregnancy start (first pregnancy)")) +
+                      caption = paste0("Reference: Mean age at birth of first child\n",
+                                       "Our result: Mean age at pregnancy start (first pregnancy)")) +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
         ggplot2::scale_fill_manual(values = c(
-          setNames("#377EB8", paste0(pair$country, " (External)")),
-          setNames("#E41A1C", paste0(pair$db, " (Internal)"))
+          setNames("#377EB8", paste0(pair$country, " (Reference)")),
+          setNames("#E41A1C", paste0(pair$db, " (Our Result)"))
         )) +
         ggplot2::coord_cartesian(ylim = c(25, 35))
     })
@@ -1297,13 +1382,13 @@ nationalStatsComparisonServer <- function(id) {
           !is.na(.data$value)
         ) %>%
         dplyr::transmute(
-          source_label = paste0(pair$country, " (External, ", .data$year, ")"),
+          source_label = paste0(pair$country, " (Reference, ", .data$year, ")"),
           year = .data$year,
           value = .data$value,
-          source = "External"
+          source = "Reference"
         )
 
-      # Internal: overall rate (no yearly breakdown available)
+      # Our result: overall rate (no yearly breakdown available)
       int_fm <- tibble::tibble()
       if (exists("outcomeCategoriesCount")) {
         oc <- outcomeCategoriesCount
@@ -1321,10 +1406,10 @@ nationalStatsComparisonServer <- function(id) {
           if (total > 0) {
             rate <- round(1000 * sb / total, 1)
             int_fm <- tibble::tibble(
-              source_label = paste0(pair$db, " (Internal, overall)"),
+              source_label = paste0(pair$db, " (Our Result, overall)"),
               year = NA_integer_,
               value = rate,
-              source = "Internal"
+              source = "Our Result"
             )
           }
         }
@@ -1345,11 +1430,11 @@ nationalStatsComparisonServer <- function(id) {
                            vjust = -0.5, size = 3.5) +
         ggplot2::labs(x = NULL, y = "Rate (per 1,000 total births)", fill = "Source",
                       title = paste0("Foetal Mortality Rate: ", pair$db, " vs. ", pair$country),
-                      caption = "Internal rate is computed as SB/(SB+LB)*1000 across all years") +
+                      caption = "Our result rate is computed as SB/(SB+LB)*1000 across all years") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
-        ggplot2::scale_fill_manual(values = c("External" = "#377EB8", "Internal" = "#E41A1C"))
+        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Our Result" = "#E41A1C"))
     })
 
     output$foetal_mort_plot <- plotly::renderPlotly({
@@ -1372,7 +1457,242 @@ nationalStatsComparisonServer <- function(id) {
     )
 
 
-    # ========== TAB 5: Raw Data ==========
+    # ========== TAB 5: All Databases ==========
+
+    # Reactive: compute comparison across all mapped DBs (cached)
+    all_db_data <- reactive({
+      natl <- natl_data()
+      if (is.null(natl)) return(tibble::tibble())
+      .build_all_db_comparison(natl)
+    })
+
+    # Update metric picker when data is available
+    observe({
+      d <- all_db_data()
+      if (is.null(d) || nrow(d) == 0) return()
+      # Build labels from indicator + variable + level
+      d <- d %>%
+        dplyr::mutate(
+          metric_label = dplyr::if_else(
+            is.na(.data$level) | !nzchar(.data$level),
+            paste0(.data$indicator, " | ", .data$variable),
+            paste0(.data$indicator, " | ", .data$variable, " [", .data$level, "]")
+          )
+        )
+      metrics <- sort(unique(d$metric_label))
+      updatePickerInput(session, "alldb_metrics",
+                        choices = metrics, selected = metrics)
+      updatePickerInput(session, "diffov_metrics",
+                        choices = metrics, selected = metrics)
+    })
+
+    # Filtered data for All Databases tab
+    alldb_filtered <- reactive({
+      d <- all_db_data()
+      if (is.null(d) || nrow(d) == 0) return(tibble::tibble())
+      sel <- input$alldb_metrics
+      if (is.null(sel) || length(sel) == 0) return(tibble::tibble())
+      d %>%
+        dplyr::mutate(
+          metric_label = dplyr::if_else(
+            is.na(.data$level) | !nzchar(.data$level),
+            paste0(.data$indicator, " | ", .data$variable),
+            paste0(.data$indicator, " | ", .data$variable, " [", .data$level, "]")
+          )
+        ) %>%
+        dplyr::filter(.data$metric_label %in% sel)
+    })
+
+    alldb_gt <- reactive({
+      d <- alldb_filtered()
+      validate(need(nrow(d) > 0, "No data available. Check that mapped databases exist."))
+
+      d_display <- d %>%
+        dplyr::mutate(
+          external_fmt = dplyr::if_else(
+            is.na(.data$external_value), "-",
+            format(.data$external_value, big.mark = ",", scientific = FALSE, trim = TRUE)
+          ),
+          internal_fmt = dplyr::if_else(
+            is.na(.data$internal_value), "-",
+            format(.data$internal_value, big.mark = ",", scientific = FALSE, trim = TRUE)
+          ),
+          difference = dplyr::case_when(
+            is.na(.data$external_value) | is.na(.data$internal_value) ~ "-",
+            .data$external_value != 0 ~ paste0(
+              format(round(.data$diff_abs, 1), big.mark = ",", trim = TRUE),
+              " (", ifelse(.data$diff_abs >= 0, "+", ""),
+              round(.data$diff_pct, 1), "%)"
+            ),
+            TRUE ~ format(round(.data$diff_abs, 1), big.mark = ",", trim = TRUE)
+          ),
+          diff_pct_val = .data$diff_pct,
+          year = dplyr::if_else(is.na(.data$year), "-", as.character(.data$year))
+        ) %>%
+        dplyr::select(
+          "cdm_name", "country", "indicator", "variable", "level", "year",
+          "external_fmt", "internal_fmt", "difference", "diff_pct_val"
+        ) %>%
+        dplyr::arrange(.data$indicator, .data$variable, .data$level, .data$year, .data$cdm_name)
+
+      tbl <- gt::gt(d_display) %>%
+        gt::tab_header(
+          title = "National Statistics Comparison: All Databases",
+          subtitle = "Stacked comparison across all mapped databases"
+        ) %>%
+        gt::cols_label(
+          cdm_name = "Database",
+          country = "Country",
+          indicator = "Indicator",
+          variable = "Variable",
+          level = "Level",
+          year = "Year",
+          external_fmt = "Reference",
+          internal_fmt = "Our Result",
+          difference = "Difference"
+        ) %>%
+        gt::cols_hide("diff_pct_val") %>%
+        gt::tab_style(
+          style = gt::cell_fill(color = "#f0f7ff"),
+          locations = gt::cells_body(columns = "external_fmt")
+        ) %>%
+        gt::tab_style(
+          style = gt::cell_fill(color = "#fff0f0"),
+          locations = gt::cells_body(columns = "internal_fmt")
+        ) %>%
+        gt::sub_missing(missing_text = "-") %>%
+        gt::tab_options(table.font.size = "small") %>%
+        gt::cols_width(
+          "variable" ~ gt::px(220),
+          "cdm_name" ~ gt::px(120)
+        )
+
+      # Apply color coding to difference column row by row
+      for (i in seq_len(nrow(d_display))) {
+        bg <- .diff_color(d_display$diff_pct_val[i])
+        tbl <- tbl %>%
+          gt::tab_style(
+            style = gt::cell_fill(color = bg),
+            locations = gt::cells_body(columns = "difference", rows = i)
+          )
+      }
+
+      tbl
+    })
+
+    output$alldb_table <- gt::render_gt({ alldb_gt() })
+
+    output$download_alldb <- downloadHandler(
+      filename = function() "national_stats_all_databases.docx",
+      content = function(file) {
+        tryCatch(gt::gtsave(alldb_gt(), file), error = function(e) NULL)
+      }
+    )
+
+
+    # ========== TAB 6: Difference Overview ==========
+
+    diffov_filtered <- reactive({
+      d <- all_db_data()
+      if (is.null(d) || nrow(d) == 0) return(tibble::tibble())
+      sel <- input$diffov_metrics
+      if (is.null(sel) || length(sel) == 0) return(tibble::tibble())
+      d %>%
+        dplyr::mutate(
+          metric_label = dplyr::if_else(
+            is.na(.data$level) | !nzchar(.data$level),
+            paste0(.data$indicator, " | ", .data$variable),
+            paste0(.data$indicator, " | ", .data$variable, " [", .data$level, "]")
+          )
+        ) %>%
+        dplyr::filter(.data$metric_label %in% sel)
+    })
+
+    diffov_gt <- reactive({
+      d <- diffov_filtered()
+      validate(need(nrow(d) > 0, "No data available."))
+
+      # Create a row label combining indicator/variable/level/year
+      d_pivot <- d %>%
+        dplyr::mutate(
+          row_label = dplyr::case_when(
+            is.na(.data$level) | !nzchar(.data$level) ~
+              paste0(.data$variable, " (", dplyr::if_else(is.na(.data$year), "-", as.character(.data$year)), ")"),
+            TRUE ~
+              paste0(.data$variable, " [", .data$level, "] (", dplyr::if_else(is.na(.data$year), "-", as.character(.data$year)), ")")
+          ),
+          diff_label = dplyr::case_when(
+            is.na(.data$diff_pct) ~ "-",
+            TRUE ~ paste0(ifelse(.data$diff_pct >= 0, "+", ""), round(.data$diff_pct, 1), "%")
+          )
+        )
+
+      # Pivot wider: one column per database showing diff_pct
+      wide_label <- d_pivot %>%
+        dplyr::select("indicator", "row_label", "cdm_name", "diff_label") %>%
+        tidyr::pivot_wider(names_from = "cdm_name", values_from = "diff_label") %>%
+        dplyr::arrange(.data$indicator, .data$row_label)
+
+      # Also get numeric values for color coding
+      wide_pct <- d_pivot %>%
+        dplyr::select("indicator", "row_label", "cdm_name", "diff_pct") %>%
+        tidyr::pivot_wider(names_from = "cdm_name", values_from = "diff_pct",
+                           names_prefix = "pct_") %>%
+        dplyr::arrange(.data$indicator, .data$row_label)
+
+      db_cols <- setdiff(colnames(wide_label), c("indicator", "row_label"))
+      pct_cols <- paste0("pct_", db_cols)
+
+      # Join for color coding
+      display <- wide_label %>%
+        dplyr::left_join(wide_pct, by = c("indicator", "row_label"))
+
+      tbl <- gt::gt(display, groupname_col = "indicator") %>%
+        gt::tab_header(
+          title = "Difference Overview Across Databases",
+          subtitle = "Percentage difference (Our Result vs Reference) per indicator and database"
+        ) %>%
+        gt::cols_label(row_label = "Metric") %>%
+        gt::cols_hide(dplyr::all_of(pct_cols)) %>%
+        gt::sub_missing(missing_text = "-") %>%
+        gt::tab_options(
+          table.font.size = "small",
+          row_group.font.weight = "bold"
+        ) %>%
+        gt::cols_width(
+          "row_label" ~ gt::px(300)
+        )
+
+      # Color code each DB column cell based on pct value
+      for (db in db_cols) {
+        pct_col <- paste0("pct_", db)
+        if (pct_col %in% colnames(display)) {
+          for (i in seq_len(nrow(display))) {
+            pct_val <- display[[pct_col]][i]
+            bg <- .diff_color(pct_val)
+            tbl <- tbl %>%
+              gt::tab_style(
+                style = gt::cell_fill(color = bg),
+                locations = gt::cells_body(columns = db, rows = i)
+              )
+          }
+        }
+      }
+
+      tbl
+    })
+
+    output$diffov_table <- gt::render_gt({ diffov_gt() })
+
+    output$download_diffov <- downloadHandler(
+      filename = function() "difference_overview_all_databases.docx",
+      content = function(file) {
+        tryCatch(gt::gtsave(diffov_gt(), file), error = function(e) NULL)
+      }
+    )
+
+
+    # ========== TAB 7: Raw Data ==========
     output$raw_table <- DT::renderDT({
       natl <- natl_data()
       validate(need(!is.null(natl) && nrow(natl) > 0, "No national statistics data available."))
