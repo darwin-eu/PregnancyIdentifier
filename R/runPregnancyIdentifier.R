@@ -130,6 +130,29 @@ runPregnancyIdentifier <- function(cdm,
   checkmate::assertIntegerish(minCellCount, len = 1, lower = 0)
   minCellCount <- as.integer(minCellCount)
 
+  # Spark/Databricks requires a catalog in the write schema; without it table
+  # references become ".schema.table" (leading dot) and INSERT/CREATE fails.
+  con <- attr(cdm, "dbcon")
+  if (!is.null(con) && inherits(con, "OdbcConnection")) {
+    writeSchema <- CDMConnector::cdmWriteSchema(cdm)
+    isSpark <- tryCatch(
+      grepl("spark|databricks", DBI::dbGetInfo(con)$dbms.name, ignore.case = TRUE),
+      error = function(e) FALSE
+    )
+    if (isSpark && !("catalog" %in% names(writeSchema))) {
+      stop(
+        "Spark/Databricks connections require a catalog in the write schema. ",
+        "Without it, table references are generated with a leading dot ",
+        "(e.g. '.schema.table') and SQL statements fail.\n",
+        "Current writeSchema: ", paste(names(writeSchema), writeSchema, sep = " = ", collapse = ", "), "\n",
+        "Fix: include 'catalog' when creating the CDM connection, e.g.\n",
+        '  writeSchema <- c(catalog = "hive_metastore", schema = "my_schema", prefix = "...")\n',
+        '  cdm <- CDMConnector::cdmFromCon(con, cdmSchema = ..., writeSchema = writeSchema)',
+        call. = FALSE
+      )
+    }
+  }
+
   runEsdConform <- isTRUE(conformToValidation)
   exportBoth <- identical(conformToValidation, "both")
 
