@@ -162,7 +162,7 @@ prettyColNames <- function(df) {
 
 #' Render a DT datatable with PRETTY_NAMES, standard formatting, and optional overlap highlighting.
 #' @param numDigits Optional number of decimal places for numeric (non-pct) columns; if NULL, uses 0.
-renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE, numDigits = NULL) {
+renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE, numDigits = NULL, caption = NULL) {
   rowsToColor <- NULL
   if ("overlap" %in% colnames(data)) {
     data$rowId <- as.numeric(rownames(data))
@@ -183,6 +183,7 @@ renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE
     data = data,
     colnames = displayNames,
     filter = filter,
+    caption = caption,
     options = list(scrollX = scrollX, pageLength = pageLength)
   )
 

@@ -48,9 +48,61 @@
   dbs[mapped]
 }
 
-# ---- Our crude rates (pregnancy count / incidence denominator, per 1000) ----
-# Builds a dataframe of crude rates for DBs that match a country: uses pregnancy counts
-# (numerators) from trendData and population denominators from the incidence
+# ---- Extract yearly LB counts from incidence results ----
+# Filters incidence summarised_result to outcome_count rows for _lb cohorts,
+# extracts year, and takes the max outcome_count per (cdm_name, year).
+# Returns tibble: cdm_name, year, numerator
+.extract_lb_counts_from_incidence <- function(inc, db_names) {
+  empty <- tibble::tibble(cdm_name = character(0), year = integer(0), numerator = numeric(0))
+  if (!is.data.frame(inc) || nrow(inc) == 0 ||
+      !all(c("estimate_name", "estimate_value", "group_level") %in% colnames(inc))) {
+    return(empty)
+  }
+
+  inc_lb <- inc %>%
+    dplyr::filter(
+      .data$estimate_name == "outcome_count",
+      grepl("_lb$", .data$group_level)
+    )
+  if ("strata_name" %in% colnames(inc_lb)) {
+    inc_lb <- inc_lb %>% dplyr::filter(.data$strata_name == "overall")
+  }
+  if (nrow(inc_lb) == 0) return(empty)
+
+  # Extract year from additional_level (format: "2014-01-01 &&& 2014-12-31 &&& years")
+  if ("additional_level" %in% colnames(inc_lb) && "additional_name" %in% colnames(inc_lb)) {
+    inc_lb <- inc_lb %>%
+      dplyr::filter(grepl("incidence_start_date", .data$additional_name)) %>%
+      dplyr::mutate(
+        year = suppressWarnings(as.integer(stringr::str_extract(
+          trimws(sub("\\s*&&&.*", "", .data$additional_level)), "^[0-9]+"
+        )))
+      )
+  } else if ("incidence_start_date" %in% colnames(inc_lb)) {
+    inc_lb <- inc_lb %>%
+      dplyr::mutate(
+        year = suppressWarnings(as.integer(stringr::str_extract(.data$incidence_start_date, "^[0-9]+")))
+      )
+  } else {
+    return(empty)
+  }
+
+  inc_lb <- inc_lb %>%
+    dplyr::filter(
+      !is.na(.data$year),
+      tolower(.data$cdm_name) %in% tolower(db_names)
+    ) %>%
+    dplyr::mutate(numerator = suppressWarnings(as.numeric(.data$estimate_value))) %>%
+    dplyr::filter(!is.na(.data$numerator), .data$numerator > 0) %>%
+    dplyr::group_by(.data$cdm_name, .data$year) %>%
+    dplyr::summarise(numerator = max(.data$numerator, na.rm = TRUE), .groups = "drop")
+
+  inc_lb
+}
+
+# ---- Our crude rates (LB count / incidence denominator, per 1000) ----
+# Builds a dataframe of crude rates for DBs that match a country: uses live birth counts
+# (numerators) from incidence results and population denominators from the incidence
 # summarised result (overall, both sexes, by year). Only for mapped databases.
 # Returns tibble: cdm_name, country, year, numerator, denominator_count, crude_rate_per_1000
 .build_crude_rates_internal <- function() {
@@ -111,26 +163,11 @@
       }
     }
   }
-  # Numerator: yearly pregnancy (episode) counts from trendData
+  # Numerator: yearly live birth counts from incidence results (outcome_count for _lb cohorts)
   num <- tibble::tibble(cdm_name = character(0), year = integer(0), numerator = numeric(0))
-  if (exists("trendData", envir = .GlobalEnv)) {
-    td <- get("trendData", envir = .GlobalEnv)
-    if (!is.null(td) && nrow(td) > 0 &&
-        "period" %in% colnames(td) && "column" %in% colnames(td) && "value" %in% colnames(td) && "count" %in% colnames(td)) {
-      num <- td %>%
-        dplyr::filter(
-          .data$period == "year",
-          .data$column == "final_episode_end_date",
-          tolower(.data$cdm_name) %in% tolower(mapped_dbs)
-        ) %>%
-        dplyr::mutate(
-          year = as.integer(.data$value),
-          numerator = as.numeric(.data$count)
-        ) %>%
-        dplyr::filter(!is.na(.data$year)) %>%
-        dplyr::select("cdm_name", "year", "numerator") %>%
-        dplyr::distinct()
-    }
+  if (exists("incidence", envir = .GlobalEnv)) {
+    inc <- get("incidence", envir = .GlobalEnv)
+    num <- .extract_lb_counts_from_incidence(inc, mapped_dbs)
   }
   # Join and compute rate per 1000; only for mapped (cdm_name, country)
   out <- num %>%
@@ -241,24 +278,13 @@
     }
   }
 
-  # 2. Yearly episode counts (year-matched)
+  # 2. Yearly live birth counts (year-matched, from incidence results)
   int_trend <- tibble::tibble()
-  if (exists("trendData")) {
-    td <- trendData
-    if (!is.null(td) && nrow(td) > 0) {
-      int_trend <- td %>%
-        dplyr::filter(
-          .data$period == "year",
-          .data$column == "final_episode_end_date",
-          tolower(.data$cdm_name) == tolower(db_name) |
-            grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
-                  tolower(.data$cdm_name))
-        ) %>%
-        dplyr::mutate(
-          year = as.integer(.data$value),
-          count = as.numeric(.data$count)
-        ) %>%
-        dplyr::select("year", "count")
+  if (exists("incidence")) {
+    lb_counts <- .extract_lb_counts_from_incidence(incidence, db_name)
+    if (nrow(lb_counts) > 0) {
+      int_trend <- lb_counts %>%
+        dplyr::transmute(year = .data$year, count = .data$numerator)
     }
   }
 
@@ -304,7 +330,7 @@
     if (!is.null(gwb) && nrow(gwb) > 0) {
       # Map our app bins to national stats bins.
       # The national stats CSV has individual bins: <32, 32-36, 37-38, 39-41, >=42
-      # Our data has: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 44-49, >=50
+      # Our data has: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 45-49, >=50
       app_bin_map <- dplyr::tribble(
         ~app_bin,  ~natl_bin,
         "<12",     "<32",
@@ -314,7 +340,7 @@
         "37-38",   "37-38",
         "39-41",   "39-41",
         "42-43",   ">=42",
-        "44-49",   ">=42",
+        "45-49",   ">=42",
         ">=50",    ">=42"
       )
 
@@ -447,7 +473,7 @@
           } else NA_real_
 
         } else if (grepl("Number of live births", var)) {
-          # Live births: match with yearly total episodes
+          # Live births: match with yearly LB counts from incidence results
           if (nrow(int_trend) > 0) {
             match_row <- int_trend %>% dplyr::filter(.data$year == yr)
             if (nrow(match_row) > 0) match_row$count[1] else NA_real_
@@ -480,7 +506,7 @@
               natl_bin_check == "32-36" ~ "% of LB; 32-36 wk",
               natl_bin_check == "37-38" ~ "% of LB; 37-38 wk",
               natl_bin_check == "39-41" ~ "% of LB; 39-41 wk",
-              natl_bin_check == ">=42"  ~ "% of LB; our result sums 42-43+44-49+>=50 wk",
+              natl_bin_check == ">=42"  ~ "% of LB; our result sums 42-43+45-49+>=50 wk",
               TRUE ~ "% of LB (all years)"
             )
             bin_sources
@@ -499,7 +525,7 @@
           if (nrow(int_crude) > 0) {
             match_row <- int_crude %>% dplyr::filter(.data$year == yr)
             if (nrow(match_row) > 0) {
-              "Pregnancy count / incidence denominator (overall, both sexes), per 1000"
+              "LB count / incidence denominator (overall, both sexes), per 1000"
             } else "No data for this year"
           } else "N/A (incidence denominator or trend data not available)"
 
@@ -507,9 +533,9 @@
           if (nrow(int_trend) > 0) {
             match_row <- int_trend %>% dplyr::filter(.data$year == yr)
             if (nrow(match_row) > 0) {
-              paste0("Total pregnancy episodes in ", yr, " (all outcomes)")
+              paste0("Live birth episodes in ", yr, " (from incidence results)")
             } else "No data for this year"
-          } else "No trend data available"
+          } else "No incidence data available"
 
         } else if (grepl("Foetal mortality", var)) {
           if (!is.na(int_fm_rate)) "Overall rate (all years)" else "No outcome data"
@@ -585,7 +611,7 @@
         "39-41",   "37-41",
         "37-41",   "37-41",
         "42-43",   ">=42",
-        "44-49",   ">=42",
+        "45-49",   ">=42",
         ">=50",    ">=42"
       )
       gwb_filtered <- gwb %>%
@@ -822,10 +848,10 @@ nationalStatsComparisonUI <- function(id) {
       tabPanel(
         "Year-Level Metrics",
         br(),
-        p("Yearly comparison of our episode counts, maternal age, and foetal mortality against reference values (national statistics)."),
+        p("Yearly comparison of our live birth counts, maternal age, and foetal mortality against reference values (national statistics)."),
         tabsetPanel(
           tabPanel(
-            "Live Births / Episodes",
+            "Live Births",
             plotlyOutput(ns("live_births_plot"), height = "500px") %>% withSpinner(type = 6),
             fluidRow(
               column(3, textInput(ns("lb_plot_height"), "Height (cm)", value = "10")),
@@ -1033,7 +1059,8 @@ nationalStatsComparisonServer <- function(id) {
         gt::cols_width(
           "internal_note" ~ gt::px(200),
           "variable" ~ gt::px(250)
-        )
+        ) %>%
+        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in our results.")
     })
 
     output$comparison_table <- gt::render_gt({ comparison_gt() })
@@ -1073,7 +1100,8 @@ nationalStatsComparisonServer <- function(id) {
         gt::fmt_number(columns = dplyr::all_of(present_bins), decimals = 1) %>%
         gt::sub_missing(missing_text = "-") %>%
         gt::tab_options(table.font.size = "small") %>%
-        gt::tab_spanner(label = "Gestational Age (weeks)", columns = dplyr::all_of(present_bins))
+        gt::tab_spanner(label = "Gestational Age (weeks)", columns = dplyr::all_of(present_bins)) %>%
+        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in our results.")
     })
 
     output$gest_table <- gt::render_gt({ gest_gt_reactive() })
@@ -1095,7 +1123,8 @@ nationalStatsComparisonServer <- function(id) {
       ggplot2::ggplot(d, ggplot2::aes(x = .data$label, y = .data$pct, fill = .data$bin)) +
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Gestational\nAge (weeks)",
-                      title = "Gestational Duration: Our Results vs. Reference") +
+                      title = "Gestational Duration: Our Results vs. Reference",
+                      caption = "Note: 308 days (44 weeks) is counted as 43 weeks in our results.") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 7),
                        plot.title = ggplot2::element_text(hjust = 0.5)) +
@@ -1193,7 +1222,7 @@ nationalStatsComparisonServer <- function(id) {
 
     # ========== TAB 4: Year-Level Metrics ==========
 
-    # ---- Live births / episodes per year ----
+    # ---- Live births per year ----
     lb_data <- reactive({
       natl <- natl_data()
       if (is.null(natl)) return(tibble::tibble())
@@ -1213,24 +1242,18 @@ nationalStatsComparisonServer <- function(id) {
         )
 
       int_lb <- tibble::tibble()
-      if (exists("trendData")) {
-        int_lb <- trendData %>%
-          dplyr::filter(
-            .data$period == "year",
-            .data$column == "final_episode_end_date",
-            tolower(.data$cdm_name) == tolower(pair$db) |
-              grepl(paste0("^", tolower(sub("_v[0-9]+$", "", pair$db))),
-                    tolower(.data$cdm_name))
-          ) %>%
-          dplyr::mutate(year = as.integer(.data$value), count = as.numeric(.data$count)) %>%
-          # Only show years that overlap with external data
-          dplyr::filter(.data$year %in% natl_lb$year) %>%
-          dplyr::transmute(
-            source_label = paste0(pair$db, " (Our Result)"),
-            year = .data$year,
-            count = .data$count,
-            source = "Our Result"
-          )
+      if (exists("incidence")) {
+        lb_counts <- .extract_lb_counts_from_incidence(incidence, pair$db)
+        if (nrow(lb_counts) > 0) {
+          int_lb <- lb_counts %>%
+            dplyr::filter(.data$year %in% natl_lb$year) %>%
+            dplyr::transmute(
+              source_label = paste0(pair$db, " (Our Result)"),
+              year = .data$year,
+              count = .data$numerator,
+              source = "Our Result"
+            )
+        }
       }
 
       dplyr::bind_rows(natl_lb, int_lb)
@@ -1245,8 +1268,8 @@ nationalStatsComparisonServer <- function(id) {
                                        fill = .data$source_label)) +
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = "Year", y = "Count", fill = "Source",
-                      title = paste0("Live Births (", pair$country, ") vs. Total Episodes (", pair$db, ")"),
-                      caption = "Note: Our result count includes all pregnancy episodes (LB, AB, SA, SB, ECT, etc.)") +
+                      title = paste0("Live Births: ", pair$country, " (Reference) vs. ", pair$db, " (Our Result)"),
+                      caption = "Our result count is live birth episodes from incidence results") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
