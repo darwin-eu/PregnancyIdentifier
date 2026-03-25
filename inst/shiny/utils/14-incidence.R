@@ -55,7 +55,8 @@ incidenceUI <- function(id) {
       ),
       fluidRow(
         column(3, pickerInput(ns("interval"), "Interval", choices = c("years", "overall"), selected = "years", multiple = FALSE, options = opt)),
-        column(3, pickerInput(ns("years"), "Years", choices = ch$years, selected = ch$years, multiple = TRUE, options = opt))
+        column(3, pickerInput(ns("years"), "Years", choices = ch$years, selected = tail(ch$years, 3), multiple = TRUE, options = opt)),
+        column(3, actionButton(ns("generate"), "Generate", icon = icon("refresh"), class = "btn-primary", style = "margin-top: 25px;"))
       ),
       tabsetPanel(
         id = ns("tabsetPanel"),
@@ -103,7 +104,7 @@ incidenceServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Filtered summarised_result
+    # Filtered summarised_result – only recalculates when "Generate" is clicked
     filtered_data <- reactive({
       req(input$cdm, input$age_group, input$sex, input$interval)
       d <- incidence %>%
@@ -125,7 +126,7 @@ incidenceServer <- function(id) {
           visOmopResults::filterAdditional(analysis_interval %in% input$interval)
       }
       d
-    })
+    }) |> bindEvent(input$generate, ignoreNULL = FALSE)
 
     # Table of estimates (gt)
     table_gt <- reactive({

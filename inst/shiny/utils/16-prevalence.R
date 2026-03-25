@@ -44,7 +44,10 @@ prevalenceUI <- function(id) {
         column(3, pickerInput(ns("cdm"), "CDM name", choices = cdm_choices, selected = cdm_choices, multiple = TRUE, options = opt)),
         column(3, pickerInput(ns("outcome"), "Outcome", choices = ch$outcomes, selected = ch$outcomes, multiple = TRUE, options = opt)),
         column(3, pickerInput(ns("age_group"), "Age group", choices = age_choices, selected = "0 to 150", multiple = TRUE, options = opt)),
-        column(3, pickerInput(ns("start_date"), "Start date", choices = ch$startDates, selected = ch$startDates, multiple = TRUE, options = opt))
+        column(3, pickerInput(ns("start_date"), "Start date", choices = ch$startDates, selected = tail(ch$startDates, 3), multiple = TRUE, options = opt))
+      ),
+      fluidRow(
+        column(3, actionButton(ns("generate"), "Generate", icon = icon("refresh"), class = "btn-primary", style = "margin-top: 5px; margin-bottom: 10px;"))
       ),
       tabsetPanel(
         id = ns("tabsetPanel"),
@@ -94,7 +97,7 @@ prevalenceServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Filtered summarised_result
+    # Filtered summarised_result – only recalculates when "Generate" is clicked
     filtered_data <- reactive({
       req(input$cdm, input$age_group)
       d <- prevalence %>%
@@ -105,7 +108,7 @@ prevalenceServer <- function(id) {
         d <- d %>% visOmopResults::filterAdditional(prevalence_start_date %in% input$start_date)
       }
       d
-    })
+    }) |> bindEvent(input$generate, ignoreNULL = FALSE)
 
     # Table of estimates (gt)
     table_gt <- reactive({
