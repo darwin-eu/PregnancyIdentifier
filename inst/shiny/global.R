@@ -61,16 +61,21 @@ if (dir.exists(dataFolder)) {
 
 useCachedData <- if (exists("shinySettings") && "useCachedData" %in% names(shinySettings)) shinySettings$useCachedData else TRUE
 
-# Invalidate cache if dataFolder has changed since last cache was built
-cacheValid <- file.exists("data.rds") && !isFALSE(useCachedData)
+# Cache file lives alongside global.R (app working directory)
+cachePath <- file.path(getwd(), "data.rds")
+
+# Invalidate cache if it doesn't exist, is disabled, or was built for a different dataFolder
+cacheValid <- file.exists(cachePath) && !isFALSE(useCachedData)
 if (cacheValid) {
-  cachedFolder <- tryCatch(readr::read_rds("data.rds")[["_dataFolder"]], error = function(e) NULL)
+  cachedFolder <- tryCatch(readr::read_rds(cachePath)[["_dataFolder"]], error = function(e) NULL)
   if (is.null(cachedFolder) || !identical(cachedFolder, dataFolder)) {
+    message("Cache exists but dataFolder has changed — rebuilding cache.")
     cacheValid <- FALSE
   }
 }
 
 if (!cacheValid) {
+  message("Building data cache from: ", dataFolder)
   if (!dir.exists(dataFolder)) cli::cli_abort("dataFolder: {dataFolder} does not exist!")
 
   # Summarised results
@@ -221,11 +226,13 @@ if (!cacheValid) {
   )
 
   data[["_dataFolder"]] <- dataFolder
-  readr::write_rds(data, "data.rds")
+  readr::write_rds(data, cachePath)
+  message("Cache written to: ", cachePath)
   dataNames <- setdiff(names(data), "_dataFolder")
   purrr::walk(dataNames, ~assign(., data[[.]], envir = .GlobalEnv))
 } else {
-  data <- readr::read_rds("data.rds")
+  message("Loading data from cache: ", cachePath)
+  data <- readr::read_rds(cachePath)
   dataNames <- setdiff(names(data), "_dataFolder")
   purrr::walk(dataNames, ~assign(., data[[.]], envir = .GlobalEnv))
 }
