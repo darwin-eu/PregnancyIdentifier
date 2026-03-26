@@ -111,6 +111,16 @@ readResults <- function(dataFolder, regex, reader = c("summarised_result", "csv"
     if ("cdm_name" %in% colnames(res)) {
       res$cdm_name <- ifelse(res$cdm_name == "cdm", "EMBD-ULSGE", res$cdm_name)
       res$cdm_name <- tolower(paste0(res$cdm_name, versionSuffix))
+
+      # For summarised_result objects, also update cdm_name in settings
+      if (reader == "summarised_result") {
+        s <- omopgenerics::settings(res)
+        if ("cdm_name" %in% colnames(s)) {
+          s$cdm_name <- ifelse(s$cdm_name == "cdm", "EMBD-ULSGE", s$cdm_name)
+          s$cdm_name <- tolower(paste0(s$cdm_name, versionSuffix))
+          attr(res, "settings") <- s
+        }
+      }
     }
 
     # Remove metadata columns from plain CSVs
