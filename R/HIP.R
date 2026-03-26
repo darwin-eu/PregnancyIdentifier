@@ -95,7 +95,7 @@ runHip <- function(cdm, outputFolder = NULL, startDate = as.Date("1900-01-01"), 
 
   log4r::info(logger, "Inserting matcho_outcome_limits table into cdm")
   matchoOutcomeLimits <- readxl::read_excel(system.file(package = "PregnancyIdentifier", "concepts", "Matcho_outcome_limits.xlsx", mustWork = TRUE))
-  cdm <- CDMConnector::insertTable(cdm = cdm, name = "matcho_outcome_limits", table = matchoOutcomeLimits)
+  cdm <- omopgenerics::insertTable(cdm = cdm, name = "matcho_outcome_limits", table = matchoOutcomeLimits, overwrite = TRUE, temporary = FALSE)
 
   # Stage 1: outcome episodes.
   # Inputs: cdm$preg_hip_records, cdm$matcho_outcome_limits.

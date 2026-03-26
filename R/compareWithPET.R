@@ -1465,7 +1465,9 @@ comparePregnancyIdentifierWithPET <- function(cdm,
       cdm <- omopgenerics::insertTable(
         cdm   = cdm,
         name  = "unmatched_pet_cohort",
-        table = unmatched_cohort_df
+        table = unmatched_cohort_df,
+        overwrite = TRUE,
+        temporary = FALSE
       )
       cdm$unmatched_pet_cohort <- omopgenerics::newCohortTable(
         table = cdm$unmatched_pet_cohort,

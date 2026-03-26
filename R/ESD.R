@@ -851,7 +851,7 @@ getTimingConcepts <- function(cdm,
     dplyr::select("person_id", "start_date", "merge_episode_end", "merge_episode_number")
 
   # Persist to DB so the non-equi join runs on the database backend
-  cdm <- CDMConnector::insertTable(cdm, name = "person_id_list", table = personIdList, overwrite = TRUE)
+  cdm <- omopgenerics::insertTable(cdm, name = "person_id_list", table = personIdList, overwrite = TRUE, temporary = FALSE)
   personIdList <- cdm$person_id_list
 
   # Generic domain extraction: join concept IDs -> domain table, set value_col, then restrict to episode window
@@ -1534,7 +1534,7 @@ addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
     minimalCohort <- validateDeliveryModeCohort(minimalCohort, logger = logger)
   }
   tableName <- "esd_delivery_mode_cohort"
-  cdm <- omopgenerics::insertTable(cdm = cdm, name = tableName, table = minimalCohort, overwrite = TRUE)
+  cdm <- omopgenerics::insertTable(cdm = cdm, name = tableName, table = minimalCohort, overwrite = TRUE, temporary = FALSE)
 
   conceptSet <- suppressMessages(
     omopgenerics::importConceptSetExpression(

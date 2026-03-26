@@ -77,7 +77,7 @@ computeIncidencePrevalence <- function(cdm,
   names(identifiedPregnancies) <- tolower(names(identifiedPregnancies))
 
   cdm <- omopgenerics::insertTable(
-    cdm, "identified_pregnancies", identifiedPregnancies
+    cdm, "identified_pregnancies", identifiedPregnancies, overwrite = TRUE, temporary = FALSE
   )
 
   # -- Exclude persons with >1 observation period per episode -----------------

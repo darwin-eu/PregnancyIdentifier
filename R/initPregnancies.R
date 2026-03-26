@@ -91,9 +91,9 @@ initPregnancies <- function(cdm,
     system.file("concepts", "Matcho_term_durations.xlsx", package = "PregnancyIdentifier", mustWork = TRUE)
   )
 
-  cdm <- CDMConnector::insertTable(cdm, "preg_hip_concepts", hipConcepts, overwrite = TRUE)
-  cdm <- CDMConnector::insertTable(cdm, "preg_pps_concepts", ppsConcepts, overwrite = TRUE)
-  cdm <- CDMConnector::insertTable(cdm, "preg_matcho_term_durations", matchoTermDurations, overwrite = TRUE)
+  cdm <- omopgenerics::insertTable(cdm, "preg_hip_concepts", hipConcepts, overwrite = TRUE, temporary = FALSE)
+  cdm <- omopgenerics::insertTable(cdm, "preg_pps_concepts", ppsConcepts, overwrite = TRUE, temporary = FALSE)
+  cdm <- omopgenerics::insertTable(cdm, "preg_matcho_term_durations", matchoTermDurations, overwrite = TRUE, temporary = FALSE)
 
   log4r::info(logger, "Added preg_hip_concepts, preg_pps_concepts, preg_matcho_term_durations to the CDM")
 

@@ -316,7 +316,7 @@ mockPregnancyCdm <- function(fullVocab = TRUE) {
   pet <- readr::read_csv(system.file("mock_pet.csv", package = "PregnancyIdentifier", mustWork = TRUE),
                          show_col_types = FALSE, guess_max = 1e6)
 
-  cdm <- CDMConnector::insertTable(
+  cdm <- omopgenerics::insertTable(
     cdm,
     name = "pregnancy_extension",
     table = pet,
