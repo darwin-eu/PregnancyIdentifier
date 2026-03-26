@@ -26,10 +26,78 @@ nationalStatsComparisonUI <- function(id) {
       column(4, uiOutput(ns("country_display")))
     ),
 
-    # ---- Three sub-tabs ----
+    # ---- Sub-tabs ----
     tabsetPanel(
       id = ns("tabs"),
       type = "tabs",
+
+      # == Tab 0: Overview ==
+      tabPanel(
+        "Overview",
+        br(),
+        p("This module compares pregnancy algorithm results against published national",
+          "statistics to validate that observed rates and distributions are plausible.",
+          "Each metric from our database results is matched to a corresponding reference",
+          "value from external sources."),
+        h4("Comparisons and data sources"),
+        tags$table(
+          class = "table table-bordered table-striped",
+          style = "margin-top: 10px;",
+          tags$thead(
+            tags$tr(
+              tags$th("Metric", style = "width: 25%;"),
+              tags$th("Source for reference data")
+            )
+          ),
+          tags$tbody(
+            tags$tr(
+              tags$td(tags$strong("Birth rate")),
+              tags$td(
+                tags$strong("EUROSTAT"), " (e.g., 2014, 2023):", tags$br(),
+                "Crude birth rate: expressed as the ratio of the number of live births",
+                " during the year to the average population in that year"
+              )
+            ),
+            tags$tr(
+              tags$td(tags$strong("Maternal age at birth")),
+              tags$td(
+                tags$strong("EUROSTAT"), " (e.g., 2014, 2023):", tags$br(),
+                "Mean age of woman at birth of first child"
+              )
+            ),
+            tags$tr(
+              tags$td(tags$strong("Pregnancy outcome rates")),
+              tags$td(
+                tags$strong("EUROSTAT"), " (e.g., 2014, 2023):", tags$br(),
+                "Number of live births per year", tags$br(), tags$br(),
+                tags$strong("Euro-Peristat"), " (e.g., 2015, 2019):", tags$br(),
+                "Foetal mortality rate: foetal deaths at or after 24-weeks threshold",
+                tags$sup("*"), " (per 1000 total births)"
+              )
+            ),
+            tags$tr(
+              tags$td(tags$strong("Gestational duration distribution")),
+              tags$td(
+                tags$strong("Euro-Peristat"), " (e.g., 2015, 2019):", tags$br(),
+                "Number of live births at each completed gestational age bin",
+                " (<32, 32-36, 37-38, 39-41, and \u226542 weeks)"
+              )
+            ),
+            tags$tr(
+              tags$td(tags$strong("Mode of delivery")),
+              tags$td(
+                tags$strong("Euro-Peristat"), " (e.g., 2015, 2019):", tags$br(),
+                "Mode of delivery rate (% vaginal and c-section deliveries)"
+              )
+            )
+          )
+        ),
+        tags$p(
+          style = "font-size: 0.9em; color: #666; margin-top: 8px;",
+          tags$sup("*"), "For the purpose of this validation, we only consider",
+          " foetal losses at or after 24 weeks."
+        )
+      ),
 
       # == Tab 1: Tables ==
       tabPanel(
@@ -70,42 +138,62 @@ nationalStatsComparisonUI <- function(id) {
         "Plots",
         br(),
         p("All comparison plots. When multiple databases are selected, plots are faceted by database/country."),
-        fluidRow(
-          column(3, textInput(ns("plot_height"), "Height (cm)", value = "14")),
-          column(3, textInput(ns("plot_width"), "Width (cm)", value = "26")),
-          column(3, textInput(ns("plot_dpi"), "Resolution (dpi)", value = "300"))
-        ),
         tabsetPanel(
           id = ns("plot_tabs"),
 
           tabPanel(
             "Gestational Duration",
             br(),
-            plotlyOutput(ns("gest_plot"), height = "600px") %>% withSpinner(type = 6),
+            uiOutput(ns("gest_plot_ui")),
+            fluidRow(
+              column(3, textInput(ns("gest_plot_height"), "Height (cm)", value = "14")),
+              column(3, textInput(ns("gest_plot_width"), "Width (cm)", value = "26")),
+              column(3, textInput(ns("gest_plot_dpi"), "Resolution (dpi)", value = "300"))
+            ),
             downloadButton(ns("download_gest_plot"), "Download plot (PNG)")
           ),
           tabPanel(
             "Delivery Mode",
             br(),
-            plotlyOutput(ns("dm_plot"), height = "500px") %>% withSpinner(type = 6),
+            uiOutput(ns("dm_plot_ui")),
+            fluidRow(
+              column(3, textInput(ns("dm_plot_height"), "Height (cm)", value = "14")),
+              column(3, textInput(ns("dm_plot_width"), "Width (cm)", value = "26")),
+              column(3, textInput(ns("dm_plot_dpi"), "Resolution (dpi)", value = "300"))
+            ),
             downloadButton(ns("download_dm_plot"), "Download plot (PNG)")
           ),
           tabPanel(
             "Live Births",
             br(),
-            plotlyOutput(ns("lb_plot"), height = "500px") %>% withSpinner(type = 6),
+            uiOutput(ns("lb_plot_ui")),
+            fluidRow(
+              column(3, textInput(ns("lb_plot_height"), "Height (cm)", value = "14")),
+              column(3, textInput(ns("lb_plot_width"), "Width (cm)", value = "26")),
+              column(3, textInput(ns("lb_plot_dpi"), "Resolution (dpi)", value = "300"))
+            ),
             downloadButton(ns("download_lb_plot"), "Download plot (PNG)")
           ),
           tabPanel(
             "Maternal Age",
             br(),
-            plotlyOutput(ns("ma_plot"), height = "500px") %>% withSpinner(type = 6),
+            uiOutput(ns("ma_plot_ui")),
+            fluidRow(
+              column(3, textInput(ns("ma_plot_height"), "Height (cm)", value = "14")),
+              column(3, textInput(ns("ma_plot_width"), "Width (cm)", value = "26")),
+              column(3, textInput(ns("ma_plot_dpi"), "Resolution (dpi)", value = "300"))
+            ),
             downloadButton(ns("download_ma_plot"), "Download plot (PNG)")
           ),
           tabPanel(
             "Foetal Mortality",
             br(),
-            plotlyOutput(ns("fm_plot"), height = "500px") %>% withSpinner(type = 6),
+            uiOutput(ns("fm_plot_ui")),
+            fluidRow(
+              column(3, textInput(ns("fm_plot_height"), "Height (cm)", value = "14")),
+              column(3, textInput(ns("fm_plot_width"), "Width (cm)", value = "26")),
+              column(3, textInput(ns("fm_plot_dpi"), "Resolution (dpi)", value = "300"))
+            ),
             downloadButton(ns("download_fm_plot"), "Download plot (PNG)")
           )
         )
@@ -122,6 +210,12 @@ nationalStatsComparisonUI <- function(id) {
   )
 }
 
+
+# Compute plot height in pixels based on number of facets (300px per row of facets, ncol=3)
+.facet_plot_height <- function(n_facets, px_per_row = 350, ncol = 3, min_px = 450) {
+  n_rows <- ceiling(n_facets / ncol)
+  max(min_px, n_rows * px_per_row)
+}
 
 # ---- Server ----
 nationalStatsComparisonServer <- function(id) {
@@ -433,6 +527,13 @@ nationalStatsComparisonServer <- function(id) {
       p
     })
 
+    output$gest_plot_ui <- renderUI({
+      d <- gest_plot_data()
+      n <- length(unique(d$facet_label))
+      h <- .facet_plot_height(n)
+      plotlyOutput(ns("gest_plot"), height = paste0(h, "px")) %>% withSpinner(type = 6)
+    })
+
     output$gest_plot <- plotly::renderPlotly({
       p <- gest_ggplot()
       if (is.null(p)) return(emptyPlotlyMessage("No data."))
@@ -445,9 +546,9 @@ nationalStatsComparisonServer <- function(id) {
         p <- gest_ggplot()
         if (!is.null(p)) {
           ggplot2::ggsave(file, plot = p,
-                          width = as.numeric(input$plot_width),
-                          height = as.numeric(input$plot_height),
-                          dpi = as.numeric(input$plot_dpi), units = "cm")
+                          width = as.numeric(input$gest_plot_width),
+                          height = as.numeric(input$gest_plot_height),
+                          dpi = as.numeric(input$gest_plot_dpi), units = "cm")
         }
       }
     )
@@ -484,6 +585,13 @@ nationalStatsComparisonServer <- function(id) {
       p
     })
 
+    output$dm_plot_ui <- renderUI({
+      d <- dm_plot_data()
+      n <- length(unique(d$facet_label))
+      h <- .facet_plot_height(n)
+      plotlyOutput(ns("dm_plot"), height = paste0(h, "px")) %>% withSpinner(type = 6)
+    })
+
     output$dm_plot <- plotly::renderPlotly({
       p <- dm_ggplot()
       if (is.null(p)) return(emptyPlotlyMessage("No data."))
@@ -496,9 +604,9 @@ nationalStatsComparisonServer <- function(id) {
         p <- dm_ggplot()
         if (!is.null(p)) {
           ggplot2::ggsave(file, plot = p,
-                          width = as.numeric(input$plot_width),
-                          height = as.numeric(input$plot_height),
-                          dpi = as.numeric(input$plot_dpi), units = "cm")
+                          width = as.numeric(input$dm_plot_width),
+                          height = as.numeric(input$dm_plot_height),
+                          dpi = as.numeric(input$dm_plot_dpi), units = "cm")
         }
       }
     )
@@ -568,6 +676,13 @@ nationalStatsComparisonServer <- function(id) {
       p
     })
 
+    output$lb_plot_ui <- renderUI({
+      d <- lb_plot_data()
+      n <- length(unique(d$facet_label))
+      h <- .facet_plot_height(n)
+      plotlyOutput(ns("lb_plot"), height = paste0(h, "px")) %>% withSpinner(type = 6)
+    })
+
     output$lb_plot <- plotly::renderPlotly({
       p <- lb_ggplot()
       if (is.null(p)) return(emptyPlotlyMessage("No data."))
@@ -580,9 +695,9 @@ nationalStatsComparisonServer <- function(id) {
         p <- lb_ggplot()
         if (!is.null(p)) {
           ggplot2::ggsave(file, plot = p,
-                          width = as.numeric(input$plot_width),
-                          height = as.numeric(input$plot_height),
-                          dpi = as.numeric(input$plot_dpi), units = "cm")
+                          width = as.numeric(input$lb_plot_width),
+                          height = as.numeric(input$lb_plot_height),
+                          dpi = as.numeric(input$lb_plot_dpi), units = "cm")
         }
       }
     )
@@ -668,6 +783,13 @@ nationalStatsComparisonServer <- function(id) {
       p
     })
 
+    output$ma_plot_ui <- renderUI({
+      d <- ma_plot_data()
+      n <- length(unique(d$facet_label))
+      h <- .facet_plot_height(n)
+      plotlyOutput(ns("ma_plot"), height = paste0(h, "px")) %>% withSpinner(type = 6)
+    })
+
     output$ma_plot <- plotly::renderPlotly({
       p <- ma_ggplot()
       if (is.null(p)) return(emptyPlotlyMessage("No data."))
@@ -680,9 +802,9 @@ nationalStatsComparisonServer <- function(id) {
         p <- ma_ggplot()
         if (!is.null(p)) {
           ggplot2::ggsave(file, plot = p,
-                          width = as.numeric(input$plot_width),
-                          height = as.numeric(input$plot_height),
-                          dpi = as.numeric(input$plot_dpi), units = "cm")
+                          width = as.numeric(input$ma_plot_width),
+                          height = as.numeric(input$ma_plot_height),
+                          dpi = as.numeric(input$ma_plot_dpi), units = "cm")
         }
       }
     )
@@ -764,6 +886,13 @@ nationalStatsComparisonServer <- function(id) {
       p
     })
 
+    output$fm_plot_ui <- renderUI({
+      d <- fm_plot_data()
+      n <- length(unique(d$facet_label))
+      h <- .facet_plot_height(n)
+      plotlyOutput(ns("fm_plot"), height = paste0(h, "px")) %>% withSpinner(type = 6)
+    })
+
     output$fm_plot <- plotly::renderPlotly({
       p <- fm_ggplot()
       if (is.null(p)) return(emptyPlotlyMessage("No data."))
@@ -776,9 +905,9 @@ nationalStatsComparisonServer <- function(id) {
         p <- fm_ggplot()
         if (!is.null(p)) {
           ggplot2::ggsave(file, plot = p,
-                          width = as.numeric(input$plot_width),
-                          height = as.numeric(input$plot_height),
-                          dpi = as.numeric(input$plot_dpi), units = "cm")
+                          width = as.numeric(input$fm_plot_width),
+                          height = as.numeric(input$fm_plot_height),
+                          dpi = as.numeric(input$fm_plot_dpi), units = "cm")
         }
       }
     )
