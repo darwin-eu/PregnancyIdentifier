@@ -26,8 +26,12 @@ episodeFrequencyUI <- function(id) {
   )
 }
 
-episodeFrequencyServer <- function(id) {
+episodeFrequencyServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
+
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
 
     nameLabels <- c(
       total_episodes = "Total episodes",
@@ -42,13 +46,13 @@ episodeFrequencyServer <- function(id) {
     )
 
     getData <- reactive({
-      if (!is.data.frame(episodeFrequency) || nrow(episodeFrequency) == 0) {
+      if (!is.data.frame(rv$episodeFrequency) || nrow(rv$episodeFrequency) == 0) {
         return(data.frame())
       }
-      if (!"cdm_name" %in% colnames(episodeFrequency)) {
-        return(episodeFrequency)
+      if (!"cdm_name" %in% colnames(rv$episodeFrequency)) {
+        return(rv$episodeFrequency)
       }
-      filterByCdm(episodeFrequency, input$cdm, allDP)
+      filterByCdm(rv$episodeFrequency, input$cdm, rv$allDP)
     })
 
     getPlotData <- reactive({
@@ -148,10 +152,13 @@ pregnancyFrequencyUI <- function(id) {
   )
 }
 
-pregnancyFrequencyServer <- function(id) {
+pregnancyFrequencyServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
     tableData <- reactive({
-      d <- filterByCdm(pregnancyFrequency, input$cdm, allDP)
+      d <- filterByCdm(rv$pregnancyFrequency, input$cdm, rv$allDP)
       if (!is.data.frame(d) || nrow(d) == 0) return(d)
       if (!"cdm_name" %in% colnames(d) || !"number_individuals" %in% colnames(d)) return(d)
       d %>%

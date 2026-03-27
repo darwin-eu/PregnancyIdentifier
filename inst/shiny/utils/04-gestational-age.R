@@ -39,14 +39,34 @@ gestationalAgeUI <- function(id) {
   )
 }
 
-gestationalAgeServer <- function(id) {
+gestationalAgeServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    hasOutcome <- "final_outcome_category" %in% colnames(gestationalWeeksSummary)
-    outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksSummary$final_outcome_category)), "Overall")) else NULL
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
+    hasOutcome <- reactive({
+      "final_outcome_category" %in% colnames(rv$gestationalWeeksSummary)
+    })
+
+    outcomeChoices <- reactive({
+      if (hasOutcome()) {
+        sort(c(unique(as.character(rv$gestationalWeeksSummary$final_outcome_category)), "Overall"))
+      } else {
+        NULL
+      }
+    })
+
+    observe({
+      oc <- outcomeChoices()
+      if (!is.null(oc) && length(oc) > 0) {
+        updatePickerInput(session, "outcome", choices = oc, selected = "Overall")
+      }
+    })
 
     getData <- reactive({
-      data <- gestationalWeeksSummary
+      data <- rv$gestationalWeeksSummary
 
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
@@ -61,10 +81,10 @@ gestationalAgeServer <- function(id) {
         dplyr::filter(.data$gestational_weeks >= minW, .data$gestational_weeks <= maxW)
 
       # Filter by CDM
-      data <- filterByCdm(data, input$cdm, allDP)
+      data <- filterByCdm(data, input$cdm, rv$allDP)
 
       # Add "Overall" group when outcome column exists
-      if (hasOutcome && "final_outcome_category" %in% colnames(data) && nrow(data) > 0) {
+      if (hasOutcome() && "final_outcome_category" %in% colnames(data) && nrow(data) > 0) {
         overall <- data %>%
           dplyr::mutate(n = as.numeric(.data$n)) %>%
           dplyr::group_by(.data$cdm_name, .data$gestational_weeks) %>%
@@ -77,9 +97,9 @@ gestationalAgeServer <- function(id) {
       }
 
       # Filter by outcome selection (after Overall is added)
-      if (hasOutcome) {
+      if (hasOutcome()) {
         outcomeSel <- input$outcome
-        if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- outcomeChoices
+        if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- outcomeChoices()
         data <- data %>%
           dplyr::filter(.data$final_outcome_category %in% outcomeSel)
       }
@@ -99,13 +119,14 @@ gestationalAgeServer <- function(id) {
       }
 
       plot_labeller <- NULL
-      if (!is.null(gestationalAgeDaysCounts) && is.data.frame(gestationalAgeDaysCounts) && nrow(gestationalAgeDaysCounts) > 0) {
-        cdmCols <- setdiff(colnames(gestationalAgeDaysCounts), "name")
+      if (!is.null(rv$gestationalAgeDaysCounts) && is.data.frame(rv$gestationalAgeDaysCounts) && nrow(rv$gestationalAgeDaysCounts) > 0) {
+        cdmCols <- setdiff(colnames(rv$gestationalAgeDaysCounts), "name")
         if (length(cdmCols) > 0) {
+          gaDaysCounts <- rv$gestationalAgeDaysCounts
           plot_labeller <- ggplot2::as_labeller(function(x) {
             vapply(x, function(val) {
               if (!val %in% cdmCols) return(val)
-              dpData <- gestationalAgeDaysCounts %>% dplyr::select(dplyr::all_of(c("name", val)))
+              dpData <- gaDaysCounts %>% dplyr::select(dplyr::all_of(c("name", val)))
               less1day <- dpData %>% dplyr::filter(.data$name == "less_1day") %>% dplyr::pull(2)
               over308 <- dpData %>% dplyr::filter(.data$name == "over_308days") %>% dplyr::pull(2)
               as.character(glue::glue("{val} - <1d: {less1day}, >308d: {over308}"))
@@ -129,7 +150,7 @@ gestationalAgeServer <- function(id) {
         return_ggplot = TRUE
       )
 
-      if (hasOutcome && "final_outcome_category" %in% colnames(data)) {
+      if (hasOutcome() && "final_outcome_category" %in% colnames(data)) {
         plotArgs$fillVar <- "final_outcome_category"
       }
 
@@ -139,7 +160,7 @@ gestationalAgeServer <- function(id) {
     output$plot <- plotly::renderPlotly({
       p <- plot_ggplot()
       if (is.null(p)) {
-        msg <- if (nrow(gestationalWeeksSummary) == 0) "Results files are empty." else "No data for selected filters."
+        msg <- if (nrow(rv$gestationalWeeksSummary) == 0) "Results files are empty." else "No data for selected filters."
         return(emptyPlotlyMessage(msg))
       }
       plotly::ggplotly(p)

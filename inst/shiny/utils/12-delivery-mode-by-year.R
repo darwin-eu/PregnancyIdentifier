@@ -25,11 +25,15 @@ deliveryModeByYearUI <- function(id) {
   )
 }
 
-deliveryModeByYearServer <- function(id) {
+deliveryModeByYearServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     getData <- reactive({
-      d <- filterByCdm(deliveryModeByYear, input$cdm, allDP)
+      d <- filterByCdm(rv$deliveryModeByYear, input$cdm, rv$allDP)
       if (!is.null(d) && nrow(d) > 0) {
         d <- d %>%
           dplyr::filter(.data$final_outcome_category %in% input$outcome) %>%

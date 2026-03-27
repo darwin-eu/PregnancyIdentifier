@@ -96,22 +96,43 @@ temporalPatternsUI <- function(id) {
   )
 }
 
-temporalPatternsServer <- function(id) {
+temporalPatternsServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    columnChoices <- unique(trendData$column)
-    if (length(columnChoices) == 0) columnChoices <- "column"
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
 
-    yearRangeBounds <- temporalPatternsYearRange()
+    columnChoices <- reactive({
+      cc <- unique(rv$trendData$column)
+      if (length(cc) == 0) "column" else cc
+    })
+
+    yearRangeBounds <- reactive({
+      maxYearCap <- 2026L
+      td <- rv$trendData
+      if (is.null(td) || nrow(td) == 0) {
+        return(list(min = 2000L, max = maxYearCap))
+      }
+      valNum <- suppressWarnings(as.numeric(td$value))
+      if (length(valNum) == 0 || all(is.na(valNum))) {
+        return(list(min = 2000L, max = maxYearCap))
+      }
+      minY <- min(valNum, na.rm = TRUE)
+      maxY <- max(valNum, na.rm = TRUE)
+      if (!is.finite(minY)) minY <- 2000
+      if (!is.finite(maxY)) maxY <- maxYearCap
+      list(min = as.integer(minY), max = as.integer(min(maxY, maxYearCap)))
+    })
 
     getData <- reactive({
-      data <- filterByCdm(trendData, input$cdm, allDP)
+      data <- filterByCdm(rv$trendData, input$cdm, rv$allDP)
 
       periodSel <- input$period
       if (is.null(periodSel) || length(periodSel) == 0) periodSel <- "year"
 
       columnSel <- input$column
-      if (is.null(columnSel) || length(columnSel) == 0) columnSel <- columnChoices
+      if (is.null(columnSel) || length(columnSel) == 0) columnSel <- columnChoices()
 
       data <- data %>%
         dplyr::filter(.data$period %in% periodSel) %>%
@@ -120,7 +141,8 @@ temporalPatternsServer <- function(id) {
       if (periodSel == "year") {
         yr <- input$yearRange
         if (is.null(yr) || length(yr) < 2L) {
-          yr <- c(yearRangeBounds$min, yearRangeBounds$max)
+          yrb <- yearRangeBounds()
+          yr <- c(yrb$min, yrb$max)
         }
         data <- data %>%
           dplyr::filter(as.numeric(.data$value) >= yr[1], as.numeric(.data$value) <= yr[2])
@@ -130,13 +152,13 @@ temporalPatternsServer <- function(id) {
     })
 
     getMissingData <- reactive({
-      data <- filterByCdm(trendDataMissing, input$cdm, allDP)
+      data <- filterByCdm(rv$trendDataMissing, input$cdm, rv$allDP)
 
       periodSel <- input$period
       if (is.null(periodSel) || length(periodSel) == 0) periodSel <- "year"
 
       columnSel <- input$column
-      if (is.null(columnSel) || length(columnSel) == 0) columnSel <- columnChoices
+      if (is.null(columnSel) || length(columnSel) == 0) columnSel <- columnChoices()
 
       data %>%
         dplyr::filter(.data$period %in% periodSel) %>%
@@ -173,7 +195,7 @@ temporalPatternsServer <- function(id) {
     output$plot <- plotly::renderPlotly({
       p <- plot_ggplot()
       if (is.null(p)) {
-        msg <- if (nrow(trendData) == 0) "Results files are empty." else "No data for selected filters."
+        msg <- if (nrow(rv$trendData) == 0) "Results files are empty." else "No data for selected filters."
         return(emptyPlotlyMessage(msg))
       }
       plotly::ggplotly(p)
@@ -182,7 +204,7 @@ temporalPatternsServer <- function(id) {
     output$missingPlot <- plotly::renderPlotly({
       p <- plot_missing_ggplot()
       if (is.null(p)) {
-        msg <- if (nrow(trendDataMissing) == 0) "Results files are empty." else "No data for selected filters."
+        msg <- if (nrow(rv$trendDataMissing) == 0) "Results files are empty." else "No data for selected filters."
         return(emptyPlotlyMessage(msg))
       }
       plotly::ggplotly(p)
@@ -227,7 +249,7 @@ temporalPatternsServer <- function(id) {
     })
 
     output$missingDataTable <- DT::renderDT({
-      renderPrettyDT(trendDataMissing)
+      renderPrettyDT(rv$trendDataMissing)
     })
 
     output$download_data_csv <- downloadHandler(
@@ -240,7 +262,7 @@ temporalPatternsServer <- function(id) {
     output$download_missing_csv <- downloadHandler(
       filename = function() { "temporal_patterns_missing.csv" },
       content = function(file) {
-        if (!is.null(trendDataMissing) && nrow(trendDataMissing) > 0) readr::write_csv(trendDataMissing, file)
+        if (!is.null(rv$trendDataMissing) && nrow(rv$trendDataMissing) > 0) readr::write_csv(rv$trendDataMissing, file)
       }
     )
   })

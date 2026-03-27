@@ -64,8 +64,11 @@
 }
 
 # Get all mapped DB names from the current allDP
-.get_mapped_databases <- function() {
-  if (!exists("allDP")) return(character(0))
+.get_mapped_databases <- function(allDP = NULL) {
+  if (is.null(allDP)) {
+    if (!exists("allDP", envir = .GlobalEnv)) return(character(0))
+    allDP <- get("allDP", envir = .GlobalEnv)
+  }
   dbs <- allDP
   mapped <- vapply(dbs, function(db) !is.na(.resolve_db_country(db)), logical(1))
   dbs[mapped]

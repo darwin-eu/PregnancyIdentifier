@@ -611,96 +611,115 @@ petComparisonUI <- function(id) {
   )
 }
 
-petComparisonServer <- function(id) {
+petComparisonServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    result <- petComparisonSummarisedResult
-    # Ensure result is a proper summarised_result (CSV load yields plain tibble)
-    if (!inherits(result, "summarised_result")) {
-      result <- tryCatch(
-        omopgenerics::newSummarisedResult(tibble::as_tibble(result)),
-        error = function(e) result
-      )
-    }
-    # Remap labels for display only (exports keep original labels)
-    # Preserve summarised_result class through remap (dplyr/as.data.frame strips it)
-    sr_class <- class(result)
-    sr_settings <- if (inherits(result, "summarised_result")) omopgenerics::settings(result) else NULL
-    display_result <- remap_pet_display_labels(as.data.frame(result))
-    display_result <- tibble::as_tibble(display_result)
-    class(display_result) <- sr_class
-    if (!is.null(sr_settings)) attr(display_result, "settings") <- sr_settings
-    tbl <- as.data.frame(display_result)
-    cdm_names <- if (is.data.frame(tbl) && "cdm_name" %in% names(tbl)) unique(tbl$cdm_name) else character(0)
+    result <- reactive({
+      r <- rv$petComparisonSummarisedResult
+      if (is.null(r)) return(NULL)
+      # Ensure result is a proper summarised_result (CSV load yields plain tibble)
+      if (!inherits(r, "summarised_result")) {
+        r <- tryCatch(
+          omopgenerics::newSummarisedResult(tibble::as_tibble(r)),
+          error = function(e) r
+        )
+      }
+      r
+    })
 
-    venn_data <- extract_venn_data_from_sr(result, "venn_counts", "n_episodes")
-    person_venn_data <- extract_venn_data_from_sr(result, "person_venn_counts", "n_persons")
-    person_epp_data <- extract_person_epp_from_sr(result)
+    display_result <- reactive({
+      r <- result()
+      if (is.null(r)) return(NULL)
+      # Remap labels for display only (exports keep original labels)
+      # Preserve summarised_result class through remap (dplyr/as.data.frame strips it)
+      sr_class <- class(r)
+      sr_settings <- if (inherits(r, "summarised_result")) omopgenerics::settings(r) else NULL
+      dr <- remap_pet_display_labels(as.data.frame(r))
+      dr <- tibble::as_tibble(dr)
+      class(dr) <- sr_class
+      if (!is.null(sr_settings)) attr(dr, "settings") <- sr_settings
+      dr
+    })
+
+    cdm_names <- reactive({
+      dr <- display_result()
+      if (is.null(dr)) return(character(0))
+      tbl <- as.data.frame(dr)
+      if (is.data.frame(tbl) && "cdm_name" %in% names(tbl)) unique(tbl$cdm_name) else character(0)
+    })
+
+    venn_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_venn_data_from_sr(r, "venn_counts", "n_episodes") })
+    person_venn_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_venn_data_from_sr(r, "person_venn_counts", "n_persons") })
+    person_epp_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_person_epp_from_sr(r) })
 
     # Plot: Venn
-    if (!is.null(venn_data) && nrow(venn_data) > 0) {
-      chosen_db <- reactive({
-        if (length(cdm_names) == 1) cdm_names[1] else input$database
-      })
-      venn_plot_data <- reactive({
-        db <- chosen_db()
-        if (is.null(db)) return(NULL)
-        row <- venn_data %>% dplyr::filter(.data$cdm_name == .env$db)
-        if (nrow(row) == 0) return(NULL)
-        pet_venn_data_from_counts(row$both[1], row$pet_only[1], row$algorithm_only[1])
-      })
-      output$venn <- amVennDiagram5::renderAmVennDiagram({
-        vd <- venn_plot_data()
-        if (is.null(vd)) return(NULL)
-        amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
-      })
-    }
+    chosen_db <- reactive({
+      cn <- cdm_names()
+      if (length(cn) == 1) cn[1] else input$database
+    })
+    venn_plot_data <- reactive({
+      vd <- venn_data()
+      if (is.null(vd) || nrow(vd) == 0) return(NULL)
+      db <- chosen_db()
+      if (is.null(db)) return(NULL)
+      row <- vd %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(row) == 0) return(NULL)
+      pet_venn_data_from_counts(row$both[1], row$pet_only[1], row$algorithm_only[1])
+    })
+    output$venn <- amVennDiagram5::renderAmVennDiagram({
+      vd <- venn_plot_data()
+      if (is.null(vd)) return(NULL)
+      amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
+    })
 
     # Person-level: Venn + EPP table
-    if (!is.null(person_venn_data) && nrow(person_venn_data) > 0) {
-      chosen_person_db <- reactive({
-        if (length(cdm_names) == 1) cdm_names[1] else input$person_database
-      })
-      person_venn_plot_data <- reactive({
-        db <- chosen_person_db()
-        if (is.null(db)) return(NULL)
-        row <- person_venn_data %>% dplyr::filter(.data$cdm_name == .env$db)
-        if (nrow(row) == 0) return(NULL)
-        pet_venn_data_from_counts(row$both[1], row$pet_only[1], row$algorithm_only[1])
-      })
-      output$person_venn <- amVennDiagram5::renderAmVennDiagram({
-        vd <- person_venn_plot_data()
-        if (is.null(vd)) return(NULL)
-        amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
-      })
-      personEppTableData <- reactive({
-        db <- chosen_person_db()
-        if (is.null(person_epp_data) || is.null(db)) return(NULL)
-        person_epp_data %>%
-          dplyr::filter(.data$cdm_name == .env$db) %>%
-          dplyr::select("group", dplyr::any_of(c("mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
-          dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 2)))
-      })
-      output$person_epp_table <- DT::renderDT({
-        epp_tbl <- personEppTableData()
-        if (is.null(epp_tbl) || nrow(epp_tbl) == 0) return(NULL)
-        DT::datatable(epp_tbl, rownames = FALSE, options = list(dom = "t", pageLength = 10))
-      })
-      output$download_person_epp_csv <- downloadHandler(
-        filename = function() { "pet_person_episodes_per_person.csv" },
-        content = function(file) {
-          d <- personEppTableData()
-          if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
-        }
-      )
-    }
+    chosen_person_db <- reactive({
+      cn <- cdm_names()
+      if (length(cn) == 1) cn[1] else input$person_database
+    })
+    person_venn_plot_data <- reactive({
+      pvd <- person_venn_data()
+      if (is.null(pvd) || nrow(pvd) == 0) return(NULL)
+      db <- chosen_person_db()
+      if (is.null(db)) return(NULL)
+      row <- pvd %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(row) == 0) return(NULL)
+      pet_venn_data_from_counts(row$both[1], row$pet_only[1], row$algorithm_only[1])
+    })
+    output$person_venn <- amVennDiagram5::renderAmVennDiagram({
+      vd <- person_venn_plot_data()
+      if (is.null(vd)) return(NULL)
+      amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
+    })
+    personEppTableData <- reactive({
+      db <- chosen_person_db()
+      ped <- person_epp_data()
+      if (is.null(ped) || is.null(db)) return(NULL)
+      ped %>%
+        dplyr::filter(.data$cdm_name == .env$db) %>%
+        dplyr::select("group", dplyr::any_of(c("mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
+        dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 2)))
+    })
+    output$person_epp_table <- DT::renderDT({
+      epp_tbl <- personEppTableData()
+      if (is.null(epp_tbl) || nrow(epp_tbl) == 0) return(NULL)
+      DT::datatable(epp_tbl, rownames = FALSE, options = list(dom = "t", pageLength = 10))
+    })
+    output$download_person_epp_csv <- downloadHandler(
+      filename = function() { "pet_person_episodes_per_person.csv" },
+      content = function(file) {
+        d <- personEppTableData()
+        if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
+      }
+    )
 
     # Alignment: butterfly histogram of date difference distributions
-    alignment_overall <- extract_date_diff_distribution_from_sr(result, "date_difference_distribution")
-    alignment_by_outcome <- extract_date_diff_distribution_from_sr(result, "date_difference_distribution_by_outcome")
+    alignment_overall <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_date_diff_distribution_from_sr(r, "date_difference_distribution") })
+    alignment_by_outcome <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_date_diff_distribution_from_sr(r, "date_difference_distribution_by_outcome") })
 
     chosen_align_db <- reactive({
-      if (length(cdm_names) == 1) cdm_names[1] else input$align_database
+      cn <- cdm_names()
+      if (length(cn) == 1) cn[1] else input$align_database
     })
 
     alignment_ggplot <- reactive({
@@ -708,10 +727,10 @@ petComparisonServer <- function(id) {
       by_outcome <- isTRUE(input$align_by_outcome)
       measure_filter <- input$align_measure
 
-      src <- if (by_outcome && !is.null(alignment_by_outcome)) {
-        alignment_by_outcome
-      } else if (!is.null(alignment_overall)) {
-        alignment_overall
+      src <- if (by_outcome && !is.null(alignment_by_outcome())) {
+        alignment_by_outcome()
+      } else if (!is.null(alignment_overall())) {
+        alignment_overall()
       } else {
         return(NULL)
       }
@@ -809,13 +828,15 @@ petComparisonServer <- function(id) {
 
     # Table: visOmopTable with database filter (uses display_result for renamed labels)
     filtered_result <- reactive({
+      dr <- display_result()
+      if (is.null(dr)) return(NULL)
       sel <- input$tableCdm
-      if (is.null(sel) || length(sel) == 0) sel <- cdm_names
-      res <- display_result %>% dplyr::filter(.data$cdm_name %in% sel)
+      if (is.null(sel) || length(sel) == 0) sel <- cdm_names()
+      res <- dr %>% dplyr::filter(.data$cdm_name %in% sel)
       if (!inherits(res, "summarised_result")) {
         res <- tibble::as_tibble(res)
-        class(res) <- class(display_result)
-        attr(res, "settings") <- attr(display_result, "settings")
+        class(res) <- class(dr)
+        attr(res, "settings") <- attr(dr, "settings")
       }
       res
     })
@@ -851,21 +872,22 @@ petComparisonServer <- function(id) {
     )
 
     # Unmatched characterization
-    gest_data <- extract_gestational_time_from_sr(result)
-    outcome_data <- extract_group_outcome_from_sr(result)
-    concept_coverage_data <- extract_pet_only_concept_coverage_from_sr(result)
-    record_count_data <- extract_pet_only_record_counts_from_sr(result)
-    hip_category_data <- extract_pet_only_hip_categories_from_sr(result)
+    gest_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_gestational_time_from_sr(r) })
+    outcome_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_group_outcome_from_sr(r) })
+    concept_coverage_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_pet_only_concept_coverage_from_sr(r) })
+    record_count_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_pet_only_record_counts_from_sr(r) })
+    hip_category_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_pet_only_hip_categories_from_sr(r) })
 
     chosen_unmatched_db <- reactive({
-      if (length(cdm_names) == 1) cdm_names[1] else input$unmatched_database
+      cn <- cdm_names()
+      if (length(cn) == 1) cn[1] else input$unmatched_database
     })
 
     # Gestational length table
     output$gest_table <- DT::renderDT({
       db <- chosen_unmatched_db()
-      if (is.null(gest_data) || is.null(db)) return(NULL)
-      d <- gest_data %>%
+      if (is.null(gest_data()) || is.null(db)) return(NULL)
+      d <- gest_data() %>%
         dplyr::filter(.data$cdm_name == .env$db) %>%
         dplyr::select("group", dplyr::any_of(c("n", "mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
         dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 1)))
@@ -877,10 +899,10 @@ petComparisonServer <- function(id) {
     # Outcome distribution plot
     output$outcome_plot <- plotly::renderPlotly({
       db <- chosen_unmatched_db()
-      if (is.null(outcome_data) || is.null(db)) {
+      if (is.null(outcome_data()) || is.null(db)) {
         return(emptyPlotlyMessage("No outcome data available."))
       }
-      d <- outcome_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      d <- outcome_data() %>% dplyr::filter(.data$cdm_name == .env$db)
       if (nrow(d) == 0) return(emptyPlotlyMessage("No outcome data for selected database."))
 
       d$group <- factor(d$group, levels = c("Matched", "HIPPS only", "PET only"))
@@ -904,8 +926,8 @@ petComparisonServer <- function(id) {
     # Outcome distribution table
     output$outcome_table <- DT::renderDT({
       db <- chosen_unmatched_db()
-      if (is.null(outcome_data) || is.null(db)) return(NULL)
-      d <- outcome_data %>%
+      if (is.null(outcome_data()) || is.null(db)) return(NULL)
+      d <- outcome_data() %>%
         dplyr::filter(.data$cdm_name == .env$db) %>%
         dplyr::mutate(
           n = format(round(.data$n), big.mark = ","),
@@ -918,17 +940,17 @@ petComparisonServer <- function(id) {
     })
 
     # Delivery mode summary
-    delivery_mode_data <- extract_delivery_mode_from_sr(result)
+    delivery_mode_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_delivery_mode_from_sr(r) })
 
     output$delivery_mode_ui <- renderUI({
       db <- chosen_unmatched_db()
-      if (is.null(delivery_mode_data) || is.null(db)) {
+      if (is.null(delivery_mode_data()) || is.null(db)) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
           "No delivery mode data available. The algorithm output may not include delivery mode flags."
         ))
       }
-      d <- delivery_mode_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      d <- delivery_mode_data() %>% dplyr::filter(.data$cdm_name == .env$db)
       if (nrow(d) == 0) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
@@ -981,18 +1003,18 @@ petComparisonServer <- function(id) {
     })
 
     # Boundary metrics for unmatched PET episodes
-    boundary_metrics_data <- extract_pet_only_boundary_metrics_from_sr(result)
+    boundary_metrics_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_pet_only_boundary_metrics_from_sr(r) })
 
     output$boundary_metrics_ui <- renderUI({
       db <- chosen_unmatched_db()
-      if (is.null(boundary_metrics_data) || is.null(db)) {
+      if (is.null(boundary_metrics_data()) || is.null(db)) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
           "No boundary metrics available. Re-run the PET comparison with ",
           tags$code("startDate"), " and ", tags$code("endDate"), " parameters to generate this data."
         ))
       }
-      d <- boundary_metrics_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      d <- boundary_metrics_data() %>% dplyr::filter(.data$cdm_name == .env$db)
       if (nrow(d) == 0) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
@@ -1058,14 +1080,14 @@ petComparisonServer <- function(id) {
     # Concept coverage in PET-only episodes
     output$concept_coverage_ui <- renderUI({
       db <- chosen_unmatched_db()
-      if (is.null(concept_coverage_data) || is.null(db)) {
+      if (is.null(concept_coverage_data()) || is.null(db)) {
         return(div(
           style = "padding: 12px 16px; background: #FEF9C3; border: 1px solid #FDE68A; border-radius: 6px; margin: 10px 0;",
           tags$strong("No HIP/PPS concept coverage data available."),
           " Re-run the PET comparison to generate this data."
         ))
       }
-      d <- concept_coverage_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      d <- concept_coverage_data() %>% dplyr::filter(.data$cdm_name == .env$db)
       if (nrow(d) == 0) {
         return(div(
           style = "padding: 12px 16px; background: #FEF9C3; border: 1px solid #FDE68A; border-radius: 6px; margin: 10px 0;",
@@ -1135,8 +1157,8 @@ petComparisonServer <- function(id) {
       db <- chosen_unmatched_db()
 
       # Check coverage first - if no concepts, show message
-      if (!is.null(concept_coverage_data)) {
-        cd <- concept_coverage_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (!is.null(concept_coverage_data())) {
+        cd <- concept_coverage_data() %>% dplyr::filter(.data$cdm_name == .env$db)
         pct_any_row <- cd %>% dplyr::filter(.data$variable_name == "pet_only_any_record_coverage",
                                              .data$estimate_name == "pct_with_any")
         if (nrow(pct_any_row) > 0 && isTRUE(pct_any_row$estimate_value[1] == 0)) {
@@ -1147,13 +1169,13 @@ petComparisonServer <- function(id) {
         }
       }
 
-      if (is.null(hip_category_data)) {
+      if (is.null(hip_category_data())) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
           "No HIP category breakdown data available."
         ))
       }
-      d <- hip_category_data %>% dplyr::filter(.data$cdm_name == .env$db)
+      d <- hip_category_data() %>% dplyr::filter(.data$cdm_name == .env$db)
       if (nrow(d) == 0) {
         return(div(
           style = "padding: 12px 16px; background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 6px; margin: 10px 0;",
@@ -1186,19 +1208,24 @@ petComparisonServer <- function(id) {
     output$download_raw_csv <- downloadHandler(
       filename = function() { "pet_comparison_summarised_result.csv" },
       content = function(file) {
-        d <- as.data.frame(result)
+        d <- as.data.frame(result())
         if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
       }
     )
 
     # ---- Unmatched LSC tab ----
-    if (exists("petUnmatchedLsc") && is.data.frame(petUnmatchedLsc) && nrow(petUnmatchedLsc) > 0) {
-      lsc_data <- as.data.frame(petUnmatchedLsc)
-      lsc_cdm_names <- unique(lsc_data$cdm_name)
+    lsc_data <- reactive({
+      lsc <- rv$petUnmatchedLsc
+      if (is.null(lsc) || !is.data.frame(lsc) || nrow(lsc) == 0) return(NULL)
+      as.data.frame(lsc)
+    })
 
-      lsc_filtered <- reactive({
-        db <- if (length(lsc_cdm_names) > 1 && !is.null(input$lsc_database)) input$lsc_database else lsc_cdm_names[1]
-        d <- lsc_data %>%
+    lsc_filtered <- reactive({
+      ld <- lsc_data()
+      if (is.null(ld)) return(NULL)
+      lsc_cdm_names <- unique(ld$cdm_name)
+      db <- if (length(lsc_cdm_names) > 1 && !is.null(input$lsc_database)) input$lsc_database else lsc_cdm_names[1]
+      d <- ld %>%
           dplyr::filter(.data$cdm_name == db) %>%
           dplyr::filter(.data$estimate_value != "0") %>%
           dplyr::select(
@@ -1230,10 +1257,10 @@ petComparisonServer <- function(id) {
       output$download_lsc_csv <- downloadHandler(
         filename = function() { "pet_unmatched_lsc.csv" },
         content = function(file) {
-          readr::write_csv(lsc_filtered(), file)
+          d <- lsc_filtered()
+          if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
         }
       )
-    }
   })
 }
 
@@ -1281,7 +1308,7 @@ petComparisonLegacyContainerUI <- function(id) {
   )
 }
 
-petComparisonLegacyContainerServer <- function(id) {
+petComparisonLegacyContainerServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
     for (varName in names(petComparisonSpec)) {
       if (exists(varName, envir = .GlobalEnv)) {

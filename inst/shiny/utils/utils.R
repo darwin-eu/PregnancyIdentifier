@@ -134,9 +134,113 @@ readResults <- function(dataFolder, regex, reader = c("summarised_result", "csv"
   if (length(results) == 0) return(NULL)
 
   if (reader == "summarised_result") {
-    purrr::compact(results) |> purrr::reduce(omopgenerics::bind)
+    results <- purrr::compact(results)
+    if (length(results) == 0) return(NULL)
+    safeBindSummarisedResults(results)
   } else {
     dplyr::bind_rows(results)
+  }
+}
+
+#' Bind summarised_result objects without triggering duplicate validation errors.
+#'
+#' omopgenerics::bind calls validateSummarisedResultTable which rejects rows
+#' that share the same key columns but differ in estimate_value. This happens
+#' when multiple result folders exist for the same database or when a dataset
+#' contains internal duplicates from re-runs. This function works around that
+#' by binding as plain data frames, re-indexing result_id, deduplicating, and
+#' reconstructing the summarised_result class.
+safeBindSummarisedResults <- function(results) {
+  # First try the standard bind — it's the happy path
+  combined <- tryCatch(
+    purrr::reduce(results, omopgenerics::bind),
+    error = function(e) NULL
+  )
+  if (!is.null(combined)) return(combined)
+
+  message("omopgenerics::bind failed (likely duplicates); falling back to manual bind + dedup.")
+
+  # Collect settings from each result, offsetting result_id to avoid collisions
+  all_settings <- list()
+  all_data <- list()
+  id_offset <- 0L
+
+  for (res in results) {
+    s <- omopgenerics::settings(res)
+    old_ids <- unique(res$result_id)
+    max_old <- if (length(old_ids) > 0) max(old_ids, na.rm = TRUE) else 0L
+
+    # Offset result_id in both data and settings
+    res_df <- as.data.frame(res)
+    res_df$result_id <- res_df$result_id + id_offset
+    s$result_id <- s$result_id + id_offset
+
+    all_data <- c(all_data, list(res_df))
+    all_settings <- c(all_settings, list(s))
+    id_offset <- id_offset + max_old
+  }
+
+  combined_data <- dplyr::bind_rows(all_data)
+  combined_settings <- dplyr::bind_rows(all_settings)
+
+  # Deduplicate: keep last occurrence (later files are assumed to be newer)
+  key_cols <- setdiff(names(combined_data), "estimate_value")
+  key_cols <- key_cols[key_cols %in% names(combined_data)]
+  combined_data <- combined_data[!duplicated(combined_data[key_cols], fromLast = TRUE), ]
+
+  # Remove settings rows for result_ids no longer in the data
+  remaining_ids <- unique(combined_data$result_id)
+  combined_settings <- combined_settings[combined_settings$result_id %in% remaining_ids, ]
+
+  # Construct summarised_result, suppressing validation
+  combined_data <- dplyr::as_tibble(combined_data)
+  attr(combined_data, "settings") <- dplyr::as_tibble(combined_settings)
+  class(combined_data) <- unique(c("summarised_result", "omop_result", class(combined_data)))
+  combined_data
+}
+
+#' Replace version suffix in cdm_name (e.g. _v3.2.1 -> _v3).
+#' For summarised_result objects also updates settings attribute.
+replaceVersionSuffix <- function(df, newSuffix) {
+  if (is.null(df) || !is.data.frame(df)) return(df)
+  replaceFn <- function(x) {
+    # If there's an existing version suffix, replace it; otherwise append
+    out <- gsub("_v[0-9.]+$", paste0("_", newSuffix), x)
+    # If no replacement happened (no version suffix found), append
+    unchanged <- out == x
+    out[unchanged] <- paste0(out[unchanged], "_", newSuffix)
+    out
+  }
+  if ("cdm_name" %in% colnames(df)) {
+    df$cdm_name <- replaceFn(df$cdm_name)
+    if (inherits(df, "summarised_result")) {
+      s <- tryCatch(omopgenerics::settings(df), error = function(e) NULL)
+      if (!is.null(s) && "cdm_name" %in% colnames(s)) {
+        s$cdm_name <- replaceFn(s$cdm_name)
+        attr(df, "settings") <- s
+      }
+    }
+  }
+  df
+}
+
+#' Add a version column to a data frame.
+addVersionColumn <- function(df, ver) {
+  if (is.null(df) || !is.data.frame(df)) return(df)
+  df$version <- ver
+  df
+}
+
+#' Combine two data frames, handling NULLs gracefully.
+#' For summarised_result objects uses safeBindSummarisedResults.
+safeCombine <- function(...) {
+  dfs <- Filter(Negate(is.null), list(...))
+  if (length(dfs) == 0) return(NULL)
+  if (length(dfs) == 1) return(dfs[[1]])
+  if (any(vapply(dfs, function(x) inherits(x, "summarised_result"), logical(1)))) {
+    safeBindSummarisedResults(dfs)
+  } else {
+    dplyr::bind_rows(dfs)
   }
 }
 
@@ -170,14 +274,16 @@ deduplicateSummarisedResult <- function(data) {
 
 
 dataToLong <- function(data, skipCols = c("cdm_name")) {
-  skipCols <- intersect(skipCols, colnames(data))
-  do.call(cbind, lapply(unique(data$cdm_name), FUN = function(db) {
+  skipCols <- union(intersect(skipCols, colnames(data)), intersect("version", colnames(data)))
+  dfs <- lapply(unique(data$cdm_name), FUN = function(db) {
     dbData <- data %>% dplyr::filter(cdm_name == db)
     valColName <- as.character(db)[1L]
-    return(dbData %>%
-             tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = valColName) %>%
-             dplyr::select(-dplyr::any_of(skipCols)))
-  })) %>% dplyr::select(unique(colnames(.)))
+    dbData %>%
+      tidyr::pivot_longer(cols = setdiff(colnames(.), skipCols), names_to = "name", values_to = valColName) %>%
+      dplyr::select(-dplyr::any_of(skipCols))
+  })
+  # Use full_join by "name" to handle varying row counts across databases
+  purrr::reduce(dfs, function(a, b) dplyr::full_join(a, b, by = "name", relationship = "many-to-many"))
 }
 
 trendsPlot <- function(data, xVar, xLabel, facetVar = NULL, xIntercept = NULL, return_ggplot = FALSE) {

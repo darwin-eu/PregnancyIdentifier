@@ -35,20 +35,34 @@ ageSummaryUI <- function(id) {
   )
 }
 
-ageSummaryServer <- function(id) {
+ageSummaryServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    hasOutcome <- "final_outcome_category" %in% colnames(ageSummaryRaw)
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
+    observe({
+      data <- rv$ageSummaryRaw
+      if (!is.null(data) && is.data.frame(data) && "final_outcome_category" %in% colnames(data)) {
+        outcomeChoices <- sort(unique(as.character(data$final_outcome_category)))
+        updatePickerInput(session, "outcome", choices = outcomeChoices, selected = outcomeChoices)
+      }
+    })
+
+    hasOutcome <- reactive({
+      "final_outcome_category" %in% colnames(rv$ageSummaryRaw)
+    })
 
     getData <- reactive({
-      data <- ageSummaryRaw
+      data <- rv$ageSummaryRaw
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # Filter by CDM
-      data <- filterByCdm(data, input$cdm, allDP)
+      data <- filterByCdm(data, input$cdm, rv$allDP)
 
       # Filter by outcome if available
-      if (hasOutcome) {
+      if (hasOutcome()) {
         outcomeSel <- input$outcome
         if (!is.null(outcomeSel) && length(outcomeSel) > 0) {
           data <- data %>% dplyr::filter(.data$final_outcome_category %in% outcomeSel)
@@ -64,7 +78,7 @@ ageSummaryServer <- function(id) {
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # Add a fallback group column if no outcome column; expose as "group" for boxplot-precomputed
-      if (!hasOutcome) {
+      if (!hasOutcome()) {
         if ("colName" %in% colnames(data)) {
           data$group <- data$colName
         } else {

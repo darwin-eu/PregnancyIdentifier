@@ -38,22 +38,42 @@ gestationalAgePlausibilityUI <- function(id) {
   )
 }
 
-gestationalAgePlausibilityServer <- function(id) {
+gestationalAgePlausibilityServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    hasOutcome <- "final_outcome_category" %in% colnames(gestationalWeeksPlausibility)
-    outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksPlausibility$final_outcome_category)), "Overall")) else NULL
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
+    hasOutcome <- reactive({
+      "final_outcome_category" %in% colnames(rv$gestationalWeeksPlausibility)
+    })
+
+    outcomeChoices <- reactive({
+      if (hasOutcome()) {
+        sort(c(unique(as.character(rv$gestationalWeeksPlausibility$final_outcome_category)), "Overall"))
+      } else {
+        NULL
+      }
+    })
+
+    observe({
+      oc <- outcomeChoices()
+      if (!is.null(oc) && length(oc) > 0) {
+        updatePickerInput(session, "outcome", choices = oc, selected = "Overall")
+      }
+    })
 
     getData <- reactive({
-      data <- gestationalWeeksPlausibility
+      data <- rv$gestationalWeeksPlausibility
 
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # Filter by CDM
-      data <- filterByCdm(data, input$cdm, allDP)
+      data <- filterByCdm(data, input$cdm, rv$allDP)
 
       # Add "Overall" group when outcome column exists
-      if (hasOutcome && "final_outcome_category" %in% colnames(data) && nrow(data) > 0) {
+      if (hasOutcome() && "final_outcome_category" %in% colnames(data) && nrow(data) > 0) {
         overall <- data %>%
           dplyr::mutate(n = as.numeric(.data$n)) %>%
           dplyr::group_by(.data$cdm_name, .data$plausibility) %>%
@@ -66,9 +86,9 @@ gestationalAgePlausibilityServer <- function(id) {
       }
 
       # Filter by outcome selection
-      if (hasOutcome) {
+      if (hasOutcome()) {
         outcomeSel <- input$outcome
-        if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- outcomeChoices
+        if (is.null(outcomeSel) || length(outcomeSel) == 0) outcomeSel <- outcomeChoices()
         data <- data %>%
           dplyr::filter(.data$final_outcome_category %in% outcomeSel)
       }
@@ -96,7 +116,7 @@ gestationalAgePlausibilityServer <- function(id) {
         return_ggplot = TRUE
       )
 
-      if (hasOutcome && "final_outcome_category" %in% colnames(data)) {
+      if (hasOutcome() && "final_outcome_category" %in% colnames(data)) {
         plotArgs$fillVar <- "final_outcome_category"
       }
 
@@ -106,7 +126,7 @@ gestationalAgePlausibilityServer <- function(id) {
     output$plot <- plotly::renderPlotly({
       p <- plot_ggplot()
       if (is.null(p)) {
-        msg <- if (nrow(gestationalWeeksPlausibility) == 0) "Results files are empty." else "No data for selected filters."
+        msg <- if (nrow(rv$gestationalWeeksPlausibility) == 0) "Results files are empty." else "No data for selected filters."
         return(emptyPlotlyMessage(msg))
       }
       plotly::ggplotly(p)

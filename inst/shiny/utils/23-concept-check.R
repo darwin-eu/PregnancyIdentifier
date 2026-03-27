@@ -19,21 +19,25 @@ conceptCheckUI <- function(id) {
   )
 }
 
-conceptCheckServer <- function(id) {
+conceptCheckServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    dp <- if ("cdm_name" %in% colnames(conceptCheck)) {
-      unique(c(allDP, conceptCheck$cdm_name))
-    } else {
-      allDP
-    }
-
     observe({
+      dp <- if ("cdm_name" %in% colnames(rv$conceptCheck)) {
+        unique(c(rv$allDP, rv$conceptCheck$cdm_name))
+      } else {
+        rv$allDP
+      }
       updatePickerInput(session, "cdm", choices = dp, selected = dp)
     })
 
     tableData <- reactive({
-      filterByCdm(conceptCheck, input$cdm, dp)
+      dp <- if ("cdm_name" %in% colnames(rv$conceptCheck)) {
+        unique(c(rv$allDP, rv$conceptCheck$cdm_name))
+      } else {
+        rv$allDP
+      }
+      filterByCdm(rv$conceptCheck, input$cdm, dp)
     })
     output$table <- DT::renderDT({
       renderPrettyDT(tableData())

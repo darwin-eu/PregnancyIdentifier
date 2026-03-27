@@ -48,20 +48,26 @@ swappedDatesUI <- function(id) {
   )
 }
 
-swappedDatesServer <- function(id) {
+swappedDatesServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    dpChoices <- if (is.data.frame(swappedDatesDisplay) && nrow(swappedDatesDisplay) > 0 && "cdm_name" %in% colnames(swappedDatesDisplay)) {
-      unique(swappedDatesDisplay$cdm_name)
-    } else {
-      allDP
-    }
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
+    dpChoices <- reactive({
+      if (is.data.frame(rv$swappedDatesDisplay) && nrow(rv$swappedDatesDisplay) > 0 && "cdm_name" %in% colnames(rv$swappedDatesDisplay)) {
+        unique(rv$swappedDatesDisplay$cdm_name)
+      } else {
+        rv$allDP
+      }
+    })
 
     getData <- reactive({
-      if (!is.data.frame(swappedDatesDisplay) || nrow(swappedDatesDisplay) == 0) {
+      if (!is.data.frame(rv$swappedDatesDisplay) || nrow(rv$swappedDatesDisplay) == 0) {
         return(data.frame())
       }
-      filterByCdm(swappedDatesDisplay, input$cdm, dpChoices)
+      filterByCdm(rv$swappedDatesDisplay, input$cdm, dpChoices())
     })
 
     swapped_plot_ggplot <- reactive({

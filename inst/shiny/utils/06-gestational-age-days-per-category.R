@@ -52,19 +52,31 @@ gestationalAgeDaysPerCategoryUI <- function(id) {
   )
 }
 
-gestationalAgeDaysPerCategoryServer <- function(id) {
+gestationalAgeDaysPerCategoryServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
+    observe({
+      d <- rv$gestationalAgeDaysPerCategorySummary
+      if (is.data.frame(d) && nrow(d) > 0) {
+        oc <- unique(as.character(d$final_outcome_category))
+        updatePickerInput(session, "outcome", choices = oc, selected = oc)
+      }
+    })
+
     getData <- reactive({
-      if (!is.data.frame(gestationalAgeDaysPerCategorySummary) || nrow(gestationalAgeDaysPerCategorySummary) == 0) {
+      if (!is.data.frame(rv$gestationalAgeDaysPerCategorySummary) || nrow(rv$gestationalAgeDaysPerCategorySummary) == 0) {
         return(data.frame())
       }
 
-      data <- filterByCdm(gestationalAgeDaysPerCategorySummary, input$cdm, allDP)
+      data <- filterByCdm(rv$gestationalAgeDaysPerCategorySummary, input$cdm, rv$allDP)
 
       outcomeSel <- input$outcome
       if (is.null(outcomeSel) || length(outcomeSel) == 0) {
-        outcomeSel <- unique(as.character(gestationalAgeDaysPerCategorySummary$final_outcome_category))
+        outcomeSel <- unique(as.character(rv$gestationalAgeDaysPerCategorySummary$final_outcome_category))
       }
       data %>%
         dplyr::filter(.data$final_outcome_category %in% outcomeSel)
@@ -98,7 +110,7 @@ gestationalAgeDaysPerCategoryServer <- function(id) {
     output$plot <- plotly::renderPlotly({
       pd <- getPlotData()
       if (is.null(pd) || nrow(pd) == 0) {
-        msg <- if (!is.data.frame(gestationalAgeDaysPerCategorySummary) || nrow(gestationalAgeDaysPerCategorySummary) == 0) {
+        msg <- if (!is.data.frame(rv$gestationalAgeDaysPerCategorySummary) || nrow(rv$gestationalAgeDaysPerCategorySummary) == 0) {
           "Results files are empty."
         } else {
           "No data for selected filters."

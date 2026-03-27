@@ -15,10 +15,13 @@ databasesUI <- function(id) {
   )
 }
 
-databasesServer <- function(id) {
+databasesServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
     tableData <- reactive({
-      filterByCdm(dbinfo, input$cdm, allDP)
+      filterByCdm(rv$dbinfo, input$cdm, rv$allDP)
     })
     output$table <- DT::renderDT({
       renderPrettyDT(tableData())

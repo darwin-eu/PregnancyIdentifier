@@ -27,11 +27,15 @@ missingDatesUI <- function(id) {
   )
 }
 
-missingDatesServer <- function(id) {
+missingDatesServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     getData <- reactive({
-      filterByCdm(missingDates, input$cdm, allDP)
+      filterByCdm(rv$missingDates, input$cdm, rv$allDP)
     })
 
     missing_plot_ggplot <- reactive({

@@ -36,30 +36,32 @@ precisionDaysUI <- function(id) {
   )
 }
 
-precisionDaysServer <- function(id) {
+precisionDaysServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    dp <- if ("cdm_name" %in% colnames(precisionDays)) {
-      unique(c(allDP, precisionDays$cdm_name))
-    } else {
-      allDP
-    }
+    dp <- reactive({
+      if ("cdm_name" %in% colnames(rv$precisionDays)) {
+        unique(c(rv$allDP, rv$precisionDays$cdm_name))
+      } else {
+        rv$allDP
+      }
+    })
 
     observe({
-      updatePickerInput(session, "cdm", choices = dp, selected = dp)
+      updatePickerInput(session, "cdm", choices = dp(), selected = dp())
     })
 
     getData <- reactive({
-      data <- precisionDays
+      data <- rv$precisionDays
       if (!"cdm_name" %in% colnames(data)) return(data)
-      filterByCdm(data, input$cdm, dp)
+      filterByCdm(data, input$cdm, dp())
     })
 
     # Denominators: total episodes, episodes with precision-days, % with precision-days (and GW timing if present)
     denominatorsTableData <- reactive({
-      denom <- precisionDaysDenominators
+      denom <- rv$precisionDaysDenominators
       if (is.null(denom) || nrow(denom) == 0 || !"cdm_name" %in% colnames(denom)) return(NULL)
-      denom <- filterByCdm(denom, input$cdm, dp)
+      denom <- filterByCdm(denom, input$cdm, dp())
       if (nrow(denom) == 0) return(NULL)
       out <- denom %>%
         dplyr::mutate(

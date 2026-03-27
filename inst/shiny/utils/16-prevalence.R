@@ -93,14 +93,18 @@ prevalenceUI <- function(id) {
 }
 
 # ---- Server ----
-prevalenceServer <- function(id) {
+prevalenceServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
 
     # Filtered summarised_result – only recalculates when "Generate" is clicked
     filtered_data <- reactive({
       req(input$cdm, input$age_group)
-      d <- prevalence %>%
+      d <- rv$prevalence %>%
         dplyr::filter(cdm_name %in% input$cdm) %>%
         visOmopResults::filterSettings(denominator_age_group %in% input$age_group) %>%
         visOmopResults::filterGroup(outcome_cohort_name %in% input$outcome)

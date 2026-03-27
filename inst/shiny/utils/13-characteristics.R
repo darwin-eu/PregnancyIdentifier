@@ -23,14 +23,18 @@ characteristicsUI <- function(id) {
   )
 }
 
-characteristicsServer <- function(id) {
+characteristicsServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     # Initialize pickers from data (guard against missing columns)
     observe({
-      if (!exists("characteristics") || is.null(characteristics) || !is.data.frame(characteristics) || nrow(characteristics) == 0) return()
-      d <- characteristics
+      if (is.null(rv$characteristics) || !is.data.frame(rv$characteristics) || nrow(rv$characteristics) == 0) return()
+      d <- rv$characteristics
       n <- names(d)
 
       if ("cdm_name" %in% n) {
@@ -66,10 +70,10 @@ characteristicsServer <- function(id) {
 
     # Filtered data (only filter by columns that exist)
     getData <- reactive({
-      if (!exists("characteristics") || is.null(characteristics) || !is.data.frame(characteristics) || nrow(characteristics) == 0) {
+      if (is.null(rv$characteristics) || !is.data.frame(rv$characteristics) || nrow(rv$characteristics) == 0) {
         return(NULL)
       }
-      d <- characteristics
+      d <- rv$characteristics
       n <- names(d)
       if ("cdm_name" %in% n && !is.null(input$cdm) && length(input$cdm) > 0) {
         d <- d %>% dplyr::filter(.data$cdm_name %in% input$cdm)

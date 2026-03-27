@@ -40,23 +40,25 @@ qualityCheckCleanupUI <- function(id) {
   )
 }
 
-qualityCheckCleanupServer <- function(id) {
+qualityCheckCleanupServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
-    dp <- if ("cdm_name" %in% colnames(qualityCheckCleanup)) {
-      unique(c(allDP, qualityCheckCleanup$cdm_name))
-    } else {
-      allDP
-    }
+    dp <- reactive({
+      if ("cdm_name" %in% colnames(rv$qualityCheckCleanup)) {
+        unique(c(rv$allDP, rv$qualityCheckCleanup$cdm_name))
+      } else {
+        rv$allDP
+      }
+    })
 
     observe({
-      updatePickerInput(session, "cdm", choices = dp, selected = dp)
+      updatePickerInput(session, "cdm", choices = dp(), selected = dp())
     })
 
     tableData <- reactive({
       sel <- input$cdm
-      if (is.null(sel) || length(sel) == 0) sel <- dp
-      d <- qualityCheckCleanup
+      if (is.null(sel) || length(sel) == 0) sel <- dp()
+      d <- rv$qualityCheckCleanup
       if (!is.data.frame(d) || nrow(d) == 0 || !"cdm_name" %in% colnames(d)) {
         return(NULL)
       }
@@ -110,8 +112,8 @@ qualityCheckCleanupServer <- function(id) {
 
     qc_plot_ggplot <- reactive({
       sel <- input$cdm
-      if (is.null(sel) || length(sel) == 0) sel <- dp
-      d <- qualityCheckCleanup
+      if (is.null(sel) || length(sel) == 0) sel <- dp()
+      d <- rv$qualityCheckCleanup
       if (!is.data.frame(d) || nrow(d) == 0 || !"cdm_name" %in% colnames(d)) return(NULL)
       d <- d %>% dplyr::filter(.data$cdm_name %in% sel)
 

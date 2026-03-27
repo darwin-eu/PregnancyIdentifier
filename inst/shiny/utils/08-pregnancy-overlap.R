@@ -71,11 +71,15 @@ pregnancyOverlapUI <- function(id) {
   )
 }
 
-pregnancyOverlapServer <- function(id) {
+pregnancyOverlapServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     getData <- reactive({
-      if (is.null(pregnancyOverlapCounts) || nrow(pregnancyOverlapCounts) == 0) {
+      if (is.null(rv$pregnancyOverlapCounts) || nrow(rv$pregnancyOverlapCounts) == 0) {
         return(data.frame(
           cdm_name = character(0),
           overlap_status = character(0),
@@ -84,7 +88,7 @@ pregnancyOverlapServer <- function(id) {
           pct = numeric(0)
         ))
       }
-      filterByCdm(pregnancyOverlapCounts, input$cdm, allDP)
+      filterByCdm(rv$pregnancyOverlapCounts, input$cdm, rv$allDP)
     })
 
     overlap_plot_ggplot <- reactive({

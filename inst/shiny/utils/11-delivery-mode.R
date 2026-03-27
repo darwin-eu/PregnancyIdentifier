@@ -24,11 +24,15 @@ deliveryModeUI <- function(id) {
   )
 }
 
-deliveryModeServer <- function(id) {
+deliveryModeServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     getData <- reactive({
-      d <- filterByCdm(deliveryModeSummary, input$cdm, allDP)
+      d <- filterByCdm(rv$deliveryModeSummary, input$cdm, rv$allDP)
       if (!is.null(d) && nrow(d) > 0) {
         d <- d %>%
           dplyr::mutate(cdm_name = factor(.data$cdm_name, levels = rev(sort(unique(.data$cdm_name)))))

@@ -24,11 +24,15 @@ outcomeCategoriesUI <- function(id) {
   )
 }
 
-outcomeCategoriesServer <- function(id) {
+outcomeCategoriesServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     getData <- reactive({
-      d <- filterByCdm(outcomeCategoriesCount, input$cdm, allDP)
+      d <- filterByCdm(rv$outcomeCategoriesCount, input$cdm, rv$allDP)
       if (!is.null(d) && nrow(d) > 0) {
         # Ensure numeric columns
         if ("pct" %in% colnames(d)) d <- d %>% dplyr::mutate(pct = suppressWarnings(as.numeric(.data$pct)))

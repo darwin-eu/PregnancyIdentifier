@@ -15,16 +15,21 @@ header <- dashboardHeader(
 
 sidebar <- dashboardSidebar(
   width = 230,
+  shinyWidgets::pickerInput(
+    "version_select", "Select version",
+    choices = allVersions, selected = "v3",
+    multiple = TRUE, options = opt
+  ),
   sidebarMenu(
     id = "tabs",
     menuItem("Study background", tabName = "background", icon = icon("book")),
     menuItem("Database information", tabName = "databases", icon = icon("database")),
+    if (has_version_diff) menuItem("Versions", tabName = "version_diff", icon = icon("code-branch")),
 
     # Episode frequency
     menuItem("Episode frequency", icon = icon("chart-bar"),
       menuSubItem("Episode frequency", tabName = "episode_frequency"),
-      menuSubItem("Pregnancy frequency", tabName = "pregnancy_frequency"),
-      if (has_version_diff) menuSubItem("Explain Differences", tabName = "version_diff")
+      menuSubItem("Pregnancy frequency", tabName = "pregnancy_frequency")
     ),
 
     # Episode duration

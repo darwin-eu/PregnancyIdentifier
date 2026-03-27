@@ -28,23 +28,18 @@ conceptCountsUI <- function(id) {
   )
 }
 
-conceptCountsServer <- function(id, data) {
+conceptCountsServer <- function(id, rv, dataKey) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Resolve data: accept reactive or static data frame
+    # Resolve data from rv using dataKey
     resolveData <- reactive({
-      if (is.reactive(data)) data() else data
+      rv[[dataKey]]
     })
 
     # Initialize CDM picker from data
     observe({
-      d <- resolveData()
-      if (is.null(d) || !is.data.frame(d) || nrow(d) == 0) return()
-      if ("cdm_name" %in% colnames(d)) {
-        cdmChoices <- sort(unique(d$cdm_name))
-        updatePickerInput(session, "cdm", choices = cdmChoices, selected = cdmChoices)
-      }
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
     })
 
     # Coerce numeric columns and filter by CDM

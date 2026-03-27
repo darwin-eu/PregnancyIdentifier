@@ -28,28 +28,35 @@ attritionUI <- function(id) {
   )
 }
 
-attritionServer <- function(id, data) {
+attritionServer <- function(id, rv, dataKey) {
   moduleServer(id, function(input, output, session) {
 
-    # Ensure step_number exists
-    if (!"step_number" %in% colnames(data) && "cdm_name" %in% colnames(data)) {
-      data <- data %>%
-        dplyr::group_by(.data$cdm_name) %>%
-        dplyr::mutate(step_number = dplyr::row_number()) %>%
-        dplyr::ungroup() %>%
-        dplyr::relocate("step_number", .before = 1L)
-    } else if (!"step_number" %in% colnames(data)) {
-      data <- data %>%
-        dplyr::mutate(step_number = dplyr::row_number()) %>%
-        dplyr::relocate("step_number", .before = 1L)
-    }
-
-    dp <- if ("cdm_name" %in% colnames(data)) unique(data$cdm_name) else character(0)
     observe({
-      updatePickerInput(session, "cdm", choices = dp, selected = dp[1])
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP[1])
+    })
+
+    preparedData <- reactive({
+      data <- rv[[dataKey]]
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+      # Ensure step_number exists
+      if (!"step_number" %in% colnames(data) && "cdm_name" %in% colnames(data)) {
+        data <- data %>%
+          dplyr::group_by(.data$cdm_name) %>%
+          dplyr::mutate(step_number = dplyr::row_number()) %>%
+          dplyr::ungroup() %>%
+          dplyr::relocate("step_number", .before = 1L)
+      } else if (!"step_number" %in% colnames(data)) {
+        data <- data %>%
+          dplyr::mutate(step_number = dplyr::row_number()) %>%
+          dplyr::relocate("step_number", .before = 1L)
+      }
+      data
     })
 
     getData <- reactive({
+      data <- preparedData()
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+      dp <- if ("cdm_name" %in% colnames(data)) unique(data$cdm_name) else character(0)
       sel <- input$cdm
       if (is.null(sel) || !nzchar(sel)) sel <- dp[1]
       if (!"cdm_name" %in% colnames(data)) return(data)

@@ -53,12 +53,16 @@ ageGroupsUI <- function(id) {
   )
 }
 
-ageGroupsServer <- function(id) {
+ageGroupsServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
+
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
 
     # Determine the age column
     ageCol <- reactive({
-      data <- ageSummaryGroups
+      data <- rv$ageSummaryGroups
       if (is.null(data) || ncol(data) < 2) return(NULL)
       col <- setdiff(
         colnames(data),
@@ -69,11 +73,11 @@ ageGroupsServer <- function(id) {
     })
 
     getData <- reactive({
-      data <- ageSummaryGroups
+      data <- rv$ageSummaryGroups
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # Filter by CDM
-      data <- filterByCdm(data, input$cdm, allDP)
+      data <- filterByCdm(data, input$cdm, rv$allDP)
 
       # Filter by colName
       if ("colName" %in% colnames(data)) {

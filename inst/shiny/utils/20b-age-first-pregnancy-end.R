@@ -44,11 +44,11 @@ ageFirstPregnancyEndUI <- function(id) {
   )
 }
 
-ageFirstPregnancyEndServer <- function(id) {
+ageFirstPregnancyEndServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
     getData <- reactive({
-      data <- ageSummaryFirstPregnancyEnd
+      data <- rv$ageSummaryFirstPregnancyEnd
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # backwards compat: if no outcome column, treat as overall

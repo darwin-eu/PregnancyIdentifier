@@ -119,6 +119,113 @@ if (!cacheValid) {
   yearlyTrend <- readResults(dataFolder, regex = "/yearly_trend\\.csv$", reader = "csv")
   yearlyTrendMissing <- readResults(dataFolder, regex = "/yearly_trend_missing\\.csv$", reader = "csv")
 
+  # ---- Tag v3 data and load v1/v2 from data2 folder ----
+  tagVersion <- function(df, ver) addVersionColumn(replaceVersionSuffix(df, ver), ver)
+
+  # Tag all v3 data
+  incidence <- tagVersion(incidence, "v3")
+  prevalence <- tagVersion(prevalence, "v3")
+  characteristics <- tagVersion(characteristics, "v3")
+  petComparisonSummarisedResult <- tagVersion(petComparisonSummarisedResult, "v3")
+  petUnmatchedLsc <- tagVersion(petUnmatchedLsc, "v3")
+  cdmSource <- tagVersion(cdmSource, "v3")
+  ageSummary <- tagVersion(ageSummary, "v3")
+  ageSummaryFirstPregnancy <- tagVersion(ageSummaryFirstPregnancy, "v3")
+  ageSummaryFirstPregnancyEnd <- tagVersion(ageSummaryFirstPregnancyEnd, "v3")
+  ageSummaryGroups <- tagVersion(ageSummaryGroups, "v3")
+  attrition <- tagVersion(attrition, "v3")
+  attritionIfCleanup <- tagVersion(attritionIfCleanup, "v3")
+  conceptCheck <- tagVersion(conceptCheck, "v3")
+  deliveryModeSummary <- tagVersion(deliveryModeSummary, "v3")
+  deliveryModeByYear <- tagVersion(deliveryModeByYear, "v3")
+  episodeFrequency <- tagVersion(episodeFrequency, "v3")
+  episodeFrequencySummary <- tagVersion(episodeFrequencySummary, "v3")
+  esdConceptCounts <- tagVersion(esdConceptCounts, "v3")
+  gestationalAgeDaysCounts <- tagVersion(gestationalAgeDaysCounts, "v3")
+  gestationalAgeDaysPerCategorySummary <- tagVersion(gestationalAgeDaysPerCategorySummary, "v3")
+  gestationalAgeDaysSummary <- tagVersion(gestationalAgeDaysSummary, "v3")
+  gestationalWeeks <- tagVersion(gestationalWeeks, "v3")
+  hipConceptCounts <- tagVersion(hipConceptCounts, "v3")
+  missingDates <- tagVersion(missingDates, "v3")
+  monthlyTrendMissing <- tagVersion(monthlyTrendMissing, "v3")
+  monthlyTrends <- tagVersion(monthlyTrends, "v3")
+  observationPeriodRange <- tagVersion(observationPeriodRange, "v3")
+  outcomeCategoriesCount <- tagVersion(outcomeCategoriesCount, "v3")
+  ppsConceptCounts <- tagVersion(ppsConceptCounts, "v3")
+  precisionDays <- tagVersion(precisionDays, "v3")
+  precisionDaysDenominators <- tagVersion(precisionDaysDenominators, "v3")
+  pregnancyFrequency <- tagVersion(pregnancyFrequency, "v3")
+  pregnancyOverlapCounts <- tagVersion(pregnancyOverlapCounts, "v3")
+  qualityCheckCleanup <- tagVersion(qualityCheckCleanup, "v3")
+  swappedDates <- tagVersion(swappedDates, "v3")
+  yearlyTrend <- tagVersion(yearlyTrend, "v3")
+  yearlyTrendMissing <- tagVersion(yearlyTrendMissing, "v3")
+
+  # Load v1 and v2 data from data2 folder
+  data2Folder <- file.path(dirname(dataFolder), "data2")
+  for (.ver in c("v1", "v2")) {
+    .verFolder <- file.path(data2Folder, .ver)
+    if (!dir.exists(.verFolder)) {
+      message("Skipping ", .ver, " — folder not found: ", .verFolder)
+      next
+    }
+    message("Loading ", .ver, " data from: ", .verFolder)
+
+    # Summarised results
+    .inc <- tagVersion(readResults(.verFolder, regex = "_incidence\\.csv$"), .ver)
+    .prev <- tagVersion(readResults(.verFolder, regex = "_prevalence\\.csv$"), .ver)
+    .char <- tagVersion(readResults(.verFolder, regex = "_characteristics\\.csv$"), .ver)
+
+    # Plain CSVs
+    .cdmSrc <- tagVersion(readResults(.verFolder, regex = "cdm_source\\.csv$", reader = "csv"), .ver)
+    .ageSummary <- tagVersion(readResults(.verFolder, regex = "/age_summary\\.csv$", reader = "csv"), .ver)
+    .ageSummaryGroups <- tagVersion(readResults(.verFolder, regex = "age_summary_groups\\.csv$", reader = "csv"), .ver)
+    .episodeFreq <- tagVersion(readResults(.verFolder, regex = "/episode_frequency\\.csv$", reader = "csv"), .ver)
+    .episodeFreqSummary <- tagVersion(readResults(.verFolder, regex = "/episode_frequency_summary\\.csv$", reader = "csv"), .ver)
+    .gestAgeDaysCounts <- tagVersion(readResults(.verFolder, regex = "gestational_age_days_counts\\.csv$", reader = "csv"), .ver)
+    .gestAgeDaysPerCat <- tagVersion(readResults(.verFolder, regex = "gestational_age_days_per_category_summary\\.csv$", reader = "csv"), .ver)
+    .gestAgeDaysSummary <- tagVersion(readResults(.verFolder, regex = "gestational_age_days_summary\\.csv$", reader = "csv"), .ver)
+    .gestWeeks <- tagVersion(readResults(.verFolder, regex = "gestational_weeks\\.csv$", reader = "csv"), .ver)
+    .missDates <- tagVersion(readResults(.verFolder, regex = "missing_dates\\.csv$", reader = "csv"), .ver)
+    .monthlyTrendMiss <- tagVersion(readResults(.verFolder, regex = "/monthly_trend_missing\\.csv$", reader = "csv"), .ver)
+    .monthlyTrends <- tagVersion(readResults(.verFolder, regex = "/monthly_trends\\.csv$", reader = "csv"), .ver)
+    .obsPeriod <- tagVersion(readResults(.verFolder, regex = "observation_period_range\\.csv$", reader = "csv"), .ver)
+    .outcomeCats <- tagVersion(readResults(.verFolder, regex = "outcome_categories_count\\.csv$", reader = "csv"), .ver)
+    .ppsConc <- tagVersion(readResults(.verFolder, regex = "pps_concept_counts\\.csv$", reader = "csv"), .ver)
+    .precDays <- tagVersion(readResults(.verFolder, regex = "/precision_days\\.csv$", reader = "csv"), .ver)
+    .pregFreq <- tagVersion(readResults(.verFolder, regex = "pregnancy_frequency\\.csv$", reader = "csv"), .ver)
+    .pregOverlap <- tagVersion(readResults(.verFolder, regex = "pregnancy_overlap_counts\\.csv$", reader = "csv"), .ver)
+    .swapped <- tagVersion(readResults(.verFolder, regex = "swapped_dates\\.csv$", reader = "csv"), .ver)
+    .yearlyTrend <- tagVersion(readResults(.verFolder, regex = "/yearly_trend\\.csv$", reader = "csv"), .ver)
+    .yearlyTrendMiss <- tagVersion(readResults(.verFolder, regex = "/yearly_trend_missing\\.csv$", reader = "csv"), .ver)
+
+    # Merge with existing data
+    incidence <- safeCombine(incidence, .inc)
+    prevalence <- safeCombine(prevalence, .prev)
+    characteristics <- safeCombine(characteristics, .char)
+    cdmSource <- safeCombine(cdmSource, .cdmSrc)
+    ageSummary <- safeCombine(ageSummary, .ageSummary)
+    ageSummaryGroups <- safeCombine(ageSummaryGroups, .ageSummaryGroups)
+    episodeFrequency <- safeCombine(episodeFrequency, .episodeFreq)
+    episodeFrequencySummary <- safeCombine(episodeFrequencySummary, .episodeFreqSummary)
+    gestationalAgeDaysCounts <- safeCombine(gestationalAgeDaysCounts, .gestAgeDaysCounts)
+    gestationalAgeDaysPerCategorySummary <- safeCombine(gestationalAgeDaysPerCategorySummary, .gestAgeDaysPerCat)
+    gestationalAgeDaysSummary <- safeCombine(gestationalAgeDaysSummary, .gestAgeDaysSummary)
+    gestationalWeeks <- safeCombine(gestationalWeeks, .gestWeeks)
+    missingDates <- safeCombine(missingDates, .missDates)
+    monthlyTrendMissing <- safeCombine(monthlyTrendMissing, .monthlyTrendMiss)
+    monthlyTrends <- safeCombine(monthlyTrends, .monthlyTrends)
+    observationPeriodRange <- safeCombine(observationPeriodRange, .obsPeriod)
+    outcomeCategoriesCount <- safeCombine(outcomeCategoriesCount, .outcomeCats)
+    ppsConceptCounts <- safeCombine(ppsConceptCounts, .ppsConc)
+    precisionDays <- safeCombine(precisionDays, .precDays)
+    pregnancyFrequency <- safeCombine(pregnancyFrequency, .pregFreq)
+    pregnancyOverlapCounts <- safeCombine(pregnancyOverlapCounts, .pregOverlap)
+    swappedDates <- safeCombine(swappedDates, .swapped)
+    yearlyTrend <- safeCombine(yearlyTrend, .yearlyTrend)
+    yearlyTrendMissing <- safeCombine(yearlyTrendMissing, .yearlyTrendMiss)
+  }
+
   # Post-process PET comparison
   if (!is.null(petComparisonSummarisedResult)) {
     # Capture class and settings before dplyr operations strip them
@@ -248,6 +355,10 @@ if (hasData) {
 
   allDP <- unique(dbinfo$cdm_name)
   allDP <- allDP[order(allDP)]
+
+  # Available versions (derived from data)
+  allVersions <- sort(unique(dbinfo$version))
+  if (length(allVersions) == 0) allVersions <- "v3"
 
   # Ensure tables exist (empty if not loaded)
   if (is.null(gestationalAgeDaysCounts)) gestationalAgeDaysCounts <- tibble::tibble(cdm_name = character(0), less_1day = character(0), over_308days = character(0))

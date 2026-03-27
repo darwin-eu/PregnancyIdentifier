@@ -218,7 +218,7 @@ nationalStatsComparisonUI <- function(id) {
 }
 
 # ---- Server ----
-nationalStatsComparisonServer <- function(id) {
+nationalStatsComparisonServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -229,7 +229,7 @@ nationalStatsComparisonServer <- function(id) {
     observe({
       natl <- natl_data()
       if (is.null(natl)) return()
-      mapped_dbs <- .get_mapped_databases()
+      mapped_dbs <- .get_mapped_databases(rv$allDP)
 
       if (length(mapped_dbs) > 0) {
         # Build display labels: "db_name (Country)"

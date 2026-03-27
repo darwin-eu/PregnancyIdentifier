@@ -15,14 +15,18 @@ observationPeriodUI <- function(id) {
   )
 }
 
-observationPeriodServer <- function(id) {
+observationPeriodServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
+    observe({
+      updatePickerInput(session, "cdm", choices = rv$allDP, selected = rv$allDP)
+    })
+
     tableData <- reactive({
-      d <- observationPeriodRange
+      d <- rv$observationPeriodRange
       if (is.null(d) || !is.data.frame(d) || nrow(d) == 0) return(NULL)
       if ("cdm_name" %in% colnames(d)) {
-        d <- filterByCdm(d, input$cdm, allDP)
+        d <- filterByCdm(d, input$cdm, rv$allDP)
       }
       d
     })

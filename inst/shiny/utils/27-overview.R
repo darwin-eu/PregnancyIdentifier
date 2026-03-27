@@ -23,17 +23,18 @@ overviewUI <- function(id) {
   )
 }
 
-overviewServer <- function(id) {
+overviewServer <- function(id, rv) {
   moduleServer(id, function(input, output, session) {
 
     output$summary <- renderUI({
-      nDatabases <- length(allDP)
+      nDatabases <- length(rv$allDP)
 
       # Try to get total episodes
       nEpisodes <- tryCatch({
-        if (exists("episodeFrequency") && is.data.frame(episodeFrequency) && nrow(episodeFrequency) > 0) {
-          if ("name" %in% colnames(episodeFrequency) && any(episodeFrequency$name == "total_episodes")) {
-            vals <- episodeFrequency %>%
+        ef <- rv$episodeFrequency
+        if (is.data.frame(ef) && nrow(ef) > 0) {
+          if ("name" %in% colnames(ef) && any(ef$name == "total_episodes")) {
+            vals <- ef %>%
               dplyr::filter(.data$name == "total_episodes") %>%
               dplyr::select(-"name")
             total <- sum(suppressWarnings(as.numeric(unlist(vals))), na.rm = TRUE)
@@ -88,14 +89,14 @@ overviewServer <- function(id) {
         div(
           style = "margin-bottom: 20px;",
           tags$ul(
-            lapply(allDP, function(dp) tags$li(strong(dp)))
+            lapply(rv$allDP, function(dp) tags$li(strong(dp)))
           )
         )
       )
     })
 
     summaryDfReactive <- reactive({
-      buildDataAvailabilitySummary(allDP)
+      buildDataAvailabilitySummary(rv$allDP)
     })
     output$dataSummary <- DT::renderDT({
       summaryDf <- summaryDfReactive()
