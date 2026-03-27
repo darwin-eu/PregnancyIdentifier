@@ -25,7 +25,9 @@ body, .content-wrapper, .right-side { background: var(--surface) !important; col
   border: 1px solid rgba(255,255,255,0.3) !important;
 }
 .main-sidebar .bootstrap-select .btn .filter-option-inner-inner { color: #fff !important; }
-.main-sidebar .bootstrap-select .dropdown-menu { color: var(--text); }
+.main-sidebar .bootstrap-select .dropdown-menu,
+.main-sidebar .bootstrap-select .dropdown-menu li a,
+.main-sidebar .bootstrap-select .dropdown-menu li a span.text { color: #1F2937 !important; }
 .main-sidebar .control-label { color: rgba(255,255,255,0.8); font-size: 12px; padding: 8px 15px 0; }
 
 /* Gradient top bar */

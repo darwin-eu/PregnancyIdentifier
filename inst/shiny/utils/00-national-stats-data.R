@@ -172,7 +172,8 @@
     dplyr::mutate(numerator = suppressWarnings(as.numeric(.data$estimate_value))) %>%
     dplyr::filter(!is.na(.data$numerator), .data$numerator > 0) %>%
     dplyr::group_by(.data$cdm_name, .data$year) %>%
-    dplyr::summarise(numerator = max(.data$numerator, na.rm = TRUE), .groups = "drop")
+    dplyr::summarise(numerator = suppressWarnings(max(.data$numerator, na.rm = TRUE)), .groups = "drop") %>%
+    dplyr::filter(is.finite(.data$numerator))
 
   inc_lb
 }
@@ -229,7 +230,8 @@
           dplyr::mutate(denominator_count = suppressWarnings(as.numeric(.data$estimate_value))) %>%
           dplyr::filter(!is.na(.data$denominator_count), .data$denominator_count > 0) %>%
           dplyr::group_by(.data$cdm_name, .data$year) %>%
-          dplyr::summarise(denominator_count = max(.data$denominator_count, na.rm = TRUE), .groups = "drop")
+          dplyr::summarise(denominator_count = suppressWarnings(max(.data$denominator_count, na.rm = TRUE)), .groups = "drop") %>%
+          dplyr::filter(is.finite(.data$denominator_count))
       }
     }
   }
