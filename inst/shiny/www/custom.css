@@ -18,6 +18,16 @@ body, .content-wrapper, .right-side { background: var(--surface) !important; col
 .skin-blue .main-header .logo, .skin-blue .main-header .navbar { background: var(--primary) !important; }
 .skin-blue .main-sidebar { background: var(--primary-700) !important; }
 
+/* Version picker in sidebar — ensure readable text on dark background */
+.main-sidebar .bootstrap-select .btn {
+  background: rgba(255,255,255,0.15) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
+}
+.main-sidebar .bootstrap-select .btn .filter-option-inner-inner { color: #fff !important; }
+.main-sidebar .bootstrap-select .dropdown-menu { color: var(--text); }
+.main-sidebar .control-label { color: rgba(255,255,255,0.8); font-size: 12px; padding: 8px 15px 0; }
+
 /* Gradient top bar */
 .skin-blue .main-header .navbar {
   background: linear-gradient(to right, var(--primary), #ffffff) !important;
