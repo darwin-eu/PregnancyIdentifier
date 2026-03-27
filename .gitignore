@@ -20,4 +20,8 @@ vignettes/algorithm_cache
 export/
 output/
 inst/shiny/version_comparison/
+inst/shiny/data2/
 .positai
+extras/pregnancy_results_postprocessing/pregnancy_dtz_export.zip
+extras/pregnancy_results_postprocessing/processed_results/
+extras/pregnancy_results_postprocessing/raw_results/
