@@ -848,6 +848,14 @@ petComparisonServer <- function(id, rv) {
       if (nrow(as.data.frame(sr)) == 0) {
         return(gt::gt(tibble::tibble(Message = "No data for selected database(s).")))
       }
+      # Drop version column — not part of summarised_result spec and causes visOmopTable errors
+      if ("version" %in% colnames(sr)) {
+        sr_class <- class(sr)
+        sr_settings <- attr(sr, "settings")
+        sr <- sr[, colnames(sr) != "version", drop = FALSE]
+        class(sr) <- sr_class
+        if (!is.null(sr_settings)) attr(sr, "settings") <- sr_settings
+      }
       tryCatch(
         visOmopResults::visOmopTable(
           result = sr,
