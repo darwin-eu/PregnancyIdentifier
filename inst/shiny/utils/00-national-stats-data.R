@@ -50,6 +50,39 @@
   "cprd"              = "UK"
 )
 
+# Expected percentage of national population covered by regional data sources.
+# Used in the comparison table to contextualize live birth count differences.
+.DB_EXPECTED_POP_COVERAGE <- list(
+  "bifap"      = 40.0,
+  "sidiap"     = 15.0,
+  "cprd gold"  = 4.3,
+  "cprd"       = 4.3,
+  "ipci"       = 7.0,
+  "ingef"      = 9.0
+)
+
+# Resolve a database cdm_name to its expected population coverage (%).
+# Returns NA if not a regional data source.
+.resolve_db_coverage <- function(db_name) {
+  if (is.null(db_name) || length(db_name) == 0) return(NA_real_)
+  for (prefix in names(.DB_EXPECTED_POP_COVERAGE)) {
+    if (grepl(paste0("^", prefix), tolower(db_name))) {
+      return(.DB_EXPECTED_POP_COVERAGE[[prefix]])
+    }
+  }
+  NA_real_
+}
+
+# Databases that should NOT have their live-birth counts compared to national
+# statistics (patient cohort / hospital databases, not population-level).
+.DB_SKIP_LB_COUNT <- c(
+  "finomop-tauh",
+  "cdw bordeaux",
+  "sucd",
+  "emdb",
+  "imasis"
+)
+
 # Resolve a database cdm_name to its mapped national stats country.
 # Matches on prefix (ignores version suffix like "_v3").
 .resolve_db_country <- function(db_name) {
@@ -61,6 +94,13 @@
     if (grepl(paste0("^", prefix), tolower(db_name))) return(.DB_COUNTRY_MAP[[prefix]])
   }
   NA_character_
+}
+
+# Check if a database should skip live-birth count comparison
+.skip_lb_count <- function(db_name) {
+  any(vapply(.DB_SKIP_LB_COUNT, function(prefix) {
+    grepl(paste0("^", prefix), tolower(db_name))
+  }, logical(1)))
 }
 
 # Get all mapped DB names from the current allDP
@@ -130,17 +170,18 @@
 # ---- Extract yearly LB counts from incidence results ----
 # Source: incidence summarised_result (outcome_count for _lb cohorts)
 # Returns tibble: cdm_name, year, numerator
-.extract_lb_counts_from_incidence <- function(inc, db_names) {
+.extract_lb_counts_from_incidence <- function(inc, db_names, include_deliv = FALSE) {
   empty <- tibble::tibble(cdm_name = character(0), year = integer(0), numerator = numeric(0))
   if (!is.data.frame(inc) || nrow(inc) == 0 ||
       !all(c("estimate_name", "estimate_value", "group_level") %in% colnames(inc))) {
     return(empty)
   }
 
+  gl_pattern <- if (include_deliv) "_(lb|deliv)$" else "_lb$"
   inc_lb <- inc %>%
     dplyr::filter(
       .data$estimate_name == "outcome_count",
-      grepl("_lb$", .data$group_level)
+      grepl(gl_pattern, .data$group_level)
     )
   if ("strata_name" %in% colnames(inc_lb)) {
     inc_lb <- inc_lb %>% dplyr::filter(.data$strata_name == "overall")
@@ -170,9 +211,22 @@
       tolower(.data$cdm_name) %in% tolower(db_names)
     ) %>%
     dplyr::mutate(numerator = suppressWarnings(as.numeric(.data$estimate_value))) %>%
-    dplyr::filter(!is.na(.data$numerator), .data$numerator > 0) %>%
-    dplyr::group_by(.data$cdm_name, .data$year) %>%
-    dplyr::summarise(numerator = suppressWarnings(max(.data$numerator, na.rm = TRUE)), .groups = "drop") %>%
+    dplyr::filter(!is.na(.data$numerator), .data$numerator > 0)
+
+  if (include_deliv) {
+    # When combining LB+DELIV, take max per group_level (as before) then sum across categories
+    inc_lb <- inc_lb %>%
+      dplyr::group_by(.data$cdm_name, .data$year, .data$group_level) %>%
+      dplyr::summarise(numerator = suppressWarnings(max(.data$numerator, na.rm = TRUE)), .groups = "drop") %>%
+      dplyr::group_by(.data$cdm_name, .data$year) %>%
+      dplyr::summarise(numerator = sum(.data$numerator, na.rm = TRUE), .groups = "drop")
+  } else {
+    inc_lb <- inc_lb %>%
+      dplyr::group_by(.data$cdm_name, .data$year) %>%
+      dplyr::summarise(numerator = suppressWarnings(max(.data$numerator, na.rm = TRUE)), .groups = "drop")
+  }
+
+  inc_lb <- inc_lb %>%
     dplyr::filter(is.finite(.data$numerator))
 
   inc_lb
@@ -182,7 +236,7 @@
 # Source: incidence (denominator_count = population; outcome_count for _lb = numerator)
 # Metric: (LB count / incidence denominator) * 1000
 # Returns tibble: cdm_name, country, year, numerator, denominator_count, crude_rate_per_1000
-.build_crude_rates_internal <- function() {
+.build_crude_rates_internal <- function(include_deliv = FALSE) {
   mapped_dbs <- .get_mapped_databases()
   if (length(mapped_dbs) == 0) {
     return(tibble::tibble(
@@ -240,7 +294,7 @@
   num <- tibble::tibble(cdm_name = character(0), year = integer(0), numerator = numeric(0))
   if (exists("incidence", envir = .GlobalEnv)) {
     inc <- get("incidence", envir = .GlobalEnv)
-    num <- .extract_lb_counts_from_incidence(inc, mapped_dbs)
+    num <- .extract_lb_counts_from_incidence(inc, mapped_dbs, include_deliv = include_deliv)
   }
 
   out <- num %>%
@@ -276,7 +330,7 @@
 # Returns tibble: indicator, variable, level, year, external_value,
 #   internal_value, internal_note
 
-.build_comparison <- function(natl, db_name, country_name) {
+.build_comparison <- function(natl, db_name, country_name, lb_categories = "LB") {
 
   ext <- natl %>%
     dplyr::filter(.data$country == country_name) %>%
@@ -322,9 +376,12 @@
   }
 
   # 2. Yearly live birth counts (from incidence results, outcome_count for _lb)
+  #    Skip for non-population databases (hospital/patient cohorts)
+  skip_lb <- .skip_lb_count(db_name)
   int_trend <- tibble::tibble()
-  if (exists("incidence")) {
-    lb_counts <- .extract_lb_counts_from_incidence(incidence, db_name)
+  if (!skip_lb && exists("incidence")) {
+    include_deliv <- "DELIV" %in% lb_categories
+    lb_counts <- .extract_lb_counts_from_incidence(incidence, db_name, include_deliv = include_deliv)
     if (nrow(lb_counts) > 0) {
       int_trend <- lb_counts %>%
         dplyr::transmute(year = .data$year, count = .data$numerator)
@@ -333,7 +390,7 @@
 
   # 2b. Crude birth rate
   int_crude <- tibble::tibble()
-  crude_rates_all <- .build_crude_rates_internal()
+  crude_rates_all <- if (skip_lb) tibble::tibble() else .build_crude_rates_internal(include_deliv = "DELIV" %in% lb_categories)
   if (nrow(crude_rates_all) > 0) {
     int_crude <- crude_rates_all %>%
       dplyr::filter(
@@ -355,7 +412,7 @@
           tolower(.data$cdm_name) == tolower(db_name) |
             grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
                   tolower(.data$cdm_name)),
-          .data$outcome_category %in% c("SB", "LB")
+          .data$outcome_category %in% c("SB", lb_categories)
         ) %>%
         dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
       sb <- sum(oc_db$n[oc_db$outcome_category == "SB"], na.rm = TRUE)
@@ -364,7 +421,7 @@
     }
   }
 
-  # 4. Gestational duration distribution (LB only, % per bin)
+  # 4. Gestational duration distribution (% per bin)
   #    Maps app bins to national stats bins for comparison
   #    App bins: <12, 12-27, 28-31, 32-36, 37-38, 39-41, 42-43, 45-49, >=50
   #    National bins: <32, 32-36, 37-38, 39-41, >=42
@@ -393,7 +450,7 @@
         )
       if ("final_outcome_category" %in% colnames(gwb_filtered)) {
         gwb_filtered <- gwb_filtered %>%
-          dplyr::filter(.data$final_outcome_category %in% c("LB"))
+          dplyr::filter(.data$final_outcome_category %in% lb_categories)
       }
 
       int_gest <- gwb_filtered %>%
@@ -414,8 +471,8 @@
     }
   }
 
-  # 5. Delivery mode (LB only, %)
-  #    Source: deliveryModeSummary filtered to LB, aggregated by mode
+  # 5. Delivery mode (% by mode)
+  #    Source: deliveryModeSummary aggregated by mode
   int_dm <- tibble::tibble()
   if (exists("deliveryModeSummary")) {
     dms <- deliveryModeSummary
@@ -428,7 +485,7 @@
         )
       if ("final_outcome_category" %in% colnames(dm_db)) {
         dm_db <- dm_db %>%
-          dplyr::filter(.data$final_outcome_category %in% c("LB"))
+          dplyr::filter(.data$final_outcome_category %in% lb_categories)
       }
       dm_db <- dm_db %>%
         dplyr::mutate(
@@ -529,11 +586,11 @@
               TRUE ~ lvl_check
             )
             dplyr::case_when(
-              natl_bin_check == "<32"   ~ "% of LB; our result sums <12+12-27+28-31 wk",
+              natl_bin_check == "<32"   ~ "% of LB; algorithm result sums <12+12-27+28-31 wk",
               natl_bin_check == "32-36" ~ "% of LB; 32-36 wk",
               natl_bin_check == "37-38" ~ "% of LB; 37-38 wk",
               natl_bin_check == "39-41" ~ "% of LB; 39-41 wk",
-              natl_bin_check == ">=42"  ~ "% of LB; our result sums 42-43+45-49+>=50 wk",
+              natl_bin_check == ">=42"  ~ "% of LB; algorithm result sums 42-43+45-49+>=50 wk",
               TRUE ~ "% of LB (all years)"
             )
           } else "No gestational data"
@@ -599,9 +656,9 @@
 # ============================================================================
 
 # ---- Gestational % comparison for plots ----
-# Returns combined long-format tibble with reference and our result gestational
+# Returns combined long-format tibble with reference and algorithm result gestational
 # duration distributions, suitable for grouped bar charts.
-.build_gest_pct_comparison <- function(natl, db_name, country_name) {
+.build_gest_pct_comparison <- function(natl, db_name, country_name, lb_categories = "LB") {
   natl_gest <- natl %>%
     dplyr::filter(.data$indicator == "Gestational duration distribution",
                   .data$country == country_name,
@@ -648,7 +705,7 @@
         )
       if ("final_outcome_category" %in% colnames(gwb_filtered)) {
         gwb_filtered <- gwb_filtered %>%
-          dplyr::filter(.data$final_outcome_category %in% c("LB"))
+          dplyr::filter(.data$final_outcome_category %in% lb_categories)
       }
 
       int_gest <- gwb_filtered %>%
@@ -658,14 +715,15 @@
         dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop")
 
       total_n <- sum(int_gest$n, na.rm = TRUE)
+      lb_label <- paste(lb_categories, collapse = "+")
       if (total_n > 0) {
         int_gest <- int_gest %>%
           dplyr::mutate(
             pct = round(100 * .data$n / total_n, 1),
             bin = .data$natl_bin,
             year = NA_integer_,
-            source = "Our Result",
-            label = paste0(db_name, " (Our Result, LB)")
+            source = "Algorithm",
+            label = paste0(db_name, " (Algorithm, ", lb_label, ")")
           ) %>%
           dplyr::select("year", "bin", "n", "pct", "source", "label")
       }
@@ -676,7 +734,7 @@
 }
 
 # ---- Delivery mode comparison for plots ----
-.build_dm_pct_comparison <- function(natl, db_name, country_name) {
+.build_dm_pct_comparison <- function(natl, db_name, country_name, lb_categories = "LB") {
   natl_dm <- natl %>%
     dplyr::filter(.data$indicator == "Mode of delivery",
                   .data$country == country_name,
@@ -705,7 +763,7 @@
         )
       if ("final_outcome_category" %in% colnames(dm_db)) {
         dm_db <- dm_db %>%
-          dplyr::filter(.data$final_outcome_category %in% c("LB"))
+          dplyr::filter(.data$final_outcome_category %in% lb_categories)
       }
       dm_db <- dm_db %>%
         dplyr::mutate(
@@ -727,6 +785,7 @@
           dplyr::summarise(pct = mean(.data$pct, na.rm = TRUE), .groups = "drop") %>%
           dplyr::mutate(pct = round(.data$pct, 1))
       }
+      lb_label <- paste(lb_categories, collapse = "+")
       int_dm <- dm_db %>%
         dplyr::mutate(
           mode = dplyr::case_when(
@@ -735,8 +794,8 @@
             TRUE ~ .data$mode
           ),
           year = NA_integer_,
-          source = "Our Result",
-          label = paste0(db_name, " (Our Result, LB)")
+          source = "Algorithm",
+          label = paste0(db_name, " (Algorithm, ", lb_label, ")")
         ) %>%
         dplyr::select("mode", "year", "pct", "source", "label")
     }
@@ -753,14 +812,14 @@
 # Returns tibble: cdm_name, country, indicator, variable, level, year,
 #   external_value, internal_value, diff_abs, diff_pct
 
-.build_all_db_comparison <- function(natl) {
+.build_all_db_comparison <- function(natl, lb_categories = "LB") {
   mapped_dbs <- .get_mapped_databases()
   if (length(mapped_dbs) == 0) return(tibble::tibble())
 
   all_results <- purrr::map_dfr(mapped_dbs, function(db) {
     country <- .resolve_db_country(db)
     if (is.na(country)) return(tibble::tibble())
-    comp <- tryCatch(.build_comparison(natl, db, country), error = function(e) tibble::tibble())
+    comp <- tryCatch(.build_comparison(natl, db, country, lb_categories = lb_categories), error = function(e) tibble::tibble())
     if (nrow(comp) == 0) return(tibble::tibble())
     comp %>%
       dplyr::mutate(

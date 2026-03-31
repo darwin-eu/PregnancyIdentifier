@@ -12,18 +12,24 @@ nationalStatsComparisonUI <- function(id) {
 
   tagList(
     h3("National Statistics Comparison"),
-    p("Compare our results with reference values from national statistics as validation.",
-      "Each reference value is matched with its counterpart from our results."),
+    p("Compare algorithm results with reference values from national statistics as validation.",
+      "Each reference value is matched with its counterpart from algorithm results."),
 
     # ---- Shared filters ----
     fluidRow(
-      column(4, pickerInput(ns("sel_db"), "Data source / Country",
+      column(3, pickerInput(ns("sel_db"), "Data source / Country",
                             choices = character(0), selected = character(0),
                             multiple = TRUE, options = opt)),
-      column(4, pickerInput(ns("sel_metric"), "Metric",
+      column(2, pickerInput(ns("sel_metric"), "Metric",
                             choices = character(0), selected = character(0),
                             multiple = TRUE, options = opt)),
-      column(4, uiOutput(ns("country_display")))
+      column(2, pickerInput(ns("sel_year"), "Year",
+                            choices = character(0), selected = character(0),
+                            multiple = TRUE, options = opt)),
+      column(2, selectInput(ns("sel_lb_def"), "Live birth definition",
+                            choices = c("LB" = "LB", "LB+DELIV" = "LB+DELIV"),
+                            selected = "LB")),
+      column(3, uiOutput(ns("country_display")))
     ),
 
     # ---- Sub-tabs ----
@@ -244,11 +250,17 @@ nationalStatsComparisonServer <- function(id, rv) {
       }
     })
 
+    # Reactive: derive lb_categories from user selection
+    lb_categories <- reactive({
+      sel <- input$sel_lb_def
+      if (is.null(sel) || sel == "LB") "LB" else c("LB", "DELIV")
+    })
+
     # Reactive: compute comparison across all mapped DBs
     all_db_data <- reactive({
       natl <- natl_data()
       if (is.null(natl)) return(tibble::tibble())
-      .build_all_db_comparison(natl)
+      .build_all_db_comparison(natl, lb_categories = lb_categories())
     })
 
     # Update metric picker when data is available
@@ -266,6 +278,11 @@ nationalStatsComparisonServer <- function(id, rv) {
       metrics <- sort(unique(d$metric_label))
       updatePickerInput(session, "sel_metric",
                         choices = metrics, selected = metrics)
+
+      years <- sort(unique(na.omit(d$year)))
+      year_choices <- as.character(years)
+      updatePickerInput(session, "sel_year",
+                        choices = year_choices, selected = year_choices)
     })
 
     # Show mapped countries for selected DBs
@@ -291,11 +308,13 @@ nationalStatsComparisonServer <- function(id, rv) {
 
       sel_dbs <- input$sel_db
       sel_metrics <- input$sel_metric
+      sel_years <- input$sel_year
       if (is.null(sel_dbs) || length(sel_dbs) == 0) return(tibble::tibble())
       if (is.null(sel_metrics) || length(sel_metrics) == 0) return(tibble::tibble())
 
       d %>%
         dplyr::filter(.data$cdm_name %in% sel_dbs) %>%
+        dplyr::filter(is.na(.data$year) | as.character(.data$year) %in% sel_years) %>%
         dplyr::mutate(
           metric_label = dplyr::if_else(
             is.na(.data$level) | !nzchar(.data$level),
@@ -334,10 +353,14 @@ nationalStatsComparisonServer <- function(id, rv) {
             TRUE ~ format(round(.data$diff_abs, 1), big.mark = ",", trim = TRUE)
           ),
           diff_pct_val = .data$diff_pct,
-          year = dplyr::if_else(is.na(.data$year), "-", as.character(.data$year))
+          year = dplyr::if_else(is.na(.data$year), "-", as.character(.data$year)),
+          expected_coverage = vapply(.data$cdm_name, function(db) {
+            cov <- .resolve_db_coverage(db)
+            if (is.na(cov)) "-" else paste0(cov, "%")
+          }, character(1))
         ) %>%
         dplyr::select(
-          "cdm_name", "country", "indicator", "variable", "level", "year",
+          "cdm_name", "country", "expected_coverage", "indicator", "variable", "level", "year",
           "external_fmt", "internal_fmt", "difference", "diff_pct_val"
         ) %>%
         dplyr::arrange(.data$indicator, .data$variable, .data$level, .data$year, .data$cdm_name)
@@ -350,12 +373,13 @@ nationalStatsComparisonServer <- function(id, rv) {
         gt::cols_label(
           cdm_name = "Database",
           country = "Country",
+          expected_coverage = "Expected % Pop. Covered",
           indicator = "Indicator",
           variable = "Variable",
           level = "Level",
           year = "Year",
           external_fmt = "Reference",
-          internal_fmt = "Our Result",
+          internal_fmt = "Algorithm",
           difference = "Difference"
         ) %>%
         gt::cols_hide("diff_pct_val") %>%
@@ -373,7 +397,7 @@ nationalStatsComparisonServer <- function(id, rv) {
           "variable" ~ gt::px(220),
           "cdm_name" ~ gt::px(120)
         ) %>%
-        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in our results.")
+        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in algorithm results.")
 
       for (i in seq_len(nrow(d_display))) {
         bg <- .diff_color(d_display$diff_pct_val[i])
@@ -438,7 +462,7 @@ nationalStatsComparisonServer <- function(id, rv) {
       tbl <- gt::gt(display, groupname_col = "indicator") %>%
         gt::tab_header(
           title = "Difference Overview Across Databases",
-          subtitle = "Percentage difference (Our Result vs Reference) per indicator and database"
+          subtitle = "Percentage difference (Algorithm vs Reference) per indicator and database"
         ) %>%
         gt::cols_label(row_label = "Metric") %>%
         gt::cols_hide(dplyr::all_of(pct_cols)) %>%
@@ -498,7 +522,7 @@ nationalStatsComparisonServer <- function(id, rv) {
       if (is.null(natl) || nrow(pairs) == 0) return(tibble::tibble())
 
       purrr::map_dfr(seq_len(nrow(pairs)), function(i) {
-        d <- .build_gest_pct_comparison(natl, pairs$db[i], pairs$country[i])
+        d <- .build_gest_pct_comparison(natl, pairs$db[i], pairs$country[i], lb_categories = lb_categories())
         if (nrow(d) > 0) d$facet_label <- paste0(pairs$db[i], " (", pairs$country[i], ")")
         d
       })
@@ -514,8 +538,8 @@ nationalStatsComparisonServer <- function(id, rv) {
       p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$label, y = .data$pct, fill = .data$bin)) +
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Gestational\nAge (weeks)",
-                      title = "Gestational Duration: Our Results vs. Reference",
-                      caption = "Note: 308 days (44 weeks) is counted as 43 weeks in our results.") +
+                      title = "Gestational Duration: Algorithms vs. Reference",
+                      caption = "Note: 308 days (44 weeks) is counted as 43 weeks in algorithm results.") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 7),
                        plot.title = ggplot2::element_text(hjust = 0.5)) +
@@ -560,7 +584,7 @@ nationalStatsComparisonServer <- function(id, rv) {
       if (is.null(natl) || nrow(pairs) == 0) return(tibble::tibble())
 
       purrr::map_dfr(seq_len(nrow(pairs)), function(i) {
-        d <- .build_dm_pct_comparison(natl, pairs$db[i], pairs$country[i])
+        d <- .build_dm_pct_comparison(natl, pairs$db[i], pairs$country[i], lb_categories = lb_categories())
         if (nrow(d) > 0) d$facet_label <- paste0(pairs$db[i], " (", pairs$country[i], ")")
         d
       })
@@ -573,7 +597,7 @@ nationalStatsComparisonServer <- function(id, rv) {
       p <- ggplot2::ggplot(d, ggplot2::aes(x = .data$label, y = .data$pct, fill = .data$mode)) +
         ggplot2::geom_bar(stat = "identity", position = "stack") +
         ggplot2::labs(x = NULL, y = "Percentage (%)", fill = "Mode",
-                      title = "Delivery Mode: Our Results vs. Reference") +
+                      title = "Delivery Mode: Algorithms vs. Reference") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 7),
                        plot.title = ggplot2::element_text(hjust = 0.5)) +
@@ -635,16 +659,17 @@ nationalStatsComparisonServer <- function(id, rv) {
           )
 
         int_lb <- tibble::tibble()
-        if (exists("incidence")) {
-          lb_counts <- .extract_lb_counts_from_incidence(incidence, pair$db)
+        if (!.skip_lb_count(pair$db) && exists("incidence")) {
+          include_deliv <- "DELIV" %in% lb_categories()
+          lb_counts <- .extract_lb_counts_from_incidence(incidence, pair$db, include_deliv = include_deliv)
           if (nrow(lb_counts) > 0) {
             int_lb <- lb_counts %>%
               dplyr::filter(.data$year %in% natl_lb$year) %>%
               dplyr::transmute(
-                source_label = paste0(pair$db, " (Our Result)"),
+                source_label = paste0(pair$db, " (Algorithm)"),
                 year = .data$year,
                 count = .data$numerator,
-                source = "Our Result",
+                source = "Algorithm",
                 facet_label = paste0(pair$db, " (", pair$country, ")")
               )
           }
@@ -662,13 +687,13 @@ nationalStatsComparisonServer <- function(id, rv) {
                                              fill = .data$source)) +
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = "Year", y = "Count", fill = "Source",
-                      title = "Live Births: Our Results vs. Reference",
-                      caption = "Our result count is live birth episodes from incidence results") +
+                      title = "Live Births: Algorithms vs. Reference",
+                      caption = "Algorithm result count is live birth episodes from incidence results") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
         ggplot2::scale_y_continuous(labels = scales::comma) +
-        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Our Result" = "#E41A1C"))
+        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Algorithm" = "#E41A1C"))
 
       if (length(unique(d$facet_label)) > 1) {
         p <- p + ggplot2::facet_wrap(~ facet_label, scales = "free_y")
@@ -744,10 +769,10 @@ nationalStatsComparisonServer <- function(id, rv) {
               dplyr::filter(!is.na(.data$year),
                             .data$year %in% natl_ma$year) %>%
               dplyr::transmute(
-                source_label = paste0(pair$db, " (Our Result)"),
+                source_label = paste0(pair$db, " (Algorithm)"),
                 year = .data$year,
                 value = .data$value,
-                source = "Our Result",
+                source = "Algorithm",
                 facet_label = paste0(pair$db, " (", pair$country, ")")
               )
           }
@@ -770,11 +795,11 @@ nationalStatsComparisonServer <- function(id, rv) {
         ggplot2::labs(x = "Year", y = "Mean age (years)", fill = "Source",
                       title = "Mean Maternal Age at First Child",
                       caption = paste0("Reference: Mean age at birth of first child\n",
-                                       "Our result: Mean age at pregnancy start (first pregnancy)")) +
+                                       "Algorithm result: Mean age at pregnancy start (first pregnancy)")) +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
-        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Our Result" = "#E41A1C")) +
+        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Algorithm" = "#E41A1C")) +
         ggplot2::coord_cartesian(ylim = c(25, 35))
 
       if (length(unique(d$facet_label)) > 1) {
@@ -841,7 +866,7 @@ nationalStatsComparisonServer <- function(id, rv) {
                 tolower(.data$cdm_name) == tolower(pair$db) |
                   grepl(paste0("^", tolower(sub("_v[0-9]+$", "", pair$db))),
                         tolower(.data$cdm_name)),
-                .data$outcome_category %in% c("SB", "LB")
+                .data$outcome_category %in% c("SB", lb_categories())
               ) %>%
               dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
             sb <- sum(oc_db$n[oc_db$outcome_category == "SB"], na.rm = TRUE)
@@ -849,10 +874,10 @@ nationalStatsComparisonServer <- function(id, rv) {
             if (total > 0) {
               rate <- round(1000 * sb / total, 1)
               int_fm <- tibble::tibble(
-                source_label = paste0(pair$db, " (Our Result, overall)"),
+                source_label = paste0(pair$db, " (Algorithm, overall)"),
                 year = NA_integer_,
                 value = rate,
-                source = "Our Result",
+                source = "Algorithm",
                 facet_label = paste0(pair$db, " (", pair$country, ")")
               )
             }
@@ -874,11 +899,11 @@ nationalStatsComparisonServer <- function(id, rv) {
                            vjust = -0.5, size = 3.5) +
         ggplot2::labs(x = NULL, y = "Rate (per 1,000 total births)", fill = "Source",
                       title = "Foetal Mortality Rate",
-                      caption = "Our result rate is computed as SB/(SB+LB)*1000 across all years") +
+                      caption = "Algorithm result rate is computed as SB/(SB+LB)*1000 across all years") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
-        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Our Result" = "#E41A1C"))
+        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Algorithm" = "#E41A1C"))
 
       if (length(unique(d$facet_label)) > 1) {
         p <- p + ggplot2::facet_wrap(~ facet_label, scales = "free_x")
