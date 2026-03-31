@@ -776,6 +776,7 @@ petComparisonServer <- function(id, rv) {
                       if ("outcome" %in% names(src) && by_outcome) paste0(" [", .data$outcome, "]") else "",
                       "\nBin: ", .data$bin,
                       "\nN: ", format(.data$n, big.mark = ","),
+                      "\nDenom: ", format(.data$total, big.mark = ","),
                       "\n", round(.data$pct, 1), "%")
       )) +
         ggplot2::geom_col(show.legend = FALSE) +

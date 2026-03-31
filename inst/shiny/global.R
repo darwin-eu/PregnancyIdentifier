@@ -544,7 +544,7 @@ if (hasData) {
     gestationalAgeDaysSummary <- tibble::tibble(name = character(0))
   }
   gestationalAgeDaysPerCategorySummary <- gestationalAgeDaysPerCategorySummary %>%
-    dplyr::mutate(dplyr::across(-dplyr::all_of(c("cdm_name", "final_outcome_category", "colName")), as.numeric)) %>%
+    dplyr::mutate(dplyr::across(-dplyr::any_of(c("cdm_name", "final_outcome_category", "colName", "version", "date_export", "pkg_version")), as.numeric)) %>%
     dplyr::mutate(final_outcome_category = factor(final_outcome_category, levels = c("ECT", "AB", "SA", "SB", "DELIV", "LB", "PREG")))
   # Ensure total records (episodes) and person count per cdm–outcome exist for table display
   if (!"episode_count" %in% colnames(gestationalAgeDaysPerCategorySummary)) {

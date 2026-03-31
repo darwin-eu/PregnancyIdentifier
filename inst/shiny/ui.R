@@ -15,11 +15,7 @@ header <- dashboardHeader(
 
 sidebar <- dashboardSidebar(
   width = 230,
-  shinyWidgets::pickerInput(
-    "version_select", "Select version",
-    choices = allVersions, selected = "v3",
-    multiple = TRUE, options = opt
-  ),
+  selectInput("version_select", "Select version", choices = allVersions, selected = "v3", multiple = TRUE),
   sidebarMenu(
     id = "tabs",
     menuItem("Study background", tabName = "background", icon = icon("book")),
