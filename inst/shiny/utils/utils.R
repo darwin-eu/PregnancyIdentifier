@@ -150,13 +150,50 @@ readResults <- function(dataFolder, regex, reader = c("summarised_result", "csv"
 #' contains internal duplicates from re-runs. This function works around that
 #' by binding as plain data frames, re-indexing result_id, deduplicating, and
 #' reconstructing the summarised_result class.
+#' Ensure each result_id maps to a unique set of settings.
+#' Merges result_ids that share identical setting values.
+deduplicateSettings <- function(sr) {
+  if (!inherits(sr, "summarised_result") || !"result_id" %in% colnames(sr)) return(sr)
+  s <- omopgenerics::settings(sr)
+  if (is.null(s) || !"result_id" %in% colnames(s)) return(sr)
+
+  setting_key_cols <- setdiff(names(s), "result_id")
+  if (length(setting_key_cols) == 0 || !any(duplicated(s[setting_key_cols]))) return(sr)
+
+  # Find canonical result_id for each unique set of settings
+  unique_s <- s[!duplicated(s[setting_key_cols]), , drop = FALSE]
+  sr_df <- as.data.frame(sr)
+  for (i in which(duplicated(s[setting_key_cols]))) {
+    dup_row <- s[i, setting_key_cols, drop = FALSE]
+    for (j in seq_len(nrow(unique_s))) {
+      if (identical(as.list(dup_row), as.list(unique_s[j, setting_key_cols, drop = FALSE]))) {
+        sr_df$result_id[sr_df$result_id == s$result_id[i]] <- unique_s$result_id[j]
+        break
+      }
+    }
+  }
+  sr_df <- dplyr::as_tibble(sr_df)
+  attr(sr_df, "settings") <- dplyr::as_tibble(unique_s)
+  class(sr_df) <- unique(c("summarised_result", "omop_result", class(sr_df)))
+  sr_df
+}
+
 safeBindSummarisedResults <- function(results) {
   # First try the standard bind — it's the happy path
   combined <- tryCatch(
     purrr::reduce(results, omopgenerics::bind),
     error = function(e) NULL
   )
-  if (!is.null(combined)) return(combined)
+  if (!is.null(combined)) {
+    # Deduplicate rows that share the same key columns (from re-runs)
+    key_cols <- setdiff(names(combined), "estimate_value")
+    dup_idx <- duplicated(combined[key_cols], fromLast = TRUE)
+    if (any(dup_idx)) {
+      message(sum(dup_idx), " duplicated rows eliminated from happy-path bind.")
+      combined <- combined[!dup_idx, ]
+    }
+    return(deduplicateSettings(combined))
+  }
 
   message("omopgenerics::bind failed (likely duplicates); falling back to manual bind + dedup.")
 
@@ -184,13 +221,40 @@ safeBindSummarisedResults <- function(results) {
   combined_settings <- dplyr::bind_rows(all_settings)
 
   # Deduplicate: keep last occurrence (later files are assumed to be newer)
-  key_cols <- setdiff(names(combined_data), "estimate_value")
+  # Exclude result_id so that re-runs with different result_ids are still detected as duplicates
+  key_cols <- setdiff(names(combined_data), c("estimate_value", "result_id"))
   key_cols <- key_cols[key_cols %in% names(combined_data)]
   combined_data <- combined_data[!duplicated(combined_data[key_cols], fromLast = TRUE), ]
 
   # Remove settings rows for result_ids no longer in the data
   remaining_ids <- unique(combined_data$result_id)
   combined_settings <- combined_settings[combined_settings$result_id %in% remaining_ids, ]
+
+  # Deduplicate settings and remap result_ids so each result_id maps to a
+
+  # unique set of setting values (required by tableIncidence / tablePrevalence)
+  setting_key_cols <- setdiff(names(combined_settings), "result_id")
+  dup_idx <- duplicated(combined_settings[setting_key_cols])
+  if (any(dup_idx)) {
+    # Build a mapping from duplicate result_id -> canonical result_id
+    unique_settings <- combined_settings[!dup_idx, ]
+    id_map <- integer(0)
+    for (i in which(dup_idx)) {
+      row_i <- combined_settings[i, setting_key_cols, drop = FALSE]
+      for (j in seq_len(nrow(unique_settings))) {
+        if (identical(as.list(row_i), as.list(unique_settings[j, setting_key_cols, drop = FALSE]))) {
+          id_map[as.character(combined_settings$result_id[i])] <- unique_settings$result_id[j]
+          break
+        }
+      }
+    }
+    # Remap result_ids in data
+    for (old_id_str in names(id_map)) {
+      old_id <- as.integer(old_id_str)
+      combined_data$result_id[combined_data$result_id == old_id] <- id_map[old_id_str]
+    }
+    combined_settings <- unique_settings
+  }
 
   # Construct summarised_result, suppressing validation
   combined_data <- dplyr::as_tibble(combined_data)

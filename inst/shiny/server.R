@@ -17,7 +17,33 @@ server <- function(input, output, session) {
         return(df %>% dplyr::filter(.data$version %in% vers))
       }
       if ("cdm_name" %in% colnames(df)) {
-        return(df %>% dplyr::filter(gsub(".*_(v[0-9]+)$", "\\1", .data$cdm_name) %in% vers))
+        filtered <- df %>% dplyr::filter(gsub(".*_(v[0-9]+)$", "\\1", .data$cdm_name) %in% vers)
+        # For summarised_result objects, sync settings with remaining result_ids
+        if (inherits(filtered, "summarised_result") && "result_id" %in% colnames(filtered)) {
+          s <- attr(filtered, "settings")
+          if (!is.null(s) && "result_id" %in% colnames(s)) {
+            remaining_ids <- unique(filtered$result_id)
+            s <- s[s$result_id %in% remaining_ids, , drop = FALSE]
+            # Deduplicate settings with identical values (different result_ids)
+            setting_key_cols <- setdiff(names(s), "result_id")
+            if (length(setting_key_cols) > 0 && any(duplicated(s[setting_key_cols]))) {
+              unique_s <- s[!duplicated(s[setting_key_cols]), , drop = FALSE]
+              # Remap data result_ids to canonical ones
+              for (i in which(duplicated(s[setting_key_cols]))) {
+                dup_row <- s[i, setting_key_cols, drop = FALSE]
+                for (j in seq_len(nrow(unique_s))) {
+                  if (identical(as.list(dup_row), as.list(unique_s[j, setting_key_cols, drop = FALSE]))) {
+                    filtered$result_id[filtered$result_id == s$result_id[i]] <- unique_s$result_id[j]
+                    break
+                  }
+                }
+              }
+              s <- unique_s
+            }
+            attr(filtered, "settings") <- s
+          }
+        }
+        return(filtered)
       }
       # Wide-format: keep 'name' column + only columns matching filtered allDP
       if ("name" %in% colnames(df) && ncol(df) > 1) {
