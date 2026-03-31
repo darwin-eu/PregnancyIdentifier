@@ -20,15 +20,18 @@ body, .content-wrapper, .right-side { background: var(--surface) !important; col
 
 /* Version picker in sidebar — ensure readable text on dark background */
 .main-sidebar .bootstrap-select .btn {
-  background: rgba(255,255,255,0.15) !important;
+  background: var(--primary) !important;
   color: #fff !important;
-  border: 1px solid rgba(255,255,255,0.3) !important;
+  border: 1px solid rgba(255,255,255,0.4) !important;
 }
 .main-sidebar .bootstrap-select .btn .filter-option-inner-inner { color: #fff !important; }
-.main-sidebar .bootstrap-select .dropdown-menu,
+.main-sidebar .bootstrap-select .btn .caret { color: #fff !important; }
+.main-sidebar .bootstrap-select .dropdown-menu { background: var(--card) !important; }
 .main-sidebar .bootstrap-select .dropdown-menu li a,
-.main-sidebar .bootstrap-select .dropdown-menu li a span.text { color: #1F2937 !important; }
-.main-sidebar .control-label { color: rgba(255,255,255,0.8); font-size: 12px; padding: 8px 15px 0; }
+.main-sidebar .bootstrap-select .dropdown-menu li a span.text { color: var(--text) !important; }
+.main-sidebar .bootstrap-select .dropdown-menu li.selected a,
+.main-sidebar .bootstrap-select .dropdown-menu li a:hover { background: var(--surface) !important; }
+.main-sidebar .control-label { color: rgba(255,255,255,0.85); font-size: 12px; padding: 8px 15px 0; }
 
 /* Gradient top bar */
 .skin-blue .main-header .navbar {
