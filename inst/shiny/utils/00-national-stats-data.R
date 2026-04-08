@@ -46,7 +46,7 @@
   "imasis"            = "Spain",
   "sidiap"            = "Spain",
   "hi-speed"          = "Sweden",
-  "cprd gold"         = "UK",
+  "cprd-gold"         = "UK",
   "cprd"              = "UK"
 )
 
@@ -55,7 +55,7 @@
 .DB_EXPECTED_POP_COVERAGE <- list(
   "bifap"      = 40.0,
   "sidiap"     = 15.0,
-  "cprd gold"  = 4.3,
+  "cprd-gold"  = 4.3,
   "cprd"       = 4.3,
   "ipci"       = 7.0,
   "ingef"      = 9.0

@@ -591,6 +591,15 @@ petComparisonUI <- function(id) {
     p("No large-scale characteristics data available. Re-run the PET comparison with a CDM connection to generate this data.")
   }
 
+  # Summary table tab (cross-database overview)
+  summary_table_ui <- tagList(
+    div(class = "tab-help-text",
+        "Cross-database summary of PET comparison metrics: episode counts, sensitivity,",
+        " PPV, date alignment, and outcome agreement."),
+    DT::DTOutput(ns("petSummaryTable")) %>% withSpinner(),
+    downloadButton(ns("download_summary_csv"), "Download table (.csv)")
+  )
+
   # Summarised result tab
   summarised_ui <- tagList(
     DT::DTOutput(ns("rawTable")) %>% withSpinner(),
@@ -606,6 +615,7 @@ petComparisonUI <- function(id) {
     tabPanel("Alignment of episodes", alignment_ui),
     tabPanel("Unmatched characterization", unmatched_ui),
     tabPanel("Unmatched LSC", lsc_ui),
+    tabPanel("Summary table", summary_table_ui),
     tabPanel("Table of metrics", table_ui),
     tabPanel("Raw results", summarised_ui)
   )
@@ -872,6 +882,32 @@ petComparisonServer <- function(id, rv) {
     output$visTable <- gt::render_gt({
       vis_table_gt()
     })
+    # Summary table (cross-database overview)
+    pet_summary_data <- reactive({
+      r <- result()
+      if (is.null(r)) return(NULL)
+      extract_pet_summary_table(r)
+    })
+    pet_summary_display <- reactive({
+      d <- pet_summary_data()
+      if (is.null(d)) return(NULL)
+      format_pet_summary_table(d)
+    })
+    output$petSummaryTable <- DT::renderDT({
+      d <- pet_summary_display()
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      DT::datatable(d, rownames = FALSE,
+                    options = list(dom = "t", pageLength = 25, scrollX = TRUE),
+                    class = "compact stripe")
+    })
+    output$download_summary_csv <- downloadHandler(
+      filename = function() { "pet_comparison_summary.csv" },
+      content = function(file) {
+        d <- pet_summary_display()
+        if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
+      }
+    )
+
     output$download_vis_docx <- downloadHandler(
       filename = function() { "pet_comparison_table.docx" },
       content = function(file) {
