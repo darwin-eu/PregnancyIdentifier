@@ -26,9 +26,10 @@ nationalStatsComparisonUI <- function(id) {
       column(2, pickerInput(ns("sel_year"), "Year",
                             choices = character(0), selected = character(0),
                             multiple = TRUE, options = opt)),
-      column(2, selectInput(ns("sel_lb_def"), "Live birth definition",
+      column(2, pickerInput(ns("sel_lb_def"), "Live birth definition",
                             choices = c("LB" = "LB", "LB+DELIV" = "LB+DELIV"),
-                            selected = "LB")),
+                            selected = "LB", multiple = TRUE,
+                            options = list(`actions-box` = TRUE))),
       column(3, uiOutput(ns("country_display")))
     ),
 
@@ -102,6 +103,21 @@ nationalStatsComparisonUI <- function(id) {
           style = "font-size: 0.9em; color: #666; margin-top: 8px;",
           tags$sup("*"), "For the purpose of this validation, we only consider",
           " foetal losses at or after 24 weeks."
+        ),
+        tags$div(
+          style = "margin-top: 12px; padding: 10px 14px; background: #fff8e1; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 0.9em;",
+          tags$strong("Note: "),
+          "The following databases are excluded from birth rate and live birth count",
+          " comparisons because they are patient cohort or hospital-based databases,",
+          " not population-level, making national crude birth rate comparisons invalid:",
+          tags$ul(
+            style = "margin-top: 4px; margin-bottom: 0;",
+            lapply(.DB_SKIP_LB_COUNT, function(db) {
+              country <- .resolve_db_country(db)
+              label <- if (is.na(country)) db else paste0(db, " (", country, ")")
+              tags$li(label)
+            })
+          )
         )
       ),
 
@@ -253,14 +269,31 @@ nationalStatsComparisonServer <- function(id, rv) {
     # Reactive: derive lb_categories from user selection
     lb_categories <- reactive({
       sel <- input$sel_lb_def
-      if (is.null(sel) || sel == "LB") "LB" else c("LB", "DELIV")
+      if (is.null(sel) || length(sel) == 0) return("LB")
+      if (identical(sel, "LB")) "LB" else c("LB", "DELIV")
+    })
+
+    # Reactive: are both LB definitions selected?
+    both_lb_defs <- reactive({
+      sel <- input$sel_lb_def
+      !is.null(sel) && length(sel) == 2
     })
 
     # Reactive: compute comparison across all mapped DBs
     all_db_data <- reactive({
       natl <- natl_data()
       if (is.null(natl)) return(tibble::tibble())
-      .build_all_db_comparison(natl, lb_categories = lb_categories())
+
+      if (both_lb_defs()) {
+        # Run separately for each definition and stack with a label column
+        d_lb <- .build_all_db_comparison(natl, lb_categories = "LB") %>%
+          dplyr::mutate(live_birth_definition = "LB")
+        d_lb_deliv <- .build_all_db_comparison(natl, lb_categories = c("LB", "DELIV")) %>%
+          dplyr::mutate(live_birth_definition = "LB+DELIV")
+        dplyr::bind_rows(d_lb, d_lb_deliv)
+      } else {
+        .build_all_db_comparison(natl, lb_categories = lb_categories())
+      }
     })
 
     # Update metric picker when data is available
@@ -343,6 +376,15 @@ nationalStatsComparisonServer <- function(id, rv) {
             is.na(.data$internal_value), "-",
             format(.data$internal_value, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
+          numerator_fmt = dplyr::case_when(
+            !is.na(.data$numerator_breakdown) ~ .data$numerator_breakdown,
+            is.na(.data$internal_numerator) ~ "-",
+            TRUE ~ format(.data$internal_numerator, big.mark = ",", scientific = FALSE, trim = TRUE)
+          ),
+          denominator_fmt = dplyr::if_else(
+            is.na(.data$internal_denominator), "-",
+            format(.data$internal_denominator, big.mark = ",", scientific = FALSE, trim = TRUE)
+          ),
           difference = dplyr::case_when(
             is.na(.data$external_value) | is.na(.data$internal_value) ~ "-",
             .data$external_value != 0 ~ paste0(
@@ -360,28 +402,42 @@ nationalStatsComparisonServer <- function(id, rv) {
           }, character(1))
         ) %>%
         dplyr::select(
-          "cdm_name", "country", "expected_coverage", "indicator", "variable", "level", "year",
-          "external_fmt", "internal_fmt", "difference", "diff_pct_val"
+          "cdm_name", "country", "expected_coverage",
+          dplyr::any_of("live_birth_definition"),
+          "indicator", "variable", "level", "year",
+          "external_fmt", "internal_fmt", "numerator_fmt", "denominator_fmt",
+          "difference", "diff_pct_val"
         ) %>%
         dplyr::arrange(.data$indicator, .data$variable, .data$level, .data$year, .data$cdm_name)
+
+      show_lb_col <- both_lb_defs() && "live_birth_definition" %in% names(d_display)
 
       tbl <- gt::gt(d_display) %>%
         gt::tab_header(
           title = "National Statistics Comparison",
           subtitle = "Stacked comparison across selected databases"
-        ) %>%
-        gt::cols_label(
-          cdm_name = "Database",
-          country = "Country",
-          expected_coverage = "Expected % Pop. Covered",
-          indicator = "Indicator",
-          variable = "Variable",
-          level = "Level",
-          year = "Year",
-          external_fmt = "Reference",
-          internal_fmt = "Algorithm",
-          difference = "Difference"
-        ) %>%
+        )
+
+      # Build column labels
+      col_labels <- list(
+        cdm_name = "Database",
+        country = "Country",
+        expected_coverage = "Expected % Pop. Covered",
+        indicator = "Indicator",
+        variable = "Variable",
+        level = "Level",
+        year = "Year",
+        external_fmt = "Reference",
+        internal_fmt = "Algorithm",
+        numerator_fmt = paste0("Numerator (", paste(lb_categories(), collapse = " + "), ")"),
+        denominator_fmt = "Denominator",
+        difference = "Difference"
+      )
+      if (show_lb_col) {
+        col_labels[["live_birth_definition"]] <- "Live Birth Definition"
+      }
+      tbl <- tbl %>%
+        gt::cols_label(.list = col_labels) %>%
         gt::cols_hide("diff_pct_val") %>%
         gt::tab_style(
           style = gt::cell_fill(color = "#f0f7ff"),

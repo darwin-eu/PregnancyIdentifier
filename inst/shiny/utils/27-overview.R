@@ -29,7 +29,7 @@ overviewServer <- function(id, rv) {
     output$summary <- renderUI({
       nDatabases <- length(rv$allDP)
 
-      # Try to get total episodes
+      # Try to get total episodes and total persons
       nEpisodes <- tryCatch({
         ef <- rv$episodeFrequency
         if (is.data.frame(ef) && nrow(ef) > 0) {
@@ -42,6 +42,16 @@ overviewServer <- function(id, rv) {
           } else {
             "\u2014"
           }
+        } else {
+          "\u2014"
+        }
+      }, error = function(e) "\u2014")
+
+      nPersons <- tryCatch({
+        ef <- rv$episodeFrequency
+        if (is.data.frame(ef) && nrow(ef) > 0 && "total_individuals" %in% colnames(ef)) {
+          total <- sum(suppressWarnings(as.numeric(ef$total_individuals)), na.rm = TRUE)
+          if (total > 0) format(total, big.mark = ",") else "\u2014"
         } else {
           "\u2014"
         }
@@ -60,7 +70,7 @@ overviewServer <- function(id, rv) {
 
       tagList(
         fluidRow(
-          column(4,
+          column(3,
             div(
               class = "overview-card",
               style = "background: #f0f7ff; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;",
@@ -68,7 +78,15 @@ overviewServer <- function(id, rv) {
               p(style = "color: #7f8c8d; margin: 5px 0 0 0;", "Databases loaded")
             )
           ),
-          column(4,
+          column(3,
+            div(
+              class = "overview-card",
+              style = "background: #f0fff0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;",
+              h1(style = "color: #2c3e50; margin: 0;", nPersons),
+              p(style = "color: #7f8c8d; margin: 5px 0 0 0;", "Total persons")
+            )
+          ),
+          column(3,
             div(
               class = "overview-card",
               style = "background: #f0fff0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;",
@@ -76,7 +94,7 @@ overviewServer <- function(id, rv) {
               p(style = "color: #7f8c8d; margin: 5px 0 0 0;", "Total episodes")
             )
           ),
-          column(4,
+          column(3,
             div(
               class = "overview-card",
               style = "background: #fff8f0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;",

@@ -695,6 +695,27 @@ if (hasData) {
       dplyr::ungroup()
   }
 
+  # Binary >52 weeks check: ≤52 vs >52 weeks
+  over52Levels <- c("<=52 weeks", ">52 weeks")
+  gestationalWeeksOver52 <- rbind(
+    summariseGestationalWeeks(gestationalWeeksForBins, -Inf, 53, over52Levels[1]),
+    summariseGestationalWeeks(gestationalWeeksForBins, 53, maxWeeks, over52Levels[2])
+  ) %>%
+    dplyr::rename(over_52_weeks = gestational_weeks) %>%
+    dplyr::mutate(over_52_weeks = factor(over_52_weeks, levels = over52Levels))
+
+  if (hasOutcomeInWeeks) {
+    gestationalWeeksOver52 <- gestationalWeeksOver52 %>%
+      dplyr::group_by(cdm_name, final_outcome_category) %>%
+      dplyr::mutate(pct = round(100 * n / sum(n, na.rm = TRUE), 1)) %>%
+      dplyr::ungroup()
+  } else {
+    gestationalWeeksOver52 <- gestationalWeeksOver52 %>%
+      dplyr::group_by(cdm_name) %>%
+      dplyr::mutate(pct = round(100 * n / sum(n, na.rm = TRUE), 1)) %>%
+      dplyr::ungroup()
+  }
+
   # Trend data
   emptyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = numeric(0), value = numeric(0), period = character(0))
   if (is.null(yearlyTrend)) yearlyTrend <- tibble::tibble(cdm_name = character(0), column = character(0), count = character(0), year = character(0))

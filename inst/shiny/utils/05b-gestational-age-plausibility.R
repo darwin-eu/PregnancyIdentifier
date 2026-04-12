@@ -34,7 +34,12 @@ gestationalAgePlausibilityUI <- function(id) {
     downloadButton(ns("download_plot"), "Download plot (PNG)"),
     h4("Data"),
     DT::DTOutput(ns("dataTable")) %>% shinycssloaders::withSpinner(),
-    downloadButton(ns("download_table_csv"), "Download table (.csv)")
+    downloadButton(ns("download_table_csv"), "Download table (.csv)"),
+    hr(),
+    h3(">52 weeks check"),
+    div(class = "tab-help-text",
+        "Episodes with gestational duration >52 weeks (>364 days)."),
+    DT::DTOutput(ns("over52Table")) %>% shinycssloaders::withSpinner()
   )
 }
 
@@ -162,5 +167,24 @@ gestationalAgePlausibilityServer <- function(id, rv) {
         if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
       }
     )
+
+    # >52 weeks table
+    getOver52Data <- reactive({
+      data <- rv$gestationalWeeksOver52
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+      data <- filterByCdm(data, input$cdm, rv$allDP)
+
+      # Filter to just the >52 weeks rows and show n and pct per database
+      data %>%
+        dplyr::filter(.data$over_52_weeks == ">52 weeks") %>%
+        dplyr::select(dplyr::any_of(c("cdm_name", "n", "pct"))) %>%
+        dplyr::rename(`Database` = cdm_name, `N (>52 weeks)` = n, `% of episodes` = pct)
+    })
+
+    output$over52Table <- DT::renderDT({
+      data <- getOver52Data()
+      if (is.null(data) || nrow(data) == 0) return(renderPrettyDT(data.frame()))
+      renderPrettyDT(data)
+    })
   })
 }

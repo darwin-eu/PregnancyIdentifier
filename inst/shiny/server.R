@@ -65,6 +65,7 @@ server <- function(input, output, session) {
     rv$gestationalWeeksSummary <- filterV(gestationalWeeksSummary)
     rv$gestationalWeeksBinned <- filterV(gestationalWeeksBinned)
     rv$gestationalWeeksPlausibility <- filterV(gestationalWeeksPlausibility)
+    rv$gestationalWeeksOver52 <- filterV(gestationalWeeksOver52)
     rv$gestationalAgeDaysPerCategorySummary <- filterV(gestationalAgeDaysPerCategorySummary)
     rv$gestationalAgeDaysSummary <- filterV(gestationalAgeDaysSummary)
     rv$gestationalAgeDaysCounts <- filterV(gestationalAgeDaysCounts)

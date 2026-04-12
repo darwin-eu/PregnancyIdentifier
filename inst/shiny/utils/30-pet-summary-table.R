@@ -55,7 +55,10 @@ extract_pet_summary_table <- function(sr) {
 
     # --- Sensitivity & PPV ---
     sensitivity <- get_val("ppv_sensitivity", "sensitivity", "value")
+    # Normalise to percentage (may be stored as 0-1 or 0-100)
+    if (!is.na(sensitivity) && sensitivity <= 1) sensitivity <- sensitivity * 100
     ppv <- get_val("ppv_sensitivity", "ppv", "value")
+    if (!is.na(ppv) && ppv <= 1) ppv <- ppv * 100
 
     # --- Date difference summary (start & end) ---
     # Try new descriptive labels first, fall back to legacy short labels
@@ -123,6 +126,8 @@ extract_pet_summary_table <- function(sr) {
 
     # --- Outcome agreement (accuracy) ---
     outcome_accuracy <- get_val("outcome_accuracy", "overall", "accuracy")
+    # Normalise to percentage (may be stored as 0-1 or 0-100)
+    if (!is.na(outcome_accuracy) && outcome_accuracy <= 1) outcome_accuracy <- outcome_accuracy * 100
 
     tibble::tibble(
       cdm_name = db,

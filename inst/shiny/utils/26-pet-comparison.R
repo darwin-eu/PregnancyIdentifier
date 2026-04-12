@@ -61,11 +61,14 @@ For each group, the Person-level tab shows:
 ## Sub-tabs in this section
 
 - **Overview** (this page): Methodology and interpretation.
-- **Plot:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both).
-- **Alignment:** Distribution of date differences between matched PET and algorithm episodes. Shows how well start dates, end dates, and durations align, with an option to stratify by algorithm outcome. Requires result files generated with v3.0.6+.
-- **Person-level:** Person-level Venn diagram and episodes-per-person summary.
-- **Table:** Formatted table of all comparison metrics (visOmopResults), with a **Database** filter.
-- **Summarised result:** Raw summarised result table (download as CSV).
+- **Person-level agreement:** Person-level Venn diagram and episodes-per-person summary.
+- **Episode level agreement:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both) with sensitivity, PPV, and accuracy.
+- **Alignment of episodes:** Distribution and summary statistics of date differences between matched PET and algorithm episodes. Shows how well start dates, end dates, and durations align, with an option to stratify by algorithm outcome. Requires result files generated with v3.0.6+.
+- **Pregnancy Outcome:** Outcome distribution, accuracy, gestational length, delivery mode, and concept coverage across matched and unmatched episodes.
+- **LSC:** Large-scale characteristics of unmatched PET episodes.
+- **Summary table:** Cross-database overview of episode counts, sensitivity, PPV, date alignment, and outcome agreement.
+- **All metrics:** Formatted table of all comparison metrics (visOmopResults), with a **Database** filter.
+- **Raw results:** Raw summarised result table (download as CSV).
 "
 
 # ---- Display label remapping (shiny only, does not affect exports) ----
@@ -119,10 +122,7 @@ pet_venn_data_from_counts <- function(both, pet_only, algorithm_only) {
   n_pet <- pet_only + both
   n_alg <- algorithm_only + both
   if (n_pet == 0 && n_alg == 0) {
-    return(amVennDiagram5::makeVennData(list(
-      "PET" = integer(0),
-      "HIPPS" = integer(0)
-    )))
+    return(NULL)
   }
   pet_ids <- if (n_pet > 0) seq_len(n_pet) else integer(0)
   alg_ids <- if (n_alg > 0) (pet_only + 1L):(pet_only + both + algorithm_only) else integer(0)
@@ -237,6 +237,71 @@ extract_date_diff_distribution_from_sr <- function(sr, variable_name = "date_dif
       dplyr::select("cdm_name", "measure", "measure_label", "outcome", "bin", "n")
   }
   parsed
+}
+
+#' Extract date difference summary statistics (mean, median, IQR, etc.) from summarised result.
+#' Returns a data.frame with columns: cdm_name, measure, n_matched, mean, median, sd, min, q25, q75, max.
+extract_date_diff_summary_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "date_difference_summary") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  wide <- rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("n_matched", "mean", "median", "sd", "min", "q25", "q75", "max")),
+                                ~ suppressWarnings(as.numeric(.x))))
+  # Map variable_level to display-friendly measure names
+  measure_map <- c(
+    "Start date difference (PET - Algorithm, days)" = "Start date difference",
+    "End date difference (PET - Algorithm, days)" = "End date difference",
+    "Duration difference (PET - Algorithm, days)" = "Duration difference",
+    "start_diff_days" = "Start date difference",
+    "end_diff_days" = "End date difference",
+    "duration_diff_days" = "Duration difference"
+  )
+  wide %>%
+    dplyr::mutate(
+      measure = dplyr::if_else(
+        .data$variable_level %in% names(measure_map),
+        measure_map[.data$variable_level],
+        .data$variable_level
+      )
+    ) %>%
+    dplyr::select("cdm_name", "measure", dplyr::any_of(c("n_matched", "mean", "median", "sd", "min", "q25", "q75", "max")))
+}
+
+#' Extract sensitivity and PPV from summarised result.
+#' Returns a data.frame with columns: cdm_name, sensitivity, ppv.
+extract_ppv_sensitivity_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "ppv_sensitivity", .data$estimate_name == "value") %>%
+    dplyr::select("cdm_name", "variable_level", "estimate_value") %>%
+    dplyr::mutate(estimate_value = suppressWarnings(as.numeric(.data$estimate_value)))
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "variable_level", values_from = "estimate_value", values_fn = take_first)
+}
+
+#' Extract outcome accuracy from summarised result.
+#' Returns a data.frame with columns: cdm_name, n_correct, n_total, accuracy.
+extract_outcome_accuracy_from_sr <- function(sr) {
+  tbl <- as.data.frame(sr)
+  if (!is.data.frame(tbl) || !"variable_name" %in% names(tbl)) return(NULL)
+  rows <- tbl %>%
+    dplyr::filter(.data$variable_name == "outcome_accuracy", .data$variable_level == "overall") %>%
+    dplyr::select("cdm_name", "estimate_name", "estimate_value")
+  if (nrow(rows) == 0) return(NULL)
+  take_first <- function(x) { x <- unlist(x, use.names = FALSE); if (length(x) == 0) NA else x[1] }
+  rows %>%
+    tidyr::pivot_wider(names_from = "estimate_name", values_from = "estimate_value", values_fn = take_first) %>%
+    dplyr::mutate(dplyr::across(dplyr::any_of(c("n_correct", "n_total", "accuracy")),
+                                ~ suppressWarnings(as.numeric(.x))))
 }
 
 #' Extract gestational time summary by group (matched, algorithm_only, pet_only).
@@ -455,7 +520,9 @@ petComparisonUI <- function(id) {
       },
       fluidRow(
         column(12, amVennDiagram5::amVennDiagramOutput(ns("venn"), width = "100%", height = "450px") %>% withSpinner())
-      )
+      ),
+      p("From this Venn diagram we computed PPV and sensitivity of the algorithm compared to PET (taking the latter as the reference)."),
+      uiOutput(ns("episode_metrics_ui"))
     )
   } else {
     p("No Venn data available.")
@@ -514,9 +581,16 @@ petComparisonUI <- function(id) {
                                           "Duration" = "duration_diff",
                                           "All (faceted)" = "all"),
                               selected = "all")),
-        column(3, checkboxInput(ns("align_by_outcome"), "Stratify by outcome", value = FALSE))
+        column(3, selectInput(ns("align_by_outcome"), "Stratify by outcome",
+                              choices = c("No" = "FALSE", "Yes" = "TRUE"),
+                              selected = "FALSE"))
       ),
       plotly::plotlyOutput(ns("alignmentPlot"), height = "520px") %>% withSpinner(),
+      hr(),
+      h4("Summary statistics for date differences"),
+      p("Mean, median, and interquartile range of date differences (PET \u2212 Algorithm, in days) for matched episode pairs."),
+      DT::DTOutput(ns("alignmentSummaryTable")) %>% withSpinner(),
+      hr(),
       h4("Download figure"),
       fluidRow(
         column(3, textInput(ns("align_download_height"), "Height (cm)", value = "14")),
@@ -533,9 +607,8 @@ petComparisonUI <- function(id) {
   unmatched_ui <- if (has_unmatched) {
     tagList(
       div(class = "tab-help-text",
-          "Characterize episodes that exist in only one source (HIPPS-only or PET-only).",
-          " Compare gestational length, outcome distribution, and HIP/PPS concept",
-          " presence in unmatched PET episodes."),
+          "Pregnancy outcome distribution and agreement across matched and unmatched episodes.",
+          " Includes gestational length, outcome accuracy, delivery mode, and concept coverage."),
       if (length(cdm_names) > 1) {
         fluidRow(
           column(3, selectInput(ns("unmatched_database"), "Database",
@@ -549,6 +622,7 @@ petComparisonUI <- function(id) {
       h4("Outcome distribution by matching group"),
       plotly::plotlyOutput(ns("outcome_plot"), height = "450px") %>% withSpinner(),
       DT::DTOutput(ns("outcome_table")) %>% withSpinner(),
+      uiOutput(ns("outcome_accuracy_ui")),
       hr(),
       h4("Delivery mode by matching group"),
       p("Cesarean vs vaginal delivery mode for matched and HIPPS-only algorithm episodes, overall and by year."),
@@ -613,10 +687,10 @@ petComparisonUI <- function(id) {
     tabPanel("Person-level agreement", person_ui),
     tabPanel("Episode level agreement", plot_ui),
     tabPanel("Alignment of episodes", alignment_ui),
-    tabPanel("Unmatched characterization", unmatched_ui),
-    tabPanel("Unmatched LSC", lsc_ui),
+    tabPanel("Pregnancy Outcome", unmatched_ui),
+    tabPanel("LSC", lsc_ui),
     tabPanel("Summary table", summary_table_ui),
-    tabPanel("Table of metrics", table_ui),
+    tabPanel("All metrics", table_ui),
     tabPanel("Raw results", summarised_ui)
   )
 }
@@ -682,6 +756,62 @@ petComparisonServer <- function(id, rv) {
       amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
     })
 
+    # Episode-level metrics: sensitivity, PPV, accuracy
+    ppv_sensitivity_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_ppv_sensitivity_from_sr(r) })
+
+    output$episode_metrics_ui <- renderUI({
+      db <- chosen_db()
+      vd <- venn_data()
+      ps <- ppv_sensitivity_data()
+
+      if (is.null(vd) || is.null(db)) return(NULL)
+      row <- vd %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(row) == 0) return(NULL)
+
+      tp <- row$both[1]
+      fp <- row$algorithm_only[1]
+      fn <- row$pet_only[1]
+
+      # Sensitivity & PPV from summarised result (more precise)
+      sens_val <- NA_real_
+      ppv_val <- NA_real_
+      if (!is.null(ps) && db %in% ps$cdm_name) {
+        ps_row <- ps[ps$cdm_name == db, , drop = FALSE]
+        if ("sensitivity" %in% names(ps_row)) sens_val <- ps_row$sensitivity[1]
+        if ("ppv" %in% names(ps_row)) ppv_val <- ps_row$ppv[1]
+      }
+
+      # Accuracy = TP / (TP + FP + FN) (TN not defined)
+      denom <- tp + fp + fn
+      acc_val <- if (denom > 0) tp / denom else NA_real_
+
+      # Normalise to percentage (values may be 0-1 or 0-100)
+      to_pct <- function(x) {
+        if (is.na(x)) return(NA_character_)
+        if (x <= 1) x <- x * 100
+        paste0(round(x, 1), "%")
+      }
+
+      metric_box <- function(label, value) {
+        div(style = "display: inline-block; text-align: center; padding: 12px 24px; margin: 6px;
+                     background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; min-width: 140px;",
+            div(style = "font-size: 1.6em; font-weight: bold; color: #495057;",
+                if (is.na(value)) "N/A" else to_pct(value)),
+            div(style = "font-size: 0.9em; color: #6c757d; margin-top: 4px;", label)
+        )
+      }
+
+      tagList(
+        div(style = "display: flex; flex-wrap: wrap; justify-content: center; margin: 16px 0;",
+            metric_box("Sensitivity", sens_val),
+            metric_box("PPV", ppv_val),
+            metric_box("Accuracy", acc_val)
+        ),
+        div(style = "text-align: center; font-size: 0.85em; color: #868e96; margin-bottom: 12px;",
+            "Accuracy = TP / (TP + FP + FN). Specificity and NPV are not defined (no true negatives).")
+      )
+    })
+
     # Person-level: Venn + EPP table
     chosen_person_db <- reactive({
       cn <- cdm_names()
@@ -725,6 +855,7 @@ petComparisonServer <- function(id, rv) {
 
     # Alignment: butterfly histogram of date difference distributions
     alignment_overall <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_date_diff_distribution_from_sr(r, "date_difference_distribution") })
+    date_diff_summary_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_date_diff_summary_from_sr(r) })
     alignment_by_outcome <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_date_diff_distribution_from_sr(r, "date_difference_distribution_by_outcome") })
 
     chosen_align_db <- reactive({
@@ -734,7 +865,7 @@ petComparisonServer <- function(id, rv) {
 
     alignment_ggplot <- reactive({
       db <- chosen_align_db()
-      by_outcome <- isTRUE(input$align_by_outcome)
+      by_outcome <- identical(input$align_by_outcome, "TRUE")
       measure_filter <- input$align_measure
 
       src <- if (by_outcome && !is.null(alignment_by_outcome())) {
@@ -836,6 +967,20 @@ petComparisonServer <- function(id, rv) {
         }
       }
     )
+
+    # Alignment summary stats table
+    output$alignmentSummaryTable <- DT::renderDT({
+      db <- chosen_align_db()
+      d <- date_diff_summary_data()
+      if (is.null(d) || is.null(db)) return(NULL)
+      d <- d %>%
+        dplyr::filter(.data$cdm_name == .env$db) %>%
+        dplyr::select("measure", dplyr::any_of(c("n_matched", "mean", "median", "sd", "min", "q25", "q75", "max"))) %>%
+        dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 1)))
+      if (nrow(d) == 0) return(NULL)
+      DT::datatable(d, rownames = FALSE, options = list(dom = "t", pageLength = 10),
+                    colnames = c("Measure", "N matched", "Mean", "Median", "SD", "Min", "Q25", "Q75", "Max")[seq_len(ncol(d))])
+    })
 
     # Table: visOmopTable with database filter (uses display_result for renamed labels)
     filtered_result <- reactive({
@@ -982,6 +1127,36 @@ petComparisonServer <- function(id, rv) {
       if (nrow(d) == 0) return(NULL)
       DT::datatable(d, rownames = FALSE, options = list(dom = "t", pageLength = 30),
                     colnames = c("Group", "Outcome", "N", "%"))
+    })
+
+    # Outcome accuracy
+    outcome_accuracy_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_outcome_accuracy_from_sr(r) })
+
+    output$outcome_accuracy_ui <- renderUI({
+      db <- chosen_unmatched_db()
+      oa <- outcome_accuracy_data()
+      if (is.null(oa) || is.null(db)) return(NULL)
+      row <- oa %>% dplyr::filter(.data$cdm_name == .env$db)
+      if (nrow(row) == 0 || is.na(row$accuracy[1])) return(NULL)
+
+      acc <- row$accuracy[1]
+      # Normalise to percentage (may be 0-1 or 0-100)
+      if (!is.na(acc) && acc <= 1) acc <- acc * 100
+      n_correct <- if ("n_correct" %in% names(row)) row$n_correct[1] else NA
+      n_total <- if ("n_total" %in% names(row)) row$n_total[1] else NA
+
+      subtitle <- if (!is.na(n_correct) && !is.na(n_total)) {
+        paste0(format(round(n_correct), big.mark = ","), " / ",
+               format(round(n_total), big.mark = ","), " matched episodes with same outcome category")
+      } else {
+        "Proportion of matched episodes where the outcome category is the same"
+      }
+
+      div(style = "padding: 14px 18px; background: #f0f7f0; border: 1px solid #c3e6cb; border-radius: 6px; margin: 14px 0;",
+          div(style = "font-size: 1.1em; font-weight: 600; color: #2d6a4f;",
+              paste0("Outcome agreement accuracy: ", round(acc, 1), "%")),
+          div(style = "font-size: 0.9em; color: #5a8a6a; margin-top: 4px;", subtitle)
+      )
     })
 
     # Delivery mode summary
@@ -1248,7 +1423,7 @@ petComparisonServer <- function(id, rv) {
 
     # Summarised result: display with renamed labels, download with original labels
     output$rawTable <- DT::renderDT({
-      renderPrettyDT(as.data.frame(display_result))
+      renderPrettyDT(as.data.frame(display_result()))
     })
     output$download_raw_csv <- downloadHandler(
       filename = function() { "pet_comparison_summarised_result.csv" },
@@ -1274,13 +1449,22 @@ petComparisonServer <- function(id, rv) {
           dplyr::filter(.data$cdm_name == db) %>%
           dplyr::filter(.data$estimate_value != "0") %>%
           dplyr::select(
-            variable_name  = "variable_name",
-            variable_level = "variable_level",
-            estimate_name  = "estimate_name",
-            estimate_value = "estimate_value"
+            variable_name    = "variable_name",
+            variable_level   = "variable_level",
+            estimate_name    = "estimate_name",
+            estimate_value   = "estimate_value",
+            concept_id       = "additional_level"
           ) %>%
-          dplyr::mutate(estimate_value = as.numeric(.data$estimate_value)) %>%
-          dplyr::arrange(dplyr::desc(.data$estimate_value))
+          tidyr::pivot_wider(
+            id_cols     = c("variable_name", "variable_level", "concept_id"),
+            names_from  = "estimate_name",
+            values_from = "estimate_value"
+          ) %>%
+          dplyr::mutate(
+            count      = as.integer(.data$count),
+            percentage = as.numeric(.data$percentage)
+          ) %>%
+          dplyr::arrange(dplyr::desc(.data$percentage))
         d
       })
 
@@ -1293,10 +1477,10 @@ petComparisonServer <- function(id, rv) {
           options  = list(
             pageLength = 25,
             scrollX    = TRUE,
-            order      = list(list(3, "desc"))
+            order      = list(list(4, "desc"))
           )
         ) %>%
-          DT::formatRound("estimate_value", digits = 4)
+          DT::formatRound("percentage", digits = 2)
       })
 
       output$download_lsc_csv <- downloadHandler(
