@@ -650,7 +650,7 @@ petComparisonUI <- function(id) {
     tagList(
       div(class = "tab-help-text",
           "Large-scale characteristics of unmatched PET episodes (conditions, drugs, procedures,",
-          " observations, measurements) in the 365 days prior to the pregnancy end date."),
+          " observations, measurements) in the 365 days prior to the pregnancy end date. These are PET episodes not observed (matched) by the algorithm."),
       if (length(lsc_cdm_names) > 1) {
         fluidRow(
           column(3, selectInput(ns("lsc_database"), "Database",

@@ -128,12 +128,16 @@ PRETTY_NAMES <- c(
   post_persons                          = "Post Persons",
 
   # --- Quality check cleanup ---
-  n_records_overlapping                 = "Overlapping Records",
+  n_records_overlapping                 = "Overlapping Episodes",
   n_persons_overlapping                 = "Overlapping Persons",
-  n_records_too_long                    = "Too Long Records",
-  n_persons_too_long                    = "Too Long Persons",
+  n_records_too_long                    = "Unplausible Length Records",
+  n_persons_too_long                    = "Unplausible Length Persons",
   n_records_after_cleanup               = "Records After Cleanup",
   n_persons_after_cleanup               = "Persons After Cleanup",
+  records_before_cleanup                = "Records Before Cleanup",
+  persons_before_cleanup                = "Persons Before Cleanup",
+  pct_records_removed_after_cleanup     = "% Records Removed After Cleanup",
+  pct_persons_removed_after_cleanup     = "% Persons Removed After Cleanup",
   max_episode_days                      = "Max Episode (days)",
 
   # --- Temporal & observation ---

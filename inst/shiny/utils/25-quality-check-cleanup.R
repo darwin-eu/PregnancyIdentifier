@@ -6,7 +6,7 @@ qualityCheckCleanupUI <- function(id) {
   ns <- NS(id)
   tagList(
     div(class = "tab-help-text",
-        "Summary of episode quality characterization and cleanup. Includes counts of episodes flagged as overlapping, too long, and records after cleanup."),
+        "Summary of episode quality characterization and cleanup. Includes counts of episodes flagged as overlapping, with unplausible length, and records after cleanup."),
     div(
       class = "well",
       p(

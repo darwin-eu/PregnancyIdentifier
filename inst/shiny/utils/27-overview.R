@@ -49,8 +49,12 @@ overviewServer <- function(id, rv) {
 
       nPersons <- tryCatch({
         ef <- rv$episodeFrequency
-        if (is.data.frame(ef) && nrow(ef) > 0 && "total_individuals" %in% colnames(ef)) {
-          total <- sum(suppressWarnings(as.numeric(ef$total_individuals)), na.rm = TRUE)
+        if (is.data.frame(ef) && nrow(ef) > 0 &&
+            "name" %in% colnames(ef) && any(ef$name == "total_individuals")) {
+          vals <- ef %>%
+            dplyr::filter(.data$name == "total_individuals") %>%
+            dplyr::select(-"name")
+          total <- sum(suppressWarnings(as.numeric(unlist(vals))), na.rm = TRUE)
           if (total > 0) format(total, big.mark = ",") else "\u2014"
         } else {
           "\u2014"

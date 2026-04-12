@@ -291,6 +291,38 @@ if (!cacheValid) {
   attrition_episodes <- attrition
   attrition <- NULL
 
+  # Merge episode totals into qualityCheckCleanup for % removed metrics
+  if (!is.null(episodeFrequency) && is.data.frame(episodeFrequency) &&
+      !is.null(qualityCheckCleanup) && is.data.frame(qualityCheckCleanup) &&
+      "name" %in% colnames(episodeFrequency) && "cdm_name" %in% colnames(qualityCheckCleanup)) {
+    # episodeFrequency is transposed: "name" column + db columns with values
+    db_cols_ef <- setdiff(colnames(episodeFrequency), "name")
+    ef_totals <- episodeFrequency %>%
+      dplyr::filter(.data$name %in% c("total_episodes", "total_individuals")) %>%
+      tidyr::pivot_longer(cols = dplyr::all_of(db_cols_ef), names_to = "cdm_name", values_to = "value") %>%
+      dplyr::mutate(value = suppressWarnings(as.numeric(.data$value))) %>%
+      tidyr::pivot_wider(names_from = "name", values_from = "value") %>%
+      dplyr::rename(records_before_cleanup = "total_episodes",
+                    persons_before_cleanup = "total_individuals")
+
+    qualityCheckCleanup <- qualityCheckCleanup %>%
+      dplyr::left_join(ef_totals, by = "cdm_name") %>%
+      dplyr::mutate(
+        n_records_after_cleanup = suppressWarnings(as.numeric(.data$n_records_after_cleanup)),
+        n_persons_after_cleanup = suppressWarnings(as.numeric(.data$n_persons_after_cleanup)),
+        pct_records_removed_after_cleanup = dplyr::if_else(
+          !is.na(.data$records_before_cleanup) & .data$records_before_cleanup > 0,
+          round(100 * (1 - .data$n_records_after_cleanup / .data$records_before_cleanup), 1),
+          NA_real_
+        ),
+        pct_persons_removed_after_cleanup = dplyr::if_else(
+          !is.na(.data$persons_before_cleanup) & .data$persons_before_cleanup > 0,
+          round(100 * (1 - .data$n_persons_after_cleanup / .data$persons_before_cleanup), 1),
+          NA_real_
+        )
+      )
+  }
+
   # Build data list and cache
   data <- list(
     cdmSource = cdmSource,
@@ -925,3 +957,10 @@ if (hasData) {
   has_pet <- has_pet_comparison_sr || has_pet_legacy
   has_ip <- has_incidence || has_prevalence
 }
+
+# # Add percent dropped in quality check cleanup
+# episodeFrequency %>%
+#   filter(stringr::str_detect(name, "total")) %>%
+#   tidyr::pivot_longer(cols = -"name")
+#
+

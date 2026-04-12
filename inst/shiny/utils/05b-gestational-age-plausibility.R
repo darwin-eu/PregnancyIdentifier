@@ -39,7 +39,14 @@ gestationalAgePlausibilityUI <- function(id) {
     h3(">52 weeks check"),
     div(class = "tab-help-text",
         "Episodes with gestational duration >52 weeks (>364 days)."),
-    DT::DTOutput(ns("over52Table")) %>% shinycssloaders::withSpinner()
+    h4("Summary by database"),
+    DT::DTOutput(ns("over52SummaryTable")) %>% shinycssloaders::withSpinner(),
+    downloadButton(ns("download_over52_summary_csv"), "Download summary (.csv)"),
+    if (hasOutcome) tagList(
+      h4("By database and outcome category"),
+      DT::DTOutput(ns("over52DetailTable")) %>% shinycssloaders::withSpinner(),
+      downloadButton(ns("download_over52_detail_csv"), "Download detail (.csv)")
+    )
   )
 }
 
@@ -168,23 +175,72 @@ gestationalAgePlausibilityServer <- function(id, rv) {
       }
     )
 
-    # >52 weeks table
-    getOver52Data <- reactive({
+    # >52 weeks tables
+    getOver52Filtered <- reactive({
       data <- rv$gestationalWeeksOver52
       if (is.null(data) || nrow(data) == 0) return(data.frame())
       data <- filterByCdm(data, input$cdm, rv$allDP)
+      data %>% dplyr::filter(.data$over_52_weeks == ">52 weeks")
+    })
 
-      # Filter to just the >52 weeks rows and show n and pct per database
+    # Summary: aggregated by database only
+    getOver52Summary <- reactive({
+      data <- getOver52Filtered()
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+      if ("final_outcome_category" %in% colnames(data)) {
+        data <- data %>%
+          dplyr::group_by(.data$cdm_name) %>%
+          dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop")
+        # Recalculate pct from the full over52 data
+        totals <- rv$gestationalWeeksOver52 %>%
+          filterByCdm(input$cdm, rv$allDP) %>%
+          dplyr::group_by(.data$cdm_name) %>%
+          dplyr::summarise(total = sum(.data$n, na.rm = TRUE), .groups = "drop")
+        data <- data %>%
+          dplyr::left_join(totals, by = "cdm_name") %>%
+          dplyr::mutate(pct = round(100 * .data$n / .data$total, 1)) %>%
+          dplyr::select(-"total")
+      }
       data %>%
-        dplyr::filter(.data$over_52_weeks == ">52 weeks") %>%
         dplyr::select(dplyr::any_of(c("cdm_name", "n", "pct"))) %>%
         dplyr::rename(`Database` = cdm_name, `N (>52 weeks)` = n, `% of episodes` = pct)
     })
 
-    output$over52Table <- DT::renderDT({
-      data <- getOver52Data()
+    # Detail: by database and outcome category
+    getOver52Detail <- reactive({
+      data <- getOver52Filtered()
+      if (is.null(data) || nrow(data) == 0) return(data.frame())
+      data %>%
+        dplyr::select(dplyr::any_of(c("cdm_name", "final_outcome_category", "n", "pct"))) %>%
+        dplyr::rename(`Database` = cdm_name, `N (>52 weeks)` = n, `% of episodes` = pct)
+    })
+
+    output$over52SummaryTable <- DT::renderDT({
+      data <- getOver52Summary()
       if (is.null(data) || nrow(data) == 0) return(renderPrettyDT(data.frame()))
       renderPrettyDT(data)
     })
+
+    output$download_over52_summary_csv <- downloadHandler(
+      filename = function() { "over_52_weeks_summary.csv" },
+      content = function(file) {
+        d <- getOver52Summary()
+        if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
+      }
+    )
+
+    output$over52DetailTable <- DT::renderDT({
+      data <- getOver52Detail()
+      if (is.null(data) || nrow(data) == 0) return(renderPrettyDT(data.frame()))
+      renderPrettyDT(data)
+    })
+
+    output$download_over52_detail_csv <- downloadHandler(
+      filename = function() { "over_52_weeks_by_outcome.csv" },
+      content = function(file) {
+        d <- getOver52Detail()
+        if (!is.null(d) && nrow(d) > 0) readr::write_csv(d, file)
+      }
+    )
   })
 }
