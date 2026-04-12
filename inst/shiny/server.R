@@ -16,6 +16,31 @@ server <- function(input, output, session) {
       if ("version" %in% colnames(df)) {
         return(df %>% dplyr::filter(.data$version %in% vers))
       }
+      # For summarised_result objects, check version in settings attribute
+      if (inherits(df, "summarised_result")) {
+        s <- attr(df, "settings")
+        if (!is.null(s) && "version" %in% colnames(s) && "result_id" %in% colnames(s)) {
+          keep_ids <- s$result_id[s$version %in% vers]
+          filtered <- df %>% dplyr::filter(.data$result_id %in% keep_ids)
+          s <- s[s$result_id %in% keep_ids, , drop = FALSE]
+          setting_key_cols <- setdiff(names(s), "result_id")
+          if (length(setting_key_cols) > 0 && any(duplicated(s[setting_key_cols]))) {
+            unique_s <- s[!duplicated(s[setting_key_cols]), , drop = FALSE]
+            for (i in which(duplicated(s[setting_key_cols]))) {
+              dup_row <- s[i, setting_key_cols, drop = FALSE]
+              for (j in seq_len(nrow(unique_s))) {
+                if (identical(as.list(dup_row), as.list(unique_s[j, setting_key_cols, drop = FALSE]))) {
+                  filtered$result_id[filtered$result_id == s$result_id[i]] <- unique_s$result_id[j]
+                  break
+                }
+              }
+            }
+            s <- unique_s
+          }
+          attr(filtered, "settings") <- s
+          return(filtered)
+        }
+      }
       if ("cdm_name" %in% colnames(df)) {
         filtered <- df %>% dplyr::filter(gsub(".*_(v[0-9]+)$", "\\1", .data$cdm_name) %in% vers)
         # For summarised_result objects, sync settings with remaining result_ids

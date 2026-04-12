@@ -289,9 +289,19 @@ replaceVersionSuffix <- function(df, newSuffix) {
 }
 
 #' Add a version column to a data frame.
+#' For summarised_result objects, store version in the settings attribute
+#' instead of as a data column to preserve the strict column schema.
 addVersionColumn <- function(df, ver) {
   if (is.null(df) || !is.data.frame(df)) return(df)
-  df$version <- ver
+  if (inherits(df, "summarised_result")) {
+    s <- tryCatch(omopgenerics::settings(df), error = function(e) NULL)
+    if (!is.null(s)) {
+      s$version <- ver
+      attr(df, "settings") <- s
+    }
+  } else {
+    df$version <- ver
+  }
   df
 }
 
