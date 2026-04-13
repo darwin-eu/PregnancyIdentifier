@@ -99,6 +99,9 @@ sidebar <- dashboardSidebar(
     # National statistics comparison (conditional)
     if (has_national_stats) menuItem("National stats comparison", tabName = "national_stats", icon = icon("globe")),
 
+    # Quality metrics
+    menuItem("Quality metrics", tabName = "quality_metrics", icon = icon("table")),
+
     # Overview (last)
     menuItem("Overview", tabName = "overview", icon = icon("th-large"))
   )
@@ -209,6 +212,9 @@ body <- dashboardBody(
       if (has_national_stats) nationalStatsComparisonUI("national_stats")
       else p("No national statistics data available.")
     ),
+
+    # Quality metrics
+    tabItem(tabName = "quality_metrics", qualityMetricsUI("quality_metrics")),
 
     # Overview (last)
     tabItem(tabName = "overview", overviewUI("overview"))

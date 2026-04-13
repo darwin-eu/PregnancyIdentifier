@@ -107,9 +107,10 @@ nationalStatsComparisonUI <- function(id) {
         tags$div(
           style = "margin-top: 12px; padding: 10px 14px; background: #fff8e1; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 0.9em;",
           tags$strong("Note: "),
-          "The following databases are excluded from birth rate and live birth count",
-          " comparisons because they are patient cohort or hospital-based databases,",
-          " not population-level, making national crude birth rate comparisons invalid:",
+          "Expected live birth counts are calculated as national total live births",
+          " multiplied by the database's population coverage percentage.",
+          " The following databases are hospital-based or patient cohort databases",
+          " for which expected live birth counts are not estimable (shown as NA):",
           tags$ul(
             style = "margin-top: 4px; margin-bottom: 0;",
             lapply(.DB_SKIP_LB_COUNT, function(db) {
@@ -368,13 +369,17 @@ nationalStatsComparisonServer <- function(id, rv) {
 
       d_display <- d %>%
         dplyr::mutate(
-          external_fmt = dplyr::if_else(
-            is.na(.data$external_value), "-",
-            format(.data$external_value, big.mark = ",", scientific = FALSE, trim = TRUE)
+          .is_hospital_lb = grepl("Number of live births", .data$variable) &
+            vapply(.data$cdm_name, .skip_lb_count, logical(1)),
+          external_fmt = dplyr::case_when(
+            .data$.is_hospital_lb ~ "NA",
+            is.na(.data$external_value) ~ "-",
+            TRUE ~ format(.data$external_value, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
-          internal_fmt = dplyr::if_else(
-            is.na(.data$internal_value), "-",
-            format(.data$internal_value, big.mark = ",", scientific = FALSE, trim = TRUE)
+          internal_fmt = dplyr::case_when(
+            .data$.is_hospital_lb ~ "NA",
+            is.na(.data$internal_value) ~ "-",
+            TRUE ~ format(.data$internal_value, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
           numerator_fmt = dplyr::case_when(
             !is.na(.data$numerator_breakdown) ~ .data$numerator_breakdown,
@@ -386,6 +391,7 @@ nationalStatsComparisonServer <- function(id, rv) {
             format(.data$internal_denominator, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
           difference = dplyr::case_when(
+            .data$.is_hospital_lb ~ "NA",
             is.na(.data$external_value) | is.na(.data$internal_value) ~ "-",
             .data$external_value != 0 ~ paste0(
               format(round(.data$diff_abs, 1), big.mark = ",", trim = TRUE),
@@ -453,7 +459,8 @@ nationalStatsComparisonServer <- function(id, rv) {
           "variable" ~ gt::px(220),
           "cdm_name" ~ gt::px(120)
         ) %>%
-        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in algorithm results.")
+        gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in algorithm results.") %>%
+        gt::tab_footnote("Expected live birth counts are calculated as national total multiplied by database population coverage %. Hospital/patient cohort databases are shown as NA (not estimable).")
 
       for (i in seq_len(nrow(d_display))) {
         bg <- .diff_color(d_display$diff_pct_val[i])
@@ -700,22 +707,28 @@ nationalStatsComparisonServer <- function(id, rv) {
       purrr::map_dfr(seq_len(nrow(pairs)), function(i) {
         pair <- list(db = pairs$db[i], country = pairs$country[i])
 
-        natl_lb <- natl %>%
-          dplyr::filter(
-            grepl("Number of live births", .data$variable),
-            .data$country == pair$country,
-            !is.na(.data$value)
-          ) %>%
-          dplyr::transmute(
-            source_label = paste0(pair$country, " (Reference)"),
-            year = .data$year,
-            count = .data$value,
-            source = "Reference",
-            facet_label = paste0(pair$db, " (", pair$country, ")")
-          )
+        coverage_pct <- .resolve_db_coverage(pair$db)
+        skip_lb <- .skip_lb_count(pair$db)
+
+        natl_lb <- tibble::tibble()
+        if (!skip_lb && !is.na(coverage_pct)) {
+          natl_lb <- natl %>%
+            dplyr::filter(
+              grepl("Number of live births", .data$variable),
+              .data$country == pair$country,
+              !is.na(.data$value)
+            ) %>%
+            dplyr::transmute(
+              source_label = paste0(pair$country, " (Expected, ", coverage_pct, "%)"),
+              year = .data$year,
+              count = round(.data$value * coverage_pct / 100),
+              source = "Expected",
+              facet_label = paste0(pair$db, " (", pair$country, ")")
+            )
+        }
 
         int_lb <- tibble::tibble()
-        if (!.skip_lb_count(pair$db) && exists("incidence")) {
+        if (!skip_lb && exists("incidence")) {
           include_deliv <- "DELIV" %in% lb_categories()
           lb_counts <- .extract_lb_counts_from_incidence(incidence, pair$db, include_deliv = include_deliv)
           if (nrow(lb_counts) > 0) {
@@ -744,12 +757,12 @@ nationalStatsComparisonServer <- function(id, rv) {
         ggplot2::geom_bar(stat = "identity", position = "dodge") +
         ggplot2::labs(x = "Year", y = "Count", fill = "Source",
                       title = "Live Births: Algorithms vs. Reference",
-                      caption = "Algorithm result count is live birth episodes from incidence results") +
+                      caption = "Expected = national total * database population coverage %") +
         ggplot2::theme_minimal() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                        plot.title = ggplot2::element_text(hjust = 0.5, size = 11)) +
         ggplot2::scale_y_continuous(labels = scales::comma) +
-        ggplot2::scale_fill_manual(values = c("Reference" = "#377EB8", "Algorithm" = "#E41A1C"))
+        ggplot2::scale_fill_manual(values = c("Expected" = "#377EB8", "Algorithm" = "#E41A1C"))
 
       if (length(unique(d$facet_label)) > 1) {
         p <- p + ggplot2::facet_wrap(~ facet_label, scales = "free_y")
@@ -914,28 +927,30 @@ nationalStatsComparisonServer <- function(id, rv) {
           )
 
         int_fm <- tibble::tibble()
-        if (exists("outcomeCategoriesCount")) {
-          oc <- outcomeCategoriesCount
-          if (!is.null(oc) && nrow(oc) > 0 && "outcome_category" %in% colnames(oc)) {
-            oc_db <- oc %>%
-              dplyr::filter(
-                tolower(.data$cdm_name) == tolower(pair$db) |
-                  grepl(paste0("^", tolower(sub("_v[0-9]+$", "", pair$db))),
-                        tolower(.data$cdm_name)),
-                .data$outcome_category %in% c("SB", lb_categories())
+        include_deliv <- "DELIV" %in% lb_categories()
+        if (exists("prevalence", envir = .GlobalEnv)) {
+          prev <- get("prevalence", envir = .GlobalEnv)
+          fm_sb <- .extract_counts_from_prevalence_by_cohort(prev, pair$db, "^hipps_sb$")
+          fm_denom <- .extract_counts_from_prevalence(prev, pair$db, include_deliv = include_deliv)
+          if (nrow(fm_sb) > 0 && nrow(fm_denom) > 0) {
+            fm_joined <- fm_sb %>%
+              dplyr::select("year", sb_count = "numerator") %>%
+              dplyr::inner_join(
+                fm_denom %>% dplyr::select("year", lb_count = "numerator"),
+                by = "year"
               ) %>%
-              dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
-            sb <- sum(oc_db$n[oc_db$outcome_category == "SB"], na.rm = TRUE)
-            total <- sum(oc_db$n, na.rm = TRUE)
-            if (total > 0) {
-              rate <- round(1000 * sb / total, 1)
-              int_fm <- tibble::tibble(
-                source_label = paste0(pair$db, " (Algorithm, overall)"),
-                year = NA_integer_,
-                value = rate,
-                source = "Algorithm",
-                facet_label = paste0(pair$db, " (", pair$country, ")")
-              )
+              dplyr::mutate(total = .data$sb_count + .data$lb_count) %>%
+              dplyr::filter(.data$total > 0) %>%
+              dplyr::mutate(value = round(1000 * .data$sb_count / .data$total, 1))
+            if (nrow(fm_joined) > 0) {
+              int_fm <- fm_joined %>%
+                dplyr::transmute(
+                  source_label = paste0(pair$db, " (Algorithm, ", .data$year, ")"),
+                  year = .data$year,
+                  value = .data$value,
+                  source = "Algorithm",
+                  facet_label = paste0(pair$db, " (", pair$country, ")")
+                )
             }
           }
         }

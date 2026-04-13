@@ -218,6 +218,9 @@ server <- function(input, output, session) {
   # National statistics comparison
   if (has_national_stats) nationalStatsComparisonServer("national_stats", rv)
 
+  # Quality metrics
+  qualityMetricsServer("quality_metrics", rv)
+
   # Overview (last)
   overviewServer("overview", rv)
 }

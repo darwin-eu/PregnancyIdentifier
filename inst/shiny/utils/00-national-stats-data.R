@@ -254,6 +254,74 @@
   result
 }
 
+# Extract counts from prevalence for a specific outcome cohort pattern.
+# Similar to .extract_counts_from_prevalence but allows arbitrary cohort pattern.
+.extract_counts_from_prevalence_by_cohort <- function(prev, db_names, cohort_pattern) {
+  empty <- tibble::tibble(cdm_name = character(0), year = integer(0),
+                          numerator = numeric(0), denominator_count = numeric(0))
+  if (!is.data.frame(prev) || nrow(prev) == 0) return(empty)
+
+  s <- tryCatch(omopgenerics::settings(prev), error = function(e) NULL)
+  if (is.null(s)) return(empty)
+
+  keep_ids <- s
+  if ("denominator_age_group" %in% colnames(keep_ids)) {
+    keep_ids <- keep_ids %>% dplyr::filter(.data$denominator_age_group == "0 to 150")
+  }
+  if ("denominator_sex" %in% colnames(keep_ids)) {
+    keep_ids <- keep_ids %>% dplyr::filter(.data$denominator_sex == "Both")
+  }
+  if (nrow(keep_ids) == 0) return(empty)
+
+  result_id_col <- if ("result_id" %in% colnames(keep_ids)) "result_id" else "cohort_definition_id"
+  valid_ids <- keep_ids[[result_id_col]]
+
+  p <- prev %>%
+    dplyr::filter(.data[[result_id_col]] %in% valid_ids) %>%
+    dplyr::filter(tolower(.data$cdm_name) %in% tolower(db_names))
+  if (nrow(p) == 0) return(empty)
+
+  p <- tryCatch(p %>% visOmopResults::splitGroup(), error = function(e) p)
+  if (!"outcome_cohort_name" %in% colnames(p)) return(empty)
+
+  p <- p %>% dplyr::filter(grepl(cohort_pattern, .data$outcome_cohort_name))
+  if (nrow(p) == 0) return(empty)
+
+  p <- tryCatch(p %>% visOmopResults::splitAdditional(), error = function(e) p)
+  if (!"prevalence_start_date" %in% colnames(p)) return(empty)
+
+  if ("analysis_interval" %in% colnames(p)) {
+    p <- p %>% dplyr::filter(.data$analysis_interval == "years")
+  }
+
+  p <- p %>%
+    dplyr::mutate(year = suppressWarnings(as.integer(
+      stringr::str_extract(.data$prevalence_start_date, "^[0-9]+")
+    ))) %>%
+    dplyr::filter(!is.na(.data$year))
+
+  outcome_rows <- p %>%
+    dplyr::filter(.data$estimate_name == "outcome_count") %>%
+    dplyr::mutate(numerator = suppressWarnings(as.numeric(.data$estimate_value))) %>%
+    dplyr::filter(!is.na(.data$numerator))
+
+  denom_rows <- p %>%
+    dplyr::filter(.data$estimate_name == "denominator_count") %>%
+    dplyr::mutate(denominator_count = suppressWarnings(as.numeric(.data$estimate_value))) %>%
+    dplyr::filter(!is.na(.data$denominator_count))
+
+  num <- outcome_rows %>%
+    dplyr::group_by(.data$cdm_name, .data$year) %>%
+    dplyr::summarise(numerator = sum(.data$numerator, na.rm = TRUE), .groups = "drop")
+
+  den <- denom_rows %>%
+    dplyr::group_by(.data$cdm_name, .data$year) %>%
+    dplyr::summarise(denominator_count = max(.data$denominator_count, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::filter(is.finite(.data$denominator_count), .data$denominator_count > 0)
+
+  num %>% dplyr::inner_join(den, by = c("cdm_name", "year"))
+}
+
 # ---- Extract yearly LB counts from incidence results ----
 # Source: incidence summarised_result (outcome_count for _lb cohorts)
 # Returns tibble: cdm_name, year, numerator
@@ -369,7 +437,7 @@
 #   - Birth rate (crude): LB count / incidence denominator * 1000
 #   - Maternal age: mean age at first pregnancy start (year-matched)
 #   - Live births per year: from incidence outcome_count for _lb cohorts
-#   - Foetal mortality rate: SB / (SB + LB) * 1000 (overall, all years)
+#   - Foetal mortality rate: hipps_sb / hipps_lb (or + hipps_deliv) * 1000 from prevalence
 #   - Gestational duration: LB distribution across bins (% comparison)
 #   - Mode of delivery: vaginal vs cesarean % among LB
 #
@@ -441,7 +509,7 @@
   # 2b. Crude birth rate (from prevalence: births / population * 1000)
   #     Uses LB or LB+DELIV based on lb_categories selection
   int_crude <- tibble::tibble()
-  crude_rates_all <- if (skip_lb) tibble::tibble() else .build_crude_rates_internal(include_deliv = include_deliv)
+  crude_rates_all <- .build_crude_rates_internal(include_deliv = include_deliv)
   if (nrow(crude_rates_all) > 0) {
     int_crude <- crude_rates_all %>%
       dplyr::filter(
@@ -457,7 +525,7 @@
   #     When include_deliv is TRUE, get LB-only counts separately for breakdown
   int_lb_only <- tibble::tibble()
   int_combined <- tibble::tibble()
-  if (!skip_lb && include_deliv && exists("prevalence", envir = .GlobalEnv)) {
+  if (include_deliv && exists("prevalence", envir = .GlobalEnv)) {
     prev <- get("prevalence", envir = .GlobalEnv)
     lb_only_counts <- .extract_counts_from_prevalence(prev, db_name, include_deliv = FALSE)
     combined_counts <- .extract_counts_from_prevalence(prev, db_name, include_deliv = TRUE)
@@ -471,22 +539,25 @@
     }
   }
 
-  # 3. Foetal mortality rate: SB / (SB + LB) * 1000 from outcomeCategoriesCount
-  int_fm_rate <- NA_real_
-  if (exists("outcomeCategoriesCount")) {
-    oc <- outcomeCategoriesCount
-    if (!is.null(oc) && nrow(oc) > 0 && "outcome_category" %in% colnames(oc)) {
-      oc_db <- oc %>%
-        dplyr::filter(
-          tolower(.data$cdm_name) == tolower(db_name) |
-            grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
-                  tolower(.data$cdm_name)),
-          .data$outcome_category %in% c("SB", lb_categories)
+  # 3. Foetal mortality rate: hipps_sb / (hipps_sb + hipps_lb [+ hipps_deliv]) * 1000
+  #    from prevalence data. Denominator determined by lb_categories dropdown.
+  int_fm <- tibble::tibble()
+  if (exists("prevalence", envir = .GlobalEnv)) {
+    prev <- get("prevalence", envir = .GlobalEnv)
+    # Extract SB counts from prevalence (hipps_sb cohort)
+    int_fm_sb <- .extract_counts_from_prevalence_by_cohort(prev, db_name, "^hipps_sb$")
+    # Extract denominator counts: hipps_lb or hipps_lb + hipps_deliv
+    int_fm_denom <- .extract_counts_from_prevalence(prev, db_name, include_deliv = include_deliv)
+    if (nrow(int_fm_sb) > 0 && nrow(int_fm_denom) > 0) {
+      int_fm <- int_fm_sb %>%
+        dplyr::select("year", sb_count = "numerator") %>%
+        dplyr::inner_join(
+          int_fm_denom %>% dplyr::select("year", lb_count = "numerator"),
+          by = "year"
         ) %>%
-        dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
-      sb <- sum(oc_db$n[oc_db$outcome_category == "SB"], na.rm = TRUE)
-      total <- sum(oc_db$n, na.rm = TRUE)
-      if (total > 0) int_fm_rate <- round(1000 * sb / total, 1)
+        dplyr::mutate(total = .data$sb_count + .data$lb_count) %>%
+        dplyr::filter(.data$total > 0) %>%
+        dplyr::mutate(fm_rate = round(1000 * .data$sb_count / .data$total, 1))
     }
   }
 
@@ -636,7 +707,10 @@
           } else NA_real_
 
         } else if (grepl("Foetal mortality", var)) {
-          int_fm_rate
+          if (nrow(int_fm) > 0) {
+            match_row <- int_fm %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) match_row$fm_rate[1] else NA_real_
+          } else NA_real_
 
         } else {
           NA_real_
@@ -665,19 +739,9 @@
             if (nrow(match_row) > 0) match_row$n[1] else NA_real_
           } else NA_real_
         } else if (grepl("Foetal mortality", var)) {
-          if (exists("outcomeCategoriesCount")) {
-            oc <- outcomeCategoriesCount
-            if (!is.null(oc) && nrow(oc) > 0 && "outcome_category" %in% colnames(oc)) {
-              oc_db <- oc %>%
-                dplyr::filter(
-                  tolower(.data$cdm_name) == tolower(db_name) |
-                    grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
-                          tolower(.data$cdm_name)),
-                  .data$outcome_category == "SB"
-                ) %>%
-                dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
-              sum(oc_db$n, na.rm = TRUE)
-            } else NA_real_
+          if (nrow(int_fm) > 0) {
+            match_row <- int_fm %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) match_row$sb_count[1] else NA_real_
           } else NA_real_
         } else {
           NA_real_
@@ -701,19 +765,9 @@
         } else if (ind == "Gestational duration distribution") {
           if (nrow(int_gest) > 0) sum(int_gest$n, na.rm = TRUE) else NA_real_
         } else if (grepl("Foetal mortality", var)) {
-          if (exists("outcomeCategoriesCount")) {
-            oc <- outcomeCategoriesCount
-            if (!is.null(oc) && nrow(oc) > 0 && "outcome_category" %in% colnames(oc)) {
-              oc_db <- oc %>%
-                dplyr::filter(
-                  tolower(.data$cdm_name) == tolower(db_name) |
-                    grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
-                          tolower(.data$cdm_name)),
-                  .data$outcome_category %in% c("SB", lb_categories)
-                ) %>%
-                dplyr::mutate(n = suppressWarnings(as.numeric(.data$n)))
-              sum(oc_db$n, na.rm = TRUE)
-            } else NA_real_
+          if (nrow(int_fm) > 0) {
+            match_row <- int_fm %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) match_row$total[1] else NA_real_
           } else NA_real_
         } else {
           NA_real_
@@ -767,7 +821,12 @@
           } else "No prevalence data available"
 
         } else if (grepl("Foetal mortality", var)) {
-          if (!is.na(int_fm_rate)) "Overall rate (all years)" else "No outcome data"
+          if (nrow(int_fm) > 0) {
+            match_row <- int_fm %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) {
+              paste0("SB / (SB + ", paste(lb_categories, collapse = " + "), ") * 1000, year ", yr)
+            } else "No data for this year"
+          } else "No prevalence data"
 
         } else {
           ""
@@ -819,6 +878,53 @@
       )
     ) %>%
     dplyr::select(-"external_pct")
+
+  # Adjust live birth count comparison:
+  # - For hospital databases: set to NA (not estimable)
+  # - For databases with known coverage: external = national_total * coverage_pct / 100
+  # - For databases without known coverage: set to NA
+  coverage_pct <- .resolve_db_coverage(db_name)
+  is_lb_row <- grepl("Number of live births", result$variable)
+
+  if (skip_lb) {
+    # Hospital databases: not estimable
+    result <- result %>%
+      dplyr::mutate(
+        external_value = dplyr::if_else(is_lb_row, NA_real_, .data$external_value),
+        internal_value = dplyr::if_else(is_lb_row, NA_real_, .data$internal_value),
+        internal_note = dplyr::if_else(
+          is_lb_row,
+          "Not estimable (hospital/patient cohort database)",
+          .data$internal_note
+        )
+      )
+  } else if (!is.na(coverage_pct)) {
+    # Known coverage: expected = national_total * coverage%
+    result <- result %>%
+      dplyr::mutate(
+        external_value = dplyr::if_else(
+          is_lb_row,
+          round(.data$external_value * coverage_pct / 100),
+          .data$external_value
+        ),
+        variable = dplyr::if_else(
+          is_lb_row,
+          paste0("Expected number of live births per year (", coverage_pct, "% coverage)"),
+          .data$variable
+        )
+      )
+  } else {
+    # Unknown coverage: cannot compare
+    result <- result %>%
+      dplyr::mutate(
+        external_value = dplyr::if_else(is_lb_row, NA_real_, .data$external_value),
+        internal_note = dplyr::if_else(
+          is_lb_row,
+          "Population coverage unknown; expected count not estimable",
+          .data$internal_note
+        )
+      )
+  }
 
   result
 }

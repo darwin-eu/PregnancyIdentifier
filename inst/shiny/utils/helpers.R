@@ -175,7 +175,7 @@ renderPrettyDT <- function(data, filter = "top", pageLength = 25, scrollX = TRUE
   }
   data <- data %>% dplyr::mutate(dplyr::across(dplyr::where(is.character), as.factor))
 
-  pctCols <- grep("pct$|percent|Percent|^%$", colnames(data), value = TRUE)
+  pctCols <- grep("pct$|percent|Percent|^%|^p_", colnames(data), value = TRUE)
   numCols <- colnames(data)[vapply(data, is.numeric, logical(1))]
   numCols <- setdiff(numCols, pctCols)
 

@@ -62,9 +62,9 @@ For each group, the Person-level tab shows:
 
 - **Overview** (this page): Methodology and interpretation.
 - **Person-level agreement:** Person-level Venn diagram and episodes-per-person summary.
-- **Episode level agreement:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both) with sensitivity, PPV, and accuracy.
+- **Episode level agreement:** Venn diagram by database (PET episodes vs algorithm episodes, overlap = both) with sensitivity and PPV.
 - **Alignment of episodes:** Distribution and summary statistics of date differences between matched PET and algorithm episodes. Shows how well start dates, end dates, and durations align, with an option to stratify by algorithm outcome. Requires result files generated with v3.0.6+.
-- **Pregnancy Outcome:** Outcome distribution, accuracy, gestational length, delivery mode, and concept coverage across matched and unmatched episodes.
+- **Pregnancy Outcome:** Outcome distribution, outcome accuracy, gestational length, delivery mode, and concept coverage across matched and unmatched episodes.
 - **LSC:** Large-scale characteristics of unmatched PET episodes.
 - **Summary table:** Cross-database overview of episode counts, sensitivity, PPV, date alignment, and outcome agreement.
 - **All metrics:** Formatted table of all comparison metrics (visOmopResults), with a **Database** filter.
@@ -688,7 +688,7 @@ petComparisonUI <- function(id) {
     tabPanel("Episode level agreement", plot_ui),
     tabPanel("Alignment of episodes", alignment_ui),
     tabPanel("Pregnancy Outcome", unmatched_ui),
-    tabPanel("LSC", lsc_ui),
+    # tabPanel("LSC", lsc_ui),
     tabPanel("Summary table", summary_table_ui),
     tabPanel("All metrics", table_ui),
     tabPanel("Raw results", summarised_ui)
@@ -756,7 +756,7 @@ petComparisonServer <- function(id, rv) {
       amVennDiagram5::amVennDiagram(vd, theme = "default", legendPosition = "bottom")
     })
 
-    # Episode-level metrics: sensitivity, PPV, accuracy
+    # Episode-level metrics: sensitivity, PPV
     ppv_sensitivity_data <- reactive({ r <- result(); if (is.null(r)) return(NULL); extract_ppv_sensitivity_from_sr(r) })
 
     output$episode_metrics_ui <- renderUI({
@@ -781,10 +781,6 @@ petComparisonServer <- function(id, rv) {
         if ("ppv" %in% names(ps_row)) ppv_val <- ps_row$ppv[1]
       }
 
-      # Accuracy = TP / (TP + FP + FN) (TN not defined)
-      denom <- tp + fp + fn
-      acc_val <- if (denom > 0) tp / denom else NA_real_
-
       # Normalise to percentage (values may be 0-1 or 0-100)
       to_pct <- function(x) {
         if (is.na(x)) return(NA_character_)
@@ -804,11 +800,10 @@ petComparisonServer <- function(id, rv) {
       tagList(
         div(style = "display: flex; flex-wrap: wrap; justify-content: center; margin: 16px 0;",
             metric_box("Sensitivity", sens_val),
-            metric_box("PPV", ppv_val),
-            metric_box("Accuracy", acc_val)
+            metric_box("PPV", ppv_val)
         ),
         div(style = "text-align: center; font-size: 0.85em; color: #868e96; margin-bottom: 12px;",
-            "Accuracy = TP / (TP + FP + FN). Specificity and NPV are not defined (no true negatives).")
+            "Specificity and NPV are not defined (no true negatives).")
       )
     })
 

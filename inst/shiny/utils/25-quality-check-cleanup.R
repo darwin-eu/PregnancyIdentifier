@@ -63,7 +63,8 @@ qualityCheckCleanupServer <- function(id, rv) {
         return(NULL)
       }
       d <- d %>% dplyr::filter(.data$cdm_name %in% sel)
-      metric_cols <- setdiff(colnames(d), c("cdm_name", "version"))
+      metric_cols <- setdiff(colnames(d), c("cdm_name", "version", "date_run", "date_export", "pkg_version",
+                                            "records_before_cleanup", "persons_before_cleanup"))
       if (length(metric_cols) == 0) return(NULL)
 
       # Transpose: metrics become rows, cdm_names become columns
