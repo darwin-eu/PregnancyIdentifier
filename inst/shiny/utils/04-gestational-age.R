@@ -7,7 +7,9 @@ gestationalAgeUI <- function(id) {
   outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksSummary$final_outcome_category)), "Overall")) else character(0)
   tagList(
     div(class = "tab-help-text",
-        "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison. Note that this data has been summarized after min cell count suppression so it will not add up to the total number of episodes. Gestational ages with low cell counts have been excluded."),
+      paste("Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison.",
+            "Minor discrepancies between the total number of pregnancy episodes included in plausibility analyses and the total number reported for a given source may be observed because plausibility outputs were produced at the week level, and cells with fewer than 5 occurrences were suppressed to protect privacy.")
+    ),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,
