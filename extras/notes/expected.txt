@@ -1,0 +1,36 @@
+in regional DS, not sure if to directly omit the "number of live births with a NA
+
+or just change to NA
+
+another option is tu use catchment area, if they have it, to estimate the number of livebirths
+
+I can add that and we can add a row such as regional comparison or something...what do you think
+
+For example, in the case of SIDIAP, it should be approx 70.000 births  a year
+
+
+Database, Country, population, % covered by database
+BIFAP Spain	49153000	40%
+SIDIAP Spain	49153000	15%
+CPRD-GOLD UK	 69857066	4.30%
+IPCI	Netherlands 18433503	7%
+InGef	 Germany	 	83644258	9%
+
+
+For the following, number of live births should be NA, as we should NOT COMPARE
+
+Finland: Tampere University Hospital patient cohort (FinOMOP-TaUH Pirha)
+France: Clinical Data Warehouse of Bordeaux University Hospital (CDW Bordeaux)
+Hungary: Semmelweis University Clinical Data (SUCD)
+Portugal: Egas Moniz Health Alliance database - Gaia E Espinho (EMDB-ULSGE)
+Spain: Institut Municipal Assistència Sanitària Information System (IMASIS)
+
+
+Croatia, norway, finland, sweeden, denmark - these are 100%
+
+For other data sources, these are national - so direct comparison:
+
+NAJS, DK-DHR, NLHR, HI-SPEED, FinOMOP-THL
+
+These are hospital (add asterisk stating that they are not population-based, so not comparable)
+IMASIS, SUCD, CDW Bordeaux, FinOMOP - TaUH, EMBD-USLGE

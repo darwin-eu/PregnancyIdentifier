@@ -32,7 +32,7 @@ sidebar <- dashboardSidebar(
     menuItem("Episode duration", icon = icon("clock"),
       menuSubItem("Gestational age weeks", tabName = "gestational_age"),
       menuSubItem("Gestational age binned", tabName = "gestational_age_binned"),
-      menuSubItem("GW plausibility", tabName = "gestational_age_plausibility"),
+      menuSubItem("Gestational age plausibility", tabName = "gestational_age_plausibility"),
       menuSubItem("Gestational age by category", tabName = "gestational_age_days"),
       menuSubItem("Temporal patterns", tabName = "temporal_patterns")
     ),
@@ -50,6 +50,9 @@ sidebar <- dashboardSidebar(
       menuSubItem("Mode of delivery by year", tabName = "delivery_mode_by_year"),
       menuSubItem("Outcome categories", tabName = "outcome_categories")
     ),
+
+    # Quality metrics
+    menuItem("Summary QC metrics", tabName = "quality_metrics", icon = icon("table")),
 
     # Cohort Characteristics (conditional)
     if (has_characteristics) menuItem("Cohort Characteristics", tabName = "characteristics", icon = icon("users")),
@@ -99,8 +102,6 @@ sidebar <- dashboardSidebar(
     # National statistics comparison (conditional)
     if (has_national_stats) menuItem("National stats comparison", tabName = "national_stats", icon = icon("globe")),
 
-    # Quality metrics
-    menuItem("Quality metrics", tabName = "quality_metrics", icon = icon("table")),
 
     # Overview (last)
     menuItem("Overview", tabName = "overview", icon = icon("th-large"))

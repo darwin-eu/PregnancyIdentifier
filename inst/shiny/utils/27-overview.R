@@ -10,6 +10,10 @@ overviewUI <- function(id) {
       hr(),
       uiOutput(ns("summary")) %>% withSpinner(),
       hr(),
+      h3("National Statistics: Population Coverage"),
+      p(style = "color: #555;", "Expected percentage of national population covered by each database, used for live birth count comparisons."),
+      uiOutput(ns("coverage_table")),
+      hr(),
       h3("Data availability"),
       p(style = "color: #555;", "Which result tables have data for each database."),
       DT::DTOutput(ns("dataSummary")) %>% withSpinner(),
@@ -114,6 +118,47 @@ overviewServer <- function(id, rv) {
             lapply(rv$allDP, function(dp) tags$li(strong(dp)))
           )
         )
+      )
+    })
+
+    output$coverage_table <- renderUI({
+      dbs <- rv$allDP
+      if (is.null(dbs) || length(dbs) == 0) return(p("No databases loaded."))
+
+      # Build coverage info for each unique database (strip version suffix)
+      seen <- character(0)
+      rows <- list()
+      for (db in sort(dbs)) {
+        base <- sub("_v[0-9]+$", "", db)
+        if (base %in% seen) next
+        seen <- c(seen, base)
+        country <- .resolve_db_country(db)
+        coverage <- .resolve_db_coverage(db)
+        skip <- .skip_lb_count(db)
+        cov_label <- if (skip) {
+          "N/A (hospital/patient cohort)"
+        } else if (is.na(coverage)) {
+          "Unknown"
+        } else {
+          paste0(coverage, "%")
+        }
+        rows[[length(rows) + 1]] <- tags$tr(
+          tags$td(style = "padding: 4px 12px;", base),
+          tags$td(style = "padding: 4px 12px;", if (is.na(country)) "\u2014" else country),
+          tags$td(style = "padding: 4px 12px;", cov_label)
+        )
+      }
+
+      tags$table(
+        style = "border-collapse: collapse; margin-bottom: 15px;",
+        tags$thead(
+          tags$tr(
+            tags$th(style = "padding: 4px 12px; border-bottom: 2px solid #ccc; text-align: left;", "Database"),
+            tags$th(style = "padding: 4px 12px; border-bottom: 2px solid #ccc; text-align: left;", "Country"),
+            tags$th(style = "padding: 4px 12px; border-bottom: 2px solid #ccc; text-align: left;", "% Pop. Covered")
+          )
+        ),
+        tags$tbody(rows)
       )
     })
 

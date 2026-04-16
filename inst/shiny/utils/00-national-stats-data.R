@@ -58,7 +58,12 @@
   "cprd-gold"  = 4.3,
   "cprd"       = 4.3,
   "ipci"       = 7.0,
-  "ingef"      = 9.0
+  "ingef"      = 9.0,
+  "najs"       = 100.0,
+  "dk-dhr"     = 100.0,
+  "nlhr"       = 100.0,
+  "hi-speed"   = 100.0,
+  "finomop-thl" = 100.0
 )
 
 # Resolve a database cdm_name to its expected population coverage (%).
@@ -728,10 +733,7 @@
             if (nrow(match_row) > 0) match_row$numerator[1] else NA_real_
           } else NA_real_
         } else if (grepl("Number of live births", var)) {
-          if (nrow(int_trend) > 0) {
-            match_row <- int_trend %>% dplyr::filter(.data$year == yr)
-            if (nrow(match_row) > 0) match_row$count[1] else NA_real_
-          } else NA_real_
+          NA_real_
         } else if (ind == "Gestational duration distribution") {
           if (nrow(int_gest) > 0) {
             natl_bin <- dplyr::case_when(.data$level == "\u226542" ~ ">=42", TRUE ~ .data$level)
@@ -758,10 +760,7 @@
             if (nrow(match_row) > 0) match_row$denominator_count[1] else NA_real_
           } else NA_real_
         } else if (grepl("Number of live births", var)) {
-          if (nrow(int_trend) > 0 && "denominator_count" %in% colnames(int_trend)) {
-            match_row <- int_trend %>% dplyr::filter(.data$year == yr)
-            if (nrow(match_row) > 0) match_row$denominator_count[1] else NA_real_
-          } else NA_real_
+          NA_real_
         } else if (ind == "Gestational duration distribution") {
           if (nrow(int_gest) > 0) sum(int_gest$n, na.rm = TRUE) else NA_real_
         } else if (grepl("Foetal mortality", var)) {
@@ -880,25 +879,12 @@
     dplyr::select(-"external_pct")
 
   # Adjust live birth count comparison:
-  # - For hospital databases: set to NA (not estimable)
-  # - For databases with known coverage: external = national_total * coverage_pct / 100
-  # - For databases without known coverage: set to NA
+  # Scale reference value by population coverage when known.
+  # Always show both reference and algorithm values regardless of database type.
   coverage_pct <- .resolve_db_coverage(db_name)
   is_lb_row <- grepl("Number of live births", result$variable)
 
-  if (skip_lb) {
-    # Hospital databases: not estimable
-    result <- result %>%
-      dplyr::mutate(
-        external_value = dplyr::if_else(is_lb_row, NA_real_, .data$external_value),
-        internal_value = dplyr::if_else(is_lb_row, NA_real_, .data$internal_value),
-        internal_note = dplyr::if_else(
-          is_lb_row,
-          "Not estimable (hospital/patient cohort database)",
-          .data$internal_note
-        )
-      )
-  } else if (!is.na(coverage_pct)) {
+  if (!is.na(coverage_pct)) {
     # Known coverage: expected = national_total * coverage%
     result <- result %>%
       dplyr::mutate(
@@ -909,19 +895,8 @@
         ),
         variable = dplyr::if_else(
           is_lb_row,
-          paste0("Expected number of live births per year (", coverage_pct, "% coverage)"),
+          "Number of live births per year",
           .data$variable
-        )
-      )
-  } else {
-    # Unknown coverage: cannot compare
-    result <- result %>%
-      dplyr::mutate(
-        external_value = dplyr::if_else(is_lb_row, NA_real_, .data$external_value),
-        internal_note = dplyr::if_else(
-          is_lb_row,
-          "Population coverage unknown; expected count not estimable",
-          .data$internal_note
         )
       )
   }

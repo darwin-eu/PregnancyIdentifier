@@ -1,5 +1,16 @@
 # utils.R - Shared utility functions
 
+# Standardize cdm_name values across package versions.
+# Keys are lowercased raw names; values are the canonical form used in the app.
+.CDM_NAME_MAP <- c(
+  "cdwbordeaux"        = "cdw bordeaux",
+  "thlomop"            = "finomop-thl",
+  "tauh"               = "finomop-tauh",
+  "finomop-tauh pirha" = "finomop-tauh",
+  "ingef rdb"          = "ingef",
+  "ingef_rdb"          = "ingef"
+)
+
 #' Plotly placeholder when there is no data to display
 emptyPlotlyMessage <- function(message = "No data to display.") {
   plotly::plot_ly() %>%
@@ -110,14 +121,20 @@ readResults <- function(dataFolder, regex, reader = c("summarised_result", "csv"
     # Apply version suffix and cdm_name normalization
     if ("cdm_name" %in% colnames(res)) {
       res$cdm_name <- ifelse(res$cdm_name == "cdm", "EMBD-ULSGE", res$cdm_name)
-      res$cdm_name <- tolower(paste0(res$cdm_name, versionSuffix))
+      res$cdm_name <- tolower(res$cdm_name)
+      mapped <- .CDM_NAME_MAP[res$cdm_name]
+      res$cdm_name <- ifelse(!is.na(mapped), mapped, res$cdm_name)
+      res$cdm_name <- paste0(res$cdm_name, versionSuffix)
 
       # For summarised_result objects, also update cdm_name in settings
       if (reader == "summarised_result") {
         s <- omopgenerics::settings(res)
         if ("cdm_name" %in% colnames(s)) {
           s$cdm_name <- ifelse(s$cdm_name == "cdm", "EMBD-ULSGE", s$cdm_name)
-          s$cdm_name <- tolower(paste0(s$cdm_name, versionSuffix))
+          s$cdm_name <- tolower(s$cdm_name)
+          mapped_s <- .CDM_NAME_MAP[s$cdm_name]
+          s$cdm_name <- ifelse(!is.na(mapped_s), mapped_s, s$cdm_name)
+          s$cdm_name <- paste0(s$cdm_name, versionSuffix)
           attr(res, "settings") <- s
         }
       }

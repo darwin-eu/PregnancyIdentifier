@@ -7,7 +7,7 @@ gestationalAgeUI <- function(id) {
   outcomeChoices <- if (hasOutcome) sort(c(unique(as.character(gestationalWeeksSummary$final_outcome_category)), "Overall")) else character(0)
   tagList(
     div(class = "tab-help-text",
-        "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison."),
+        "Distribution of gestational age by week. Used for gestational-age histograms, preterm/term summaries, and cross-site comparison. Note that this data has been summarized after min cell count suppression so it will not add up to the total number of episodes. Gestational ages with low cell counts have been excluded."),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,
@@ -68,6 +68,10 @@ gestationalAgeServer <- function(id, rv) {
     getData <- reactive({
       data <- rv$gestationalWeeksSummary
 
+      # supress low cell counts
+      data <- data %>%
+        mutate(n = ifelse(n < 5, NA_real_, n))
+
       if (is.null(data) || nrow(data) == 0) return(data.frame())
 
       # Apply min/max weeks filter
@@ -118,29 +122,11 @@ gestationalAgeServer <- function(id, rv) {
         data <- data %>% dplyr::mutate(`log(n)` = log1p(as.numeric(.data$n)))
       }
 
-      plot_labeller <- NULL
-      if (!is.null(rv$gestationalAgeDaysCounts) && is.data.frame(rv$gestationalAgeDaysCounts) && nrow(rv$gestationalAgeDaysCounts) > 0) {
-        cdmCols <- setdiff(colnames(rv$gestationalAgeDaysCounts), "name")
-        if (length(cdmCols) > 0) {
-          gaDaysCounts <- rv$gestationalAgeDaysCounts
-          plot_labeller <- ggplot2::as_labeller(function(x) {
-            vapply(x, function(val) {
-              if (!val %in% cdmCols) return(val)
-              dpData <- gaDaysCounts %>% dplyr::select(dplyr::all_of(c("name", val)))
-              less1day <- dpData %>% dplyr::filter(.data$name == "less_1day") %>% dplyr::pull(2)
-              over308 <- dpData %>% dplyr::filter(.data$name == "over_308days") %>% dplyr::pull(2)
-              as.character(glue::glue("{val} - <1d: {less1day}, >308d: {over308}"))
-            }, character(1))
-          })
-        }
-      }
-
       plotArgs <- list(
         data = data,
         xVar = "gestational_weeks",
         yVar = yVar,
         facetVar = "cdm_name",
-        labelFunction = plot_labeller,
         label = "n",
         xLabel = "Weeks",
         yLabel = yVar,

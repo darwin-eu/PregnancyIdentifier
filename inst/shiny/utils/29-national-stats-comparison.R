@@ -32,6 +32,9 @@ nationalStatsComparisonUI <- function(id) {
                             options = list(`actions-box` = TRUE))),
       column(3, uiOutput(ns("country_display")))
     ),
+    fluidRow(
+      column(3, checkboxInput(ns("show_num_denom"), "Show numerator/denominator", value = FALSE))
+    ),
 
     # ---- Sub-tabs ----
     tabsetPanel(
@@ -367,18 +370,21 @@ nationalStatsComparisonServer <- function(id, rv) {
       d <- filtered_data()
       validate(need(nrow(d) > 0, "No comparison data available. Check database and metric selections."))
 
+      # Symbols for missing data reasons (used in footnotes)
+      # \u2020 = dagger, \u2021 = double dagger
+      sym_no_ref  <- "\u2020"   # no reference data for this year/metric
+      sym_no_algo <- "\u2021"   # no algorithm data for this year/metric
+
       d_display <- d %>%
         dplyr::mutate(
-          .is_hospital_lb = grepl("Number of live births", .data$variable) &
-            vapply(.data$cdm_name, .skip_lb_count, logical(1)),
           external_fmt = dplyr::case_when(
-            .data$.is_hospital_lb ~ "NA",
-            is.na(.data$external_value) ~ "-",
+            is.na(.data$external_value) & !is.na(.data$internal_value) ~ sym_no_ref,
+            is.na(.data$external_value) ~ sym_no_ref,
             TRUE ~ format(.data$external_value, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
           internal_fmt = dplyr::case_when(
-            .data$.is_hospital_lb ~ "NA",
-            is.na(.data$internal_value) ~ "-",
+            is.na(.data$internal_value) & !is.na(.data$external_value) ~ sym_no_algo,
+            is.na(.data$internal_value) ~ sym_no_algo,
             TRUE ~ format(.data$internal_value, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
           numerator_fmt = dplyr::case_when(
@@ -391,7 +397,6 @@ nationalStatsComparisonServer <- function(id, rv) {
             format(.data$internal_denominator, big.mark = ",", scientific = FALSE, trim = TRUE)
           ),
           difference = dplyr::case_when(
-            .data$.is_hospital_lb ~ "NA",
             is.na(.data$external_value) | is.na(.data$internal_value) ~ "-",
             .data$external_value != 0 ~ paste0(
               format(round(.data$diff_abs, 1), big.mark = ",", trim = TRUE),
@@ -414,9 +419,19 @@ nationalStatsComparisonServer <- function(id, rv) {
           "external_fmt", "internal_fmt", "numerator_fmt", "denominator_fmt",
           "difference", "diff_pct_val"
         ) %>%
-        dplyr::arrange(.data$indicator, .data$variable, .data$level, .data$year, .data$cdm_name)
+        dplyr::mutate(
+          .level_order = factor(
+            dplyr::if_else(is.na(.data$level) | !nzchar(.data$level), "(none)", .data$level),
+            levels = c("<32", "32-36", "37-38", "39-41", "\u226542",
+                       "Vaginal", "C-section", "(none)")
+          )
+        ) %>%
+        dplyr::arrange(.data$cdm_name, .data$variable, .data$.level_order, .data$year) %>%
+        dplyr::select(-".level_order")
 
       show_lb_col <- both_lb_defs() && "live_birth_definition" %in% names(d_display)
+
+      show_num_denom <- isTRUE(input$show_num_denom)
 
       tbl <- gt::gt(d_display) %>%
         gt::tab_header(
@@ -442,9 +457,13 @@ nationalStatsComparisonServer <- function(id, rv) {
       if (show_lb_col) {
         col_labels[["live_birth_definition"]] <- "Live Birth Definition"
       }
+      hide_cols <- c("diff_pct_val", "expected_coverage", "indicator")
+      if (!show_num_denom) {
+        hide_cols <- c(hide_cols, "numerator_fmt", "denominator_fmt")
+      }
       tbl <- tbl %>%
         gt::cols_label(.list = col_labels) %>%
-        gt::cols_hide("diff_pct_val") %>%
+        gt::cols_hide(columns = hide_cols) %>%
         gt::tab_style(
           style = gt::cell_fill(color = "#f0f7ff"),
           locations = gt::cells_body(columns = "external_fmt")
@@ -460,7 +479,9 @@ nationalStatsComparisonServer <- function(id, rv) {
           "cdm_name" ~ gt::px(120)
         ) %>%
         gt::tab_footnote("308 days (44 weeks) is counted as 43 weeks in algorithm results.") %>%
-        gt::tab_footnote("Expected live birth counts are calculated as national total multiplied by database population coverage %. Hospital/patient cohort databases are shown as NA (not estimable).")
+        gt::tab_footnote("Expected live birth counts are calculated as national total multiplied by database population coverage %.") %>%
+        gt::tab_footnote(paste0(sym_no_ref, " No reference data available for this year/metric.")) %>%
+        gt::tab_footnote(paste0(sym_no_algo, " No algorithm data available for this year/metric (database may not cover this period)."))
 
       for (i in seq_len(nrow(d_display))) {
         bg <- .diff_color(d_display$diff_pct_val[i])
@@ -708,10 +729,9 @@ nationalStatsComparisonServer <- function(id, rv) {
         pair <- list(db = pairs$db[i], country = pairs$country[i])
 
         coverage_pct <- .resolve_db_coverage(pair$db)
-        skip_lb <- .skip_lb_count(pair$db)
 
         natl_lb <- tibble::tibble()
-        if (!skip_lb && !is.na(coverage_pct)) {
+        if (!is.na(coverage_pct)) {
           natl_lb <- natl %>%
             dplyr::filter(
               grepl("Number of live births", .data$variable),
@@ -728,7 +748,7 @@ nationalStatsComparisonServer <- function(id, rv) {
         }
 
         int_lb <- tibble::tibble()
-        if (!skip_lb && exists("incidence")) {
+        if (exists("incidence")) {
           include_deliv <- "DELIV" %in% lb_categories()
           lb_counts <- .extract_lb_counts_from_incidence(incidence, pair$db, include_deliv = include_deliv)
           if (nrow(lb_counts) > 0) {

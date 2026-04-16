@@ -7,7 +7,7 @@ qualityMetricsUI <- function(id) {
   ns <- NS(id)
   tagList(
     h3("Episode Quality Metrics"),
-    p("Summary quality metrics across databases, computed from the same data used in the app."),
+    p("Summary quality metrics across databases and alogorithm versions."),
     br(),
     gt::gt_output(ns("quality_table")) %>% withSpinner(type = 6),
     br(),
@@ -31,13 +31,17 @@ qualityMetricsServer <- function(id, rv) {
 
       purrr::map_dfr(allDP, function(db) {
 
-        # --- Total episodes: from overlap counts (total column) ---
+        # --- Total episodes: from hipps outcome categories (sum of all n) ---
+        # Matches the episode frequency tab which uses episode_frequency.csv
         total_episodes <- NA_integer_
-        if (!is.null(overlap) && nrow(overlap) > 0 && "total" %in% colnames(overlap)) {
-          ov_db <- overlap %>%
+        if (!is.null(oc) && nrow(oc) > 0 &&
+            "algorithm" %in% colnames(oc) && "n" %in% colnames(oc)) {
+          oc_db <- oc %>%
             dplyr::filter(.data$cdm_name == db)
-          if (nrow(ov_db) > 0) {
-            total_episodes <- as.integer(max(ov_db$total, na.rm = TRUE))
+          algo_ep <- if ("hipps" %in% oc_db$algorithm) "hipps" else "hip"
+          oc_ep <- oc_db %>% dplyr::filter(.data$algorithm == algo_ep)
+          if (nrow(oc_ep) > 0) {
+            total_episodes <- as.integer(sum(oc_ep$n, na.rm = TRUE))
           }
         }
 
@@ -80,14 +84,14 @@ qualityMetricsServer <- function(id, rv) {
           }
         }
 
-        # --- Outcome categories: DELIV % and PREG % (hip or hipps algorithm) ---
+        # --- Outcome categories: DELIV % and PREG % (hipps algorithm) ---
         pct_deliv <- NA_real_
         pct_preg <- NA_real_
         if (!is.null(oc) && nrow(oc) > 0 &&
             "algorithm" %in% colnames(oc) && "outcome_category" %in% colnames(oc)) {
           oc_db <- oc %>%
             dplyr::filter(.data$cdm_name == db)
-          algo <- if ("hip" %in% oc_db$algorithm) "hip" else "hipps"
+          algo <- if ("hipps" %in% oc_db$algorithm) "hipps" else "hip"
           oc_algo <- oc_db %>% dplyr::filter(.data$algorithm == algo)
 
           if (nrow(oc_algo) > 0) {
@@ -124,6 +128,17 @@ qualityMetricsServer <- function(id, rv) {
       validate(need(nrow(d) > 0, "No quality metrics data available."))
 
       tbl <- d %>%
+        arrange(database) %>%
+        select(
+          database,
+          total_episodes,
+          pct_plausible,
+          pct_over_364,
+          pct_overlap,
+          pct_preg,
+          pct_deliv,
+          pct_deliv_preg
+        ) %>%
         gt::gt() %>%
         gt::cols_label(
           database        = "Database",
@@ -131,9 +146,9 @@ qualityMetricsServer <- function(id, rv) {
           pct_plausible   = "Plausible (0\u2013308d)",
           pct_over_364    = ">52 weeks",
           pct_overlap     = "Overlapping",
-          pct_deliv       = "DELIV",
           pct_preg        = "PREG",
-          pct_deliv_preg  = "DELIV+PREG"
+          pct_deliv       = "DELIV",
+          pct_deliv_preg  = "PREG+DELIV"
         ) %>%
         gt::fmt_integer(columns = "total_episodes") %>%
         gt::fmt_number(
@@ -152,11 +167,11 @@ qualityMetricsServer <- function(id, rv) {
         ) %>%
         gt::tab_spanner(
           label = "Outcome (%)",
-          columns = c("pct_deliv", "pct_preg", "pct_deliv_preg")
+          columns = c("pct_preg", "pct_deliv", "pct_deliv_preg")
         ) %>%
         gt::tab_header(
           title = "Episode Quality Metrics",
-          subtitle = "Quality metrics across databases (computed from app data)"
+          subtitle = "Quality metrics across databases"
         ) %>%
         gt::tab_footnote(
           footnote = "Plausible: episode duration \u2265 0 and \u2264 308 days (gestational weeks \u2264 44).",
@@ -171,7 +186,7 @@ qualityMetricsServer <- function(id, rv) {
           locations = gt::cells_column_labels(columns = "pct_overlap")
         ) %>%
         gt::tab_footnote(
-          footnote = "DELIV: 'DELIV' outcome category (HIP algorithm). PREG: ongoing/unresolved pregnancy outcome.",
+          footnote = "DELIV: 'DELIV' outcome category (HIPPS algorithm). PREG: ongoing/unresolved pregnancy outcome.",
           locations = gt::cells_column_spanners(spanners = "Outcome (%)")
         ) %>%
         gt::sub_missing(missing_text = "\u2014") %>%
