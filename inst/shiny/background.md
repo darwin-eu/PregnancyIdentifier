@@ -2,6 +2,8 @@
 
 DARWIN EU® - PeriNet - Objective 2: Optimising and validating OMOP pregnancy algorithms for data sources with pregnancy-related data within the DARWIN EU® Data Network
 
+EUPAS: EUPAS1000000812
+
 **Research question**
 
 Can algorithm-based inference of pregnancy episodes and outcomes be reliably applied across different populations and healthcare settings within the DARWIN EU® Data Network?
