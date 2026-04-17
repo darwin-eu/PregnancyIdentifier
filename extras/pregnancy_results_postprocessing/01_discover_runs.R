@@ -33,9 +33,32 @@ find_study_dir <- function(ip_dir) {
   study_map <- build_study_map(parent)
   if (length(study_map) > 0) return(list(dir = parent, map = study_map))
 
-  # 3. Sibling directories (e.g., ip-results in one subdir, study-results in another)
+  # 3. Sibling directories (e.g., ip-results in one subdir, study-results in another).
+  # Rank siblings by name similarity to the ip-results folder so that a same-date
+  # (or same-stem) study folder is preferred over an alphabetically-earlier one.
   siblings <- list.dirs(parent, recursive = FALSE, full.names = TRUE)
   siblings <- setdiff(siblings, ip_dir)
+  if (length(siblings) > 0) {
+    ip_base <- basename(ip_dir)
+    # Direct sibling name = swap "ip-results" -> "results" in the ip folder name
+    expected_study_name <- str_replace(ip_base, "ip[-_]results", "results")
+    # Stem = ip folder name with the "-ip-results"/"_ip-results"/" ip-results" suffix
+    # (and any trailing copy-suffix like " 2") stripped. Used for prefix matching.
+    stem <- str_replace(ip_base, "[-_ ]ip[-_]results.*$", "")
+    ip_date <- str_extract(ip_base, "\\d{4}-\\d{2}-\\d{2}")
+    score <- map_int(siblings, function(sib) {
+      sib_base <- basename(sib)
+      # 3 = exact name swap (e.g. 2025-12-18-...-ip-results <-> 2025-12-18-...-results)
+      if (sib_base == expected_study_name) return(3L)
+      # 2 = sibling name shares the full stem (allows extra trailing tokens)
+      if (nchar(stem) > 0 && startsWith(sib_base, stem)) return(2L)
+      # 1 = sibling shares the run-date prefix
+      sib_date <- str_extract(sib_base, "\\d{4}-\\d{2}-\\d{2}")
+      if (!is.na(ip_date) && !is.na(sib_date) && ip_date == sib_date) return(1L)
+      0L
+    })
+    siblings <- siblings[order(-score)]
+  }
   for (sib in siblings) {
     study_map <- build_study_map(sib)
     if (length(study_map) > 0) return(list(dir = sib, map = study_map))
