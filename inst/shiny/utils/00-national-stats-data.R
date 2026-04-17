@@ -616,13 +616,14 @@
     }
   }
 
-  # 5. Delivery mode (% by mode)
-  #    Source: deliveryModeSummary aggregated by mode
+  # 5. Delivery mode (% by mode, by year)
+  #    Source: deliveryModeByYear (year-specific so it can be matched to the
+  #    year in the national statistics reference data)
   int_dm <- tibble::tibble()
-  if (exists("deliveryModeSummary")) {
-    dms <- deliveryModeSummary
-    if (!is.null(dms) && nrow(dms) > 0) {
-      dm_db <- dms %>%
+  if (exists("deliveryModeByYear")) {
+    dmy <- deliveryModeByYear
+    if (!is.null(dmy) && nrow(dmy) > 0) {
+      dm_db <- dmy %>%
         dplyr::filter(
           tolower(.data$cdm_name) == tolower(db_name) |
             grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
@@ -634,21 +635,23 @@
       }
       dm_db <- dm_db %>%
         dplyr::mutate(
+          year = suppressWarnings(as.integer(.data$year)),
           n = suppressWarnings(as.numeric(.data$n)),
           pct = suppressWarnings(as.numeric(.data$pct))
-        )
+        ) %>%
+        dplyr::filter(!is.na(.data$year))
 
       if ("n_known" %in% colnames(dm_db)) {
         dm_db <- dm_db %>%
           dplyr::mutate(n_known = suppressWarnings(as.numeric(.data$n_known))) %>%
-          dplyr::group_by(.data$mode) %>%
+          dplyr::group_by(.data$year, .data$mode) %>%
           dplyr::summarise(n = sum(.data$n, na.rm = TRUE),
                             n_known = sum(.data$n_known, na.rm = TRUE),
                             .groups = "drop") %>%
           dplyr::mutate(pct = round(100 * .data$n / .data$n_known, 1))
       } else {
         dm_db <- dm_db %>%
-          dplyr::group_by(.data$mode) %>%
+          dplyr::group_by(.data$year, .data$mode) %>%
           dplyr::summarise(pct = mean(.data$pct, na.rm = TRUE), .groups = "drop") %>%
           dplyr::mutate(pct = round(.data$pct, 1))
       }
@@ -658,7 +661,7 @@
           tolower(.data$mode) == "cesarean"  ~ "Cesarean",
           TRUE ~ .data$mode
         )) %>%
-        dplyr::select("mode", "pct")
+        dplyr::select("year", "mode", "pct")
     }
   }
 
@@ -689,7 +692,8 @@
               tolower(lvl) == "c-section" ~ "Cesarean",
               TRUE ~ lvl
             )
-            match_row <- int_dm %>% dplyr::filter(.data$mode == mode_match)
+            match_row <- int_dm %>%
+              dplyr::filter(.data$mode == mode_match, .data$year == yr)
             if (nrow(match_row) > 0) match_row$pct[1] else NA_real_
           } else NA_real_
 
@@ -795,7 +799,10 @@
           } else "No gestational data"
 
         } else if (ind == "Mode of delivery") {
-          if (nrow(int_dm) > 0) "Overall (all years, LB)" else "No delivery mode data"
+          if (nrow(int_dm) > 0) {
+            match_row <- int_dm %>% dplyr::filter(.data$year == yr)
+            if (nrow(match_row) > 0) paste0("Year-matched (", yr, ")") else "No data for this year"
+          } else "No delivery mode data"
 
         } else if (grepl("Mean age", var)) {
           if (nrow(int_age) > 0) {
@@ -1006,10 +1013,10 @@
     )
 
   int_dm <- tibble::tibble()
-  if (exists("deliveryModeSummary")) {
-    dms <- deliveryModeSummary
-    if (!is.null(dms) && nrow(dms) > 0) {
-      dm_db <- dms %>%
+  if (exists("deliveryModeByYear")) {
+    dmy <- deliveryModeByYear
+    if (!is.null(dmy) && nrow(dmy) > 0) {
+      dm_db <- dmy %>%
         dplyr::filter(
           tolower(.data$cdm_name) == tolower(db_name) |
             grepl(paste0("^", tolower(sub("_v[0-9]+$", "", db_name))),
@@ -1021,21 +1028,24 @@
       }
       dm_db <- dm_db %>%
         dplyr::mutate(
+          year = suppressWarnings(as.integer(.data$year)),
           n = suppressWarnings(as.numeric(.data$n)),
           pct = suppressWarnings(as.numeric(.data$pct))
-        )
+        ) %>%
+        dplyr::filter(!is.na(.data$year),
+                      .data$year %in% natl_dm$year)
 
       if ("n_known" %in% colnames(dm_db)) {
         dm_db <- dm_db %>%
           dplyr::mutate(n_known = suppressWarnings(as.numeric(.data$n_known))) %>%
-          dplyr::group_by(.data$mode) %>%
+          dplyr::group_by(.data$year, .data$mode) %>%
           dplyr::summarise(n = sum(.data$n, na.rm = TRUE),
                             n_known = sum(.data$n_known, na.rm = TRUE),
                             .groups = "drop") %>%
           dplyr::mutate(pct = round(100 * .data$n / .data$n_known, 1))
       } else {
         dm_db <- dm_db %>%
-          dplyr::group_by(.data$mode) %>%
+          dplyr::group_by(.data$year, .data$mode) %>%
           dplyr::summarise(pct = mean(.data$pct, na.rm = TRUE), .groups = "drop") %>%
           dplyr::mutate(pct = round(.data$pct, 1))
       }
@@ -1047,9 +1057,8 @@
             tolower(.data$mode) == "cesarean"  ~ "Cesarean",
             TRUE ~ .data$mode
           ),
-          year = NA_integer_,
           source = "Algorithm",
-          label = paste0(db_name, " (Algorithm, ", lb_label, ")")
+          label = paste0(db_name, " (Algorithm, ", .data$year, ", ", lb_label, ")")
         ) %>%
         dplyr::select("mode", "year", "pct", "source", "label")
     }
