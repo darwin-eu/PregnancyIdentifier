@@ -40,8 +40,14 @@ This section compares **pregnancy episodes from the PregnancyIdentifier algorith
 | **Duration difference** | For matched pairs: PET duration minus algorithm duration (days). Positive = algorithm episodes are shorter, negative = algorithm episodes are longer. |
 | **Date differences by outcome** | Same start/end/duration differences stratified by algorithm outcome category (LB, SB, SA, AB, PREG, etc.). Useful because different outcomes have very different expected durations. |
 | **Confusion 2x2** | Counts for TP, FN, FP; TN is not defined (no gold-standard negatives). |
-| **Outcome accuracy** | Among matched pairs, how often the algorithm outcome category agrees with the PET outcome. |
+| **Outcome accuracy/agreement of specific outcomes** | Among matched pairs with outcomes: live birth, spontaneous abortion, elective/induced abortion, stillbirth; how often does the algorithm outcome category agree with the PET outcome? |
 | **Duration** | Distribution of pregnancy duration (days) for PET and algorithm episodes; for matched pairs, duration of PET vs algorithm. |
+
+
+**Further note on outcome accuracy:** Outcome agreement was assessed only for outcome categories represented in both the PET and the HIPPS algorithm.
+These outcomes are live birth, spontaneous abortion, elective/induced abortion, and stillbirth.
+Episodes classified as Unknown or ECT (ectopic pregnancy) were excluded because corresponding PET categories were not available.
+Therefore, agreement estimates apply to the subset of comparable outcomes and may overestimate agreement for all identified episodes.
 
 ---
 

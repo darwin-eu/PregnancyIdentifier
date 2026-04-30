@@ -57,7 +57,7 @@ if (!exists(".dbWriteTableSafe", where = asNamespace("CDMConnector"))) {
 message("CDMConnector Spark fix verified.")
 
 # ---- Connect to Spark/Databricks --------------------------------------------
-con <- DBI::dbConnect(odbc::odbc(),
+con <- DBI::dbConnect(odbc::databricks(),
                       Driver          = "Simba Spark ODBC Driver",
                       Host            = "adb-8258457304257519.19.azuredatabricks.net",
                       Port            = 443,

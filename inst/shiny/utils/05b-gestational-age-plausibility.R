@@ -10,7 +10,8 @@ gestationalAgePlausibilityUI <- function(id) {
     div(class = "tab-help-text",
         "Binary plausibility check for gestational age: episodes with gestational duration \u226444 weeks are classified as ",
         tags$b("plausible"), ", those >44 weeks as ", tags$b("implausible"),
-        ". Percentages are calculated per database", if (hasOutcome) " and outcome category", "."),
+        ". Percentages are calculated per database", if (hasOutcome) " and outcome category", ".",
+        "Note: Minor discrepancies between the total number of pregnancy episodes included in plausibility analyses and the total number reported for a given source may be observed because plausibility outputs were produced at the week level, and cells with fewer than 5 occurrences were suppressed to protect privacy."),
     fluidRow(
       column(3, shinyWidgets::pickerInput(ns("cdm"), "Database",
                                           choices = allDP, selected = allDP,

@@ -14,17 +14,17 @@ This study aims to evaluate the reliability of inferring pregnancy episodes and 
 
 The specific objectives of this study are:
 
-* 2.1 To describe existing published pregnancy algorithms that have been applied in data sources mapped to the Observational Medical Outcomes Partnership (OMOP) Common Data Model (CDM). 
+* 2.a To describe existing published pregnancy algorithms that have been applied in data sources mapped to the Observational Medical Outcomes Partnership (OMOP) Common Data Model (CDM). 
 
-* 2.2 To assess the availability of the required input variables for the identified pregnancy algorithms across the selected DARWIN EU® data sources.
+* 2.b To assess the availability of the required input variables for the identified pregnancy algorithms across the selected DARWIN EU® data sources.
 
-* 2.3 To implement the identified pregnancy algorithm(s) in the selected DARWIN EU® data sources and adapt for initial execution, accounting for data availability. 
+* 2.c To implement the identified pregnancy algorithm(s) in the selected DARWIN EU® data sources and adapt for initial execution, accounting for data availability. 
 
-* 2.4 To iteratively evaluate the internal consistency and plausibility of the performance of the selected pregnancy algorithms. 
+* 2.d To iteratively evaluate the internal consistency and plausibility of the performance of the selected pregnancy algorithms. 
 
-* 2.5 To optimise the pregnancy algorithms in the selected DARWIN EU® data sources (based on results from Objective 4). 
+* 2.e To optimise the pregnancy algorithms in the selected DARWIN EU® data sources (based on results from Objective 4). 
 
-* 2.6 To validate the algorithm’s performance at the episode-level and population-level within the DARWIN EU® Data Network.
+* 2.f To validate the algorithm’s performance at the episode-level and population-level within the DARWIN EU® Data Network.
 
 **Countries of study**
 
