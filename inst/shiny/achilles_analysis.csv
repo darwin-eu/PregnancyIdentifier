@@ -1,12 +1,10 @@
 analysis_id,analysis_name,stratum_1_name,stratum_2_name,stratum_3_name,stratum_4_name,stratum_5_name
-100,Pregnancy record count,NA,NA,NA,NA,NA
-101,Pregnancy person count,NA,NA,NA,NA,NA
-200,Pregnancies by age at start (record count),age_band_10y,NA,NA,NA,NA
-201,Age at start of pregnancy (distribution),NA,NA,NA,NA,NA
-300,Pregnancies by calendar year (record count),year,NA,NA,NA,NA
-400,Length of pregnancy in weeks (distribution),NA,NA,NA,NA,NA
-500,Pregnancy outcomes (record count),outcome_category,NA,NA,NA,NA
-501,Pregnancy outcomes (person count),outcome_category,NA,NA,NA,NA
-600,Pregnancy method of delivery (record count),delivery_mode,outcome_category,NA,NA,NA
-601,Pregnancy method of delivery (person count),delivery_mode,outcome_category,NA,NA,NA
-700,Number of pregnancies per person (distribution),NA,NA,NA,NA,NA
+3100,Number of persons by pregnancy outcome,pregnancy_outcome,NA,NA,NA,NA
+3101,Number of records by pregnancy outcome,pregnancy_outcome,NA,NA,NA,NA
+3106,Distribution of age of first pregnancy,NA,NA,NA,NA,NA
+3111,Distribution of length of pregnancy in days,NA,NA,NA,NA,NA
+3120,Number of records by start month,calendar month,NA,NA,NA,NA
+3142,Number of records by age decile,NA,NA,NA,NA,NA
+3150,Number of persons by pregnancy mode delivery,pregnancy_mode_delivery,NA,NA,NA,NA
+3151,Number of records by pregnancy mode delivery,pregnancy_mode_delivery,NA,NA,NA,NA
+3156,Number of pregnancies per person,NA,NA,NA,NA,NA

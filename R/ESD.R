@@ -862,9 +862,8 @@ intervalJoinLocal <- function(domainDf, personIdListLocal) {
   dt_dom[, .ev_end := domain_concept_start_date]
 
   dt_epi <- data.table::as.data.table(personIdListLocal)
-  dt_epi[, `:=`(
-    start_date = as.Date(start_date),
-    merge_episode_end = as.Date(merge_episode_end)
+  dt_epi[, c("start_date", "merge_episode_end") := list(
+    as.Date(start_date), as.Date(merge_episode_end)
   )]
   data.table::setkey(dt_epi, person_id, start_date, merge_episode_end)
 
@@ -1431,12 +1430,15 @@ episodesWithGestationalTimingInfo <- function(getTimingConceptsDf, logger) {
       v <- x$inferred_start_date
       if (is.null(v) || length(v) == 0L) NA_real_ else as.numeric(v)
     }, numeric(1))
-    grouped[, `:=`(
-      inferred_episode_start = as.Date(inferredNum, origin = "1970-01-01"),
-      precision_days = vapply(final_timing_info, function(x) as.numeric(x$precision_days), numeric(1)),
-      precision_category = vapply(final_timing_info, function(x) as.character(x$precision_category), character(1)),
-      intervals_count = vapply(final_timing_info, function(x) as.numeric(x$intervals_count), numeric(1)),
-      majority_overlap_count = vapply(final_timing_info, function(x) as.numeric(x$majority_overlap_count), numeric(1))
+    grouped[, c(
+      "inferred_episode_start", "precision_days", "precision_category",
+      "intervals_count", "majority_overlap_count"
+    ) := list(
+      as.Date(inferredNum, origin = "1970-01-01"),
+      vapply(final_timing_info, function(x) as.numeric(x$precision_days), numeric(1)),
+      vapply(final_timing_info, function(x) as.character(x$precision_category), character(1)),
+      vapply(final_timing_info, function(x) as.numeric(x$intervals_count), numeric(1)),
+      vapply(final_timing_info, function(x) as.numeric(x$majority_overlap_count), numeric(1))
     )]
     dplyr::as_tibble(grouped[, .(
       person_id, merge_episode_number, gt_info_list, gw_flag, gr3m_flag,

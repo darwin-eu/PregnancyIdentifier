@@ -1,10 +1,32 @@
 # Extract pregnancy aggregates from v3 results (per-database CSVs under
 # inst/shiny/data/<DB>_results_<DATE>/) and reshape into an Achilles-style
-# results table plus an analysis dictionary.
+# results table plus an analysis dictionary, using the official pregnancy
+# analysis IDs from required_analysis_ids.csv.
 #
 # Outputs (written next to this script):
 #   achilles_results.csv
 #   achilles_analysis.csv
+#
+# Stratum values for outcome and delivery-mode analyses are stored as OMOP
+# concept_ids (per https://data.darwin-eu.org/PeriNetMapping/implementation-guide.html
+# and the canonical mapping in R/compareWithPET.R). Categories with no
+# corresponding OMOP concept (PREG, DELIV, ECT, NA) collapse to concept_id 0.
+#
+# Analysis IDs covered (from required_analysis_ids.csv):
+#   3100  Number of persons by pregnancy outcome
+#   3101  Number of records by pregnancy outcome
+#   3106  Distribution of age of first pregnancy
+#   3111  Distribution of length of pregnancy in days
+#   3120  Number of records by start month
+#   3142  Number of records by age decile
+#   3150  Number of persons by pregnancy mode delivery
+#   3151  Number of records by pregnancy mode delivery
+#   3156  Number of pregnancies per person (distribution)
+#
+# Not produced (no source data in v3 outputs):
+#   3152, 3153 — Number of persons / records by pregnancy_single (singleton vs multiple)
+#   3154       — Number of pregnancies with linked children
+#   3155       — Distribution of OP length among children linked to pregnancy
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -21,6 +43,7 @@ here <- tryCatch({
   else if (!is.null(sys.frame(1)$ofile)) dirname(sys.frame(1)$ofile)
   else getwd()
 }, error = function(e) getwd())
+
 data_root <- file.path(here, "data")
 
 site_dirs <- list.dirs(data_root, recursive = FALSE)
@@ -38,7 +61,6 @@ read_site_csv <- function(dir, name) {
 # Numeric coercion that turns "<5" (suppressed cells) into NA.
 to_num <- function(x) suppressWarnings(as.numeric(x))
 
-# Empty result-row template
 result_row <- function(cdm_name, analysis_id,
                        stratum_1 = NA_character_, stratum_2 = NA_character_,
                        stratum_3 = NA_character_, stratum_4 = NA_character_,
@@ -62,11 +84,35 @@ result_row <- function(cdm_name, analysis_id,
   )
 }
 
-# 10-year bin label for an integer age
-age_band <- function(age) {
+age_decile <- function(age) {
   age <- as.integer(age)
   lower <- (age %/% 10) * 10L
   paste0(lower, "-", lower + 9L)
+}
+
+# OMOP concept-id maps. Outcome map matches R/compareWithPET.R; delivery-mode
+# map follows https://data.darwin-eu.org/PeriNetMapping/implementation-guide.html
+# Unmapped categories use concept_id 0 (per OMOP convention for unknown).
+outcome_concept_id <- function(category) {
+  category <- toupper(as.character(category))
+  dplyr::case_when(
+    category == "LB"    ~ 4092289L,
+    category == "SB"    ~ 443213L,
+    category == "AB"    ~ 4081422L,
+    category == "SA"    ~ 4067106L,
+    category %in% c("PREG", "DELIV", "ECT", "NA") ~ 0L,
+    is.na(category)     ~ 0L,
+    TRUE                ~ 0L
+  )
+}
+
+delivery_concept_id <- function(mode) {
+  mode <- tolower(as.character(mode))
+  dplyr::case_when(
+    mode == "vaginal"  ~ 4125611L,
+    mode == "cesarean" ~ 4015701L,
+    TRUE               ~ 0L
+  )
 }
 
 # Quantile distribution from a discrete histogram (value -> count).
@@ -85,6 +131,7 @@ hist_distribution <- function(values, counts) {
   mean_v <- sum(values * counts) / total
   var_v  <- sum(counts * (values - mean_v)^2) / max(total - 1, 1)
   list(
+    total  = total,
     min    = min(values), max = max(values),
     mean   = mean_v, sd = sqrt(var_v),
     median = q(0.5),
@@ -100,44 +147,52 @@ extract_site <- function(dir) {
   message(" - ", cdm)
   out <- list()
 
-  # ----- 100/101 Pregnancy record/person count -----
-  ef <- read_site_csv(dir, "episode_frequency.csv")
-  if (nrow(ef) > 0) {
-    out[[length(out) + 1]] <- result_row(cdm, 100, count_value = to_num(ef$total_episodes[1]))
-    out[[length(out) + 1]] <- result_row(cdm, 101, count_value = to_num(ef$total_individuals[1]))
-  }
-
-  # ----- 200 Age at start of pregnancy: 10-year-bin record count -----
-  asg <- read_site_csv(dir, "age_summary_groups.csv")
-  if (nrow(asg) > 0 && all(c("colName", "age_pregnancy_start", "n") %in% names(asg))) {
-    asg <- asg %>%
-      dplyr::filter(.data$colName == "age_pregnancy_start") %>%
-      dplyr::mutate(
-        age = suppressWarnings(as.integer(.data$age_pregnancy_start)),
-        n   = to_num(.data$n)
-      ) %>%
-      dplyr::filter(!is.na(.data$age))
-    if (nrow(asg) > 0) {
-      asg <- asg %>%
-        dplyr::mutate(band = age_band(.data$age)) %>%
-        dplyr::group_by(.data$band) %>%
-        dplyr::summarise(count_value = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
-        dplyr::arrange(as.integer(stringr::str_extract(.data$band, "^\\d+")))
+  # ----- 3101 Number of records by pregnancy outcome -----
+  oc <- read_site_csv(dir, "outcome_categories_count.csv")
+  if (nrow(oc) > 0 && "algorithm" %in% names(oc)) {
+    oc <- oc %>% dplyr::filter(.data$algorithm == "hipps")
+    if (nrow(oc) > 0) {
+      oc <- oc %>%
+        dplyr::mutate(
+          concept_id = outcome_concept_id(.data$outcome_category),
+          n = to_num(.data$n)
+        ) %>%
+        dplyr::group_by(.data$concept_id) %>%
+        dplyr::summarise(n = sum(.data$n, na.rm = TRUE), .groups = "drop")
       out[[length(out) + 1]] <- purrr::map2_dfr(
-        asg$band, asg$count_value,
-        ~ result_row(cdm, 200, stratum_1 = .x, count_value = .y)
+        oc$concept_id, oc$n,
+        ~ result_row(cdm, 3101, stratum_1 = as.character(.x), count_value = .y)
       )
     }
   }
 
-  # ----- 201 Age at start of pregnancy: distribution (overall) -----
-  asum <- read_site_csv(dir, "age_summary.csv")
-  if (nrow(asum) > 0 && "final_outcome_category" %in% names(asum)) {
-    row <- asum %>% dplyr::filter(.data$final_outcome_category == "overall") %>% dplyr::slice(1)
+  # ----- 3100 Number of persons by pregnancy outcome -----
+  gpc <- read_site_csv(dir, "gestational_age_days_per_category_summary.csv")
+  if (nrow(gpc) > 0 && all(c("final_outcome_category", "person_count") %in% names(gpc))) {
+    gpc <- gpc %>%
+      dplyr::mutate(
+        concept_id = outcome_concept_id(.data$final_outcome_category),
+        person_count = to_num(.data$person_count)
+      ) %>%
+      dplyr::group_by(.data$concept_id) %>%
+      dplyr::summarise(person_count = sum(.data$person_count, na.rm = TRUE),
+                       .groups = "drop")
+    out[[length(out) + 1]] <- purrr::map2_dfr(
+      gpc$concept_id, gpc$person_count,
+      ~ result_row(cdm, 3100, stratum_1 = as.character(.x), count_value = .y)
+    )
+  }
+
+  # ----- 3106 Distribution of age of first pregnancy -----
+  asfp <- read_site_csv(dir, "age_summary_first_pregnancy.csv")
+  if (nrow(asfp) > 0 && all(c("final_outcome_category", "year") %in% names(asfp))) {
+    row <- asfp %>%
+      dplyr::filter(.data$final_outcome_category == "overall",
+                    .data$year == "overall") %>%
+      dplyr::slice(1)
     if (nrow(row) == 1) {
       out[[length(out) + 1]] <- result_row(
-        cdm, 201,
-        count_value  = to_num(row$n),
+        cdm, 3106,
         min_value    = to_num(row$min),
         max_value    = to_num(row$max),
         avg_value    = to_num(row$mean),
@@ -149,104 +204,81 @@ extract_site <- function(dir) {
     }
   }
 
-  # ----- 300 Pregnancies by calendar year: record count -----
-  yt <- read_site_csv(dir, "yearly_trend.csv")
-  if (nrow(yt) > 0 && all(c("column", "year", "count") %in% names(yt))) {
-    yt <- yt %>%
-      dplyr::filter(.data$column == "merge_pregnancy_start") %>%
-      dplyr::mutate(year = suppressWarnings(as.integer(.data$year)),
-                    count = to_num(.data$count)) %>%
-      dplyr::filter(!is.na(.data$year)) %>%
-      dplyr::arrange(.data$year)
-    if (nrow(yt) > 0) {
-      out[[length(out) + 1]] <- purrr::map2_dfr(
-        yt$year, yt$count,
-        ~ result_row(cdm, 300, stratum_1 = as.character(.x), count_value = .y)
-      )
-    }
-  }
-
-  # ----- 400 Length of pregnancy in weeks: distribution -----
+  # ----- 3111 Distribution of length of pregnancy in days -----
   gad <- read_site_csv(dir, "gestational_age_days_summary.csv")
   if (nrow(gad) > 0) {
     row <- gad %>% dplyr::slice(1)
     out[[length(out) + 1]] <- result_row(
-      cdm, 400,
-      min_value    = to_num(row$min)    / 7,
-      max_value    = to_num(row$max)    / 7,
-      avg_value    = to_num(row$mean)   / 7,
-      stdev_value  = to_num(row$sd)     / 7,
-      median_value = to_num(row$median) / 7,
-      p25_value    = to_num(row$Q25)    / 7,
-      p75_value    = to_num(row$Q75)    / 7
+      cdm, 3111,
+      min_value    = to_num(row$min),
+      max_value    = to_num(row$max),
+      avg_value    = to_num(row$mean),
+      stdev_value  = to_num(row$sd),
+      median_value = to_num(row$median),
+      p25_value    = to_num(row$Q25),
+      p75_value    = to_num(row$Q75)
     )
   }
 
-  # ----- 500 Pregnancy outcomes: record count (algorithm == "hipps") -----
-  oc <- read_site_csv(dir, "outcome_categories_count.csv")
-  if (nrow(oc) > 0 && "algorithm" %in% names(oc)) {
-    oc <- oc %>% dplyr::filter(.data$algorithm == "hipps")
-    if (nrow(oc) > 0) {
-      oc <- oc %>%
-        dplyr::mutate(outcome_category = ifelse(is.na(.data$outcome_category), "NA",
-                                                as.character(.data$outcome_category)),
-                      n = to_num(.data$n))
+  # ----- 3120 Number of records by start month (calendar month) -----
+  mt <- read_site_csv(dir, "monthly_trends.csv")
+  if (nrow(mt) > 0 && all(c("column", "month", "count") %in% names(mt))) {
+    mt <- mt %>%
+      dplyr::filter(.data$column == "merge_pregnancy_start") %>%
+      dplyr::mutate(count = to_num(.data$count))
+    if (nrow(mt) > 0) {
       out[[length(out) + 1]] <- purrr::map2_dfr(
-        oc$outcome_category, oc$n,
-        ~ result_row(cdm, 500, stratum_1 = .x, count_value = .y)
+        mt$month, mt$count,
+        ~ result_row(cdm, 3120, stratum_1 = as.character(.x), count_value = .y)
       )
     }
   }
 
-  # ----- 501 Pregnancy outcomes: person count -----
-  gpc <- read_site_csv(dir, "gestational_age_days_per_category_summary.csv")
-  if (nrow(gpc) > 0 && all(c("final_outcome_category", "person_count") %in% names(gpc))) {
-    gpc <- gpc %>%
-      dplyr::mutate(person_count = to_num(.data$person_count))
-    out[[length(out) + 1]] <- purrr::map2_dfr(
-      gpc$final_outcome_category, gpc$person_count,
-      ~ result_row(cdm, 501, stratum_1 = as.character(.x), count_value = .y)
-    )
+  # ----- 3142 Number of records by age decile -----
+  asg <- read_site_csv(dir, "age_summary_groups.csv")
+  if (nrow(asg) > 0 && all(c("colName", "age_pregnancy_start", "n") %in% names(asg))) {
+    asg <- asg %>%
+      dplyr::filter(.data$colName == "age_pregnancy_start") %>%
+      dplyr::mutate(
+        age = suppressWarnings(as.integer(.data$age_pregnancy_start)),
+        n   = to_num(.data$n)
+      ) %>%
+      dplyr::filter(!is.na(.data$age))
+    if (nrow(asg) > 0) {
+      asg <- asg %>%
+        dplyr::mutate(decile = age_decile(.data$age)) %>%
+        dplyr::group_by(.data$decile) %>%
+        dplyr::summarise(count_value = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::arrange(as.integer(stringr::str_extract(.data$decile, "^\\d+")))
+      out[[length(out) + 1]] <- purrr::map2_dfr(
+        asg$decile, asg$count_value,
+        ~ result_row(cdm, 3142, stratum_1 = .x, count_value = .y)
+      )
+    }
   }
 
-  # ----- 600 / 601 Method of delivery -----
+  # ----- 3150 / 3151 Number of persons / records by pregnancy mode of delivery -----
   dms <- read_site_csv(dir, "delivery_mode_summary.csv")
-  if (nrow(dms) > 0 && all(c("final_outcome_category", "cesarean", "vaginal",
+  if (nrow(dms) > 0 && all(c("cesarean", "vaginal",
                              "cesarean_count", "vaginal_count") %in% names(dms))) {
-    rows_record <- dms %>%
-      dplyr::transmute(
-        outcome = .data$final_outcome_category,
-        vaginal = to_num(.data$vaginal_count),
-        cesarean = to_num(.data$cesarean_count)
-      ) %>%
-      tidyr::pivot_longer(cols = c("vaginal", "cesarean"),
-                          names_to = "mode", values_to = "count_value")
-    out[[length(out) + 1]] <- purrr::pmap_dfr(
-      list(rows_record$mode, rows_record$outcome, rows_record$count_value),
-      function(mode, outcome, n) result_row(cdm, 600,
-                                            stratum_1 = mode,
-                                            stratum_2 = as.character(outcome),
-                                            count_value = n)
-    )
-
-    rows_person <- dms %>%
-      dplyr::transmute(
-        outcome = .data$final_outcome_category,
-        vaginal = to_num(.data$vaginal),
-        cesarean = to_num(.data$cesarean)
-      ) %>%
-      tidyr::pivot_longer(cols = c("vaginal", "cesarean"),
-                          names_to = "mode", values_to = "count_value")
-    out[[length(out) + 1]] <- purrr::pmap_dfr(
-      list(rows_person$mode, rows_person$outcome, rows_person$count_value),
-      function(mode, outcome, n) result_row(cdm, 601,
-                                            stratum_1 = mode,
-                                            stratum_2 = as.character(outcome),
-                                            count_value = n)
+    dms_n <- dms %>%
+      dplyr::summarise(
+        vaginal_persons  = sum(to_num(.data$vaginal),        na.rm = TRUE),
+        cesarean_persons = sum(to_num(.data$cesarean),       na.rm = TRUE),
+        vaginal_records  = sum(to_num(.data$vaginal_count),  na.rm = TRUE),
+        cesarean_records = sum(to_num(.data$cesarean_count), na.rm = TRUE)
+      )
+    cid_vag <- as.character(delivery_concept_id("vaginal"))
+    cid_cs  <- as.character(delivery_concept_id("cesarean"))
+    out[[length(out) + 1]] <- dplyr::bind_rows(
+      result_row(cdm, 3150, stratum_1 = cid_vag, count_value = dms_n$vaginal_persons),
+      result_row(cdm, 3150, stratum_1 = cid_cs,  count_value = dms_n$cesarean_persons),
+      result_row(cdm, 3151, stratum_1 = cid_vag, count_value = dms_n$vaginal_records),
+      result_row(cdm, 3151, stratum_1 = cid_cs,  count_value = dms_n$cesarean_records)
     )
   }
 
-  # ----- 700 Number of pregnancies per person: distribution -----
+  # ----- 3156 Number of pregnancies per person (distribution) -----
   pf <- read_site_csv(dir, "pregnancy_frequency.csv")
   if (nrow(pf) > 0 && all(c("freq", "number_individuals") %in% names(pf))) {
     pf <- pf %>%
@@ -259,8 +291,8 @@ extract_site <- function(dir) {
       d <- hist_distribution(pf$freq, pf$n)
       if (!is.null(d)) {
         out[[length(out) + 1]] <- result_row(
-          cdm, 700,
-          count_value  = sum(ifelse(is.na(pf$n), 3, pf$n)),
+          cdm, 3156,
+          count_value  = d$total,
           min_value    = d$min, max_value = d$max,
           avg_value    = d$mean, stdev_value = d$sd,
           median_value = d$median,
@@ -279,20 +311,19 @@ results <- purrr::map_dfr(site_dirs, extract_site)
 results <- results %>% dplyr::arrange(.data$cdm_name, .data$analysis_id,
                                       .data$stratum_1, .data$stratum_2)
 
-analysis <- tibble::tribble(
-  ~analysis_id, ~analysis_name,                                       ~stratum_1_name,    ~stratum_2_name,    ~stratum_3_name, ~stratum_4_name, ~stratum_5_name,
-  100L,         "Pregnancy record count",                             NA_character_,      NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  101L,         "Pregnancy person count",                             NA_character_,      NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  200L,         "Pregnancies by age at start (record count)",         "age_band_10y",     NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  201L,         "Age at start of pregnancy (distribution)",           NA_character_,      NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  300L,         "Pregnancies by calendar year (record count)",        "year",             NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  400L,         "Length of pregnancy in weeks (distribution)",        NA_character_,      NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  500L,         "Pregnancy outcomes (record count)",                  "outcome_category", NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  501L,         "Pregnancy outcomes (person count)",                  "outcome_category", NA_character_,      NA_character_,   NA_character_,   NA_character_,
-  600L,         "Pregnancy method of delivery (record count)",        "delivery_mode",    "outcome_category", NA_character_,   NA_character_,   NA_character_,
-  601L,         "Pregnancy method of delivery (person count)",        "delivery_mode",    "outcome_category", NA_character_,   NA_character_,   NA_character_,
-  700L,         "Number of pregnancies per person (distribution)",    NA_character_,      NA_character_,      NA_character_,   NA_character_,   NA_character_
-)
+# Build analysis dictionary by subsetting required_analysis_ids.csv to the
+# pregnancy IDs we actually populated.
+required <- readr::read_csv(file.path(here, "required_analysis_ids.csv"),
+                            show_col_types = FALSE)
+produced_ids <- sort(unique(results$analysis_id))
+analysis <- required %>%
+  dplyr::filter(.data$analysis_id %in% produced_ids) %>%
+  dplyr::transmute(
+    analysis_id   = as.integer(.data$analysis_id),
+    analysis_name = .data$description,
+    stratum_1_name, stratum_2_name, stratum_3_name, stratum_4_name, stratum_5_name
+  ) %>%
+  dplyr::arrange(.data$analysis_id)
 
 readr::write_csv(results,  file.path(here, "achilles_results.csv"))
 readr::write_csv(analysis, file.path(here, "achilles_analysis.csv"))

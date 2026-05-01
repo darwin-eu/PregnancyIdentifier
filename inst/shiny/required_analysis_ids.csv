@@ -1,0 +1,164 @@
+analysis_id,description,source,stratum_1_name,stratum_2_name,stratum_3_name,stratum_4_name,stratum_5_name,used_in_dashboard_materialized_view
+0,Source name,analysis_results,achilles_source_name,dashboard_export_version,dashboard_export_execution_date,achilles_version,achilles_execution_date,"meta_data_table,number_of_observation_periods"
+1,Number of persons,analysis_results,,,,,,"patients_per_country_and_database_type,number_of_patients,avg_num_of_records_per_person,cumulative_observation_time,visit_type_table"
+2,Number of persons by gender,analysis_results,gender_concept_id,,,,,gender
+3,Number of persons by year of birth,analysis_results,year_of_birth,,,,,year_of_birth
+10,Number of all persons by year of birth by gender,analysis_results,year_of_birth,gender_concept_id,,,,year_of_birth
+11,Number of non-deceased persons by year of birth by gender,analysis_results,year_of_birth,gender_concept_id,,,,year_of_birth
+101,"Number of persons by age, with age at first observation period",analysis_results,age,,,,,age1observation_bar_chart
+102,"Number of persons by gender by age, with age at first observation period",analysis_results,gender_concept_id,age,,,,age1observation_table
+103,Distribution of age at first observation period,analysis_results_dist,,,,,,distribution_of_age_at_first_observation_period
+104,Distribution of age at first observation period by gender,analysis_results_dist,gender_concept_id,,,,,
+105,Length of observation (days) of first observation period,analysis_results_dist,,,,,,length_of_observation_of_first_observation_period
+106,Length of observation (days) of first observation period by gender,analysis_results_dist,gender_concept_id,,,,,
+107,Length of observation (days) of first observation period by age decile,analysis_results_dist,age decile,,,,,
+108,"Number of persons by length of observation period, in 30d increments",analysis_results,Observation period length 30d increments,,,,,cumulative_observation_time
+109,Number of persons with continuous observation in each year,analysis_results,calendar year,,,,,
+110,Number of persons with continuous observation in each month,analysis_results,calendar month,,,,,num_of_patients_in_observation_period
+111,Number of persons by observation period start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+112,Number of persons by observation period end month,analysis_results,calendar month,,,,,
+113,Number of persons by number of observation periods,analysis_results,number of observation periods,,,,,number_of_observation_periods
+200,"Number of persons with at least one visit occurrence, by visit_concept_id",analysis_results,visit_concept_id,,,,,"visit_type_bar_chart,visit_type_table,domain_filter"
+201,"Number of visit occurrence records, by visit_concept_id",analysis_results,visit_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,visit_type_table,domain_filter"
+202,"Number of persons by visit occurrence start month, by visit_concept_id",analysis_results,visit_concept_id,calendar month,,,,
+203,Number of distinct visit occurrence concepts per person,analysis_results_dist,,,,,,"number_of_distinct_per_person,number_of_distinct_per_person"
+206,Distribution of age by visit_concept_id,analysis_results_dist,visit_concept_id,gender_concept_id,,,,visit_age_distribution
+210,Number of visit occurrence records outside a valid observation period,analysis_results,,,,,,
+211,Distribution of length of stay by visit_concept_id,analysis_results_dist,visit_concept_id,,,,,
+220,Number of visit occurrence records by visit occurrence start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+242,Number of records by visit_concept_id by age decile,custom,visit_concept_id,age decile,,,,
+243,Number of records by visit_concept_id by ICH age group,custom,visit_concept_id,ich age group,,,,
+400,"Number of persons with at least one condition occurrence, by condition_concept_id",analysis_results,condition_concept_id,,,,,domain_filter
+401,"Number of condition occurrence records, by condition_concept_id",analysis_results,condition_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,domain_filter,concept_browser_table3,concept_coverage2,concept_browser_table2"
+403,Number of distinct condition occurrence concepts per person,analysis_results_dist,,,,,,"number_of_distinct_per_person,number_of_distinct_per_person"
+402,"Number of persons by condition occurrence start month, by condition_concept_id",analysis_results,condition_concept_id,calendar month,,,,
+405,"Number of condition occurrence records, by condition_concept_id by condition_type_concept_id",analysis_results,condition_concept_id,condition_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+406,Distribution of age by condition_concept_id,analysis_results_dist,condition_concept_id,gender_concept_id,,,,
+410,Number of condition occurrence records outside valid observation period,analysis_results,,,,,,
+420,Number of condition occurrence records by condition occurrence start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+430,"Number of descendant condition occurrence records, by condition_concept_id",custom,condition_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+442,Number of records by condition_concept_id by age decile,custom,condition_concept_id,age decile,,,,
+443,Number of records by condition_concept_id by ICH age group,custom,condition_concept_id,ich age group,,,,
+444,"Number of persons with descendant condition occurrence records by condition_concept_id",custom,condition_concept_id,,,,,
+501,"Number of records of death, by cause_concept_id",analysis_results,cause_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records"
+502,Number of persons by death month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+506,Distribution of age at death by gender,analysis_results_dist,gender_concept_id,,,,,
+510,Number of death records outside valid observation period,analysis_results,,,,,,
+600,"Number of persons with at least one procedure occurrence, by procedure_concept_id",analysis_results,procedure_concept_id,,,,,domain_filter
+601,"Number of procedure occurrence records, by procedure_concept_id",analysis_results,procedure_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,domain_filter,concept_browser_table3,concept_coverage2,concept_browser_table2"
+602,"Number of persons by procedure occurrence start month, by procedure_concept_id",analysis_results,procedure_concept_id,calendar month,,,,
+603,Number of distinct procedure occurrence concepts per person,analysis_results_dist,,,,,,"number_of_distinct_per_person,number_of_distinct_per_person"
+605,"Number of procedure occurrence records, by procedure_concept_id by procedure_type_concept_id",analysis_results,procedure_concept_id,procedure_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+606,Distribution of age by procedure_concept_id,analysis_results_dist,procedure_concept_id,gender_concept_id,,,,
+610,Number of procedure occurrence records outside valid observation period,analysis_results,,,,,,
+620,Number of procedure occurrence records  by procedure occurrence start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+630,"Number of descendant procedure occurrence records, by procedure_concept_id",custom,procedure_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+642,Number of records by procedure_id by age decile,custom,procedure_concept_id,age decile,,,,
+643,Number of records by procedure_concept_id by ICH age group,custom,procedure_concept_id,ich age group,,,,
+700,"Number of persons with at least one drug exposure, by drug_concept_id",analysis_results,drug_concept_id,,,,,domain_filter
+701,"Number of drug exposure records, by drug_concept_id",analysis_results,drug_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,domain_filter,concept_browser_table3,concept_coverage2,concept_browser_table2"
+702,"Number of persons by drug exposure start month, by drug_concept_id",analysis_results,drug_concept_id,calendar month,,,,
+703,Number of distinct drug exposure concepts per person,analysis_results_dist,,,,,,"number_of_distinct_per_person,number_of_distinct_per_person"
+705,"Number of drug exposure records, by drug_concept_id by drug_type_concept_id",analysis_results,drug_concept_id,drug_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+706,Distribution of age by drug_concept_id,analysis_results_dist,drug_concept_id,gender_concept_id,,,,
+710,Number of drug exposure records outside valid observation period,analysis_results,,,,,,
+715,Distribution of days_supply by drug_concept_id,analysis_results_dist,drug_concept_id,,,,,
+716,Distribution of refills by drug_concept_id,analysis_results_dist,drug_concept_id,,,,,
+717,Distribution of quantity by drug_concept_id,analysis_results_dist,drug_concept_id,,,,,
+720,Number of drug exposure records  by drug exposure start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+730,"Number of descendant drug exposure records, by drug_concept_id",custom,drug_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+740,"Number of drug occurrence records, by route_concept_id",custom,route_concept_id,,,,,
+741,"Number of drug exposure records, by drug_concept_id by route_concept_id",custom,drug_concept_id,route_concept_id,,,,
+742,Number of records by drug_concept_id by age decile,custom,drug_concept_id,age decile,,,,
+743,Number of records by drug_concept_id by ICH age group,custom,drug_concept_id,ich age group,,,,
+800,"Number of persons with at least one observation occurrence, by observation_concept_id",analysis_results,observation_concept_id,,,,,domain_filter
+801,"Number of observation occurrence records, by observation_concept_id",analysis_results,observation_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,domain_filter,concept_browser_table3,concept_coverage2,concept_browser_table2"
+802,"Number of persons by observation occurrence start month, by observation_concept_id",analysis_results,observation_concept_id,calendar month,,,,
+803,Number of distinct observation occurrence concepts per person,analysis_results_dist,,,,,,"number_of_distinct_per_person,number_of_distinct_per_person"
+805,"Number of observation occurrence records, by observation_concept_id by observation_type_concept_id",analysis_results,observation_concept_id,observation_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+806,Distribution of age by observation_concept_id,analysis_results_dist,observation_concept_id,gender_concept_id,,,,
+810,Number of observation records outside valid observation period,analysis_results,,,,,,
+815,"Distribution of numeric values, by observation_concept_id and unit_concept_id",analysis_results_dist,,,,,,
+820,Number of observation records  by observation start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+822,"Number of observation records, by observation_concept_id and value_as_concept_id",analysis_results,observation_concept_id,value_as_concept_id,,,,
+830,"Number of descendant observation occurrence records, by observation_concept_id",custom,observation_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+842,Number of records by observation_concept_id by age decile,custom,observation_concept_id,age decile,,,,
+843,Number of records by observation_concept_id by ICH age group,custom,observation_concept_id,ich age group,,,,
+900,"Number of persons with at least one drug era, by drug_concept_id",analysis_results,drug_concept_id,,,,,
+901,"Number of drug era records, by drug_concept_id",analysis_results,drug_concept_id,,,,,domain_filterHEAD
+902,"Number of persons by drug era start month, by drug_concept_id",analysis_results,drug_concept_id,calendar month,,,,
+906,Distribution of age by drug_concept_id,analysis_results,drug_concept_id,gender_concept_id,,,,
+910,Number of drug era records outside valid observation period,analysis_results,,,,,,
+920,Number of drug era records by drug era start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+942,Number of drug era records by drug_concept_id by age decile,custom,drug_concept_id,age decile,,,,
+943,Number of drug era records by drug_concept_id by ICH age group,custom,drug_concept_id,ich age group,,,,
+1000,"Number of persons with at least one condition era, by condition_concept_id",analysis_results,condition_concept_id,,,,,
+1001,"Number of condition era records, by condition_concept_id",analysis_results,condition_concept_id,,,,,domain_filter
+1002,"Number of persons by condition era start month, by condition_concept_id",analysis_results,condition_concept_id,calendar month,,,,
+1010,Number of condition era records outside a valid observation period,analysis_results,,,,,,
+1020,Number of condition era records by condition era start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+1300,"Number of persons with at least one visit detail, by visit_detail_concept_id",analysis_results,visit_detail_concept_id,,,,,
+1301,"Number of visit detail records, by visit_detail_concept_id",analysis_results,visit_detail_concept_id,,,,,
+1302,"Number of persons by visit detail start month, by visit_detail_concept_id",analysis_results,visit_detail_concept_id,calendar month,,,,
+1306,Distribution of age by visit_detail_concept_id,analysis_results,visit_detail_concept_id,gender_concept_id,,,,
+1310,Number of visit detail records outside a valid observation period,analysis_results,,,,,,
+1311,Number of visit detail records with end date < start date,analysis_results,,,,,,
+1320,Number of visit detail records by visit detail start month,analysis_results,calendar month,,,,,
+1342,Number of visit detail records by visit_concept_id by age decile,custom,visit_concept_id,age decile,,,,
+1343,Number of visit detail records by visit_concept_id by ICH age group,custom,visit_concept_id,ich age group,,,,
+1800,"Number of persons with at least one measurement occurrence, by measurement_concept_id",analysis_results,measurement_concept_id,,,,,domain_filter
+1801,"Number of measurement occurrence records, by measurement_concept_id",analysis_results,measurement_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,domain_filter,concept_browser_table3,concept_coverage2,concept_browser_table2"
+1802,"Number of persons by measurement occurrence start month, by measurement_concept_id",analysis_results,measurement_concept_id,calendar month,,,,
+1803,Number of distinct measurement occurrence concepts per person,analysis_results,,,,,,number_of_distinct_per_person
+1805,"Number of measurement occurrence records, by measurement_concept_id by measurement_type_concept_id",analysis_results,measurement_concept_id,measurement_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+1806,Distribution of age by measurement_concept_id,analysis_results_dist,measurement_concept_id,gender_concept_id,,,,
+1810,Number of measurement records outside valid observation period,analysis_results,,,,,,
+1814,"Number of measurement records with no value (numeric, string, or concept)",analysis_results,,,,,,
+1815,"Distribution of numeric values, by measurement_concept_id and unit_concept_id",analysis_results_dist,,,,,,
+1816,"Distribution of low range, by measurement_concept_id and unit_concept_id",analysis_results_dist,,,,,,
+1817,"Distribution of high range, by measurement_concept_id and unit_concept_id",analysis_results_dist,,,,,,
+1820,Number of measurement records  by measurement start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+1822,"Number of measurement records, by measurement_concept_id and value_as_concept_id",analysis_results,measurement_concept_id,value_as_concept_id,,,,
+1830,"Number of descendant measurement occurrence records, by measurement_concept_id",custom,measurement_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+1842,Number of records by measurement_concept_id by age decile,custom,measurement_concept_id,age decile,,,,
+1843,Number of records by measurement_concept_id by ICH age group,custom,measurement_concept_id,ich age group,,,,
+1900,"Source values mapped to concept_id 0 by table, by column, by source_value",analysis_results,table_name,column_name,source_value,,,
+2000,Number of patients with at least 1 Dx and 1 Rx,analysis_results,,,,,,
+2001,Number of patients with at least 1 Dx and 1 Proc,analysis_results,,,,,,
+2002,"Number of patients with at least 1 Meas, 1 Dx and 1 Rx",analysis_results,,,,,,
+2003,Number of patients with at least 1 Visit,analysis_results,,,,,,
+2004,Number of distinct patients that overlap between specific domains,analysis_results,domain_bit_string,proportion_of_overlap,,,,
+2100,"Number of persons with at least one device exposure, by device_concept_id",analysis_results,device_concept_id,,,,,
+2101,"Number of device exposure records, by device_concept_id",analysis_results,device_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records,concept_browser_table3,concept_coverage2,concept_browser_table2"
+2102,"Number of persons by device records  start month, by device_concept_id",analysis_results,device_concept_id,calendar month,,,,
+2105,"Number of device exposure records, by device_concept_id by device_type_concept_id",analysis_results,device_concept_id,device_type_concept_id,,,,"data_provenance,data_provenance,data_provenance"
+2110,Number of device exposure records outside valid observation period,analysis_results,,,,,,
+2120,Number of device exposure records by device_exposure start month,analysis_results,calendar month,,,,,"data_density,records_per_person"
+2130,"Number of descendant device exposure records, by device_concept_id",custom,device_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+2142,Number of records by device_concept_id by age decile,custom,device_concept_id,age decile,,,,
+2143,Number of records by device_concept_id by ICH age group,custom,device_concept_id,ich age group,,,,
+2201,"Number of note records, by note_type_concept_id",analysis_results,note_type_concept_id,,,,,"avg_num_of_records_per_person,avg_num_of_records_per_person,data_domain_total_num_of_records,data_domain_total_num_of_records"
+2300,"Number of persons with at least one episode occurrence, by episode_concept_id",custom,episode_concept_id,,,,,
+2301,"Number of episode records, by episode_concept_id",custom,episode_concept_id,,,,,
+2305,"Number of episode records, by episode_concept_id by episode_type_concept_id",custom,episode_concept_id,episode_type_concept_id,,,,
+2306,Distribution of age and gender by episode_concept_id,custom_dist,episode_concept_id,gender_concept_id,,,,
+2320,Number of episode records by start month,custom,calendar month,,,,,
+2322,"Number of episode records, by episode_concept_id and episode_object_concept_id",custom,episode_concept_id,episode_object_concept_id,,,,
+2330,"Number of descendant episode records, by episode_concept_id",custom,episode_concept_id,,,,,"concept_browser_table3,concept_coverage2,concept_browser_table2"
+2342,Number of records by episode_concept_id by age decile,custom,episode_concept_id,age decile,,,,
+2343,Number of records by episode_concept_id by ICH age group,custom,episode_concept_id,ich age group,,,,
+3001,"Number of fact relationship records, by relationship_concept_id",custom,relationship_concept_id,,,,,
+3100,Number of persons by pregnancy outcome,custom,pregnancy_outcome,,,,,
+3101,Number of records by pregnancy outcome,custom,pregnancy_outcome,,,,,
+3106,Distribution of age of first pregnancy,custom_dist,,,,,,
+3111,Distribution of length of pregnancy in days,custom_dist,,,,,,
+3120,Number of records by start month,custom,calendar month,,,,,
+3142,Number of records by age decile,custom,,,,,,
+3150,Number of persons by pregnancy mode delivery,custom,pregnancy_mode_delivery,,,,,
+3151,Number of records by pregnancy mode delivery,custom,pregnancy_mode_delivery,,,,,
+3152,Number of persons by pregnancy single,custom,pregnancy_single,,,,,
+3153,Number of records by pregnancy single,custom,pregnancy_single,,,,,
+3154,Number of pregnancies with linked children,custom,,,,,,
+3155,Distribution of length of observation period among children linked to pregnancy,custom_dist,,,,,,
+3156,Number of pregnancies per person,custom_dist,,,,,,
+5000,First record from the cdm_source table,custom,Source Release date,CDM Release date,CDM version,Vocabulary version,,meta_data_table

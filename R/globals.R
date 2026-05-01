@@ -75,6 +75,7 @@ utils::globalVariables(
     "end_in_obs",
     "age_group",
     "year",
+    ".",
     ".ev_end",
     "domain_concept_id",
     "domain_concept_name",
