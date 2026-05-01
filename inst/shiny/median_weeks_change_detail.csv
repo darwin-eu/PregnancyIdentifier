@@ -1,0 +1,16 @@
+cdm_name,median_wk_v1,median_wk_v2,median_wk_v3,delta_weeks_v1_v2,delta_weeks_v2_v3,pct308_v1,pct308_v2,pct308_v3,direction_v1_v2,direction_v2_v3
+BIFAP,43,43,NA,0,NA,1.381,1.683,NA,increased,missing
+CDW_Bordeaux,43,43,44,0,1,0.209,1.494,1.594,increased,increased
+CPRD_GOLD,43,43,44,0,1,0,0.227,0.527,increased,increased
+DK_DHR,43,43,44,0,1,2.188,0.802,2.493,decreased,increased
+EMDB_ULSGE,43,43,NA,0,NA,0.089,0.024,NA,decreased,missing
+FinOMOP_THL,43,43,43.42857142857143,0,0.4285714285714306,0.765,0.384,3.975,decreased,increased
+FinOMOP_TaUH,43,43,44,0,1,1.499,20.411,35.249,increased,increased
+HI_SPEED,43,43,44,0,1,0.313,2.219,3.795,increased,increased
+IMASIS,43,39,38.142857142857146,-4,-0.8571428571428541,6.507,0.459,5.919,decreased,increased
+IPCI,33,30,37.285714285714285,-3,7.285714285714285,7.669,0.565,1.279,decreased,increased
+InGef_RDB,43,43,44,0,1,0.249,0.058,8.559,decreased,increased
+NAJS,43,24,44,-19,20,0.51,0.467,2.996,decreased,increased
+NLHR,43,43,44,0,1,0.676,5.71,5.452,increased,decreased
+SIDIAP,40.714285714285715,38.57142857142857,39,-2.142857142857146,0.4285714285714306,8.242,7.508,11.278,decreased,increased
+SUCD,43,26.571428571428573,44,-16.428571428571427,17.428571428571427,0.942,0.563,7.065,decreased,increased

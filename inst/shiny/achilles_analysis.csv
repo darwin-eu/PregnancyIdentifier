@@ -1,0 +1,12 @@
+analysis_id,analysis_name,stratum_1_name,stratum_2_name,stratum_3_name,stratum_4_name,stratum_5_name
+100,Pregnancy record count,NA,NA,NA,NA,NA
+101,Pregnancy person count,NA,NA,NA,NA,NA
+200,Pregnancies by age at start (record count),age_band_10y,NA,NA,NA,NA
+201,Age at start of pregnancy (distribution),NA,NA,NA,NA,NA
+300,Pregnancies by calendar year (record count),year,NA,NA,NA,NA
+400,Length of pregnancy in weeks (distribution),NA,NA,NA,NA,NA
+500,Pregnancy outcomes (record count),outcome_category,NA,NA,NA,NA
+501,Pregnancy outcomes (person count),outcome_category,NA,NA,NA,NA
+600,Pregnancy method of delivery (record count),delivery_mode,outcome_category,NA,NA,NA
+601,Pregnancy method of delivery (person count),delivery_mode,outcome_category,NA,NA,NA
+700,Number of pregnancies per person (distribution),NA,NA,NA,NA,NA

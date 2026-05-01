@@ -1,6 +1,11 @@
 #' @keywords internal
 NULL
 
+# Mark this package as data.table-aware so that data.table's `:=` and other
+# internal idioms work without "not data.table-aware" warnings when invoked
+# from package code. See `data.table::cedta()` and ?data.table.
+.datatable.aware <- TRUE
+
 # Silence R CMD check "no visible binding for global variable" NOTES for
 # dplyr/dbplyr non-standard evaluation.
 utils::globalVariables(
@@ -69,6 +74,24 @@ utils::globalVariables(
     "start_in_obs",
     "end_in_obs",
     "age_group",
-    "year"
+    "year",
+    ".ev_end",
+    "domain_concept_id",
+    "domain_concept_name",
+    "value_col",
+    "concept_name",
+    "gt_event",
+    "gt_type",
+    "gt_info_list",
+    "gw_flag",
+    "gr3m_flag",
+    "inferred_episode_start",
+    "precision_days",
+    "precision_category",
+    "intervals_count",
+    "majority_overlap_count",
+    "domain_value",
+    "min_pregnancy_start",
+    "max_pregnancy_start"
   ))
 )

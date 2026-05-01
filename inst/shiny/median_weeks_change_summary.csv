@@ -1,0 +1,5 @@
+comparison,direction_of_pct_over_308,n,min,q1,median,mean,q3,max
+v1_to_v2,decreased,9,-19,-4,-2.143,-4.952,0,0
+v1_to_v2,increased,6,0,0,0,0,0,0
+v2_to_v3,decreased,1,1,1,1,1,1,1
+v2_to_v3,increased,12,-0.857,0.857,1,4.226,2.571,20

@@ -1,0 +1,16 @@
+cdm_name,v1,v2,v3,delta_v1_v2,delta_v2_v3,direction_v1_v2,direction_v2_v3
+BIFAP,1.381,1.683,NA,0.30200000000000005,NA,increased,missing
+CDW_Bordeaux,0.209,1.494,1.594,1.285,0.10000000000000009,increased,increased
+CPRD_GOLD,0,0.227,0.527,0.227,0.30000000000000004,increased,increased
+DK_DHR,2.188,0.802,2.493,-1.3860000000000001,1.6909999999999998,decreased,increased
+EMDB_ULSGE,0.089,0.024,NA,-0.065,NA,decreased,missing
+FinOMOP_THL,0.765,0.384,3.975,-0.381,3.591,decreased,increased
+FinOMOP_TaUH,1.499,20.411,35.249,18.912000000000003,14.838000000000001,increased,increased
+HI_SPEED,0.313,2.219,3.795,1.906,1.576,increased,increased
+IMASIS,6.507,0.459,5.919,-6.048,5.46,decreased,increased
+IPCI,7.669,0.565,1.279,-7.103999999999999,0.714,decreased,increased
+InGef_RDB,0.249,0.058,8.559,-0.191,8.501,decreased,increased
+NAJS,0.51,0.467,2.996,-0.04299999999999998,2.529,decreased,increased
+NLHR,0.676,5.71,5.452,5.034,-0.258,increased,decreased
+SIDIAP,8.242,7.508,11.278,-0.7340000000000009,3.7700000000000005,decreased,increased
+SUCD,0.942,0.563,7.065,-0.379,6.502000000000001,decreased,increased

@@ -1,0 +1,44 @@
+version,cdm_name,total_episodes,over_308_days,pct_over_308,source
+v1,BIFAP,1848653,25526,1.381,gestational_weeks.csv::sum(n | weeks > 44)
+v2,BIFAP,2064880,34759,1.683,gestational_weeks.csv::sum(n | weeks > 44)
+v1,CDW_Bordeaux,78767,165,0.209,gestational_weeks.csv::sum(n | weeks > 44)
+v2,CDW_Bordeaux,108599,1623,1.494,gestational_weeks.csv::sum(n | weeks > 44)
+v3,CDW_Bordeaux,107102,1707,1.594,gestational_age_days_counts.csv::over_308days
+v1,CPRD_GOLD,3762235,15,0,gestational_weeks.csv::sum(n | weeks > 44)
+v2,CPRD_GOLD,613336,1394,0.227,gestational_weeks.csv::sum(n | weeks > 44)
+v3,CPRD_GOLD,691169,3642,0.527,gestational_age_days_counts.csv::over_308days
+v1,DK_DHR,1241203,27155,2.188,gestational_weeks.csv::sum(n | weeks > 44)
+v2,DK_DHR,1325143,10625,0.802,gestational_weeks.csv::sum(n | weeks > 44)
+v3,DK_DHR,1068924,26653,2.493,gestational_age_days_counts.csv::over_308days
+v1,EMDB_ULSGE,29213,26,0.089,gestational_weeks.csv::sum(n | weeks > 44)
+v2,EMDB_ULSGE,25067,6,0.024,gestational_weeks.csv::sum(n | weeks > 44)
+v1,FinOMOP_THL,566804,4334,0.765,gestational_weeks.csv::sum(n | weeks > 44)
+v2,FinOMOP_THL,620087,2383,0.384,gestational_weeks.csv::sum(n | weeks > 44)
+v3,FinOMOP_THL,856955,34067,3.975,gestational_age_days_counts.csv::over_308days
+v1,FinOMOP_TaUH,91725,1375,1.499,gestational_weeks.csv::sum(n | weeks > 44)
+v2,FinOMOP_TaUH,105724,21579,20.411,gestational_weeks.csv::sum(n | weeks > 44)
+v3,FinOMOP_TaUH,80247,28286,35.249,gestational_age_days_counts.csv::over_308days
+v1,HI_SPEED,1004560,3141,0.313,gestational_weeks.csv::sum(n | weeks > 44)
+v2,HI_SPEED,1551473,34428,2.219,gestational_weeks.csv::sum(n | weeks > 44)
+v3,HI_SPEED,1135090,43078,3.795,gestational_age_days_counts.csv::over_308days
+v1,IMASIS,79623,5181,6.507,gestational_weeks.csv::sum(n | weeks > 44)
+v2,IMASIS,30703,141,0.459,gestational_weeks.csv::sum(n | weeks > 44)
+v3,IMASIS,33251,1968,5.919,gestational_age_days_counts.csv::over_308days
+v1,IPCI,398709,30575,7.669,gestational_weeks.csv::sum(n | weeks > 44)
+v2,IPCI,412555,2329,0.565,gestational_weeks.csv::sum(n | weeks > 44)
+v3,IPCI,306014,3914,1.279,gestational_age_days_counts.csv::over_308days
+v1,InGef_RDB,695105,1731,0.249,gestational_weeks.csv::sum(n | weeks > 44)
+v2,InGef_RDB,679790,397,0.058,gestational_weeks.csv::sum(n | weeks > 44)
+v3,InGef_RDB,640749,54842,8.559,gestational_age_days_counts.csv::over_308days
+v1,NAJS,372509,1899,0.51,gestational_weeks.csv::sum(n | weeks > 44)
+v2,NAJS,287852,1343,0.467,gestational_weeks.csv::sum(n | weeks > 44)
+v3,NAJS,389321,11663,2.996,gestational_age_days_counts.csv::over_308days
+v1,NLHR,820061,5547,0.676,gestational_weeks.csv::sum(n | weeks > 44)
+v2,NLHR,351677,20080,5.71,gestational_weeks.csv::sum(n | weeks > 44)
+v3,NLHR,400865,21854,5.452,gestational_age_days_counts.csv::over_308days
+v1,SIDIAP,859077,70804,8.242,gestational_weeks.csv::sum(n | weeks > 44)
+v2,SIDIAP,791748,59444,7.508,gestational_weeks.csv::sum(n | weeks > 44)
+v3,SIDIAP,638009,71954,11.278,gestational_age_days_counts.csv::over_308days
+v1,SUCD,163002,1536,0.942,gestational_weeks.csv::sum(n | weeks > 44)
+v2,SUCD,88747,500,0.563,gestational_weeks.csv::sum(n | weeks > 44)
+v3,SUCD,129588,9156,7.065,gestational_age_days_counts.csv::over_308days
