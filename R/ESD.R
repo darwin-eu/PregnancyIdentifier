@@ -1719,6 +1719,11 @@ addDeliveryMode <- function(cdm, df, logger, intersectWindow = c(-30, 30)) {
       dplyr::collect()
   )
 
+  # Spark's ODBC driver returns DATE columns as <character> after collect();
+  # coerce to Date so the local left_join below doesn't fail on type mismatch.
+  deliveryResult <- deliveryResult %>%
+    dplyr::mutate(inferred_episode_end = as.Date(.data$inferred_episode_end))
+
   deliveryCols <- setdiff(names(deliveryResult), c("person_id", "inferred_episode_end"))
   mergedDf <- df %>%
     dplyr::left_join(

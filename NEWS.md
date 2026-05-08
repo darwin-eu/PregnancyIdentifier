@@ -1,3 +1,9 @@
+# PregnancyIdentifier 3.3.1
+
+## Bug fixes
+
+* Fixed `addDeliveryMode()` failure on Spark/Databricks back-ends. After `dplyr::collect()`, the Spark ODBC driver returns DATE columns as `<character>`, which caused `dplyr::left_join()` to abort with an incompatible-types error against the local `<date>` column. `inferred_episode_end` is now coerced to `Date` before the join.
+
 # PregnancyIdentifier 3.3.0
 
 * Speed and improvements
