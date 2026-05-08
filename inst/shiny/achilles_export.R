@@ -17,8 +17,11 @@
 #   3101  Number of records by pregnancy outcome
 #   3106  Distribution of age of first pregnancy
 #   3111  Distribution of length of pregnancy in days
-#   3120  Number of records by start month
-#   3142  Number of records by age decile
+#   3120  Number of records by start year (yyyy; see note in body — v3
+#         outputs do not contain a year x month aggregate, so true yyyymm
+#         requires an upstream change to the package's monthlyTrends export)
+#   3142  Number of records by age decile (stratum is the integer decile,
+#         e.g. 1 for ages 10-19, 2 for 20-29)
 #   3150  Number of persons by pregnancy mode delivery
 #   3151  Number of records by pregnancy mode delivery
 #   3156  Number of pregnancies per person (distribution)
@@ -84,10 +87,9 @@ result_row <- function(cdm_name, analysis_id,
   )
 }
 
+# Integer decile label: 14 -> 1 (10-19), 25 -> 2 (20-29), ...
 age_decile <- function(age) {
-  age <- as.integer(age)
-  lower <- (age %/% 10) * 10L
-  paste0(lower, "-", lower + 9L)
+  as.integer(age) %/% 10L
 }
 
 # OMOP concept-id maps. Outcome map matches R/compareWithPET.R; delivery-mode
@@ -147,6 +149,11 @@ extract_site <- function(dir) {
   message(" - ", cdm)
   out <- list()
 
+  # Pregnancy totals (used as count_value for distribution analyses).
+  ef <- read_site_csv(dir, "episode_frequency.csv")
+  total_pregnancies <- if (nrow(ef) > 0) to_num(ef$total_episodes[1])     else NA_real_
+  total_persons     <- if (nrow(ef) > 0) to_num(ef$total_individuals[1])  else NA_real_
+
   # ----- 3101 Number of records by pregnancy outcome -----
   oc <- read_site_csv(dir, "outcome_categories_count.csv")
   if (nrow(oc) > 0 && "algorithm" %in% names(oc)) {
@@ -191,8 +198,10 @@ extract_site <- function(dir) {
                     .data$year == "overall") %>%
       dplyr::slice(1)
     if (nrow(row) == 1) {
+      # First pregnancy = one per person, so denominator is total persons.
       out[[length(out) + 1]] <- result_row(
         cdm, 3106,
+        count_value  = total_persons,
         min_value    = to_num(row$min),
         max_value    = to_num(row$max),
         avg_value    = to_num(row$mean),
@@ -208,8 +217,10 @@ extract_site <- function(dir) {
   gad <- read_site_csv(dir, "gestational_age_days_summary.csv")
   if (nrow(gad) > 0) {
     row <- gad %>% dplyr::slice(1)
+    # Distribution is over all pregnancy episodes.
     out[[length(out) + 1]] <- result_row(
       cdm, 3111,
+      count_value  = total_pregnancies,
       min_value    = to_num(row$min),
       max_value    = to_num(row$max),
       avg_value    = to_num(row$mean),
@@ -220,16 +231,25 @@ extract_site <- function(dir) {
     )
   }
 
-  # ----- 3120 Number of records by start month (calendar month) -----
-  mt <- read_site_csv(dir, "monthly_trends.csv")
-  if (nrow(mt) > 0 && all(c("column", "month", "count") %in% names(mt))) {
-    mt <- mt %>%
+  # ----- 3120 Number of records by start year (intended: yyyymm) -----
+  # NOTE: v3 outputs lack a year x month aggregate. monthly_trends.csv pools
+  # across years and yearly_trend.csv pools across months, so a true yyyymm
+  # strat cannot be derived without a package-side change to monthlyTrends().
+  # For now we emit 4-digit YYYY here and flag this clearly.
+  yt <- read_site_csv(dir, "yearly_trend.csv")
+  if (nrow(yt) > 0 && all(c("column", "year", "count") %in% names(yt))) {
+    yt <- yt %>%
       dplyr::filter(.data$column == "merge_pregnancy_start") %>%
-      dplyr::mutate(count = to_num(.data$count))
-    if (nrow(mt) > 0) {
+      dplyr::mutate(year  = suppressWarnings(as.integer(.data$year)),
+                    count = to_num(.data$count)) %>%
+      dplyr::filter(!is.na(.data$year)) %>%
+      dplyr::arrange(.data$year)
+    if (nrow(yt) > 0) {
       out[[length(out) + 1]] <- purrr::map2_dfr(
-        mt$month, mt$count,
-        ~ result_row(cdm, 3120, stratum_1 = as.character(.x), count_value = .y)
+        yt$year, yt$count,
+        ~ result_row(cdm, 3120,
+                     stratum_1 = sprintf("%04d", as.integer(.x)),
+                     count_value = .y)
       )
     }
   }
@@ -249,10 +269,12 @@ extract_site <- function(dir) {
         dplyr::mutate(decile = age_decile(.data$age)) %>%
         dplyr::group_by(.data$decile) %>%
         dplyr::summarise(count_value = sum(.data$n, na.rm = TRUE), .groups = "drop") %>%
-        dplyr::arrange(as.integer(stringr::str_extract(.data$decile, "^\\d+")))
+        dplyr::arrange(.data$decile)
       out[[length(out) + 1]] <- purrr::map2_dfr(
         asg$decile, asg$count_value,
-        ~ result_row(cdm, 3142, stratum_1 = .x, count_value = .y)
+        ~ result_row(cdm, 3142,
+                     stratum_1 = as.character(as.integer(.x)),
+                     count_value = .y)
       )
     }
   }
