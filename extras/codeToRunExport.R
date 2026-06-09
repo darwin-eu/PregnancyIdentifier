@@ -15,9 +15,12 @@
 # Required env vars: DATABRICKS_HTTPPATH, DATABRICKS_CDM_SCHEMA,
 #                    DATABRICKS_SCRATCH_SCHEMA
 
+# Install the latest update
+remotes::install_github("darwin-eu/PregnancyIdentifier", upgrade = "never")
+
 library(PregnancyIdentifier)
 
-stopifnot(utils::packageVersion("PregnancyIdentifier") >= "3.3.2")
+stopifnot(utils::packageVersion("PregnancyIdentifier") >= "3.3.2") # check version
 
 # ---- Fill these in ----------------------------------------------------------
 outputFolder <- "..."   # folder with final_pregnancy_episodes.rds + runStart.csv
