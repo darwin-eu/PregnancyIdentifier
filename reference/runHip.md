@@ -1,0 +1,77 @@
+# Run the HIP pregnancy identification algorithm
+
+This function runs the HIP outcome based pregnancy identification
+algorithm. It assumes that the \`initPregnancies\` function has already
+been run and the preg_hip_records and preg_hip_concepts tables are in
+the cdm. The algorithm identifies start and end dates for pregnancies by
+first prioritizing pregnancy outcomes and then using inference to set a
+pregnancy start date. Each pregnancy is classified into one of several
+categories. - "LB": Live birth - "SB": Still birth - "AB": abortion, -
+"SA": miscarriage, - "DELIV": unspecified delivery - "ECT": ectopic
+pregnancy - "PREG": unspecified/ongoing pregnancy
+
+## Usage
+
+``` r
+runHip(
+  cdm,
+  outputFolder = NULL,
+  startDate = as.Date("1900-01-01"),
+  endDate = Sys.Date(),
+  justGestation = TRUE,
+  logger
+)
+```
+
+## Arguments
+
+- cdm:
+
+  (\`cdm_reference\`) A cdm reference object from CDMConnector.
+
+- outputFolder:
+
+  (\`character(1)\`) Output directory to write output to.
+
+- startDate:
+
+  (\`Date(1)\`: \`as.Date("1900-01-01"\`) Start date of data to use. By
+  default 1900-01-01
+
+- endDate:
+
+  (\`Date(1)\`: \`Sys.Date()\`) End date of data to use. By default
+  today.
+
+- justGestation:
+
+  (\`logical(1)\`: \`TRUE\`) Should episodes that only have gestational
+  concepts be considered?
+
+- logger:
+
+  (\`logger\`) A log4r logger object created with \`makeLogger()\`.
+
+## Value
+
+The input cdm object with the \`cdm\$preg_hip_episodes\` table added.
+This table contains episode-level information about each identified
+pregnancy per individual. The columns are: - \`person_id\`: Unique
+identifier for the person. - \`hip_episode\`: Sequential episode number
+for the person (1 = first episode, etc.). - \`hip_pregnancy_start\`:
+Estimated start date of the pregnancy episode, based on outcome and
+available gestational age information. - \`hip_pregnancy_end\`: Date of
+the principal pregnancy outcome event (the pregnancy end date). -
+\`hip_outcome_category\`: HIP-assigned pregnancy outcome type. One of
+"LB" (live birth), "SB" (stillbirth), "AB" (abortion), "SA"
+(miscarriage), "DELIV" (unspecified delivery), "ECT" (ectopic
+pregnancy), or "PREG" (ongoing/unspecified). - \`hip_first_gest_date\`:
+First gestation date in the episode (if available). NA if not
+identified. - \`hip_gest_flag\`: Indicates if gestational age concepts
+were found in the episode ("yes" or "no"). - \`hip_episode_length\`:
+Length of the pregnancy episode, in days (from \`hip_pregnancy_start\`
+to \`hip_pregnancy_end\`).
+
+A file named \`hip_episodes.rds\` is saved in the \`outputFolder\`
+directory. This file contains a dataframe with the same columns as
+listed above for the \`cdm\$preg_hip_episodes\` table.
