@@ -9,7 +9,8 @@ exportPregnancies(
   outputFolder,
   exportFolder,
   minCellCount = 5,
-  res = NULL
+  res = NULL,
+  logger = NULL
 )
 }
 \arguments{
@@ -27,6 +28,10 @@ small cells (default 5). Values in (0, minCellCount) are replaced with `NA`.}
 \item{res}{Optional data frame of pregnancy episodes. If provided, used instead
 of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used when
 exporting a conformed copy (e.g. \code{conformToValidation = "both"}).}
+
+\item{logger}{Optional \code{log4r} logger. When \code{NULL} (default) a logger is
+created that writes detailed per-step start/finish timing to the console and to
+\code{export_log.txt} in \code{exportFolder}, so a slow or stuck step is obvious.}
 }
 \value{
 Invisibly returns `NULL`. Writes CSVs to `exportFolder`.

@@ -24,29 +24,71 @@
 #' @param res Optional data frame of pregnancy episodes. If provided, used instead
 #'   of reading \code{final_pregnancy_episodes.rds} from \code{outputFolder}. Used when
 #'   exporting a conformed copy (e.g. \code{conformToValidation = "both"}).
+#' @param logger Optional \code{log4r} logger. When \code{NULL} (default) a logger is
+#'   created that writes detailed per-step start/finish timing to the console and to
+#'   \code{export_log.txt} in \code{exportFolder}, so a slow or stuck step is obvious.
 #'
 #' @return Invisibly returns `NULL`. Writes CSVs to `exportFolder`.
 #' @export
-exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5, res = NULL) {
+exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5, res = NULL, logger = NULL) {
+  dir.create(exportFolder, showWarnings = FALSE, recursive = TRUE)
+
+  # Detailed per-step logging so a slow/stuck step is immediately visible.
+  if (is.null(logger)) {
+    logger <- log4r::logger(
+      threshold = "INFO",
+      appenders = list(
+        log4r::console_appender(),
+        log4r::file_appender(file.path(exportFolder, "export_log.txt"))
+      )
+    )
+  }
+  # Run `expr`, logging START before and DONE/FAILED (with elapsed seconds) after.
+  # `expr` is evaluated lazily, exactly once, inside the timed block.
+  logStep <- function(label, expr) {
+    log4r::info(logger, sprintf("[export] START  %s", label))
+    t0 <- Sys.time()
+    out <- tryCatch(
+      expr,
+      error = function(e) {
+        log4r::error(logger, sprintf(
+          "[export] FAILED %s (%.1f s): %s",
+          label, as.numeric(difftime(Sys.time(), t0, units = "secs")), conditionMessage(e)
+        ))
+        stop(e)
+      }
+    )
+    log4r::info(logger, sprintf(
+      "[export] DONE   %s (%.1f s)",
+      label, as.numeric(difftime(Sys.time(), t0, units = "secs"))
+    ))
+    out
+  }
+
   runStart <- utils::read.csv(file.path(outputFolder, "runStart.csv"))$start
 
-  dir.create(exportFolder, showWarnings = FALSE, recursive = TRUE)
-  snap <- CDMConnector::snapshot(cdm)
+  snap <- logStep("snapshot(cdm) [DB]", CDMConnector::snapshot(cdm))
   utils::write.csv(snap, file.path(exportFolder, "cdm_source.csv"), row.names = FALSE)
 
   if (is.null(res)) {
-    res <- readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
+    res <- logStep(
+      "readRDS(final_pregnancy_episodes.rds)",
+      readRDS(file.path(outputFolder, "final_pregnancy_episodes.rds"))
+    )
   }
   names(res) <- tolower(names(res)) # standardize: episode result column names are snake_case
   if (!"merge_pregnancy_start" %in% names(res) && "final_episode_start_date" %in% names(res)) {
     res$merge_pregnancy_start <- res$final_episode_start_date
   }
+  log4r::info(logger, sprintf("[export] episodes loaded: %d rows, %d columns", nrow(res), ncol(res)))
 
   # Copy key raw artifacts (if present)
-  for (f in c("hip_concept_counts.csv", "pps_concept_counts.csv", "esd_concept_counts.csv", "log.txt", "attrition.csv")) {
-    src <- file.path(outputFolder, f)
-    if (file.exists(src)) file.copy(src, file.path(exportFolder, f), overwrite = TRUE)
-  }
+  logStep("copy raw artifacts", {
+    for (f in c("hip_concept_counts.csv", "pps_concept_counts.csv", "esd_concept_counts.csv", "log.txt", "attrition.csv")) {
+      src <- file.path(outputFolder, f)
+      if (file.exists(src)) file.copy(src, file.path(exportFolder, f), overwrite = TRUE)
+    }
+  })
 
   pkgVersion <- as.character(utils::packageVersion("PregnancyIdentifier"))
 
@@ -58,26 +100,28 @@ exportPregnancies <- function(cdm, outputFolder, exportFolder, minCellCount = 5,
     minCellCount = minCellCount
   )
 
-  exportAgeSummary(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportPrecisionDays(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportPrecisionDaysDenominators(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportEpisodeFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportPregnancyFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportEpisodeFrequencySummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalAgeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalAgeCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportGestationalWeeksCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount)
-  exportGestationalDurationCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportTimeTrends(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportObservationPeriodRange(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportPregnancyOverlapCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportMissingDates(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportReversedDatesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportOutcomeCategoriesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportDeliveryModeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportConceptTimingCheck(cdm, res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
-  exportCleanupQualityCheck(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion)
+  # Steps tagged [DB] query the database; the rest are local R on `res`.
+  logStep("exportAgeSummary [DB]",            exportAgeSummary(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount))
+  logStep("exportPrecisionDays",              exportPrecisionDays(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportPrecisionDaysDenominators",  exportPrecisionDaysDenominators(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportEpisodeFrequency",           exportEpisodeFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount))
+  logStep("exportPregnancyFrequency",         exportPregnancyFrequency(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount))
+  logStep("exportEpisodeFrequencySummary",    exportEpisodeFrequencySummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportGestationalAgeSummary",      exportGestationalAgeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportGestationalAgeCounts",       exportGestationalAgeCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportGestationalWeeksCounts",     exportGestationalWeeksCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion, meta$minCellCount))
+  logStep("exportGestationalDurationCounts",  exportGestationalDurationCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportTimeTrends",                 exportTimeTrends(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportObservationPeriodRange [DB]", exportObservationPeriodRange(res, cdm, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportPregnancyOverlapCounts",     exportPregnancyOverlapCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportMissingDates",               exportMissingDates(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportReversedDatesCounts",        exportReversedDatesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportOutcomeCategoriesCounts",    exportOutcomeCategoriesCounts(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportDeliveryModeSummary",        exportDeliveryModeSummary(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportConceptTimingCheck [DB]",    exportConceptTimingCheck(cdm, res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
+  logStep("exportCleanupQualityCheck",        exportCleanupQualityCheck(res, exportFolder, meta$snap, meta$runStart, meta$pkgVersion))
 
+  log4r::info(logger, sprintf("[export] ALL STEPS COMPLETE -> %s", exportFolder))
   message(sprintf("Files have been written to: %s", exportFolder))
   invisible(NULL)
 }
@@ -122,8 +166,14 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
   concepts <- utils::read.csv(system.file("concepts/check_concepts.csv", package = "PregnancyIdentifier", mustWork = TRUE))
   totalEpisodes <- nrow(res)
 
-  # Get concepts from multiple OMOP domains into one schema and combine with episodes
-  conceptsPerEpisode <- dplyr::union_all(
+  # Pull only the check-concept events DOWN (server-side concept filter), then join
+  # to the local episodes in R. The previous implementation used
+  # right_join(res, copy = TRUE), uploading the (large) local `res` to the database
+  # via a per-row ODBC insert -- prohibitively slow on Spark/Databricks. Filtering
+  # the domains to the (small) check-concept list server-side keeps the download
+  # bounded, and the episode join then happens locally with no upload.
+  conceptIds <- unique(concepts$concept_id)
+  domainEvents <- dplyr::union_all(
     cdm$condition_occurrence %>%
       dplyr::select(
         "person_id",
@@ -148,10 +198,22 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
           concept_end = "observation_date"
         )
     ) %>%
-    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
-    dplyr::filter(.data$concept_id %in% concepts$concept_id) %>%
+    dplyr::filter(.data$concept_id %in% .env$conceptIds) %>%
     dplyr::collect() %>%
-    dplyr::left_join(concepts, by = "concept_id")
+    dplyr::mutate(
+      person_id = as.numeric(.data$person_id),
+      concept_id = as.numeric(.data$concept_id),
+      concept_start = as.Date(.data$concept_start),
+      concept_end = as.Date(.data$concept_end)
+    )
+
+  conceptsPerEpisode <- res %>%
+    dplyr::mutate(person_id = as.numeric(.data$person_id)) %>%
+    dplyr::inner_join(domainEvents, by = "person_id") %>%
+    dplyr::left_join(
+      dplyr::mutate(concepts, concept_id = as.numeric(.data$concept_id)),
+      by = "concept_id"
+    )
 
   # select and add columns
   conceptsPerEpisode <- conceptsPerEpisode %>%
@@ -205,20 +267,27 @@ exportConceptTimingCheck <- function(cdm, res, resPath, snap, runStart, pkgVersi
 
 #' @noRd
 addAge <- function(cdm, res) {
-  cdm$person %>%
+  # Bring date-of-birth DOWN and join locally. The previous implementation used
+  # right_join(res, copy = TRUE), which uploads the (large) local `res` into the
+  # database via a per-row ODBC insert -- on Spark/Databricks that is extremely
+  # slow (hours to days) and lands many tiny files that slow every later query.
+  # Collecting the projected `person` columns and joining in R avoids any upload.
+  dob <- cdm$person %>%
     dplyr::select("person_id", "gender_concept_id", "year_of_birth", "month_of_birth", "day_of_birth") %>%
-    dplyr::mutate(
-      day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
-      month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L)
-    ) %>%
-    dplyr::mutate(
-      date_of_birth = paste0(as.character(.data$year_of_birth), "-", as.character(.data$month_of_birth), "-", as.character(.data$day_of_birth))
-    ) %>%
-    dplyr::mutate(
-      date_of_birth = as.Date(.data$date_of_birth)
-    ) %>%
-    dplyr::right_join(res, by = "person_id", copy = TRUE) %>%
     dplyr::collect() %>%
+    dplyr::mutate(
+      person_id      = as.numeric(.data$person_id),
+      day_of_birth   = dplyr::coalesce(.data$day_of_birth, 1L),
+      month_of_birth = dplyr::coalesce(.data$month_of_birth, 1L),
+      date_of_birth  = as.Date(paste0(
+        as.character(.data$year_of_birth), "-",
+        as.character(.data$month_of_birth), "-",
+        as.character(.data$day_of_birth)
+      ))
+    )
+  res %>%
+    dplyr::mutate(person_id = as.numeric(.data$person_id)) %>%
+    dplyr::left_join(dob, by = "person_id") %>%
     dplyr::mutate(
       age_pregnancy_start = (as.numeric(as.Date(.data$final_episode_start_date) - .data$date_of_birth) / 365.25),
       age_pregnancy_end = (as.numeric(as.Date(.data$final_episode_end_date) - .data$date_of_birth) / 365.25)

@@ -1,3 +1,13 @@
+# PregnancyIdentifier 3.3.2
+
+## Bug fixes
+
+* Fixed `exportPregnancies()` hanging on Spark/Databricks back-ends. `addAge()` and `exportConceptTimingCheck()` joined the database domain tables to the local episode result with `dplyr::*_join(res, copy = TRUE)`, which uploads the (large) local table to the database via a per-row ODBC insert. On Spark/Databricks this is prohibitively slow (hours to days) and lands many tiny files that slow every subsequent query. Both functions now pull the required data down (a server-side concept filter keeps the `exportConceptTimingCheck()` download bounded) and perform the episode join locally, with no upload.
+
+## New features
+
+* `exportPregnancies()` gained an optional `logger` argument and now logs detailed per-step `START`/`DONE` timing (with elapsed seconds) to the console and to `export_log.txt` in the export folder. A step that is slow or stuck is now immediately visible from the log.
+
 # PregnancyIdentifier 3.3.1
 
 ## Bug fixes
